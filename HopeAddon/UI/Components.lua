@@ -1299,17 +1299,33 @@ function Components:CreateCollapsibleSection(parent, title, colorName, startExpa
         end
     end
 
-    -- Toggle expansion
+    -- Toggle expansion with smooth animation
     function section:Toggle()
         self.isExpanded = not self.isExpanded
         self.indicator:SetText(self.isExpanded and "[-]" or "[+]")
 
-        for _, child in ipairs(self.childEntries) do
-            -- TBC compatible - no SetShown
-            if self.isExpanded then
+        if self.isExpanded then
+            -- Expanding: Show then fade in
+            for _, child in ipairs(self.childEntries) do
+                child:SetAlpha(0)
                 child:Show()
-            else
-                child:Hide()
+                if HopeAddon.Animations then
+                    HopeAddon.Animations:FadeTo(child, 1, 0.2)
+                else
+                    child:SetAlpha(1)
+                end
+            end
+        else
+            -- Collapsing: Fade out then hide
+            for _, child in ipairs(self.childEntries) do
+                if HopeAddon.Animations then
+                    HopeAddon.Animations:FadeTo(child, 0, 0.2, function()
+                        child:Hide()
+                        child:SetAlpha(1)  -- Reset for next expand
+                    end)
+                else
+                    child:Hide()
+                end
             end
         end
 
