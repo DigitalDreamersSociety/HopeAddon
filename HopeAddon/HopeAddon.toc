@@ -60,3 +60,4 @@ Social\Games\DeathRoll\DeathRollUI.lua
 Social\Games\DeathRoll\DeathRollEscrow.lua
 Social\Games\WordsWithWoW\WordBoard.lua
 Social\Games\WordsWithWoW\WordDictionary.lua
+Social\Games\WordsWithWoW\WordGame.lua

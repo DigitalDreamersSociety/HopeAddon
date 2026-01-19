@@ -45,6 +45,7 @@ HopeAddon/
 | Death Roll | ✅ COMPLETE | Gambling game with escrow system, 3-player support |
 | Pong | ✅ COMPLETE | Classic 2-player Pong with physics, local & remote |
 | Words with WoW | ✅ COMPLETE | Scrabble-style word game with WoW vocabulary |
+| Games Hall UI | ✅ COMPLETE | Storybook-style game selection in Directory tab |
 
 ---
 
@@ -150,6 +151,7 @@ end
 | `Games/Pong/PongGame.lua` | Pong physics and gameplay | 19KB |
 | `Games/WordsWithWoW/WordBoard.lua` | Word game board mechanics | 14KB |
 | `Games/WordsWithWoW/WordDictionary.lua` | WoW-themed word list | 13KB |
+| `Games/WordsWithWoW/WordGame.lua` | Words with WoW main controller | 23KB |
 
 ### UI Framework
 | File | Purpose | Size |
@@ -213,6 +215,7 @@ The addon uses specialized frame pools for efficient UI management:
 | `notificationPool` | Frame + BackdropTemplate | Pop-up notifications | Journal.lua:70-100 |
 | `containerPool` | Frame | Headers, spacers, sections | Journal.lua:102-130 |
 | `cardPool` | Button + BackdropTemplate | Entry cards | Journal.lua:132-193 |
+| `gameCardPool` | Button + BackdropTemplate | Games Hall game cards | Journal.lua:377-420 |
 | `pinPool` | Table-based | Minimap Fellow Traveler pins | MapPins.lua:20 |
 
 **Lifecycle Pattern:**
@@ -255,6 +258,7 @@ Key constant categories in `Core/Constants.lua`:
 | Raid Lists | `C.ALL_RAID_KEYS` | `{ "karazhan", "gruul", ... }` |
 | Raid Lists | `C.ATTUNEMENT_RAID_KEYS` | `{ "karazhan", "ssc", ... }` (no Gruul/Mag) |
 | Raid Lists | `C.RAIDS_BY_TIER` | `{ T4 = {...}, T5 = {...}, T6 = {...} }` |
+| Games | `C.GAME_DEFINITIONS` | `{ id, name, description, icon, hasLocal, hasRemote, system, color }` |
 
 **Lookup Tables:**
 ```lua
@@ -262,6 +266,7 @@ C.ATTUNEMENT_QUEST_LOOKUP[questId]  -- → { raid, chapter }
 C.ENCOUNTER_TO_BOSS[encounterId]    -- → { raid, boss }
 C.BOSS_NPC_IDS[npcId]               -- → { raid, boss }
 C:GetRaidTier(raidKey)              -- → "T4"/"T5"/"T6" or nil
+C:GetGameDefinition(gameId)         -- → { id, name, description, ... }
 ```
 
 ---
@@ -283,6 +288,7 @@ Reusable components from `UI/Components.lua`:
 | Category Header | `CreateCategoryHeader()` | Category labels |
 | Spacer | `CreateSpacer()` | Vertical spacing |
 | Divider | `CreateDivider()` | Visual separator |
+| Game Card | `CreateGameCard()` | Games Hall minigame cards |
 
 **ScrollContainer Interface:**
 ```lua
@@ -528,15 +534,26 @@ Messages follow format: `TYPE:VERSION:GAMETYPE:GAMEID:DATA`
 
 #### Words with WoW
 
-**WordBoard** - Scrabble-style word game:
-- 15x15 board with bonus squares
-- Standard Scrabble letter values
-- WoW-themed bonus words (class names, zone names, etc.)
+**WordGame** - Turn-based word game controller:
+- Scrabble-style gameplay with WoW vocabulary
+- Slash command input: `/word DRAGON H 8 8`
+- Text-based 15x15 board display
+- Score tracking with bonus squares
+- Cross-word validation and scoring
+- Pass system (2 consecutive passes ends game)
+- Remote multiplayer via GameComms
+
+**WordBoard** - Board mechanics:
+- 15x15 grid with bonus squares (double/triple letter/word)
+- Word placement validation (connectivity, bounds, first word center)
+- Cross-word detection and scoring
+- Bonus multiplier calculations
 
 **WordDictionary** - Vocabulary system:
-- Standard English dictionary
-- WoW-specific terms allowed
-- Profanity filter
+- ~500 WoW-themed words (classes, zones, bosses, items, spells)
+- Hash table for O(1) validation
+- Standard Scrabble letter values
+- Tile bag generation
 
 ---
 
@@ -552,6 +569,8 @@ Messages follow format: `TYPE:VERSION:GAMETYPE:GAMEID:DATA`
 /hope pong [player]            - Start Pong (local or vs player)
 /hope deathroll [player]       - Start Death Roll (local or vs player)
 /hope words <player>           - Start Words with WoW vs player
+/word <word> <H/V> <row> <col> - Place word in active Words game (e.g., /word DRAGON H 8 8)
+/pass                          - Pass your turn in active Words game
 /hope challenge <player> [game] - Challenge via game selection popup
 /hope accept                   - Accept pending challenge
 /hope decline                  - Decline pending challenge
@@ -642,6 +661,19 @@ Messages follow format: `TYPE:VERSION:GAMETYPE:GAMEID:DATA`
 - ✅ **CancelEscrow Function** (DeathRollEscrow.lua:436-451) - Added CancelEscrow function to cancel escrow sessions and cleanup timers
 - ✅ **FindSessionByGameId Helper** (DeathRollEscrow.lua:453-461) - Added helper function to find session by game ID
 - ✅ **Function Call Bug Fix** (DeathRollUI.lua:233-241) - Fixed InitiateEscrow → InitiateAsHouse with correct parameters (gameId, betAmount, player1, player2)
+
+### Phase 12: Games Hall UI Enhancement
+
+- ✅ **GAME_DEFINITIONS Constant** (Constants.lua:3018-3090) - Added centralized game definitions with id, name, description, icon, hasLocal, hasRemote, system, color properties
+- ✅ **CreateGameCard Component** (Components.lua:2049-2274) - New storybook-style game card component with icon, title, description, stats row, Practice and Challenge buttons
+- ✅ **gameCardPool** (Journal.lua:377-420) - New frame pool for game cards with proper reset function to prevent memory leaks
+- ✅ **AcquireGameCard** (Journal.lua:430-441) - Pool acquisition function for game cards
+- ✅ **PopulateDirectory Refactor** (Journal.lua:1817-1954) - Added collapsible "GAMES HALL" section at top of Directory tab with 3x2 game card grid
+- ✅ **GetGameStats** (Journal.lua:1961-1982) - Aggregate win/loss/tie stats across all travelers for a game
+- ✅ **StartLocalGame** (Journal.lua:1988-2016) - Handler for Practice button to start local games (dice, deathroll, pong, tetris)
+- ✅ **ShowTravelerPickerForGame** (MinigamesUI.lua:1527-1609) - New popup for selecting Fellow Traveler to challenge from Games Hall
+- ✅ **GetTravelerPickerPopup** (MinigamesUI.lua:1377-1463) - Creates traveler picker popup with scroll frame
+- ✅ **GetTravelerButton** (MinigamesUI.lua:1471-1521) - Reusable traveler selection buttons for picker
 
 ---
 

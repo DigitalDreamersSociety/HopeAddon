@@ -20,6 +20,9 @@ TetrisGame.SETTINGS = {
     SOFT_DROP_INTERVAL = 0.05,      -- Speed when holding down
     LOCK_DELAY = 0.5,               -- Time before piece locks after landing
     LINE_CLEAR_DELAY = 0.3,         -- Animation time for clearing lines
+    MAX_LOCK_MOVES = 15,            -- Max moves/rotations before forced lock
+    DAS_DELAY = 0.167,              -- Delayed Auto Shift initial delay (10 frames @ 60fps)
+    ARR_INTERVAL = 0.033,           -- Auto Repeat Rate interval (2 frames @ 60fps)
 
     -- Scoring
     POINTS_SINGLE = 100,
@@ -155,8 +158,10 @@ function TetrisGame:CreateBoard(playerNum)
         dropTimer = 0,
         dropInterval = S.INITIAL_DROP_INTERVAL,
         lockTimer = 0,
+        lockMoveCount = 0,          -- Count moves/rotations during lock
         isLocking = false,
         softDropping = false,
+        softDropDistance = 0,       -- Track cells dropped for scoring
 
         -- Stats
         level = 1,
@@ -278,7 +283,12 @@ function TetrisGame:UpdateBoard(gameId, playerNum, dt)
 
     if board.dropTimer >= dropInterval then
         board.dropTimer = 0
-        self:MovePiece(gameId, playerNum, 1, 0)  -- Move down
+        local moved = self:MovePiece(gameId, playerNum, 1, 0)  -- Move down
+
+        -- Track soft drop for scoring
+        if moved and board.softDropping then
+            board.softDropDistance = board.softDropDistance + 1
+        end
     end
 end
 
@@ -324,6 +334,8 @@ function TetrisGame:SpawnPiece(gameId, playerNum)
     -- Reset timers
     board.dropTimer = 0
     board.lockTimer = 0
+    board.lockMoveCount = 0
+    board.softDropDistance = 0
     board.isLocking = false
 end
 
@@ -345,6 +357,14 @@ function TetrisGame:MovePiece(gameId, playerNum, dRow, dCol)
 
         -- Reset lock timer on successful move
         if board.isLocking then
+            board.lockMoveCount = board.lockMoveCount + 1
+
+            -- Force lock after MAX_LOCK_MOVES
+            if board.lockMoveCount >= self.SETTINGS.MAX_LOCK_MOVES then
+                self:LockPiece(gameId, playerNum)
+                return true
+            end
+
             board.lockTimer = 0
         end
 
@@ -382,6 +402,14 @@ function TetrisGame:RotatePiece(gameId, playerNum, direction)
 
             -- Reset lock timer on successful rotation
             if board.isLocking then
+                board.lockMoveCount = board.lockMoveCount + 1
+
+                -- Force lock after MAX_LOCK_MOVES
+                if board.lockMoveCount >= self.SETTINGS.MAX_LOCK_MOVES then
+                    self:LockPiece(gameId, playerNum)
+                    return true
+                end
+
                 board.lockTimer = 0
             end
 
@@ -422,6 +450,11 @@ function TetrisGame:LockPiece(gameId, playerNum)
     local blocks = TetrisBlocks:GetBlocks(board.currentPiece, board.pieceRotation)
     local color = TetrisBlocks:GetColor(board.currentPiece)
     board.grid:PlaceBlocks(blocks, board.pieceRow, board.pieceCol, color)
+
+    -- Award soft drop points
+    if board.softDropDistance > 0 then
+        board.score = board.score + board.softDropDistance
+    end
 
     -- Clear current piece
     board.currentPiece = nil

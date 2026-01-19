@@ -30,6 +30,17 @@ Minigames.MSG_GAME_REVEAL = "GREV"        -- Reveal choice (RPS plaintext + salt
 Minigames.MSG_GAME_RESULT = "GRES"        -- Result confirmation
 Minigames.MSG_GAME_CANCEL = "GCAN"        -- Cancel/timeout
 
+-- Message format definitions for validation and parsing
+local MESSAGE_FORMATS = {
+    GCHL = {"gameType", "sessionId", "challengerName"},  -- 3 parts
+    GACC = {"sessionId", "accepterName"},                -- 2 parts
+    GREJ = {"sessionId", "reason"},                      -- 2 parts
+    GMOV = {"sessionId", "move", "timestamp"},           -- 3 parts (move = roll or hash)
+    GREV = {"sessionId", "choice", "salt"},              -- 3 parts (RPS reveal)
+    GRES = {"sessionId", "winner", "move1", "move2"},    -- 4 parts
+    GCAN = {"sessionId", "reason"},                      -- 2 parts
+}
+
 -- Timeouts
 local CHALLENGE_TIMEOUT = 30              -- Seconds to respond to challenge
 local MOVE_TIMEOUT = 60                   -- Seconds to make a move
@@ -95,6 +106,43 @@ local function ResetSessionState()
         Minigames.timeoutTimer = nil
     end
     Minigames.timeoutType = nil
+end
+
+--============================================================
+-- MESSAGE PARSING
+--============================================================
+
+--[[
+    Parse and validate a message based on its type
+    Centralized parsing reduces code duplication and improves maintainability
+    @param msgType string - Message type constant (GCHL, GACC, etc.)
+    @param data string - Pipe-delimited message data
+    @return table|nil - Parsed message fields or nil if invalid
+]]
+local function ParseMessage(msgType, data)
+    if not data then return nil end
+
+    local format = MESSAGE_FORMATS[msgType]
+    if not format then
+        HopeAddon:Debug("Unknown message type:", msgType)
+        return nil
+    end
+
+    local parts = {strsplit("|", data)}
+
+    -- Validate part count
+    if #parts < #format then
+        HopeAddon:Debug("Invalid message format for", msgType, "- expected", #format, "parts, got", #parts)
+        return nil
+    end
+
+    -- Return structured data
+    local parsed = {}
+    for i, fieldName in ipairs(format) do
+        parsed[fieldName] = parts[i]
+    end
+
+    return parsed
 end
 
 --============================================================
@@ -462,13 +510,12 @@ end
 ]]
 function Minigames:HandleChallenge(sender, data)
     -- Parse data: gameType|sessionId|challengerName
-    local gameType, sessionId, challengerName = strsplit("|", data)
+    local parsed = ParseMessage("GCHL", data)
+    if not parsed then return end
 
-    -- Validate
-    if not gameType or not sessionId or not challengerName then
-        HopeAddon:Debug("Invalid challenge data from", sender)
-        return
-    end
+    local gameType = parsed.gameType
+    local sessionId = parsed.sessionId
+    local challengerName = parsed.challengerName
 
     -- Check if we're already in a game
     if self.activeGame then
@@ -576,13 +623,11 @@ end
     @param data string - sessionId|accepterName
 ]]
 function Minigames:HandleAccept(sender, data)
-    local sessionId, accepterName = strsplit("|", data)
+    local parsed = ParseMessage("GACC", data)
+    if not parsed then return end
 
-    -- Validate data
-    if not sessionId or not accepterName then
-        HopeAddon:Debug("Invalid accept data from", sender)
-        return
-    end
+    local sessionId = parsed.sessionId
+    local accepterName = parsed.accepterName
 
     if not self.activeGame or self.activeGame.sessionId ~= sessionId then
         HopeAddon:Debug("Received accept for unknown session:", sessionId)
@@ -611,13 +656,11 @@ end
     @param data string - sessionId|reason
 ]]
 function Minigames:HandleReject(sender, data)
-    local sessionId, reason = strsplit("|", data)
+    local parsed = ParseMessage("GREJ", data)
+    if not parsed then return end
 
-    -- Validate data
-    if not sessionId then
-        HopeAddon:Debug("Invalid reject data from", sender)
-        return
-    end
+    local sessionId = parsed.sessionId
+    local reason = parsed.reason
 
     if not self.activeGame or self.activeGame.sessionId ~= sessionId then
         return
@@ -720,15 +763,11 @@ end
     @param data string - sessionId|roll|timestamp
 ]]
 function Minigames:HandleDiceMove(sender, data)
-    local sessionId, rollStr, timestamp = strsplit("|", data)
+    local parsed = ParseMessage("GMOV", data)
+    if not parsed then return end
 
-    -- Validate data
-    if not sessionId or not rollStr then
-        HopeAddon:Debug("Invalid dice move data from", sender)
-        return
-    end
-
-    local roll = tonumber(rollStr)
+    local sessionId = parsed.sessionId
+    local roll = tonumber(parsed.move)
     if not roll then
         HopeAddon:Debug("Invalid roll value from", sender)
         return
@@ -918,13 +957,11 @@ end
     @param data string - sessionId|hash|timestamp
 ]]
 function Minigames:HandleRPSMove(sender, data)
-    local sessionId, hash, timestamp = strsplit("|", data)
+    local parsed = ParseMessage("GMOV", data)
+    if not parsed then return end
 
-    -- Validate data
-    if not sessionId or not hash then
-        HopeAddon:Debug("Invalid RPS move data from", sender)
-        return
-    end
+    local sessionId = parsed.sessionId
+    local hash = parsed.move
 
     if not self.activeGame or self.activeGame.sessionId ~= sessionId then
         HopeAddon:Debug("Received RPS move for unknown session:", sessionId)
@@ -983,13 +1020,12 @@ end
     @param data string - sessionId|choice|salt
 ]]
 function Minigames:HandleRPSReveal(sender, data)
-    local sessionId, choice, salt = strsplit("|", data)
+    local parsed = ParseMessage("GREV", data)
+    if not parsed then return end
 
-    -- Validate data
-    if not sessionId or not choice or not salt then
-        HopeAddon:Debug("Invalid RPS reveal data from", sender)
-        return
-    end
+    local sessionId = parsed.sessionId
+    local choice = parsed.choice
+    local salt = parsed.salt
 
     if not self.activeGame or self.activeGame.sessionId ~= sessionId then
         HopeAddon:Debug("Received RPS reveal for unknown session:", sessionId)
@@ -1237,7 +1273,13 @@ end
     @param data string - sessionId|winner|move1|move2
 ]]
 function Minigames:HandleResult(sender, data)
-    local sessionId, winner, move1, move2 = strsplit("|", data)
+    local parsed = ParseMessage("GRES", data)
+    if not parsed then return end
+
+    local sessionId = parsed.sessionId
+    local winner = parsed.winner
+    local move1 = parsed.move1
+    local move2 = parsed.move2
 
     -- Only non-challengers receive GRES messages
     if not self.activeGame then
@@ -1346,8 +1388,8 @@ function Minigames:HandleMessage(msgType, sender, data)
         return true
 
     elseif msgType == self.MSG_GAME_CANCEL then
-        local sessionId, reason = strsplit("|", data)
-        if self.activeGame and self.activeGame.sessionId == sessionId then
+        local parsed = ParseMessage("GCAN", data)
+        if parsed and self.activeGame and self.activeGame.sessionId == parsed.sessionId then
             self.activeGame = nil
             if self.timeoutTimer then
                 self.timeoutTimer:Cancel()

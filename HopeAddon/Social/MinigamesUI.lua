@@ -1296,6 +1296,327 @@ function MinigamesUI:HideGameSelectionPopup()
     end
 end
 
+--============================================================
+-- TRAVELER PICKER POPUP (Challenge from Games Hall)
+--============================================================
+
+-- Traveler picker popup constants
+local TRAVELER_PICKER_WIDTH = 300
+local TRAVELER_PICKER_HEIGHT = 350
+local TRAVELER_BUTTON_HEIGHT = 36
+
+-- Handler for traveler button click (module-level to avoid closure)
+local function OnTravelerButtonClick(self)
+    if HopeAddon.Sounds then
+        HopeAddon.Sounds:PlayClick()
+    end
+
+    local popup = self:GetParent():GetParent()
+    local gameId = popup.selectedGameId
+    local travelerName = self.travelerName
+
+    if not gameId or not travelerName then
+        HopeAddon:Debug("Invalid traveler picker state")
+        popup:Hide()
+        return
+    end
+
+    -- Get game definition
+    local Constants = HopeAddon.Constants
+    local gameDef = Constants and Constants:GetGameDefinition(gameId)
+
+    if not gameDef then
+        HopeAddon:Debug("Unknown game:", gameId)
+        popup:Hide()
+        return
+    end
+
+    -- Route based on game system
+    if gameDef.system == "legacy" then
+        local Minigames = HopeAddon:GetModule("Minigames")
+        if Minigames then
+            Minigames:SendChallenge(travelerName, gameId)
+        end
+    else
+        local GameComms = HopeAddon:GetModule("GameComms")
+        if GameComms then
+            GameComms:SendInvite(travelerName, gameId:upper(), 0)
+        end
+    end
+
+    popup:Hide()
+end
+
+local function OnTravelerButtonEnter(self)
+    self:SetBackdropBorderColor(1, 0.84, 0, 1)
+end
+
+local function OnTravelerButtonLeave(self)
+    self:SetBackdropBorderColor(0.5, 0.5, 0.5, 1)
+end
+
+local function OnTravelerPickerCancel(self)
+    if HopeAddon.Sounds then
+        HopeAddon.Sounds:PlayClick()
+    end
+    self:GetParent():Hide()
+end
+
+local function OnTravelerPickerKeyDown(self, key)
+    if key == "ESCAPE" then
+        self:Hide()
+        self:SetPropagateKeyboardInput(false)
+    else
+        self:SetPropagateKeyboardInput(true)
+    end
+end
+
+--[[
+    Create or return the traveler picker popup
+]]
+function MinigamesUI:GetTravelerPickerPopup()
+    if self.travelerPickerPopup then
+        return self.travelerPickerPopup
+    end
+
+    -- Create popup frame with parchment backdrop
+    local popup = CreateFrame("Frame", "HopeTravelerPickerPopup", UIParent)
+    popup:SetSize(TRAVELER_PICKER_WIDTH, TRAVELER_PICKER_HEIGHT)
+    popup:SetPoint("CENTER", UIParent, "CENTER", 0, 100)
+    popup:SetFrameStrata("DIALOG")
+    popup:SetBackdrop({
+        bgFile = HopeAddon.assets.textures.PARCHMENT,
+        edgeFile = HopeAddon.assets.textures.GOLD_BORDER,
+        tile = false,
+        edgeSize = 24,
+        insets = { left = 8, right = 8, top = 8, bottom = 8 }
+    })
+    popup:SetBackdropColor(1, 1, 1, 1)
+    popup:SetBackdropBorderColor(1, 0.84, 0, 1)
+    popup:EnableMouse(true)
+    popup:SetMovable(true)
+    popup:RegisterForDrag("LeftButton")
+    popup:SetScript("OnDragStart", popup.StartMoving)
+    popup:SetScript("OnDragStop", popup.StopMovingOrSizing)
+
+    -- Title
+    local title = popup:CreateFontString(nil, "OVERLAY")
+    title:SetFont(HopeAddon.assets.fonts.HEADER, 14)
+    title:SetPoint("TOP", popup, "TOP", 0, -15)
+    title:SetText(HopeAddon:ColorText("SELECT OPPONENT", "GOLD_BRIGHT"))
+    popup.title = title
+
+    -- Game name display
+    local gameText = popup:CreateFontString(nil, "OVERLAY")
+    gameText:SetFont(HopeAddon.assets.fonts.BODY, 12)
+    gameText:SetPoint("TOP", title, "BOTTOM", 0, -5)
+    gameText:SetTextColor(0.6, 0.2, 0.8, 1)  -- ARCANE_PURPLE
+    popup.gameText = gameText
+
+    -- Instructions
+    local instructions = popup:CreateFontString(nil, "OVERLAY")
+    instructions:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+    instructions:SetPoint("TOP", gameText, "BOTTOM", 0, -10)
+    instructions:SetText("Choose a Fellow Traveler to challenge:")
+    instructions:SetTextColor(0.4, 0.4, 0.4, 1)
+
+    -- Scroll frame for traveler list
+    local scrollFrame = CreateFrame("ScrollFrame", nil, popup, "UIPanelScrollFrameTemplate")
+    scrollFrame:SetPoint("TOPLEFT", popup, "TOPLEFT", 15, -75)
+    scrollFrame:SetPoint("BOTTOMRIGHT", popup, "BOTTOMRIGHT", -35, 55)
+
+    local scrollContent = CreateFrame("Frame", nil, scrollFrame)
+    scrollContent:SetWidth(scrollFrame:GetWidth())
+    scrollContent:SetHeight(1)
+    scrollFrame:SetScrollChild(scrollContent)
+
+    popup.scrollFrame = scrollFrame
+    popup.scrollContent = scrollContent
+
+    -- Traveler buttons pool
+    popup.travelerButtons = {}
+
+    -- Cancel button
+    local cancelBtn = CreateFrame("Button", nil, popup, "UIPanelButtonTemplate")
+    cancelBtn:SetSize(80, 22)
+    cancelBtn:SetPoint("BOTTOM", popup, "BOTTOM", 0, 15)
+    cancelBtn:SetText("Cancel")
+    cancelBtn:SetScript("OnClick", OnTravelerPickerCancel)
+
+    -- No travelers message
+    local noTravelersText = popup:CreateFontString(nil, "OVERLAY")
+    noTravelersText:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    noTravelersText:SetPoint("CENTER", scrollFrame, "CENTER", 0, 0)
+    noTravelersText:SetText("No Fellow Travelers online.\n\nGroup up with addon users\nto discover them!")
+    noTravelersText:SetTextColor(0.5, 0.5, 0.5, 1)
+    noTravelersText:SetJustifyH("CENTER")
+    noTravelersText:Hide()
+    popup.noTravelersText = noTravelersText
+
+    -- Close on escape
+    popup:EnableKeyboard(true)
+    popup:SetScript("OnKeyDown", OnTravelerPickerKeyDown)
+
+    popup:Hide()
+    self.travelerPickerPopup = popup
+    return popup
+end
+
+--[[
+    Create or reuse a traveler button for the picker list
+    @param index number - Button index
+    @param parent Frame - Parent frame
+    @return Button - Traveler selection button
+]]
+function MinigamesUI:GetTravelerButton(index, parent)
+    local popup = self.travelerPickerPopup
+    if not popup then return nil end
+
+    -- Reuse existing button if available
+    if popup.travelerButtons[index] then
+        return popup.travelerButtons[index]
+    end
+
+    -- Create new button
+    local btn = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    btn:SetSize(TRAVELER_PICKER_WIDTH - 50, TRAVELER_BUTTON_HEIGHT)
+    btn:SetBackdrop({
+        bgFile = HopeAddon.assets.textures.TOOLTIP_BG,
+        edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+        tile = true,
+        tileSize = 8,
+        edgeSize = 10,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 }
+    })
+    btn:SetBackdropColor(HopeAddon:GetBgColor("DARK_TRANSPARENT"))
+    btn:SetBackdropBorderColor(0.5, 0.5, 0.5, 1)
+
+    -- Name text
+    local nameText = btn:CreateFontString(nil, "OVERLAY")
+    nameText:SetFont(HopeAddon.assets.fonts.HEADER, 12)
+    nameText:SetPoint("LEFT", btn, "LEFT", 10, 4)
+    btn.nameText = nameText
+
+    -- Level/Class text
+    local infoText = btn:CreateFontString(nil, "OVERLAY")
+    infoText:SetFont(HopeAddon.assets.fonts.SMALL, 9)
+    infoText:SetPoint("LEFT", btn, "LEFT", 10, -8)
+    infoText:SetTextColor(0.6, 0.6, 0.6, 1)
+    btn.infoText = infoText
+
+    -- Highlight
+    local highlight = btn:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetTexture(HopeAddon.assets.textures.HIGHLIGHT)
+    highlight:SetAllPoints()
+    highlight:SetBlendMode("ADD")
+    highlight:SetVertexColor(1, 0.84, 0, 0.2)
+
+    -- Handlers
+    btn:SetScript("OnClick", OnTravelerButtonClick)
+    btn:SetScript("OnEnter", OnTravelerButtonEnter)
+    btn:SetScript("OnLeave", OnTravelerButtonLeave)
+
+    popup.travelerButtons[index] = btn
+    return btn
+end
+
+--[[
+    Show traveler picker popup for a specific game
+    @param gameId string - Game ID to challenge with
+]]
+function MinigamesUI:ShowTravelerPickerForGame(gameId)
+    if not gameId then return end
+
+    local popup = self:GetTravelerPickerPopup()
+    local Constants = HopeAddon.Constants
+
+    -- Store selected game
+    popup.selectedGameId = gameId
+
+    -- Get game display name
+    local gameDef = Constants and Constants:GetGameDefinition(gameId)
+    local gameName = gameDef and gameDef.name or gameId
+    popup.gameText:SetText(gameName)
+
+    -- Clear existing buttons
+    for _, btn in ipairs(popup.travelerButtons) do
+        btn:Hide()
+    end
+
+    -- Get fellow travelers from Directory module
+    local Directory = HopeAddon.Directory
+    local fellows = {}
+
+    if Directory then
+        local entries = Directory:GetFilteredEntries() or {}
+        for _, entry in ipairs(entries) do
+            if entry.isFellow then
+                table.insert(fellows, entry)
+            end
+        end
+    end
+
+    -- Show/hide no travelers message
+    popup.noTravelersText:SetShown(#fellows == 0)
+    popup.scrollContent:SetShown(#fellows > 0)
+
+    if #fellows > 0 then
+        -- Create buttons for each fellow traveler
+        local yOffset = 0
+        for i, fellow in ipairs(fellows) do
+            local btn = self:GetTravelerButton(i, popup.scrollContent)
+
+            -- Configure button
+            btn.travelerName = fellow.name
+
+            -- Set name with class color
+            local classColor = fellow.class and HopeAddon:GetClassColor(fellow.class) or { r = 1, g = 1, b = 1 }
+            local colorHex = string.format("%02x%02x%02x", classColor.r * 255, classColor.g * 255, classColor.b * 255)
+            btn.nameText:SetText("|cFF" .. colorHex .. fellow.name .. "|r")
+
+            -- Set info text
+            local infoParts = {}
+            if fellow.level then
+                table.insert(infoParts, "Level " .. fellow.level)
+            end
+            if fellow.class then
+                table.insert(infoParts, fellow.class)
+            end
+            btn.infoText:SetText(table.concat(infoParts, " - "))
+
+            -- Position
+            btn:ClearAllPoints()
+            btn:SetPoint("TOPLEFT", popup.scrollContent, "TOPLEFT", 0, -yOffset)
+            btn:Show()
+
+            yOffset = yOffset + TRAVELER_BUTTON_HEIGHT + 5
+        end
+
+        -- Update content height for scrolling
+        popup.scrollContent:SetHeight(yOffset)
+    end
+
+    -- Position popup
+    popup:ClearAllPoints()
+    popup:SetPoint("CENTER", UIParent, "CENTER", 0, 100)
+
+    -- Play sound
+    if HopeAddon.Sounds then
+        HopeAddon.Sounds:PlayBell()
+    end
+
+    popup:Show()
+end
+
+--[[
+    Hide traveler picker popup
+]]
+function MinigamesUI:HideTravelerPickerPopup()
+    if self.travelerPickerPopup then
+        self.travelerPickerPopup:Hide()
+    end
+end
+
 -- Register module
 HopeAddon:RegisterModule("MinigamesUI", MinigamesUI)
 HopeAddon:Debug("MinigamesUI module loaded")

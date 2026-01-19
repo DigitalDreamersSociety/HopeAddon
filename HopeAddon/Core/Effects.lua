@@ -10,7 +10,6 @@ local math_max = math.max
 local string_sub = string.sub
 
 local Effects = {}
-HopeAddon.Effects = Effects
 
 -- Cache for active effects
 Effects.activeGlows = {}

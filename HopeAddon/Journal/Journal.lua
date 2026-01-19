@@ -1812,15 +1812,99 @@ function Journal:PopulateRaids()
 end
 
 --============================================================
--- DIRECTORY TAB - Fellow Travelers List
+-- DIRECTORY TAB - Games Hall + Fellow Travelers List
 --============================================================
 function Journal:PopulateDirectory()
     local Components = HopeAddon.Components
+    local Constants = HopeAddon.Constants
     local Directory = HopeAddon.Directory
     local Relationships = HopeAddon.Relationships
     local scrollContainer = self.mainFrame.scrollContainer
 
-    -- Header
+    --============================================================
+    -- SECTION 1: GAMES HALL (Collapsible)
+    --============================================================
+    local gamesSection = self:AcquireCollapsibleSection(
+        scrollContainer.content,
+        "GAMES HALL",
+        "ARCANE_PURPLE",
+        true  -- Start expanded
+    )
+    scrollContainer:AddEntry(gamesSection)
+
+    -- Create game cards in a 3-column grid
+    local CARD_WIDTH = 200
+    local CARD_SPACING = 10
+    local CARDS_PER_ROW = 3
+    local ROW_HEIGHT = 115  -- Card height + spacing
+
+    -- Get game definitions from Constants
+    local games = Constants.GAME_DEFINITIONS or {}
+    local row, col = 0, 0
+
+    -- Callbacks for game card buttons
+    local function onPracticeClick(gameId)
+        self:StartLocalGame(gameId)
+    end
+
+    local function onChallengeClick(gameId)
+        if HopeAddon.MinigamesUI then
+            HopeAddon.MinigamesUI:ShowTravelerPickerForGame(gameId)
+        end
+    end
+
+    -- Create cards for each game
+    for i, gameData in ipairs(games) do
+        local card = self:AcquireGameCard(
+            gamesSection.contentContainer,
+            gameData,
+            onPracticeClick,
+            onChallengeClick
+        )
+
+        -- Position in grid (3 columns)
+        card:ClearAllPoints()
+        card:SetPoint("TOPLEFT", gamesSection.contentContainer, "TOPLEFT",
+            col * (CARD_WIDTH + CARD_SPACING),
+            -row * ROW_HEIGHT)
+        card:Show()
+
+        -- Update grid position
+        col = col + 1
+        if col >= CARDS_PER_ROW then
+            col = 0
+            row = row + 1
+        end
+
+        -- Load stats for this game
+        local gameStats = self:GetGameStats(gameData.id)
+        card:SetStats(gameStats.wins, gameStats.losses, gameStats.ties)
+
+        -- Track card as child of section (for collapse/expand)
+        table.insert(gamesSection.childEntries, card)
+    end
+
+    -- Update section content height based on grid
+    local totalRows = math.ceil(#games / CARDS_PER_ROW)
+    gamesSection.contentHeight = totalRows * ROW_HEIGHT
+    gamesSection.contentContainer:SetHeight(gamesSection.contentHeight)
+    gamesSection:UpdateHeight()
+
+    -- Set toggle callback to recalculate scroll positions
+    gamesSection.onToggle = function(section, isExpanded)
+        scrollContainer:RecalculatePositions()
+    end
+
+    --============================================================
+    -- SPACER between sections
+    --============================================================
+    local spacer = Components:CreateSpacer(scrollContainer.content, 15)
+    spacer._pooled = false  -- Not from pool, simple frame
+    scrollContainer:AddEntry(spacer)
+
+    --============================================================
+    -- SECTION 2: FELLOW TRAVELERS
+    --============================================================
     local header = self:CreateSectionHeader("FELLOW TRAVELERS", "FEL_GREEN", "Addon users you have encountered")
     scrollContainer:AddEntry(header)
 
@@ -1866,6 +1950,68 @@ function Journal:PopulateDirectory()
             local card = self:CreateDirectoryCard(entry)
             scrollContainer:AddEntry(card)
         end
+    end
+end
+
+--[[
+    Get game statistics for a specific game ID
+    @param gameId string - Game identifier (dice, rps, pong, etc.)
+    @return table - { wins, losses, ties }
+]]
+function Journal:GetGameStats(gameId)
+    local charDb = HopeAddon.charDb
+    if not charDb or not charDb.travelers or not charDb.travelers.known then
+        return { wins = 0, losses = 0, ties = 0 }
+    end
+
+    -- Aggregate stats across all known travelers for this game
+    local totalWins, totalLosses, totalTies = 0, 0, 0
+
+    for _, traveler in pairs(charDb.travelers.known) do
+        if traveler.stats and traveler.stats.minigames then
+            local gameStats = traveler.stats.minigames[gameId]
+            if gameStats then
+                totalWins = totalWins + (gameStats.wins or 0)
+                totalLosses = totalLosses + (gameStats.losses or 0)
+                totalTies = totalTies + (gameStats.ties or 0)
+            end
+        end
+    end
+
+    return { wins = totalWins, losses = totalLosses, ties = totalTies }
+end
+
+--[[
+    Start a local (practice) game
+    @param gameId string - Game identifier
+]]
+function Journal:StartLocalGame(gameId)
+    HopeAddon:Debug("Starting local game:", gameId)
+
+    if gameId == "dice" then
+        -- Dice has local mode via Minigames
+        if HopeAddon.Minigames then
+            HopeAddon.Minigames:StartLocalDiceGame()
+        end
+    elseif gameId == "deathroll" then
+        -- Death roll local practice
+        if HopeAddon.Minigames then
+            HopeAddon.Minigames:StartLocalDeathRoll()
+        end
+    elseif gameId == "pong" then
+        -- Pong via GameCore
+        local GameCore = HopeAddon:GetModule("GameCore")
+        if GameCore then
+            GameCore:CreateGame("PONG", "LOCAL", nil)
+        end
+    elseif gameId == "tetris" then
+        -- Tetris via GameCore
+        local GameCore = HopeAddon:GetModule("GameCore")
+        if GameCore then
+            GameCore:CreateGame("TETRIS", "LOCAL", nil)
+        end
+    else
+        HopeAddon:Print("Local mode not available for " .. (gameId or "unknown"))
     end
 end
 
