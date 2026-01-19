@@ -200,6 +200,50 @@ function Animations:FadeTo(frame, targetAlpha, duration, callback)
 end
 
 --[[
+    Animate border color change
+    Uses custom tween system (TBC compatible)
+
+    @param frame Frame - Frame with backdrop
+    @param targetColor table - Target color {r, g, b, a}
+    @param duration number - Duration in seconds (default 0.15)
+    @param callback function - Called when done
+    @return Ticker - Animation handle (can be cancelled)
+]]
+function Animations:ColorTransition(frame, targetColor, duration, callback)
+    if HopeAddon.db and not HopeAddon.db.settings.animationsEnabled then
+        frame:SetBackdropBorderColor(targetColor.r, targetColor.g, targetColor.b, targetColor.a or 1)
+        if callback then callback() end
+        return nil
+    end
+
+    duration = duration or 0.15
+
+    -- Get current border color (or use default if not set)
+    local startColor = {
+        r = frame.currentBorderR or 0.5,
+        g = frame.currentBorderG or 0.5,
+        b = frame.currentBorderB or 0.5,
+        a = frame.currentBorderA or 1
+    }
+
+    return self:Tween(duration, function(progress, eased)
+        -- Interpolate each color channel
+        local r = startColor.r + (targetColor.r - startColor.r) * eased
+        local g = startColor.g + (targetColor.g - startColor.g) * eased
+        local b = startColor.b + (targetColor.b - startColor.b) * eased
+        local a = startColor.a + ((targetColor.a or 1) - startColor.a) * eased
+
+        frame:SetBackdropBorderColor(r, g, b, a)
+
+        -- Store current color for next transition
+        frame.currentBorderR = r
+        frame.currentBorderG = g
+        frame.currentBorderB = b
+        frame.currentBorderA = a
+    end, callback, self.easing.easeOutQuad)
+end
+
+--[[
     PRESET ANIMATIONS
 ]]
 

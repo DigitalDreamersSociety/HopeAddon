@@ -1056,12 +1056,20 @@ function Components:CreateLabeledDropdown(parent, labelText, options, defaultInd
         HopeAddon:Print("Dropdown clicked - full menu implementation needed")
     end)
 
-    -- Hover effects
+    -- Hover effects with smooth color transition
     dropdown:SetScript("OnEnter", function(self)
-        self:SetBackdropBorderColor(Colors.GOLD_BRIGHT.r, Colors.GOLD_BRIGHT.g, Colors.GOLD_BRIGHT.b, 1)
+        if HopeAddon.Animations then
+            HopeAddon.Animations:ColorTransition(self, Colors.GOLD_BRIGHT, 0.15)
+        else
+            self:SetBackdropBorderColor(Colors.GOLD_BRIGHT.r, Colors.GOLD_BRIGHT.g, Colors.GOLD_BRIGHT.b, 1)
+        end
     end)
     dropdown:SetScript("OnLeave", function(self)
-        self:SetBackdropBorderColor(Colors.GREY.r, Colors.GREY.g, Colors.GREY.b, 1)
+        if HopeAddon.Animations then
+            HopeAddon.Animations:ColorTransition(self, Colors.GREY, 0.15)
+        else
+            self:SetBackdropBorderColor(Colors.GREY.r, Colors.GREY.g, Colors.GREY.b, 1)
+        end
     end)
 
     container.label = label
@@ -1115,12 +1123,16 @@ function Components:CreateStyledButton(parent, text, width, height, onClick, opt
     button.text:SetText(text or "Button")
     button.text:SetTextColor(0.9, 0.9, 0.9)
 
-    -- Hover effects
+    -- Hover effects with smooth color transition
     button:SetScript("OnEnter", function(self)
         if not self:IsEnabled() then return end
 
         -- Smooth border color transition (gold highlight)
-        self:SetBackdropBorderColor(Colors.GOLD_BRIGHT.r, Colors.GOLD_BRIGHT.g, Colors.GOLD_BRIGHT.b, 1)
+        if HopeAddon.Animations then
+            HopeAddon.Animations:ColorTransition(self, Colors.GOLD_BRIGHT, 0.15)
+        else
+            self:SetBackdropBorderColor(Colors.GOLD_BRIGHT.r, Colors.GOLD_BRIGHT.g, Colors.GOLD_BRIGHT.b, 1)
+        end
 
         -- Play hover sound
         if HopeAddon.Sounds then
@@ -1129,14 +1141,18 @@ function Components:CreateStyledButton(parent, text, width, height, onClick, opt
     end)
 
     button:SetScript("OnLeave", function(self)
-        -- Restore original border color
+        -- Restore original border color with smooth transition
         if self.defaultBorderColor then
-            self:SetBackdropBorderColor(
-                self.defaultBorderColor.r,
-                self.defaultBorderColor.g,
-                self.defaultBorderColor.b,
-                1
-            )
+            if HopeAddon.Animations then
+                HopeAddon.Animations:ColorTransition(self, self.defaultBorderColor, 0.15)
+            else
+                self:SetBackdropBorderColor(
+                    self.defaultBorderColor.r,
+                    self.defaultBorderColor.g,
+                    self.defaultBorderColor.b,
+                    1
+                )
+            end
         end
     end)
 
