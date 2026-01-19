@@ -695,6 +695,75 @@ function Components:CreateScrollFrame(parent, width, height)
 end
 
 --[[
+    LAYOUT BUILDER
+    Automates vertical form layout by tracking yOffset automatically
+
+    Usage:
+        local layout = Components:CreateLayoutBuilder(content, { startY = -20, startX = 10, spacing = 10 })
+        layout:AddRow(titleText, 0)        -- Custom spacing for this row
+        layout:AddSpacer(10)               -- 10px vertical space
+        layout:AddRow(backstoryBox, 5)    -- 5px spacing after
+        layout:AddRow(personalityBox)     -- Uses default spacing
+
+    @param parent Frame - Parent frame to anchor elements to
+    @param config table - { startY, startX, spacing }
+    @return LayoutBuilder
+]]
+function Components:CreateLayoutBuilder(parent, config)
+    config = config or {}
+
+    local builder = {
+        parent = parent,
+        lastFrame = nil,
+        yOffset = config.startY or -20,
+        xOffset = config.startX or 10,
+        spacing = config.spacing or 10,
+    }
+
+    --[[
+        Add a frame to the layout
+        @param frame Frame - Frame to add
+        @param spacing number|nil - Override spacing for this row (nil = use default)
+        @return Frame - The added frame
+    ]]
+    function builder:AddRow(frame, spacing)
+        local actualSpacing = spacing or self.spacing
+
+        if not self.lastFrame then
+            -- First element: anchor to parent top-left
+            frame:SetPoint("TOPLEFT", self.parent, "TOPLEFT", self.xOffset, self.yOffset)
+        else
+            -- Subsequent elements: anchor below last frame
+            frame:SetPoint("TOPLEFT", self.lastFrame, "BOTTOMLEFT", 0, -actualSpacing)
+        end
+
+        self.lastFrame = frame
+        return frame
+    end
+
+    --[[
+        Add vertical spacing (empty space)
+        @param height number - Height of spacer in pixels
+    ]]
+    function builder:AddSpacer(height)
+        local spacer = CreateFrame("Frame", nil, self.parent)
+        spacer:SetSize(1, height or 10)
+        self:AddRow(spacer, 0)  -- No additional spacing after spacer
+    end
+
+    --[[
+        Reset layout to start position
+        Useful for creating multiple columns
+    ]]
+    function builder:Reset()
+        self.lastFrame = nil
+        self.yOffset = config.startY or -20
+    end
+
+    return builder
+end
+
+--[[
     JOURNAL ENTRY CARD
     Individual entry display with text overflow protection and click support
 ]]
