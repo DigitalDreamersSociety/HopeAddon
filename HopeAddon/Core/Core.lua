@@ -707,6 +707,44 @@ SlashCmdList["HOPE"] = function(msg)
                 HopeAddon:Print("PongGame module not loaded!")
             end
         end
+    elseif cmd:find("^deathroll") then
+        -- /hope deathroll [player]
+        local _, _, targetName = cmd:find("^deathroll%s*(%S*)")
+        if targetName and targetName ~= "" then
+            -- Challenge player to Death Roll
+            local GameComms = HopeAddon:GetModule("GameComms")
+            if GameComms then
+                GameComms:SendInvite(targetName, "DEATH_ROLL")
+                HopeAddon:Print("Challenging", targetName, "to Death Roll!")
+            else
+                HopeAddon:Print("GameComms module not loaded!")
+            end
+        else
+            -- Start local Death Roll game
+            local DeathRollGame = HopeAddon:GetModule("DeathRollGame")
+            if DeathRollGame then
+                DeathRollGame:StartGame()
+                HopeAddon:Print("Starting local Death Roll!")
+            else
+                HopeAddon:Print("DeathRollGame module not loaded!")
+            end
+        end
+    elseif cmd:find("^words") then
+        -- /hope words <player> (no local mode)
+        local _, _, targetName = cmd:find("^words%s*(%S*)")
+        if targetName and targetName ~= "" then
+            -- Challenge player to Words with WoW
+            local GameComms = HopeAddon:GetModule("GameComms")
+            if GameComms then
+                GameComms:SendInvite(targetName, "WORDS")
+                HopeAddon:Print("Challenging", targetName, "to Words with WoW!")
+            else
+                HopeAddon:Print("GameComms module not loaded!")
+            end
+        else
+            HopeAddon:Print("Words with WoW requires an opponent.")
+            HopeAddon:Print("Usage: /hope words <player>")
+        end
     elseif cmd:find("^challenge") then
         -- /hope challenge <player> [dice|rps]
         local _, _, targetName, gameType = cmd:find("^challenge%s+(%S+)%s*(%S*)")
@@ -745,10 +783,92 @@ SlashCmdList["HOPE"] = function(msg)
         HopeAddon:Print("  /hope sound - Toggle sounds")
         HopeAddon:Print("  /hope tetris [player] - Start Tetris Battle (local or vs player)")
         HopeAddon:Print("  /hope pong [player] - Start Pong (local or vs player)")
+        HopeAddon:Print("  /hope deathroll [player] - Start Death Roll (local or vs player)")
+        HopeAddon:Print("  /hope words <player> - Challenge to Words with WoW")
+        HopeAddon:Print("  /word <word> <H/V> <row> <col> - Place word in active Words game")
+        HopeAddon:Print("  /pass - Pass your turn in active Words game")
         HopeAddon:Print("  /hope challenge <player> [dice|rps] - Challenge a Fellow Traveler")
         HopeAddon:Print("  /hope accept/decline - Respond to challenge")
         HopeAddon:Print("  /hope cancel - Cancel current game")
         HopeAddon:Print("  /hope reset confirm - Reset all data")
+    end
+end
+
+-- /word slash command for Words with WoW gameplay
+SLASH_WORD1 = "/word"
+SlashCmdList["WORD"] = function(msg)
+    local WordGame = HopeAddon:GetModule("WordGame")
+    if not WordGame then
+        HopeAddon:Print("WordGame module not loaded!")
+        return
+    end
+
+    local GameCore = HopeAddon:GetModule("GameCore")
+    if not GameCore then
+        HopeAddon:Print("GameCore module not loaded!")
+        return
+    end
+
+    -- Find active Words with WoW game for this player
+    local playerName = UnitName("player")
+    local activeGame = nil
+    local activeGameId = nil
+
+    for gameId, game in pairs(WordGame:GetActiveGames()) do
+        if game.player1 == playerName or game.player2 == playerName then
+            activeGame = game
+            activeGameId = gameId
+            break
+        end
+    end
+
+    if not activeGame then
+        HopeAddon:Print("You are not in an active Words with WoW game!")
+        HopeAddon:Print("Use /hope words <player> to start a game")
+        return
+    end
+
+    -- Parse command: /word <word> <H/V> <row> <col>
+    local word, direction, row, col = strsplit(" ", msg)
+
+    local success, message = WordGame:ParseAndPlaceWord(activeGameId, word, direction, row, col, playerName)
+
+    if not success then
+        HopeAddon:Print("|cFFFF0000Error:|r " .. message)
+    end
+end
+
+-- /pass slash command for Words with WoW gameplay
+SLASH_PASS1 = "/pass"
+SlashCmdList["PASS"] = function(msg)
+    local WordGame = HopeAddon:GetModule("WordGame")
+    if not WordGame then
+        HopeAddon:Print("WordGame module not loaded!")
+        return
+    end
+
+    -- Find active Words with WoW game for this player
+    local playerName = UnitName("player")
+    local activeGame = nil
+    local activeGameId = nil
+
+    for gameId, game in pairs(WordGame:GetActiveGames()) do
+        if game.player1 == playerName or game.player2 == playerName then
+            activeGame = game
+            activeGameId = gameId
+            break
+        end
+    end
+
+    if not activeGame then
+        HopeAddon:Print("You are not in an active Words with WoW game!")
+        return
+    end
+
+    local success, message = WordGame:PassTurn(activeGameId, playerName)
+
+    if not success then
+        HopeAddon:Print("|cFFFF0000Error:|r " .. message)
     end
 end
 

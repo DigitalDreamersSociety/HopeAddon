@@ -107,7 +107,7 @@ Pages.cachedPages = {}
 function Pages:CreateMilestonePage(parent, data)
     local Components = HopeAddon.Components
 
-    local page = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    local page = CreateFrame("Frame", nil, parent)
     page:SetSize(parent:GetWidth() - 40, 400)
     page:SetBackdrop({
         bgFile = HopeAddon.assets.textures.PARCHMENT,
@@ -204,7 +204,7 @@ function Pages:CreateMilestonePage(parent, data)
     noteHeader:SetPoint("TOPLEFT", page, "TOPLEFT", 30, -360)
     noteHeader:SetText(HopeAddon:ColorText("My Thoughts:", "BRONZE"))
 
-    local noteBox = CreateFrame("Frame", nil, page, "BackdropTemplate")
+    local noteBox = CreateFrame("Frame", nil, page)
     noteBox:SetPoint("TOPLEFT", noteHeader, "BOTTOMLEFT", 0, -5)
     noteBox:SetPoint("BOTTOMRIGHT", page, "BOTTOMRIGHT", -30, 30)
     noteBox:SetBackdrop({
@@ -240,7 +240,7 @@ end
     @return Frame - The page frame
 ]]
 function Pages:CreateZonePage(parent, data)
-    local page = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    local page = CreateFrame("Frame", nil, parent)
     page:SetSize(parent:GetWidth() - 40, 350)
     page:SetBackdrop({
         bgFile = HopeAddon.assets.textures.PARCHMENT,
@@ -312,7 +312,7 @@ end
     @return Frame - The page frame
 ]]
 function Pages:CreateBossPage(parent, data)
-    local page = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    local page = CreateFrame("Frame", nil, parent)
     page:SetSize(parent:GetWidth() - 40, 400)
     page:SetBackdrop({
         bgFile = HopeAddon.assets.textures.PARCHMENT_DARK,
@@ -385,7 +385,7 @@ end
 function Pages:CreateAttunementPage(parent, data)
     local Components = HopeAddon.Components
 
-    local page = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    local page = CreateFrame("Frame", nil, parent)
     page:SetSize(parent:GetWidth() - 40, 450)
     page:SetBackdrop({
         bgFile = HopeAddon.assets.textures.PARCHMENT,
@@ -454,7 +454,7 @@ function Pages:CreateAttunementPage(parent, data)
     local yOffset = -45
 
     for i, chapter in ipairs(chapters) do
-        local chapterFrame = CreateFrame("Frame", nil, page, "BackdropTemplate")
+        local chapterFrame = CreateFrame("Frame", nil, page)
         chapterFrame:SetSize(page:GetWidth() - 40, 55)
         chapterFrame:SetPoint("TOP", progressBar, "BOTTOM", 0, yOffset)
         chapterFrame:SetBackdrop({
@@ -541,7 +541,7 @@ end
 function Pages:CreateAttunementMilestonePage(parent, data)
     local Components = HopeAddon.Components
 
-    local page = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    local page = CreateFrame("Frame", nil, parent)
     page:SetSize(parent:GetWidth() - 40, 400)
     page:SetBackdrop({
         bgFile = HopeAddon.assets.textures.PARCHMENT,
@@ -655,7 +655,7 @@ end
 function Pages:CreateFinalBossMilestonePage(parent, data)
     local Components = HopeAddon.Components
 
-    local page = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    local page = CreateFrame("Frame", nil, parent)
     page:SetSize(parent:GetWidth() - 40, 400)
     page:SetBackdrop({
         bgFile = HopeAddon.assets.textures.PARCHMENT_DARK,
@@ -729,7 +729,7 @@ end
     @return Frame - The page frame
 ]]
 function Pages:CreateTierMilestonePage(parent, data)
-    local page = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    local page = CreateFrame("Frame", nil, parent)
     page:SetSize(parent:GetWidth() - 40, 300)
     page:SetBackdrop({
         bgFile = HopeAddon.assets.textures.PARCHMENT,

@@ -35,6 +35,9 @@ PongGame.SETTINGS = {
 
     -- Scoring
     WINNING_SCORE = 5,
+
+    -- Network sync (REMOTE mode only)
+    NETWORK_UPDATE_HZ = 10,       -- Network update rate (reduced from 30 to 10 for bandwidth optimization)
 }
 
 --============================================================
@@ -103,9 +106,11 @@ function PongGame:OnCreate(gameId, game)
 
         -- Mode tracking
         isRemote = isRemote,
+        opponent = game.opponent,  -- Store opponent for network sync
 
         -- Paddle sync timer (REMOTE only)
         paddleSyncTimer = 0,
+        lastOpponentMessage = GetTime(),  -- Track for disconnect detection
 
         -- Paddle 1 (left - always controlled by local player)
         paddle1 = {
@@ -159,7 +164,22 @@ end
 
 function PongGame:OnUpdate(gameId, dt)
     local game = self.games[gameId]
-    if not game or game.data.paused or game.data.countdown > 0 then
+    if not game then return end
+
+    -- Check for opponent disconnect in REMOTE mode
+    if game.data.isRemote and game.data.opponent then
+        local timeSinceLastMessage = GetTime() - (game.data.lastOpponentMessage or GetTime())
+        if timeSinceLastMessage > 10 then  -- 10 second timeout
+            HopeAddon:Print("Opponent disconnected from Pong game")
+            local GameCore = HopeAddon:GetModule("GameCore")
+            if GameCore then
+                GameCore:EndGame(gameId, "DISCONNECT")
+            end
+            return
+        end
+    end
+
+    if game.data.paused or game.data.countdown > 0 then
         return
     end
 
@@ -192,7 +212,7 @@ function PongGame:OnEnd(gameId, reason)
     if not game then return end
 
     -- Record stats for REMOTE games
-    if game.data.isRemote and game.opponent then
+    if game.data.isRemote and game.data.opponent then
         local Minigames = HopeAddon:GetModule("Minigames")
         if Minigames then
             local isWinner = game.winner == game.player1
@@ -201,7 +221,7 @@ function PongGame:OnEnd(gameId, reason)
             local oppScore = game.score[2]
 
             Minigames:RecordGameResult(
-                game.opponent,
+                game.data.opponent,
                 "pong",
                 result,
                 myScore,
@@ -237,6 +257,11 @@ function PongGame:StartCountdown(gameId)
 
     game.data.countdown = 3
 
+    -- Cancel existing countdown timer
+    if game.data.countdownTimer then
+        game.data.countdownTimer:Cancel()
+    end
+
     -- Update countdown UI
     if game.data.countdownText then
         game.data.countdownText:SetText(tostring(game.data.countdown))
@@ -245,21 +270,23 @@ function PongGame:StartCountdown(gameId)
 
     -- Countdown timer
     local function tick()
-        if not self.games[gameId] then return end
+        local currentGame = self.games[gameId]  -- Re-fetch each time
+        if not currentGame then return end
 
-        game.data.countdown = game.data.countdown - 1
+        currentGame.data.countdown = currentGame.data.countdown - 1
 
-        if game.data.countdown > 0 then
-            if game.data.countdownText then
-                game.data.countdownText:SetText(tostring(game.data.countdown))
+        if currentGame.data.countdown > 0 then
+            if currentGame.data.countdownText then
+                currentGame.data.countdownText:SetText(tostring(currentGame.data.countdown))
             end
             if HopeAddon.Sounds then
                 HopeAddon.Sounds:PlayClick()
             end
-            HopeAddon.Timer:After(1, tick)
+            currentGame.data.countdownTimer = HopeAddon.Timer:After(1, tick)
         else
-            if game.data.countdownText then
-                game.data.countdownText:Hide()
+            currentGame.data.countdownTimer = nil
+            if currentGame.data.countdownText then
+                currentGame.data.countdownText:Hide()
             end
             if HopeAddon.Sounds then
                 HopeAddon.Sounds:PlayAchievement()
@@ -268,7 +295,7 @@ function PongGame:StartCountdown(gameId)
         end
     end
 
-    HopeAddon.Timer:After(1, tick)
+    game.data.countdownTimer = HopeAddon.Timer:After(1, tick)
 end
 
 --[[
@@ -324,6 +351,8 @@ function PongGame:UpdateLocalPaddle(gameId, dt)
     local game = self.games[gameId]
     local S = self.SETTINGS
     local GameCore = HopeAddon:GetModule("GameCore")
+    if not GameCore then return end
+
     local paddle1 = game.data.paddle1
 
     -- Player controls paddle1 with W/S
@@ -344,6 +373,8 @@ function PongGame:UpdateLocalPaddles(gameId, dt)
     local game = self.games[gameId]
     local S = self.SETTINGS
     local GameCore = HopeAddon:GetModule("GameCore")
+    if not GameCore then return end
+
     local paddle1 = game.data.paddle1
     local paddle2 = game.data.paddle2
 
@@ -526,17 +557,21 @@ function PongGame:SendPaddlePosition(gameId, dt)
     local game = self.games[gameId]
     if not game or not game.data.isRemote then return end
 
-    -- Throttle to 30 Hz (every frame at 30fps)
+    local S = self.SETTINGS
+    local syncInterval = 1 / S.NETWORK_UPDATE_HZ  -- Calculate interval from Hz
+
+    -- Throttle network updates (10 Hz = 67% bandwidth reduction vs 30 Hz)
+    -- Client-side physics still runs at 30 FPS for smooth local rendering
     game.data.paddleSyncTimer = (game.data.paddleSyncTimer or 0) + dt
-    if game.data.paddleSyncTimer >= 0.033 then  -- 30 Hz
+    if game.data.paddleSyncTimer >= syncInterval then
         game.data.paddleSyncTimer = 0
 
         local paddle1 = game.data.paddle1
         local data = string.format("PADDLE|%.2f|%.2f", paddle1.y, paddle1.dy)
 
         local GameComms = HopeAddon:GetModule("GameComms")
-        if GameComms and game.opponent then
-            GameComms:SendMove(game.opponent, "PONG", gameId, data)
+        if GameComms and game.data.opponent then
+            GameComms:SendMove(game.data.opponent, "PONG", gameId, data)
         end
     end
 end
@@ -544,6 +579,15 @@ end
 function PongGame:OnOpponentMove(sender, gameId, data)
     local game = self.games[gameId]
     if not game or not game.data.isRemote then return end
+
+    -- Validate sender is the opponent
+    if sender ~= game.data.opponent then
+        HopeAddon:Debug("Ignoring PONG move from non-opponent:", sender)
+        return
+    end
+
+    -- Update last message timestamp for disconnect detection
+    game.data.lastOpponentMessage = GetTime()
 
     -- Parse paddle position
     local msgType, yPos, dyVel = strsplit("|", data)
@@ -561,14 +605,20 @@ function PongGame:SendGameOver(gameId, loser)
     local data = "GAMEOVER|" .. tostring(loser)
 
     local GameComms = HopeAddon:GetModule("GameComms")
-    if GameComms and game.opponent then
-        GameComms:SendEnd(game.opponent, "PONG", gameId, data)
+    if GameComms and game.data.opponent then
+        GameComms:SendEnd(game.data.opponent, "PONG", gameId, data)
     end
 end
 
 function PongGame:OnOpponentGameOver(sender, gameId, data)
     local game = self.games[gameId]
     if not game then return end
+
+    -- Validate sender is the opponent
+    if game.data.isRemote and sender ~= game.data.opponent then
+        HopeAddon:Debug("Ignoring PONG game over from non-opponent:", sender)
+        return
+    end
 
     local GameCore = HopeAddon:GetModule("GameCore")
     if not GameCore then return end
@@ -614,6 +664,8 @@ function PongGame:CreateUI(gameId)
     -- Create game window
     local window = GameUI:CreateGameWindow(gameId, "Pong", "PONG")
     if not window then return end
+
+    game.data.window = window  -- Store for cleanup
 
     local content = window.content
 
@@ -690,7 +742,7 @@ function PongGame:CreateUI(gameId)
 
     local GameCore = HopeAddon:GetModule("GameCore")
     if game.mode == GameCore.GAME_MODE.REMOTE then
-        controlsText:SetText("W/S to move | vs " .. (game.opponent or "Opponent"))
+        controlsText:SetText("W/S to move | vs " .. (game.data.opponent or "Opponent"))
     else
         controlsText:SetText("P1: W/S | P2: Up/Down")
     end
@@ -799,12 +851,60 @@ end
 
 function PongGame:CleanupGame(gameId)
     local game = self.games[gameId]
-    if not game then return end
+    if not game then
+        self.games[gameId] = nil
+        return
+    end
+
+    -- Cancel countdown timer
+    if game.data and game.data.countdownTimer then
+        game.data.countdownTimer:Cancel()
+        game.data.countdownTimer = nil
+    end
+
+    -- Release UI frame references
+    if game.data then
+        if game.data.paddle1Frame then
+            game.data.paddle1Frame:Hide()
+            game.data.paddle1Frame:SetParent(nil)
+            game.data.paddle1Frame = nil
+        end
+        if game.data.paddle2Frame then
+            game.data.paddle2Frame:Hide()
+            game.data.paddle2Frame:SetParent(nil)
+            game.data.paddle2Frame = nil
+        end
+        if game.data.ballFrame then
+            game.data.ballFrame:Hide()
+            game.data.ballFrame:SetParent(nil)
+            game.data.ballFrame = nil
+        end
+        if game.data.playArea then
+            game.data.playArea:Hide()
+            game.data.playArea:SetParent(nil)
+            game.data.playArea = nil
+        end
+        if game.data.window then
+            game.data.window:Hide()
+            game.data.window = nil
+        end
+
+        -- Clear text references
+        game.data.p1ScoreText = nil
+        game.data.p2ScoreText = nil
+        game.data.countdownText = nil
+    end
 
     -- Clear key states
     local GameCore = HopeAddon:GetModule("GameCore")
     if GameCore then
         GameCore:ClearKeyStates()
+    end
+
+    -- GameUI handles window destruction
+    local GameUI = HopeAddon:GetModule("GameUI")
+    if GameUI then
+        GameUI:DestroyGameWindow(gameId)
     end
 
     self.games[gameId] = nil

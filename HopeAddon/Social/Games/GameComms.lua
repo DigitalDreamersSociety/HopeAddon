@@ -22,6 +22,9 @@ local MSG_GAME_SYNC = "GSYNC"       -- State sync request/response
 -- Invite timeout (seconds)
 local INVITE_TIMEOUT = 60
 
+-- Cache SendAddonMessage function at load time (TBC optimization)
+local CachedSendAddonMessage = (C_ChatInfo and C_ChatInfo.SendAddonMessage) or SendAddonMessage
+
 --============================================================
 -- MODULE STATE
 --============================================================
@@ -52,13 +55,27 @@ function GameComms:OnInitialize()
 end
 
 function GameComms:OnEnable()
-    -- Hook into FellowTravelers addon message system
+    -- Register with FellowTravelers callback system (no hooking needed)
     local FellowTravelers = HopeAddon:GetModule("FellowTravelers")
     if FellowTravelers then
-        -- Store reference for unhooking
-        self.originalMessageHandler = FellowTravelers.OnAddonMessage
-        -- Register game message prefix handler
-        self:HookAddonMessages()
+        FellowTravelers:RegisterMessageCallback("GameComms",
+            function(msgType)
+                -- Match game message types
+                return msgType == MSG_GAME_INVITE or
+                       msgType == MSG_GAME_ACCEPT or
+                       msgType == MSG_GAME_DECLINE or
+                       msgType == MSG_GAME_STATE or
+                       msgType == MSG_GAME_MOVE or
+                       msgType == MSG_GAME_END or
+                       msgType == MSG_GAME_CHAT or
+                       msgType == MSG_GAME_SYNC
+            end,
+            function(msgType, senderName, data)
+                -- Reconstruct message format for HandleGameMessage
+                local message = msgType .. ":1:" .. (data or "")
+                GameComms:HandleGameMessage(nil, message, nil, senderName)
+            end
+        )
     end
 
     -- Start invite cleanup ticker
@@ -76,18 +93,16 @@ function GameComms:OnDisable()
         self.cleanupTicker = nil
     end
 
-    -- Unhook addon messages
+    -- Unregister callback
     local FellowTravelers = HopeAddon:GetModule("FellowTravelers")
-    if FellowTravelers and self.originalMessageHandler then
-        FellowTravelers.OnAddonMessage = self.originalMessageHandler
-        self.originalMessageHandler = nil
+    if FellowTravelers then
+        FellowTravelers:UnregisterMessageCallback("GameComms")
     end
 
     -- Clear references to prevent memory leaks
     self.pendingInvites = {}
     self.receivedInvites = {}
     self.messageHandlers = {}
-    self._hooked = nil
 end
 
 --============================================================
@@ -118,43 +133,6 @@ function GameComms:UnregisterHandler(gameType, messageType)
     end
 end
 
---============================================================
--- ADDON MESSAGE HOOK
---============================================================
-
-function GameComms:HookAddonMessages()
-    -- Guard against multiple hooks
-    if self._hooked then return end
-    self._hooked = true
-
-    local FellowTravelers = HopeAddon:GetModule("FellowTravelers")
-    if not FellowTravelers then return end
-
-    -- Store original handler
-    local originalHandler = FellowTravelers.OnAddonMessage
-
-    -- Wrap with game message handling
-    FellowTravelers.OnAddonMessage = function(self, prefix, message, channel, sender)
-        -- Check if this is a game message
-        local msgType = message:match("^(%u+):")
-        if msgType and (
-            msgType == MSG_GAME_INVITE or
-            msgType == MSG_GAME_ACCEPT or
-            msgType == MSG_GAME_DECLINE or
-            msgType == MSG_GAME_STATE or
-            msgType == MSG_GAME_MOVE or
-            msgType == MSG_GAME_END or
-            msgType == MSG_GAME_CHAT or
-            msgType == MSG_GAME_SYNC
-        ) then
-            -- Handle game message
-            GameComms:HandleGameMessage(prefix, message, channel, sender)
-        else
-            -- Pass to original handler
-            originalHandler(self, prefix, message, channel, sender)
-        end
-    end
-end
 
 --[[
     Handle incoming game messages
@@ -265,7 +243,8 @@ function GameComms:AcceptInvite(playerName)
     -- Create local game instance
     local GameCore = HopeAddon:GetModule("GameCore")
     local mode = GameCore.GAME_MODE.REMOTE
-    GameCore:CreateGame(invite.gameType, mode, playerName)
+    local gameId = GameCore:CreateGame(invite.gameType, mode, playerName)
+    GameCore:StartGame(gameId)  -- Start game immediately (fix asymmetric start bug)
 
     -- Send accept message
     self:SendGameMessage(playerName, MSG_GAME_ACCEPT, invite.gameType, invite.gameId, "")
@@ -500,10 +479,8 @@ function GameComms:BroadcastGameMessage(msgType, gameType, gameId, data)
     local prefix = "HOPEADDON"
     local msg = string.format("%s:1:%s:%s:%s", msgType, gameType, gameId or "", data or "")
 
-    if C_ChatInfo and C_ChatInfo.SendAddonMessage then
-        C_ChatInfo.SendAddonMessage(prefix, msg, "YELL")
-    elseif SendAddonMessage then
-        SendAddonMessage(prefix, msg, "YELL")
+    if CachedSendAddonMessage then
+        CachedSendAddonMessage(prefix, msg, "YELL")
     end
 end
 

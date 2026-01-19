@@ -234,12 +234,15 @@ end
 --[[
     TAB BUTTON
 ]]
-function Components:CreateTabButton(parent, text, width, height, tooltip)
+function Components:CreateTabButton(parent, text, width, height, tooltip, customColor)
     width = width or 100
     height = height or 30
 
     local tab = CreateFrame("Button", nil, parent)
     tab:SetSize(width, height)
+
+    -- Store custom color for selected state (color name string, e.g., "ARCANE_PURPLE")
+    tab.customColor = customColor
 
     -- Background
     local bg = tab:CreateTexture(nil, "BACKGROUND")
@@ -248,11 +251,16 @@ function Components:CreateTabButton(parent, text, width, height, tooltip)
     bg:SetVertexColor(0.2, 0.2, 0.2, 0.8)
     tab.bg = bg
 
-    -- Highlight
+    -- Highlight (use custom color if provided)
     local highlight = tab:CreateTexture(nil, "HIGHLIGHT")
     highlight:SetTexture(AssetTextures.HIGHLIGHT)
     highlight:SetAllPoints(tab)
-    highlight:SetVertexColor(1, 0.84, 0, 0.3)
+    if customColor then
+        local hColor = HopeAddon:GetSafeColor(customColor)
+        highlight:SetVertexColor(hColor.r, hColor.g, hColor.b, 0.3)
+    else
+        highlight:SetVertexColor(1, 0.84, 0, 0.3)
+    end
 
     -- Text (using 11pt for better fit with many tabs)
     local label = tab:CreateFontString(nil, "OVERLAY")
@@ -291,8 +299,17 @@ function Components:CreateTabButton(parent, text, width, height, tooltip)
     -- State methods
     function tab:SetSelected(isSelected)
         if isSelected then
-            self.bg:SetVertexColor(0.3, 0.25, 0.1, 0.9)
-            self.label:SetTextColor(1, 0.84, 0, 1)
+            -- Use custom color if provided, otherwise default gold
+            if self.customColor then
+                local color = HopeAddon:GetSafeColor(self.customColor)
+                self.bg:SetVertexColor(color.r * 0.3, color.g * 0.3, color.b * 0.3, 0.9)
+                self.label:SetTextColor(color.r, color.g, color.b, 1)
+                self.selectedIndicator:SetVertexColor(color.r, color.g, color.b, 1)
+            else
+                self.bg:SetVertexColor(0.3, 0.25, 0.1, 0.9)
+                self.label:SetTextColor(1, 0.84, 0, 1)
+                self.selectedIndicator:SetVertexColor(HopeAddon:GetColor("GOLD_BRIGHT"))
+            end
             self.selectedIndicator:Show()
         else
             self.bg:SetVertexColor(0.2, 0.2, 0.2, 0.8)
@@ -1250,7 +1267,7 @@ function Components:CreateReputationBar(parent, width, height, options)
         LAYER 6: Border Frame
         Switches between tooltip border (low) and gold border (high)
     ]]
-    local borderFrame = CreateFrame("Frame", nil, container, "BackdropTemplate")
+    local borderFrame = CreateFrame("Frame", nil, container)
     borderFrame:SetPoint("TOPLEFT", container, "TOPLEFT", -3, 3)
     borderFrame:SetPoint("BOTTOMRIGHT", container, "BOTTOMRIGHT", 3, -3)
     borderFrame:SetBackdrop({
@@ -1262,7 +1279,7 @@ function Components:CreateReputationBar(parent, width, height, options)
     container.borderFrame = borderFrame
 
     -- Secondary border for "double gold" effect (Exalted)
-    local outerBorder = CreateFrame("Frame", nil, container, "BackdropTemplate")
+    local outerBorder = CreateFrame("Frame", nil, container)
     outerBorder:SetPoint("TOPLEFT", container, "TOPLEFT", -6, 6)
     outerBorder:SetPoint("BOTTOMRIGHT", container, "BOTTOMRIGHT", 6, -6)
     outerBorder:SetBackdrop({
@@ -1870,7 +1887,7 @@ end
     @return Frame - Traveler card frame
 ]]
 function Components:CreateTravelerCard(parent, travelerData)
-    local card = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    local card = CreateFrame("Frame", nil, parent)
     card:SetHeight(50)
     card:SetBackdrop({
         bgFile = AssetTextures.TOOLTIP_BG,
@@ -2027,6 +2044,233 @@ function Components:CreateSpacer(parent, height)
     local spacer = CreateFrame("Frame", nil, parent)
     spacer:SetHeight(height or 10)
     return spacer
+end
+
+--[[
+    GAME CARD
+    Card component for displaying a game in the Games Hall
+    Shows icon, name, description, stats, and Practice/Challenge buttons
+
+    @param parent Frame - Parent frame
+    @param gameData table - Game definition from Constants.GAME_DEFINITIONS
+    @param onPractice function - Callback for Practice button click (gameId)
+    @param onChallenge function - Callback for Challenge button click (gameId)
+    @return Frame - Game card frame with all elements
+]]
+function Components:CreateGameCard(parent, gameData, onPractice, onChallenge)
+    local CARD_WIDTH = 200
+    local CARD_HEIGHT = 110
+    local ICON_SIZE = 48
+    local BUTTON_WIDTH = 80
+    local BUTTON_HEIGHT = 22
+
+    local card = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    card:SetSize(CARD_WIDTH, CARD_HEIGHT)
+    card:SetBackdrop({
+        bgFile = AssetTextures.PARCHMENT,
+        edgeFile = AssetTextures.TOOLTIP_BORDER,
+        tile = false,
+        edgeSize = 12,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 }
+    })
+    card:SetBackdropColor(1, 1, 1, 0.9)
+    card:SetBackdropBorderColor(0.6, 0.5, 0.3, 1)
+
+    -- Store default border color
+    card.defaultBorderColor = { 0.6, 0.5, 0.3, 1 }
+
+    -- Icon (left side, 48x48)
+    local icon = card:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(ICON_SIZE, ICON_SIZE)
+    icon:SetPoint("TOPLEFT", card, "TOPLEFT", 8, -8)
+    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92) -- Trim icon edges
+    card.icon = icon
+
+    -- Title (GOLD_BRIGHT, right of icon)
+    local title = card:CreateFontString(nil, "OVERLAY")
+    title:SetFont(AssetFonts.HEADER, 12, "OUTLINE")
+    title:SetPoint("TOPLEFT", icon, "TOPRIGHT", 8, -2)
+    title:SetPoint("RIGHT", card, "RIGHT", -8, 0)
+    title:SetJustifyH("LEFT")
+    title:SetTextColor(1, 0.84, 0, 1) -- GOLD_BRIGHT
+    card.title = title
+
+    -- Description (secondary text, below title)
+    local desc = card:CreateFontString(nil, "OVERLAY")
+    desc:SetFont(AssetFonts.BODY, 9)
+    desc:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -2)
+    desc:SetPoint("RIGHT", card, "RIGHT", -8, 0)
+    desc:SetJustifyH("LEFT")
+    desc:SetJustifyV("TOP")
+    desc:SetWordWrap(true)
+    desc:SetTextColor(HopeAddon:GetTextColor("SECONDARY"))
+    card.desc = desc
+
+    -- Stats row (W: X L: X T: X)
+    local stats = card:CreateFontString(nil, "OVERLAY")
+    stats:SetFont(AssetFonts.SMALL, 9)
+    stats:SetPoint("BOTTOMLEFT", icon, "BOTTOMRIGHT", 8, 2)
+    stats:SetTextColor(0.6, 0.6, 0.6, 1)
+    card.stats = stats
+
+    -- Practice button (left)
+    local practiceBtn = CreateFrame("Button", nil, card, "BackdropTemplate")
+    practiceBtn:SetSize(BUTTON_WIDTH, BUTTON_HEIGHT)
+    practiceBtn:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 8, 8)
+    practiceBtn:SetBackdrop({
+        bgFile = AssetTextures.DIALOG_BG,
+        edgeFile = AssetTextures.TOOLTIP_BORDER,
+        edgeSize = 10,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 }
+    })
+    practiceBtn:SetBackdropColor(0.2, 0.3, 0.2, 0.9)
+    practiceBtn:SetBackdropBorderColor(0.4, 0.5, 0.4, 1)
+
+    local practiceBtnText = practiceBtn:CreateFontString(nil, "OVERLAY")
+    practiceBtnText:SetFont(AssetFonts.SMALL, 10)
+    practiceBtnText:SetPoint("CENTER", practiceBtn, "CENTER", 0, 0)
+    practiceBtnText:SetText("Practice")
+    practiceBtnText:SetTextColor(0.8, 1.0, 0.8, 1)
+    practiceBtn.text = practiceBtnText
+
+    -- Practice button highlight
+    local practiceHighlight = practiceBtn:CreateTexture(nil, "HIGHLIGHT")
+    practiceHighlight:SetTexture(AssetTextures.HIGHLIGHT)
+    practiceHighlight:SetAllPoints()
+    practiceHighlight:SetVertexColor(0.2, 0.8, 0.2, 0.3)
+
+    -- Practice button disabled overlay
+    local practiceDisabled = practiceBtn:CreateTexture(nil, "OVERLAY", nil, 1)
+    practiceDisabled:SetTexture(AssetTextures.SOLID)
+    practiceDisabled:SetAllPoints()
+    practiceDisabled:SetVertexColor(0.3, 0.3, 0.3, 0.6)
+    practiceDisabled:Hide()
+    practiceBtn.disabledOverlay = practiceDisabled
+
+    card.practiceBtn = practiceBtn
+
+    -- Challenge button (right)
+    local challengeBtn = CreateFrame("Button", nil, card, "BackdropTemplate")
+    challengeBtn:SetSize(BUTTON_WIDTH, BUTTON_HEIGHT)
+    challengeBtn:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -8, 8)
+    challengeBtn:SetBackdrop({
+        bgFile = AssetTextures.DIALOG_BG,
+        edgeFile = AssetTextures.TOOLTIP_BORDER,
+        edgeSize = 10,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 }
+    })
+    challengeBtn:SetBackdropColor(0.3, 0.2, 0.3, 0.9)
+    challengeBtn:SetBackdropBorderColor(0.5, 0.4, 0.5, 1)
+
+    local challengeBtnText = challengeBtn:CreateFontString(nil, "OVERLAY")
+    challengeBtnText:SetFont(AssetFonts.SMALL, 10)
+    challengeBtnText:SetPoint("CENTER", challengeBtn, "CENTER", 0, 0)
+    challengeBtnText:SetText("Challenge")
+    challengeBtnText:SetTextColor(1.0, 0.8, 1.0, 1)
+    challengeBtn.text = challengeBtnText
+
+    -- Challenge button highlight
+    local challengeHighlight = challengeBtn:CreateTexture(nil, "HIGHLIGHT")
+    challengeHighlight:SetTexture(AssetTextures.HIGHLIGHT)
+    challengeHighlight:SetAllPoints()
+    challengeHighlight:SetVertexColor(0.6, 0.2, 0.8, 0.3)
+
+    card.challengeBtn = challengeBtn
+
+    -- Card highlight on hover
+    local highlight = card:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetTexture(AssetTextures.HIGHLIGHT)
+    highlight:SetAllPoints()
+    highlight:SetBlendMode("ADD")
+    highlight:SetVertexColor(1, 0.84, 0, 0.1)
+
+    -- Card enter/leave for border highlight
+    card:SetScript("OnEnter", function(self)
+        self:SetBackdropBorderColor(1, 0.84, 0, 1)
+    end)
+    card:SetScript("OnLeave", function(self)
+        local c = self.defaultBorderColor
+        self:SetBackdropBorderColor(c[1], c[2], c[3], c[4])
+    end)
+
+    -- Store gameData reference
+    card.gameData = gameData
+
+    -- Method to configure the card with game data
+    function card:SetGameData(data, practiceCallback, challengeCallback)
+        self.gameData = data
+        if not data then return end
+
+        -- Set icon
+        self.icon:SetTexture(data.icon)
+
+        -- Set title with color
+        local color = Colors[data.color] or Colors.GOLD_BRIGHT
+        self.title:SetText(data.name)
+        self.title:SetTextColor(color.r, color.g, color.b, 1)
+
+        -- Set description
+        self.desc:SetText(data.description)
+
+        -- Reset stats (will be set externally)
+        self.stats:SetText("")
+
+        -- Configure Practice button
+        if data.hasLocal then
+            self.practiceBtn:Enable()
+            self.practiceBtn.disabledOverlay:Hide()
+            self.practiceBtn.text:SetTextColor(0.8, 1.0, 0.8, 1)
+            self.practiceBtn:SetScript("OnClick", function()
+                if HopeAddon.Sounds then
+                    HopeAddon.Sounds:PlayClick()
+                end
+                if practiceCallback then
+                    practiceCallback(data.id)
+                end
+            end)
+        else
+            self.practiceBtn:Disable()
+            self.practiceBtn.disabledOverlay:Show()
+            self.practiceBtn.text:SetTextColor(0.5, 0.5, 0.5, 1)
+            self.practiceBtn:SetScript("OnClick", nil)
+        end
+
+        -- Configure Challenge button
+        self.challengeBtn:SetScript("OnClick", function()
+            if HopeAddon.Sounds then
+                HopeAddon.Sounds:PlayClick()
+            end
+            if challengeCallback then
+                challengeCallback(data.id)
+            end
+        end)
+    end
+
+    -- Method to set stats text
+    function card:SetStats(wins, losses, ties)
+        local parts = {}
+        if wins and wins > 0 then
+            table.insert(parts, "|cFF00FF00W:" .. wins .. "|r")
+        end
+        if losses and losses > 0 then
+            table.insert(parts, "|cFFFF0000L:" .. losses .. "|r")
+        end
+        if ties and ties > 0 then
+            table.insert(parts, "|cFF888888T:" .. ties .. "|r")
+        end
+        if #parts > 0 then
+            self.stats:SetText(table.concat(parts, "  "))
+        else
+            self.stats:SetText("|cFF666666No games played|r")
+        end
+    end
+
+    -- Initial setup if gameData provided
+    if gameData then
+        card:SetGameData(gameData, onPractice, onChallenge)
+    end
+
+    return card
 end
 
 -- Register with addon

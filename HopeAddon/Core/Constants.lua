@@ -3009,3 +3009,82 @@ C.RAIDS_BY_TIER = {
 function C:GetRaidTier(raidKey)
     return self.RAID_TIERS[raidKey]
 end
+
+--============================================================
+-- MINIGAME DEFINITIONS
+-- Centralized game data for Games Hall UI
+--============================================================
+
+C.GAME_DEFINITIONS = {
+    {
+        id = "dice",
+        name = "Dice Roll",
+        description = "Roll the dice and let fate decide the winner",
+        icon = "Interface\\Icons\\INV_Misc_Dice_02",
+        hasLocal = true,
+        hasRemote = true,
+        system = "legacy",
+        color = "GOLD_BRIGHT",
+    },
+    {
+        id = "rps",
+        name = "Rock Paper Scissors",
+        description = "The classic game of wits and reflexes",
+        icon = "Interface\\Icons\\Spell_Nature_EarthShock",
+        hasLocal = false,
+        hasRemote = true,
+        system = "legacy",
+        color = "NATURE_GREEN",
+    },
+    {
+        id = "deathroll",
+        name = "Death Roll",
+        description = "Gambling with your gold - roll 1 and you lose!",
+        icon = "Interface\\Icons\\INV_Misc_Bone_HumanSkull_01",
+        hasLocal = true,
+        hasRemote = true,
+        system = "legacy",
+        color = "HELLFIRE_RED",
+    },
+    {
+        id = "pong",
+        name = "Pong",
+        description = "Classic arcade paddle action",
+        icon = "Interface\\Icons\\INV_Misc_PunchCards_Yellow",
+        hasLocal = true,
+        hasRemote = true,
+        system = "gamecore",
+        color = "SKY_BLUE",
+    },
+    {
+        id = "tetris",
+        name = "Tetris Battle",
+        description = "Clear lines and send garbage to your opponent!",
+        icon = "Interface\\Icons\\INV_Misc_Gem_Variety_01",
+        hasLocal = true,
+        hasRemote = true,
+        system = "gamecore",
+        color = "ARCANE_PURPLE",
+    },
+    {
+        id = "words",
+        name = "Words with WoW",
+        description = "Scrabble-style word game with WoW vocabulary",
+        icon = "Interface\\Icons\\INV_Misc_Book_07",
+        hasLocal = false,
+        hasRemote = true,
+        system = "gamecore",
+        color = "BRONZE",
+    },
+}
+
+-- Game ID to definition lookup
+C.GAME_BY_ID = {}
+for _, game in ipairs(C.GAME_DEFINITIONS) do
+    C.GAME_BY_ID[game.id] = game
+end
+
+-- Get game definition by ID
+function C:GetGameDefinition(gameId)
+    return self.GAME_BY_ID[gameId]
+end

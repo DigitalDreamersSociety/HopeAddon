@@ -45,6 +45,11 @@ DeathRollGame.games = {}
 -- Event frame for roll detection
 DeathRollGame.eventFrame = nil
 
+-- Cached module references
+DeathRollGame.GameCore = nil
+DeathRollGame.GameComms = nil
+DeathRollGame.GameUI = nil
+
 --============================================================
 -- LIFECYCLE
 --============================================================
@@ -54,10 +59,14 @@ function DeathRollGame:OnInitialize()
 end
 
 function DeathRollGame:OnEnable()
+    -- Cache module references
+    self.GameCore = HopeAddon:GetModule("GameCore")
+    self.GameComms = HopeAddon:GetModule("GameComms")
+    self.GameUI = HopeAddon:GetModule("GameUI")
+
     -- Register with GameCore
-    local GameCore = HopeAddon:GetModule("GameCore")
-    if GameCore then
-        GameCore:RegisterGame(GameCore.GAME_TYPE.DEATH_ROLL, self)
+    if self.GameCore then
+        self.GameCore:RegisterGame(self.GameCore.GAME_TYPE.DEATH_ROLL, self)
     end
 
     -- Create event frame for roll detection
@@ -70,12 +79,11 @@ function DeathRollGame:OnEnable()
     end)
 
     -- Register communication handlers
-    local GameComms = HopeAddon:GetModule("GameComms")
-    if GameComms then
-        GameComms:RegisterHandler("DEATH_ROLL", "MOVE", function(sender, gameId, data)
+    if self.GameComms then
+        self.GameComms:RegisterHandler("DEATH_ROLL", "MOVE", function(sender, gameId, data)
             self:HandleRemoteRoll(sender, gameId, data)
         end)
-        GameComms:RegisterHandler("DEATH_ROLL", "STATE", function(sender, gameId, data)
+        self.GameComms:RegisterHandler("DEATH_ROLL", "STATE", function(sender, gameId, data)
             self:HandleRemoteState(sender, gameId, data)
         end)
     end
@@ -129,14 +137,13 @@ function DeathRollGame:OnStart(gameId)
     if not game then return end
 
     -- Check proximity for remote games
-    local GameCore = HopeAddon:GetModule("GameCore")
-    if self.PROXIMITY_REQUIRED and GameCore and game.mode == GameCore.GAME_MODE.REMOTE then
+    if self.PROXIMITY_REQUIRED and self.GameCore and game.mode == self.GameCore.GAME_MODE.REMOTE then
         local inProximity, reason = self:IsOpponentInProximity(game.opponent)
         if not inProximity then
             HopeAddon:Print("|cFFFF0000Death Roll requires proximity!|r")
             HopeAddon:Print(reason)
             HopeAddon:Print("Both players must be visible to each other for verified rolls.")
-            GameCore:EndGame(gameId, "proximity_required")
+            self.GameCore:EndGame(gameId, "proximity_required")
             return
         end
         -- Store initial proximity status
@@ -160,6 +167,8 @@ function DeathRollGame:OnEnd(gameId, reason)
     local game = self.games[gameId]
     if not game then return end
 
+    if not game.data then return end
+
     game.data.rollState = self.ROLL_STATE.FINISHED
 
     -- Determine loser/winner
@@ -173,7 +182,7 @@ function DeathRollGame:OnEnd(gameId, reason)
     end
 
     -- Record stats for remote games
-    if game.mode == GameCore.GAME_MODE.REMOTE and game.opponent then
+    if self.GameCore and game.mode == self.GameCore.GAME_MODE.REMOTE and game.opponent then
         local Minigames = HopeAddon:GetModule("Minigames")
         if Minigames and Minigames.RecordGameResult then
             local playerName = UnitName("player")
@@ -184,8 +193,7 @@ function DeathRollGame:OnEnd(gameId, reason)
     end
 
     -- Show game over UI
-    local GameUI = HopeAddon:GetModule("GameUI")
-    if GameUI then
+    if self.GameUI then
         local stats = {
             ["Total Rolls"] = #game.data.rollHistory,
             ["Starting Max"] = game.data.maxRoll,
@@ -193,7 +201,7 @@ function DeathRollGame:OnEnd(gameId, reason)
         if game.data.betAmount > 0 then
             stats["Bet"] = HopeAddon:FormatGold(game.data.betAmount * 10000)
         end
-        GameUI:ShowGameOver(gameId, game.winner, stats)
+        self.GameUI:ShowGameOver(gameId, game.winner, stats)
     end
 end
 
@@ -201,6 +209,46 @@ end
     Called when game is destroyed
 ]]
 function DeathRollGame:OnDestroy(gameId)
+    self:CleanupGame(gameId)
+end
+
+--[[
+    Cleanup all game resources
+]]
+function DeathRollGame:CleanupGame(gameId)
+    local game = self.games[gameId]
+    if not game then
+        self.games[gameId] = nil
+        return
+    end
+
+    -- Cleanup escrow session if active
+    if game.data and game.data.betAmount and game.data.betAmount > 0 then
+        local Escrow = HopeAddon:GetModule("DeathRollEscrow")
+        if Escrow then
+            Escrow:CancelEscrow(gameId)
+        end
+    end
+
+    -- Release UI frame references
+    if game.data then
+        if game.data.window then
+            game.data.window:Hide()
+            game.data.window = nil
+        end
+
+        -- Clear text references
+        game.data.maxValueText = nil
+        game.data.turnText = nil
+        game.data.historyText = nil
+        game.data.proximityText = nil
+    end
+
+    -- GameUI handles window destruction
+    if self.GameUI then
+        self.GameUI:DestroyGameWindow(gameId)
+    end
+
     self.games[gameId] = nil
 end
 
@@ -260,21 +308,6 @@ function DeathRollGame:IsValidRoll(game, playerName, maxRoll)
         return false
     end
 
-    -- Check proximity for remote games (warn if opponent not visible)
-    local GameCore = HopeAddon:GetModule("GameCore")
-    if self.PROXIMITY_REQUIRED and GameCore and game.mode == GameCore.GAME_MODE.REMOTE then
-        local myName = UnitName("player")
-        local opponentName = (playerName == myName) and game.opponent or nil
-        if opponentName then
-            local inProximity, reason = self:IsOpponentInProximity(opponentName)
-            if not inProximity then
-                HopeAddon:Print("|cFFFF0000Cannot verify roll!|r " .. reason)
-                HopeAddon:Print("Both players should be in the same area for Death Roll.")
-                -- Still allow the roll, but warn the player
-            end
-        end
-    end
-
     return true
 end
 
@@ -300,9 +333,8 @@ function DeathRollGame:ProcessRoll(gameId, playerName, rollResult, maxRoll)
     if rollResult == 1 then
         -- This player loses
         local winner = playerName == game.player1 and game.player2 or game.player1
-        local GameCore = HopeAddon:GetModule("GameCore")
-        if GameCore then
-            GameCore:SetWinner(gameId, winner)
+        if self.GameCore then
+            self.GameCore:SetWinner(gameId, winner)
         end
         return
     end
@@ -319,12 +351,10 @@ function DeathRollGame:ProcessRoll(gameId, playerName, rollResult, maxRoll)
     end
 
     -- Send update to remote player if networked
-    local GameCore = HopeAddon:GetModule("GameCore")
-    if GameCore and game.mode == GameCore.GAME_MODE.REMOTE then
-        local GameComms = HopeAddon:GetModule("GameComms")
-        if GameComms then
+    if self.GameCore and game.mode == self.GameCore.GAME_MODE.REMOTE then
+        if self.GameComms then
             local stateData = string.format("%d|%s", rollResult, playerName)
-            GameComms:SendState(game.opponent, "DEATH_ROLL", gameId, stateData)
+            self.GameComms:SendState(game.opponent, "DEATH_ROLL", gameId, stateData)
         end
     end
 end
@@ -412,30 +442,32 @@ function DeathRollGame:ShowUI(gameId)
     local game = self.games[gameId]
     if not game then return end
 
-    local GameUI = HopeAddon:GetModule("GameUI")
-    if not GameUI then return end
+    if not self.GameUI then return end
 
     -- Create game window
-    local window = GameUI:CreateGameWindow(gameId, "Death Roll", "SMALL")
+    local window = self.GameUI:CreateGameWindow(gameId, "Death Roll", "SMALL")
     if not window then return end
+
+    -- Store window reference for cleanup
+    game.data.window = window
 
     local content = window.content
 
     -- Player names
-    local p1Label = GameUI:CreateLabel(content, game.player1, "GameFontNormal")
+    local p1Label = self.GameUI:CreateLabel(content, game.player1, "GameFontNormal")
     p1Label:SetPoint("TOPLEFT", 10, -10)
     p1Label:SetTextColor(0.2, 0.8, 0.2)
 
-    local vsLabel = GameUI:CreateLabel(content, "vs", "GameFontNormalSmall")
+    local vsLabel = self.GameUI:CreateLabel(content, "vs", "GameFontNormalSmall")
     vsLabel:SetPoint("TOP", 0, -10)
     vsLabel:SetTextColor(0.6, 0.6, 0.6)
 
-    local p2Label = GameUI:CreateLabel(content, game.player2, "GameFontNormal")
+    local p2Label = self.GameUI:CreateLabel(content, game.player2, "GameFontNormal")
     p2Label:SetPoint("TOPRIGHT", -10, -10)
     p2Label:SetTextColor(0.8, 0.2, 0.2)
 
     -- Current max roll display
-    local maxLabel = GameUI:CreateLabel(content, "Current Max", "GameFontNormalSmall")
+    local maxLabel = self.GameUI:CreateLabel(content, "Current Max", "GameFontNormalSmall")
     maxLabel:SetPoint("TOP", 0, -40)
     maxLabel:SetTextColor(0.6, 0.6, 0.6)
 
@@ -453,7 +485,7 @@ function DeathRollGame:ShowUI(gameId)
     game.data.turnText = turnLabel
 
     -- Roll history scroll
-    local historyLabel = GameUI:CreateLabel(content, "Roll History", "GameFontNormalSmall")
+    local historyLabel = self.GameUI:CreateLabel(content, "Roll History", "GameFontNormalSmall")
     historyLabel:SetPoint("BOTTOMLEFT", 10, 55)
     historyLabel:SetTextColor(0.6, 0.6, 0.6)
 
@@ -469,14 +501,13 @@ function DeathRollGame:ShowUI(gameId)
 
     -- Bet display (if betting)
     if game.data.betAmount > 0 then
-        local betLabel = GameUI:CreateLabel(content, "Bet: " .. HopeAddon:FormatGold(game.data.betAmount * 10000), "GameFontNormalSmall")
+        local betLabel = self.GameUI:CreateLabel(content, "Bet: " .. HopeAddon:FormatGold(game.data.betAmount * 10000), "GameFontNormalSmall")
         betLabel:SetPoint("BOTTOM", 0, 60)
         betLabel:SetTextColor(1, 0.84, 0)
     end
 
     -- Proximity status indicator (for remote games)
-    local GameCore = HopeAddon:GetModule("GameCore")
-    if GameCore and game.mode == GameCore.GAME_MODE.REMOTE then
+    if self.GameCore and game.mode == self.GameCore.GAME_MODE.REMOTE then
         local proximityText = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         proximityText:SetPoint("BOTTOM", content, "BOTTOM", 0, 3)
         if game.data.proximityVerified then
@@ -544,13 +575,12 @@ end
     @return string - Game ID
 ]]
 function DeathRollGame:StartGame(opponent, betAmount, maxRoll)
-    local GameCore = HopeAddon:GetModule("GameCore")
-    if not GameCore then return nil end
+    if not self.GameCore then return nil end
 
-    local mode = opponent and GameCore.GAME_MODE.REMOTE or GameCore.GAME_MODE.LOCAL
-    local gameId = GameCore:CreateGame(GameCore.GAME_TYPE.DEATH_ROLL, mode, opponent)
+    local mode = opponent and self.GameCore.GAME_MODE.REMOTE or self.GameCore.GAME_MODE.LOCAL
+    local gameId = self.GameCore:CreateGame(self.GameCore.GAME_TYPE.DEATH_ROLL, mode, opponent)
 
-    local game = GameCore:GetGame(gameId)
+    local game = self.GameCore:GetGame(gameId)
     if game then
         game.data.maxRoll = maxRoll or self.DEFAULT_MAX_ROLL
         game.data.currentMax = game.data.maxRoll
@@ -562,7 +592,7 @@ function DeathRollGame:StartGame(opponent, betAmount, maxRoll)
         game.player2 = UnitName("player") .. " (2)"
     end
 
-    GameCore:StartGame(gameId)
+    self.GameCore:StartGame(gameId)
 
     return gameId
 end

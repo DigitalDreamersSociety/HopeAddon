@@ -41,7 +41,7 @@ end
 ]]
 function Reputation:CreateNotificationPool()
     local createFunc = function()
-        local frame = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
+        local frame = CreateFrame("Frame", nil, UIParent)
         frame:SetFrameStrata("DIALOG")
         frame:Hide()
 

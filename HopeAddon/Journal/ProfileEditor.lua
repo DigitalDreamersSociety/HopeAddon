@@ -26,7 +26,7 @@ local ROW_HEIGHT = 24
 function ProfileEditor:CreateFrame()
     if self.frame then return self.frame end
 
-    local frame = CreateFrame("Frame", "HopeAddonProfileEditor", UIParent, "BackdropTemplate")
+    local frame = CreateFrame("Frame", "HopeAddonProfileEditor", UIParent)
     frame:SetSize(FRAME_WIDTH, FRAME_HEIGHT)
     frame:SetPoint("CENTER")
     frame:SetMovable(true)
@@ -324,7 +324,7 @@ end
 --============================================================
 
 function ProfileEditor:CreateEditBox(parent, width, height)
-    local box = CreateFrame("EditBox", nil, parent, "BackdropTemplate")
+    local box = CreateFrame("EditBox", nil, parent)
     box:SetSize(width, height)
     box:SetAutoFocus(false)
     box:SetFontObject(ChatFontNormal)
@@ -342,7 +342,7 @@ function ProfileEditor:CreateEditBox(parent, width, height)
 end
 
 function ProfileEditor:CreateMultiLineEditBox(parent, width, height)
-    local scrollFrame = CreateFrame("ScrollFrame", nil, parent, "UIPanelScrollFrameTemplate, BackdropTemplate")
+    local scrollFrame = CreateFrame("ScrollFrame", nil, parent, "UIPanelScrollFrameTemplate")
     scrollFrame:SetSize(width, height)
     scrollFrame:SetBackdrop({
         bgFile = HopeAddon.assets.textures.TOOLTIP_BG,

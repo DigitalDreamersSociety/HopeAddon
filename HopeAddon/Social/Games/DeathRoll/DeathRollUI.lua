@@ -17,11 +17,31 @@ local COLORS = {
     MUTED = { r = 0.6, g = 0.6, b = 0.6 },
 }
 
+-- Window sizes
+DeathRollUI.SETUP_WINDOW = { width = 320, height = 280 }
+DeathRollUI.HISTORY_WINDOW = { width = 250, height = 300 }
+
+-- Layout constants
+DeathRollUI.MARGINS = { top = 16, left = 20, vertical = 12, label = 5 }
+DeathRollUI.INPUT_HEIGHT = 24
+DeathRollUI.BUTTON_HEIGHT = 32
+
+-- Consistent backdrop for windows
+DeathRollUI.WINDOW_BACKDROP = {
+    bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+    tile = true,
+    tileSize = 16,
+    edgeSize = 16,
+    insets = { left = 4, right = 4, top = 4, bottom = 4 }
+}
+
 --============================================================
 -- MODULE STATE
 --============================================================
 
 DeathRollUI.setupWindow = nil
+DeathRollUI.historyWindows = {}
 
 --============================================================
 -- LIFECYCLE
@@ -39,6 +59,15 @@ function DeathRollUI:OnDisable()
     if self.setupWindow then
         self.setupWindow:Hide()
     end
+
+    -- Clean up history windows
+    for gameId, window in pairs(self.historyWindows) do
+        if window then
+            window:Hide()
+            window:SetParent(nil)
+        end
+    end
+    wipe(self.historyWindows)
 end
 
 --============================================================
@@ -62,22 +91,15 @@ function DeathRollUI:CreateSetupWindow()
     if not GameUI then return end
 
     -- Create window frame
-    local window = CreateFrame("Frame", "HopeDeathRollSetup", UIParent, "BackdropTemplate")
-    window:SetSize(320, 280)
+    local window = CreateFrame("Frame", "HopeDeathRollSetup", UIParent)
+    window:SetSize(self.SETUP_WINDOW.width, self.SETUP_WINDOW.height)
     window:SetPoint("CENTER")
     window:SetMovable(true)
     window:EnableMouse(true)
     window:SetClampedToScreen(true)
     window:SetFrameStrata("DIALOG")
 
-    window:SetBackdrop({
-        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
-        tile = true,
-        tileSize = 16,
-        edgeSize = 24,
-        insets = { left = 5, right = 5, top = 5, bottom = 5 }
-    })
+    window:SetBackdrop(self.WINDOW_BACKDROP)
     window:SetBackdropColor(0.1, 0.1, 0.15, 0.95)
 
     -- Make draggable
@@ -93,20 +115,20 @@ function DeathRollUI:CreateSetupWindow()
 
     -- Opponent input
     local oppLabel = window:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    oppLabel:SetPoint("TOPLEFT", 20, -50)
+    oppLabel:SetPoint("TOPLEFT", self.MARGINS.left, -50)
     oppLabel:SetText("Opponent (leave blank for local):")
     oppLabel:SetTextColor(0.9, 0.9, 0.9)
 
     local oppInput = CreateFrame("EditBox", nil, window, "InputBoxTemplate")
-    oppInput:SetSize(200, 24)
-    oppInput:SetPoint("TOPLEFT", oppLabel, "BOTTOMLEFT", 5, -5)
+    oppInput:SetSize(200, self.INPUT_HEIGHT)
+    oppInput:SetPoint("TOPLEFT", oppLabel, "BOTTOMLEFT", 0, -self.MARGINS.label)
     oppInput:SetAutoFocus(false)
     oppInput:SetText("")
     window.opponentInput = oppInput
 
     -- Target button (auto-fill target name)
     local targetBtn = GameUI:CreateButton(window, "Target", 60, 22)
-    targetBtn:SetPoint("LEFT", oppInput, "RIGHT", 5, 0)
+    targetBtn:SetPoint("LEFT", oppInput, "RIGHT", self.MARGINS.label, 0)
     targetBtn:SetScript("OnClick", function()
         if UnitIsPlayer("target") then
             oppInput:SetText(UnitName("target"))
@@ -115,13 +137,13 @@ function DeathRollUI:CreateSetupWindow()
 
     -- Max roll input
     local maxLabel = window:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    maxLabel:SetPoint("TOPLEFT", oppInput, "BOTTOMLEFT", -5, -20)
+    maxLabel:SetPoint("TOPLEFT", oppInput, "BOTTOMLEFT", 0, -self.MARGINS.vertical)
     maxLabel:SetText("Starting Max Roll:")
     maxLabel:SetTextColor(0.9, 0.9, 0.9)
 
     local maxInput = CreateFrame("EditBox", nil, window, "InputBoxTemplate")
-    maxInput:SetSize(100, 24)
-    maxInput:SetPoint("TOPLEFT", maxLabel, "BOTTOMLEFT", 5, -5)
+    maxInput:SetSize(100, self.INPUT_HEIGHT)
+    maxInput:SetPoint("TOPLEFT", maxLabel, "BOTTOMLEFT", 0, -self.MARGINS.label)
     maxInput:SetAutoFocus(false)
     maxInput:SetText("1000")
     maxInput:SetNumeric(true)
@@ -129,13 +151,13 @@ function DeathRollUI:CreateSetupWindow()
 
     -- Bet amount input
     local betLabel = window:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    betLabel:SetPoint("TOPLEFT", maxInput, "BOTTOMLEFT", -5, -20)
+    betLabel:SetPoint("TOPLEFT", maxInput, "BOTTOMLEFT", 0, -self.MARGINS.vertical)
     betLabel:SetText("Bet Amount (gold, 0 for none):")
     betLabel:SetTextColor(0.9, 0.9, 0.9)
 
     local betInput = CreateFrame("EditBox", nil, window, "InputBoxTemplate")
-    betInput:SetSize(100, 24)
-    betInput:SetPoint("TOPLEFT", betLabel, "BOTTOMLEFT", 5, -5)
+    betInput:SetSize(100, self.INPUT_HEIGHT)
+    betInput:SetPoint("TOPLEFT", betLabel, "BOTTOMLEFT", 0, -self.MARGINS.label)
     betInput:SetAutoFocus(false)
     betInput:SetText("0")
     betInput:SetNumeric(true)
@@ -143,7 +165,7 @@ function DeathRollUI:CreateSetupWindow()
 
     -- Escrow checkbox
     local escrowCheck = CreateFrame("CheckButton", nil, window, "UICheckButtonTemplate")
-    escrowCheck:SetPoint("TOPLEFT", betInput, "BOTTOMLEFT", -5, -15)
+    escrowCheck:SetPoint("TOPLEFT", betInput, "BOTTOMLEFT", 0, -self.MARGINS.vertical)
     escrowCheck:SetChecked(false)
     window.escrowCheck = escrowCheck
 
@@ -153,15 +175,15 @@ function DeathRollUI:CreateSetupWindow()
     escrowLabel:SetTextColor(0.7, 0.7, 0.7)
 
     -- Start button
-    local startBtn = GameUI:CreateButton(window, "Start Game", 120, 32)
-    startBtn:SetPoint("BOTTOMLEFT", 30, 20)
+    local startBtn = GameUI:CreateButton(window, "Start Game", 120, self.BUTTON_HEIGHT)
+    startBtn:SetPoint("BOTTOMLEFT", 30, self.MARGINS.left)
     startBtn:SetScript("OnClick", function()
         self:StartGameFromSetup()
     end)
 
     -- Cancel button
-    local cancelBtn = GameUI:CreateButton(window, "Cancel", 100, 32)
-    cancelBtn:SetPoint("BOTTOMRIGHT", -30, 20)
+    local cancelBtn = GameUI:CreateButton(window, "Cancel", 100, self.BUTTON_HEIGHT)
+    cancelBtn:SetPoint("BOTTOMRIGHT", -30, self.MARGINS.left)
     cancelBtn:SetScript("OnClick", function()
         window:Hide()
     end)
@@ -207,8 +229,12 @@ function DeathRollUI:StartGameFromSetup()
         local gameId = DeathRollGame:StartGame(opponent, betAmount, maxRoll)
         if gameId and useEscrow and betAmount > 0 then
             local Escrow = HopeAddon:GetModule("DeathRollEscrow")
-            if Escrow then
-                Escrow:InitiateEscrow(gameId, betAmount)
+            local GameCore = HopeAddon:GetModule("GameCore")
+            if Escrow and GameCore then
+                local game = GameCore:GetGame(gameId)
+                if game then
+                    Escrow:InitiateAsHouse(gameId, betAmount, game.player1, game.player2)
+                end
             end
         end
     end
@@ -234,23 +260,32 @@ function DeathRollUI:ShowHistory(gameId)
     local GameUI = HopeAddon:GetModule("GameUI")
     if not GameUI then return end
 
+    -- Close existing history window for this game if any
+    if self.historyWindows[gameId] then
+        self.historyWindows[gameId]:Hide()
+        self.historyWindows[gameId]:SetParent(nil)
+        self.historyWindows[gameId] = nil
+    end
+
     -- Create history window
-    local window = CreateFrame("Frame", "HopeDeathRollHistory_" .. gameId, UIParent, "BackdropTemplate")
-    window:SetSize(250, 300)
+    local window = CreateFrame("Frame", "HopeDeathRollHistory_" .. gameId, UIParent)
+    window:SetSize(self.HISTORY_WINDOW.width, self.HISTORY_WINDOW.height)
     window:SetPoint("CENTER", 200, 0)
     window:SetMovable(true)
     window:EnableMouse(true)
+    window:SetClampedToScreen(true)
     window:SetFrameStrata("DIALOG")
 
-    window:SetBackdrop({
-        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true,
-        tileSize = 16,
-        edgeSize = 16,
-        insets = { left = 4, right = 4, top = 4, bottom = 4 }
-    })
+    window:SetBackdrop(self.WINDOW_BACKDROP)
     window:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
+
+    -- Track window for cleanup
+    self.historyWindows[gameId] = window
+
+    -- Make draggable
+    window:RegisterForDrag("LeftButton")
+    window:SetScript("OnDragStart", window.StartMoving)
+    window:SetScript("OnDragStop", window.StopMovingOrSizing)
 
     -- Title
     local title = window:CreateFontString(nil, "OVERLAY", "GameFontNormal")

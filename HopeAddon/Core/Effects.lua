@@ -4,9 +4,10 @@
 ]]
 
 -- Lua function caches for hot paths
-local math_random = math_random
-local math_floor = math_floor
-local string_sub = string_sub
+local math_random = math.random
+local math_floor = math.floor
+local math_max = math.max
+local string_sub = string.sub
 
 local Effects = {}
 HopeAddon.Effects = Effects
@@ -188,7 +189,7 @@ function Effects:CreateBorderGlow(parent, colorName)
     local glowFrame = CreateFrame("Frame", nil, parent)
     glowFrame:SetPoint("TOPLEFT", parent, "TOPLEFT", -3, 3)
     glowFrame:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", 3, -3)
-    glowFrame:SetFrameLevel(math.max(1, parent:GetFrameLevel() - 1))
+    glowFrame:SetFrameLevel(math_max(1, parent:GetFrameLevel() - 1))
 
     local glow = glowFrame:CreateTexture(nil, "BACKGROUND")
     glow:SetTexture(HopeAddon.assets.textures.GLOW_BUTTON)

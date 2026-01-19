@@ -241,20 +241,23 @@ end
 
 --[[
     Get the player's current location for sharing
+    TBC-compatible: C_Map doesn't exist in TBC Classic
     @return number, number, string - x, y, zone or nil
 ]]
 function MapPins:GetPlayerLocation()
-    local mapID = C_Map and C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player")
-    if not mapID then
-        -- TBC fallback - may not have precise coordinates
-        return nil, nil, GetZoneText()
+    -- TBC-compatible check: verify all required C_Map functions exist
+    if C_Map and C_Map.GetBestMapForUnit and C_Map.GetPlayerMapPosition then
+        local mapID = C_Map.GetBestMapForUnit("player")
+        if mapID then
+            local pos = C_Map.GetPlayerMapPosition(mapID, "player")
+            if pos then
+                return pos.x, pos.y, GetZoneText()
+            end
+        end
     end
 
-    local pos = C_Map.GetPlayerMapPosition(mapID, "player")
-    if pos then
-        return pos.x, pos.y, GetZoneText()
-    end
-
+    -- TBC fallback - coordinates not available without WorldMapFrame open
+    -- Return zone name only
     return nil, nil, GetZoneText()
 end
 

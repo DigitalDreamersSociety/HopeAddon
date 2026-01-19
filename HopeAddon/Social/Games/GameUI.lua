@@ -111,7 +111,7 @@ function GameUI:CreateGameWindow(gameId, title, size)
     size = size or self.WINDOW_SIZES.MEDIUM
 
     -- Create main frame
-    local window = CreateFrame("Frame", "HopeGameWindow_" .. gameId, UIParent, "BackdropTemplate")
+    local window = CreateFrame("Frame", "HopeGameWindow_" .. gameId, UIParent)
     window:SetSize(size.width, size.height)
     window:SetPoint("CENTER")
     window:SetMovable(true)
@@ -132,7 +132,7 @@ function GameUI:CreateGameWindow(gameId, title, size)
     window:SetBackdropBorderColor(COLORS.BORDER.r, COLORS.BORDER.g, COLORS.BORDER.b, COLORS.BORDER.a)
 
     -- Title bar
-    local titleBar = CreateFrame("Frame", nil, window, "BackdropTemplate")
+    local titleBar = CreateFrame("Frame", nil, window)
     titleBar:SetHeight(28)
     titleBar:SetPoint("TOPLEFT", 4, -4)
     titleBar:SetPoint("TOPRIGHT", -4, -4)
@@ -224,7 +224,7 @@ function GameUI:CreateButton(parent, text, width, height)
     width = width or 100
     height = height or 28
 
-    local button = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    local button = CreateFrame("Button", nil, parent)
     button:SetSize(width, height)
 
     button:SetBackdrop({
@@ -311,7 +311,7 @@ function GameUI:CreateStatusBar(parent, width, height, color)
     height = height or 20
     color = color or COLORS.GREEN
 
-    local bar = CreateFrame("StatusBar", nil, parent, "BackdropTemplate")
+    local bar = CreateFrame("StatusBar", nil, parent)
     bar:SetSize(width, height)
     bar:SetStatusBarTexture("Interface\\TARGETINGFRAME\\UI-StatusBar")
     bar:SetStatusBarColor(color.r, color.g, color.b)
@@ -383,7 +383,7 @@ function GameUI:ShowInviteDialog(sender, gameType, betAmount)
 end
 
 function GameUI:CreateInviteDialog()
-    local dialog = CreateFrame("Frame", "HopeGameInviteDialog", UIParent, "BackdropTemplate")
+    local dialog = CreateFrame("Frame", "HopeGameInviteDialog", UIParent)
     dialog:SetSize(300, 150)
     dialog:SetPoint("CENTER", 0, 100)
     dialog:SetMovable(true)
@@ -464,7 +464,7 @@ function GameUI:ShowGameOver(gameId, winner, stats)
     if not window or not window.content then return end
 
     -- Create overlay
-    local overlay = CreateFrame("Frame", nil, window.content, "BackdropTemplate")
+    local overlay = CreateFrame("Frame", nil, window.content)
     overlay:SetAllPoints()
     overlay:SetFrameLevel(window.content:GetFrameLevel() + 10)
 
@@ -563,7 +563,7 @@ end
     @return Frame
 ]]
 function GameUI:CreatePlayArea(parent, width, height)
-    local area = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    local area = CreateFrame("Frame", nil, parent)
     area:SetSize(width, height)
 
     area:SetBackdrop({

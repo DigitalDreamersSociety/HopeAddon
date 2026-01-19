@@ -258,7 +258,7 @@ function MinigamesUI:GetChallengePopup()
     end
 
     -- Create popup frame
-    local popup = CreateFrame("Frame", "HopeMinigameChallengePopup", UIParent, "BackdropTemplate")
+    local popup = CreateFrame("Frame", "HopeMinigameChallengePopup", UIParent)
     popup:SetSize(POPUP_WIDTH, POPUP_HEIGHT)
     popup:SetPoint("TOP", UIParent, "TOP", 0, -150)
     popup:SetFrameStrata("DIALOG")
@@ -407,7 +407,7 @@ function MinigamesUI:GetGameFrame()
     end
 
     -- Create main game frame
-    local frame = CreateFrame("Frame", "HopeMinigameFrame", UIParent, "BackdropTemplate")
+    local frame = CreateFrame("Frame", "HopeMinigameFrame", UIParent)
     frame:SetSize(GAME_WIDTH, GAME_HEIGHT)
     frame:SetPoint("CENTER", UIParent, "CENTER", 0, 100)
     frame:SetFrameStrata("DIALOG")
@@ -510,7 +510,7 @@ function MinigamesUI:CreateDiceContainer(frame, content)
     playerLabel:SetTextColor(0.2, 0.2, 0.2, 1)
     frame.dicePlayerLabel = playerLabel
 
-    local playerRollFrame = CreateFrame("Frame", nil, container, "BackdropTemplate")
+    local playerRollFrame = CreateFrame("Frame", nil, container)
     playerRollFrame:SetSize(80, 80)
     playerRollFrame:SetPoint("TOP", playerLabel, "BOTTOM", 0, -10)
     playerRollFrame:SetBackdrop({
@@ -545,7 +545,7 @@ function MinigamesUI:CreateDiceContainer(frame, content)
     oppLabel:SetTextColor(0.2, 0.2, 0.2, 1)
     frame.diceOppLabel = oppLabel
 
-    local oppRollFrame = CreateFrame("Frame", nil, container, "BackdropTemplate")
+    local oppRollFrame = CreateFrame("Frame", nil, container)
     oppRollFrame:SetSize(80, 80)
     oppRollFrame:SetPoint("TOP", oppLabel, "BOTTOM", 0, -10)
     oppRollFrame:SetBackdrop({
@@ -609,7 +609,7 @@ function MinigamesUI:CreateRPSContainer(frame, content)
     frame.rpsButtons = {}
 
     for i, choice in ipairs(choices) do
-        local btn = CreateFrame("Button", nil, buttonRow, "BackdropTemplate")
+        local btn = CreateFrame("Button", nil, buttonRow)
         btn:SetSize(RPS_BUTTON_SIZE, RPS_BUTTON_SIZE)
         btn:SetPoint("LEFT", buttonRow, "LEFT", (i - 1) * (RPS_BUTTON_SIZE + 20), 0)
         btn:SetBackdrop({
@@ -1142,7 +1142,7 @@ function MinigamesUI:GetGameSelectionPopup()
     end
 
     -- Create popup frame with parchment backdrop
-    local popup = CreateFrame("Frame", "HopeGameSelectionPopup", UIParent, "BackdropTemplate")
+    local popup = CreateFrame("Frame", "HopeGameSelectionPopup", UIParent)
     popup:SetSize(GAME_SELECTION_WIDTH, GAME_SELECTION_HEIGHT)
     popup:SetPoint("CENTER", UIParent, "CENTER", 0, 100)
     popup:SetFrameStrata("DIALOG")
@@ -1205,7 +1205,7 @@ function MinigamesUI:GetGameSelectionPopup()
         local yOffset = -10 - row * (GAME_ICON_SIZE + BUTTON_SPACING_Y + 15)
 
         -- Create button
-        local btn = CreateFrame("Button", nil, buttonContainer, "BackdropTemplate")
+        local btn = CreateFrame("Button", nil, buttonContainer)
         btn:SetSize(GAME_ICON_SIZE, GAME_ICON_SIZE)
         btn:SetPoint("TOPLEFT", buttonContainer, "TOPLEFT", xOffset, yOffset)
         btn:SetBackdrop({

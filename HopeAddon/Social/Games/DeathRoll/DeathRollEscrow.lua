@@ -33,6 +33,9 @@ DeathRollEscrow.STATE = {
     DISPUTED = "DISPUTED",              -- Something went wrong
 }
 
+-- Tolerance for copper amount comparison (1 copper)
+DeathRollEscrow.COPPER_TOLERANCE = 1
+
 -- Message types for escrow communication
 local MSG_ESCROW_INIT = "EINIT"         -- House initiates escrow
 local MSG_ESCROW_JOIN = "EJOIN"         -- Player joins escrow
@@ -293,10 +296,9 @@ function DeathRollEscrow:UpdateSessionState(sessionId)
     elseif session.player1Paid and session.player2Paid then
         -- Verify amounts
         local expectedCopper = session.betAmount
-        local tolerance = 1 -- 1 copper tolerance
 
-        if math.abs(session.player1Amount - expectedCopper) > tolerance or
-           math.abs(session.player2Amount - expectedCopper) > tolerance then
+        if math.abs(session.player1Amount - expectedCopper) > self.COPPER_TOLERANCE or
+           math.abs(session.player2Amount - expectedCopper) > self.COPPER_TOLERANCE then
             session.state = self.STATE.DISPUTED
             HopeAddon:Print("WARNING: Payment amounts don't match expected bet!")
             HopeAddon:Print("Expected: " .. HopeAddon:FormatGold(expectedCopper))
@@ -357,8 +359,10 @@ function DeathRollEscrow:CompleteEscrow(sessionId)
     HopeAddon:Print("Escrow completed successfully!")
 
     -- Clean up after delay
-    HopeAddon.Timer:After(60, function()
-        self.sessions[sessionId] = nil
+    session.cleanupTimer = HopeAddon.Timer:After(60, function()
+        if self.sessions[sessionId] then
+            self.sessions[sessionId] = nil
+        end
     end)
 end
 
@@ -427,6 +431,42 @@ end
 --============================================================
 -- PUBLIC API
 --============================================================
+
+--[[
+    Cancel escrow session and clean up resources
+    @param gameId string
+]]
+function DeathRollEscrow:CancelEscrow(gameId)
+    local sessionId = self:FindSessionByGameId(gameId)
+    if not sessionId then return end
+
+    local session = self.sessions[sessionId]
+    if not session then return end
+
+    -- Cancel cleanup timer if exists
+    if session.cleanupTimer then
+        session.cleanupTimer:Cancel()
+        session.cleanupTimer = nil
+    end
+
+    -- Remove session
+    self.sessions[sessionId] = nil
+    HopeAddon:Debug("Cancelled escrow session:", sessionId)
+end
+
+--[[
+    Find session by game ID
+    @param gameId string
+    @return string|nil - Session ID
+]]
+function DeathRollEscrow:FindSessionByGameId(gameId)
+    for sessionId, session in pairs(self.sessions) do
+        if session.gameId == gameId then
+            return sessionId
+        end
+    end
+    return nil
+end
 
 --[[
     Get session by ID

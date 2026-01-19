@@ -60,12 +60,14 @@ local PROFILE_REQUEST_COOLDOWN = 60  -- seconds between profile requests per pla
 -- COMPATIBILITY HELPERS
 --============================================================
 
--- Safe wrapper for SendAddonMessage (handles API differences)
+-- Cache SendAddonMessage function at load time (TBC optimization)
+-- This avoids if/else check on every call
+local CachedSendAddonMessage = (C_ChatInfo and C_ChatInfo.SendAddonMessage) or SendAddonMessage
+
+-- Safe wrapper for SendAddonMessage using cached function
 local function SafeSendAddonMessage(prefix, msg, channel, target)
-    if C_ChatInfo and C_ChatInfo.SendAddonMessage then
-        C_ChatInfo.SendAddonMessage(prefix, msg, channel, target)
-    elseif SendAddonMessage then
-        SendAddonMessage(prefix, msg, channel, target)
+    if CachedSendAddonMessage then
+        CachedSendAddonMessage(prefix, msg, channel, target)
     end
 end
 
@@ -85,6 +87,36 @@ local function ScheduleBroadcast(delay)
         FellowTravelers.pendingBroadcast = nil
         FellowTravelers:BroadcastPresence()
     end)
+end
+
+--============================================================
+-- MESSAGE CALLBACK REGISTRATION
+-- Allows other modules to register handlers without hooking
+--============================================================
+
+--[[
+    Register a callback for specific message types
+    @param callbackId string - Unique identifier for this callback
+    @param matchFunc function(msgType) - Returns true if this callback should handle the message
+    @param handler function(msgType, sender, data) - Handler function
+]]
+function FellowTravelers:RegisterMessageCallback(callbackId, matchFunc, handler)
+    self.messageCallbacks[callbackId] = {
+        match = matchFunc,
+        handler = handler,
+    }
+    HopeAddon:Debug("Registered message callback:", callbackId)
+end
+
+--[[
+    Unregister a message callback
+    @param callbackId string
+]]
+function FellowTravelers:UnregisterMessageCallback(callbackId)
+    if self.messageCallbacks[callbackId] then
+        self.messageCallbacks[callbackId] = nil
+        HopeAddon:Debug("Unregistered message callback:", callbackId)
+    end
 end
 
 --============================================================
@@ -165,6 +197,14 @@ end
 --============================================================
 -- ADDON MESSAGE PROTOCOL
 --============================================================
+
+-- Message handler lookup table for O(1) routing
+local MESSAGE_HANDLERS = {
+    [MSG_PING] = "HandlePing",
+    [MSG_PONG] = "HandlePong",
+    [MSG_PROFILE_REQ] = "HandleProfileRequest",
+    [MSG_PROFILE] = "HandleProfileData",
+}
 
 --[[
     Broadcast presence to nearby players
@@ -249,20 +289,30 @@ function FellowTravelers:OnAddonMessage(prefix, message, channel, sender)
         HopeAddon:Debug("Received message from newer protocol version:", version)
     end
 
-    if msgType == MSG_PING then
-        self:HandlePing(senderName, data, channel)
-    elseif msgType == MSG_PONG then
-        self:HandlePong(senderName, data)
-    elseif msgType == MSG_PROFILE_REQ then
-        self:HandleProfileRequest(senderName)
-    elseif msgType == MSG_PROFILE then
-        self:HandleProfileData(senderName, data)
-    else
-        -- Check if this is a minigame message
-        local Minigames = HopeAddon:GetModule("Minigames")
-        if Minigames and Minigames:IsMinigameMessage(msgType) then
-            Minigames:HandleMessage(msgType, senderName, data)
+    -- Check registered callbacks first (for extensibility)
+    for _, callback in pairs(self.messageCallbacks) do
+        if callback.match(msgType) then
+            callback.handler(msgType, senderName, data)
+            return  -- Message handled by callback
         end
+    end
+
+    -- Handle core FellowTravelers messages using O(1) lookup
+    local handler = MESSAGE_HANDLERS[msgType]
+    if handler then
+        -- HandlePing needs the channel parameter
+        if msgType == MSG_PING then
+            self[handler](self, senderName, data, channel)
+        else
+            self[handler](self, senderName, data)
+        end
+        return
+    end
+
+    -- Forward to Minigames module
+    local Minigames = HopeAddon:GetModule("Minigames")
+    if Minigames and Minigames:IsMinigameMessage(msgType) then
+        Minigames:HandleMessage(msgType, senderName, data)
     end
 end
 
@@ -297,7 +347,7 @@ function FellowTravelers:HandlePing(sender, zoneData, channel)
     local now = GetTime()
     local cooldown = self.pingCooldowns[sender] or 0
     if now - cooldown >= PING_COOLDOWN then
-        self.pingCooldowns[sender] = now
+        self:AddPingCooldown(sender)
 
         -- Build PONG response with basic info and location
         local _, class = UnitClass("player")
@@ -392,7 +442,7 @@ function FellowTravelers:RequestProfile(playerName)
     if lastRequest and (now - lastRequest) < PROFILE_REQUEST_COOLDOWN then
         return  -- Skip, requested recently
     end
-    self.profileRequestCooldowns[playerName] = now
+    self:AddProfileRequestCooldown(playerName)
 
     self:SendDirectMessage(playerName, MSG_PROFILE_REQ, "")
     HopeAddon:Debug("Requesting profile from", playerName)
@@ -652,98 +702,155 @@ function FellowTravelers:CleanupTables()
     HopeAddon:Debug("CleanupTables completed - pingCooldowns:", pingCount)
 end
 
+--[[
+    Add a ping cooldown entry with proactive pruning
+    @param name string - Player name
+]]
+function FellowTravelers:AddPingCooldown(name)
+    -- Prune if over limit BEFORE adding
+    local count = 0
+    for _ in pairs(self.pingCooldowns) do
+        count = count + 1
+    end
+
+    if count >= MAX_PING_COOLDOWNS then
+        -- Find and remove oldest entry
+        local oldestName, oldestTime = nil, math.huge
+        for pname, timestamp in pairs(self.pingCooldowns) do
+            if timestamp < oldestTime then
+                oldestTime = timestamp
+                oldestName = pname
+            end
+        end
+        if oldestName then
+            self.pingCooldowns[oldestName] = nil
+        end
+    end
+
+    self.pingCooldowns[name] = GetTime()
+end
+
+--[[
+    Add a profile request cooldown entry with proactive pruning
+    @param name string - Player name
+]]
+function FellowTravelers:AddProfileRequestCooldown(name)
+    -- Prune expired entries if table is growing large
+    local count = 0
+    for _ in pairs(self.profileRequestCooldowns) do
+        count = count + 1
+    end
+
+    if count >= 100 then
+        local now = GetTime()
+        for pname, timestamp in pairs(self.profileRequestCooldowns) do
+            if now - timestamp > PROFILE_REQUEST_COOLDOWN then
+                self.profileRequestCooldowns[pname] = nil
+            end
+        end
+    end
+
+    self.profileRequestCooldowns[name] = GetTime()
+end
+
 --============================================================
 -- TOOLTIP INTEGRATION
 --============================================================
 
-function FellowTravelers:HookTooltip()
-    GameTooltip:HookScript("OnTooltipSetUnit", function(tooltip)
-        if not HopeAddon.charDb or not HopeAddon.charDb.travelers then return end
-        local settings = HopeAddon.charDb.travelers.fellowSettings
-        if not settings or not settings.showTooltips then return end
+-- Module-scope tooltip handler (avoids closure)
+local function OnTooltipSetUnit(tooltip)
+    local FellowTravelers = HopeAddon:GetModule("FellowTravelers")
+    if not FellowTravelers then return end
 
-        local _, unit = tooltip:GetUnit()
-        if not unit or not UnitIsPlayer(unit) then return end
+    if not HopeAddon.charDb or not HopeAddon.charDb.travelers then return end
+    local settings = HopeAddon.charDb.travelers.fellowSettings
+    if not settings or not settings.showTooltips then return end
 
-        local name = UnitName(unit)
-        if not name then return end
+    local _, unit = tooltip:GetUnit()
+    if not unit or not UnitIsPlayer(unit) then return end
 
-        local fellow = self:GetFellow(name)
-        if not fellow then return end
+    local name = UnitName(unit)
+    if not name then return end
 
-        -- Add separator
-        tooltip:AddLine(" ")
-        tooltip:AddLine("|cFF00FF00[Fellow Traveler]|r", 0, 1, 0)
+    local fellow = FellowTravelers:GetFellow(name)
+    if not fellow then return end
 
-        -- Show title if available
-        if fellow.selectedTitle then
-            tooltip:AddLine("\"" .. fellow.selectedTitle .. "\"", 1, 0.84, 0)
+    -- Add separator
+    tooltip:AddLine(" ")
+    tooltip:AddLine("|cFF00FF00[Fellow Traveler]|r", 0, 1, 0)
+
+    -- Show title if available
+    if fellow.selectedTitle then
+        tooltip:AddLine("\"" .. fellow.selectedTitle .. "\"", 1, 0.84, 0)
+    end
+
+    -- Show profile if available
+    local profile = FellowTravelers:GetFellowProfile(name)
+    if profile then
+        -- Status
+        local statusColor = "808080"
+        for _, opt in ipairs(FellowTravelers.STATUS_OPTIONS) do
+            if opt.id == profile.status then
+                statusColor = opt.color
+                tooltip:AddLine("Status: |cFF" .. statusColor .. opt.label .. "|r")
+                break
+            end
         end
 
-        -- Show profile if available
-        local profile = self:GetFellowProfile(name)
-        if profile then
-            -- Status
-            local statusColor = "808080"
-            for _, opt in ipairs(self.STATUS_OPTIONS) do
-                if opt.id == profile.status then
-                    statusColor = opt.color
-                    tooltip:AddLine("Status: |cFF" .. statusColor .. opt.label .. "|r")
-                    break
-                end
-            end
-
-            -- Backstory excerpt
-            if profile.backstory and profile.backstory ~= "" then
-                tooltip:AddLine(" ")
-                tooltip:AddLine("BACKSTORY:", 0.7, 0.7, 0.7)
-                local excerpt = profile.backstory:sub(1, 100)
-                if #profile.backstory > 100 then excerpt = excerpt .. "..." end
-                tooltip:AddLine("\"" .. excerpt .. "\"", 1, 1, 1, true)
-            end
-
-            -- Personality traits
-            if profile.personality and #profile.personality > 0 then
-                tooltip:AddLine(" ")
-                local traits = table.concat(profile.personality, ", ")
-                tooltip:AddLine("Personality: " .. traits, 0.8, 0.8, 0.6, true)
-            end
-
-            -- Appearance
-            if profile.appearance and profile.appearance ~= "" then
-                tooltip:AddLine(" ")
-                tooltip:AddLine("APPEARANCE:", 0.7, 0.7, 0.7)
-                local excerpt = profile.appearance:sub(1, 80)
-                if #profile.appearance > 80 then excerpt = excerpt .. "..." end
-                tooltip:AddLine(excerpt, 0.9, 0.9, 0.9, true)
-            end
-
-            -- RP Hooks
-            if profile.rpHooks and profile.rpHooks ~= "" then
-                tooltip:AddLine(" ")
-                tooltip:AddLine("RUMORS:", 0.7, 0.7, 0.7)
-                local excerpt = profile.rpHooks:sub(1, 80)
-                if #profile.rpHooks > 80 then excerpt = excerpt .. "..." end
-                tooltip:AddLine("\"" .. excerpt .. "\"", 0.8, 0.8, 0.6, true)
-            end
-
-            -- Pronouns
-            if profile.pronouns and profile.pronouns ~= "" then
-                tooltip:AddLine("Pronouns: " .. profile.pronouns, 0.6, 0.6, 0.6)
-            end
-        else
-            -- Request profile if not cached
-            self:RequestProfile(name)
-        end
-
-        -- First seen date
-        if fellow.firstSeen then
+        -- Backstory excerpt
+        if profile.backstory and profile.backstory ~= "" then
             tooltip:AddLine(" ")
-            tooltip:AddLine("First seen: " .. fellow.firstSeen, 0.5, 0.5, 0.5)
+            tooltip:AddLine("BACKSTORY:", 0.7, 0.7, 0.7)
+            local excerpt = profile.backstory:sub(1, 100)
+            if #profile.backstory > 100 then excerpt = excerpt .. "..." end
+            tooltip:AddLine("\"" .. excerpt .. "\"", 1, 1, 1, true)
         end
 
-        tooltip:Show()
-    end)
+        -- Personality traits
+        if profile.personality and #profile.personality > 0 then
+            tooltip:AddLine(" ")
+            local traits = table.concat(profile.personality, ", ")
+            tooltip:AddLine("Personality: " .. traits, 0.8, 0.8, 0.6, true)
+        end
+
+        -- Appearance
+        if profile.appearance and profile.appearance ~= "" then
+            tooltip:AddLine(" ")
+            tooltip:AddLine("APPEARANCE:", 0.7, 0.7, 0.7)
+            local excerpt = profile.appearance:sub(1, 80)
+            if #profile.appearance > 80 then excerpt = excerpt .. "..." end
+            tooltip:AddLine(excerpt, 0.9, 0.9, 0.9, true)
+        end
+
+        -- RP Hooks
+        if profile.rpHooks and profile.rpHooks ~= "" then
+            tooltip:AddLine(" ")
+            tooltip:AddLine("RUMORS:", 0.7, 0.7, 0.7)
+            local excerpt = profile.rpHooks:sub(1, 80)
+            if #profile.rpHooks > 80 then excerpt = excerpt .. "..." end
+            tooltip:AddLine("\"" .. excerpt .. "\"", 0.8, 0.8, 0.6, true)
+        end
+
+        -- Pronouns
+        if profile.pronouns and profile.pronouns ~= "" then
+            tooltip:AddLine("Pronouns: " .. profile.pronouns, 0.6, 0.6, 0.6)
+        end
+    else
+        -- Request profile if not cached
+        FellowTravelers:RequestProfile(name)
+    end
+
+    -- First seen date
+    if fellow.firstSeen then
+        tooltip:AddLine(" ")
+        tooltip:AddLine("First seen: " .. fellow.firstSeen, 0.5, 0.5, 0.5)
+    end
+
+    tooltip:Show()
+end
+
+function FellowTravelers:HookTooltip()
+    GameTooltip:HookScript("OnTooltipSetUnit", OnTooltipSetUnit)
 end
 
 --============================================================

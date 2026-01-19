@@ -550,7 +550,7 @@ Messages follow format: `TYPE:VERSION:GAMETYPE:GAMEID:DATA`
 /hope reset                    - Show reset options
 /hope tetris [player]          - Start Tetris Battle (local or vs player)
 /hope pong [player]            - Start Pong (local or vs player)
-/hope deathroll <player>       - Start Death Roll vs player
+/hope deathroll [player]       - Start Death Roll (local or vs player)
 /hope words <player>           - Start Words with WoW vs player
 /hope challenge <player> [game] - Challenge via game selection popup
 /hope accept                   - Accept pending challenge
@@ -612,6 +612,36 @@ Messages follow format: `TYPE:VERSION:GAMETYPE:GAMEID:DATA`
 - ✅ **Dice Label Centering** (MinigamesUI.lua:508, 543) - Changed player/opponent labels from TOP anchor to CENTER-based positioning
 - ✅ **RPS Button Row Centering** (MinigamesUI.lua:605) - Removed arbitrary Y offset from button row positioning
 - ✅ **Status Text Enhancement** (MinigamesUI.lua:791) - Added "Click to /roll" hint to dice game status text
+
+### Phase 9: Pong Game Resource Management Fixes
+
+- ✅ **Countdown Timer Leak** (PongGame.lua:234-278) - Store countdown timer in `game.data.countdownTimer` for cancellation; re-fetch game each tick to avoid stale closure references; cancel timer in CleanupGame
+- ✅ **Nil Check Chaining** (PongGame.lua:160-174) - Split nil check in OnUpdate to prevent accessing `game.data` when game is nil
+- ✅ **GameCore Validation** (PongGame.lua:326, 348) - Added nil checks for GameCore in UpdateLocalPaddle and UpdateLocalPaddles before calling GameCore methods
+- ✅ **Window Reference Storage** (PongGame.lua:620) - Store window reference in `game.data.window` for proper cleanup
+- ✅ **Comprehensive UI Cleanup** (PongGame.lua:800-860) - Release all frame references (paddle1Frame, paddle2Frame, ballFrame, playArea, window) with Hide + SetParent(nil); clear text references; cancel countdown timer
+
+### Phase 10: Minigames UI & Slash Command Improvements
+
+- ✅ **Directory Tab Custom Color** (Components.lua:237-314, Journal.lua:640) - Added `customColor` parameter to `CreateTabButton()` for per-tab color theming; Directory tab now uses `ARCANE_PURPLE` to visually distinguish social/games features
+- ✅ **Tab Highlight Color** (Components.lua:254-263) - Hover highlight now uses custom color when provided instead of default gold
+- ✅ **Selected Indicator Color** (Components.lua:298-307) - Selected state indicator bar now uses custom color when provided
+- ✅ **Death Roll Slash Command** (Core.lua:710-731) - Added `/hope deathroll [player]` command supporting both local and remote play
+- ✅ **Words Slash Command** (Core.lua:732-747) - Added `/hope words <player>` command for remote play with helpful usage message
+- ✅ **Help Text Update** (Core.lua:786-787) - Updated help output to include new deathroll and words commands
+
+### Phase 11: Death Roll Resource Management Fixes
+
+- ✅ **CleanupGame Function Added** (DeathRollGame.lua:217-254) - Created comprehensive cleanup function with window, text references, and escrow cleanup following Tetris/Pong patterns
+- ✅ **OnDestroy Refactor** (DeathRollGame.lua:209-211) - Updated OnDestroy to call CleanupGame for proper resource cleanup
+- ✅ **FontString Cleanup** (DeathRollGame.lua:243-247) - Clear maxValueText, turnText, historyText, proximityText references to prevent memory leaks
+- ✅ **Escrow Cleanup on Destroy** (DeathRollGame.lua:226-231) - Call Escrow:CancelEscrow when game destroyed with active bet
+- ✅ **Nil Check Guards** (DeathRollGame.lua:169) - Added game.data nil check in OnEnd to prevent accessing nil data
+- ✅ **GameUI Window Destruction** (DeathRollGame.lua:250-252) - Call GameUI:DestroyGameWindow to unregister window from GameUI registry
+- ✅ **Escrow Timer Management** (DeathRollEscrow.lua:362) - Store cleanup timer handle in session.cleanupTimer for cancellation
+- ✅ **CancelEscrow Function** (DeathRollEscrow.lua:436-451) - Added CancelEscrow function to cancel escrow sessions and cleanup timers
+- ✅ **FindSessionByGameId Helper** (DeathRollEscrow.lua:453-461) - Added helper function to find session by game ID
+- ✅ **Function Call Bug Fix** (DeathRollUI.lua:233-241) - Fixed InitiateEscrow → InitiateAsHouse with correct parameters (gameId, betAmount, player1, player2)
 
 ---
 

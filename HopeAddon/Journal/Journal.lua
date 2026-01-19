@@ -57,6 +57,7 @@ function Journal:OnEnable()
     self:CreateCardPool()
     self:CreateCollapsibleSectionPool()
     self:CreateBossInfoPool()
+    self:CreateGameCardPool()
     self:CreateMainFrame()
     self:RegisterEvents()
     HopeAddon:Debug("Journal module enabled")
@@ -118,6 +119,9 @@ function Journal:OnDisable()
     if self.bossInfoPool then
         self.bossInfoPool:Destroy()
     end
+    if self.gameCardPool then
+        self.gameCardPool:Destroy()
+    end
 end
 
 --[[
@@ -125,7 +129,7 @@ end
 ]]
 function Journal:CreateNotificationPool()
     local createFunc = function()
-        local frame = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
+        local frame = CreateFrame("Frame", nil, UIParent)
         frame:SetFrameStrata("DIALOG")
         frame:Hide()
 
@@ -203,7 +207,7 @@ end
 function Journal:CreateCardPool()
     local createFunc = function()
         -- Create a minimal card frame (icon, title, desc, timestamp)
-        local card = CreateFrame("Button", nil, UIParent, "BackdropTemplate")
+        local card = CreateFrame("Button", nil, UIParent)
         card:SetHeight(80)
         card:SetBackdrop({
             bgFile = HopeAddon.assets.textures.TOOLTIP_BG,
@@ -363,6 +367,77 @@ function Journal:CreateBossInfoPool()
     end
 
     self.bossInfoPool = HopeAddon.FramePool:NewNamed("BossInfoCards", createFunc, resetFunc)
+end
+
+--[[
+    Create game card pool for Games Hall UI in Directory tab.
+    These cards are expensive to create (icon, title, desc, stats, 2 buttons).
+    Pooling avoids recreating 6 cards on every tab switch.
+]]
+function Journal:CreateGameCardPool()
+    local Components = HopeAddon.Components
+
+    local createFunc = function()
+        -- Create the full game card structure via Components
+        local card = Components:CreateGameCard(UIParent, nil, nil, nil)
+        card:Hide()
+        return card
+    end
+
+    local resetFunc = function(card)
+        card:Hide()
+        card:ClearAllPoints()
+        card:SetParent(nil)
+        card:SetAlpha(1.0)
+
+        -- Reset backdrop colors
+        card:SetBackdropColor(1, 1, 1, 0.9)
+        card:SetBackdropBorderColor(0.6, 0.5, 0.3, 1)
+        card.defaultBorderColor = { 0.6, 0.5, 0.3, 1 }
+
+        -- Clear data reference
+        card.gameData = nil
+
+        -- Reset text fields
+        card.icon:SetTexture(nil)
+        card.title:SetText("")
+        card.desc:SetText("")
+        card.stats:SetText("")
+
+        -- Reset button states
+        card.practiceBtn:Enable()
+        card.practiceBtn.disabledOverlay:Hide()
+        card.practiceBtn.text:SetTextColor(0.8, 1.0, 0.8, 1)
+        card.practiceBtn:SetScript("OnClick", nil)
+
+        card.challengeBtn:SetScript("OnClick", nil)
+
+        -- Mark as pooled
+        card._pooled = true
+    end
+
+    self.gameCardPool = HopeAddon.FramePool:NewNamed("GameCards", createFunc, resetFunc)
+end
+
+--[[
+    Acquire and configure a game card from the pool
+    @param parent Frame - Parent to attach to
+    @param gameData table - Game definition from Constants.GAME_DEFINITIONS
+    @param onPractice function - Callback for Practice button
+    @param onChallenge function - Callback for Challenge button
+    @return Frame - Configured pooled game card
+]]
+function Journal:AcquireGameCard(parent, gameData, onPractice, onChallenge)
+    if not self.gameCardPool then return nil end
+
+    local card = self.gameCardPool:Acquire()
+    card:SetParent(parent)
+    card._pooled = true
+
+    -- Configure with game data
+    card:SetGameData(gameData, onPractice, onChallenge)
+
+    return card
 end
 
 --[[
@@ -637,13 +712,13 @@ function Journal:CreateMainFrame()
         { id = "reputation", label = "Reputation", tooltip = "Faction standings by category" },
         { id = "raids", label = "Raids", tooltip = "Boss kill tracking by tier (T4/T5/T6)" },
         { id = "attunements", label = "Attunements", tooltip = "Raid attunement quest chains" },
-        { id = "directory", label = "Directory", tooltip = "Fellow travelers you have encountered" },
+        { id = "directory", label = "Directory", tooltip = "Fellow travelers and minigames", color = "ARCANE_PURPLE" },
         { id = "stats", label = "Stats", tooltip = "Adventure statistics summary" },
     }
 
     local tabWidth = (frame:GetWidth() - 2 * Components.MARGIN_LARGE) / #tabData
     for i, data in ipairs(tabData) do
-        local tab = Components:CreateTabButton(tabBar, data.label, tabWidth - 5, 30, data.tooltip)
+        local tab = Components:CreateTabButton(tabBar, data.label, tabWidth - 5, 30, data.tooltip, data.color)
         tab:SetPoint("LEFT", tabBar, "LEFT", (i-1) * tabWidth, 0)
         tab.id = data.id
 

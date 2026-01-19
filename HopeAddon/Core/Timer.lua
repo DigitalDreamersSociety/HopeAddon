@@ -180,7 +180,7 @@ function Timer:CancelAll()
     for _, t in ipairs(timerQueue) do
         t.cancelled = true
     end
-    timerQueue = {}
+    wipe(timerQueue)
     timerFrame:Hide()
 end
 
