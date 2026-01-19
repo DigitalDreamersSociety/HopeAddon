@@ -92,17 +92,35 @@ end
     Called when game is created
 ]]
 function WordGame:OnCreate(gameId, game)
-    -- Initialize word game specific data
+    -- Initialize word game specific data with ui/state structure
     game.data = {
-        board = self.WordBoard:New(),
-        gameState = self.GAME_STATE.WAITING_TO_START,
-        scores = {
-            [game.player1] = 0,
-            [game.player2] = 0,
+        ui = {
+            window = nil,
+            p1Frame = nil,
+            p2Frame = nil,
+            p1ScoreText = nil,
+            p2ScoreText = nil,
+            turnText = nil,
+            boardFrame = nil,
+            boardText = nil,
+            lastMoveText = nil,
         },
-        moveHistory = {},
-        consecutivePasses = 0,
-        turnCount = 0,
+        state = {
+            board = self.WordBoard:New(),  -- WordBoard instance with methods
+            gameState = self.GAME_STATE.WAITING_TO_START,
+            scores = {
+                [game.player1] = 0,
+                [game.player2] = 0,
+            },
+            moveHistory = {},
+            consecutivePasses = 0,
+            turnCount = 0,
+            -- Row cache for optimized board rendering (C3 fix)
+            rowCache = {},       -- Cached row strings [rowNum] = "string"
+            dirtyRows = {},      -- [rowNum] = true for rows that need re-render
+            headerCache = nil,   -- Cached header row
+            separatorCache = nil, -- Cached separator row
+        },
     }
 
     -- Store reference
@@ -118,9 +136,11 @@ function WordGame:OnStart(gameId)
     local game = self.games[gameId]
     if not game then return end
 
+    local state = game.data.state
+
     -- Player 1 goes first
-    game.data.gameState = self.GAME_STATE.PLAYER1_TURN
-    game.data.turnCount = 1
+    state.gameState = self.GAME_STATE.PLAYER1_TURN
+    state.turnCount = 1
 
     -- Show UI
     self:ShowUI(gameId)
@@ -139,11 +159,13 @@ function WordGame:OnEnd(gameId, reason)
     local game = self.games[gameId]
     if not game then return end
 
-    game.data.gameState = self.GAME_STATE.FINISHED
+    local state = game.data.state
+
+    state.gameState = self.GAME_STATE.FINISHED
 
     -- Determine winner by score
-    local p1Score = game.data.scores[game.player1] or 0
-    local p2Score = game.data.scores[game.player2] or 0
+    local p1Score = state.scores[game.player1] or 0
+    local p2Score = state.scores[game.player2] or 0
 
     if p1Score > p2Score then
         game.winner = game.player1
@@ -183,8 +205,8 @@ function WordGame:OnEnd(gameId, reason)
         local stats = {
             [game.player1 .. " Score"] = p1Score,
             [game.player2 .. " Score"] = p2Score,
-            ["Total Turns"] = game.data.turnCount,
-            ["Words Played"] = #game.data.moveHistory,
+            ["Total Turns"] = state.turnCount,
+            ["Words Played"] = #state.moveHistory,
         }
         self.GameUI:ShowGameOver(gameId, game.winner, stats)
     end
@@ -197,59 +219,64 @@ function WordGame:CleanupGame(gameId)
     local game = self.games[gameId]
     if not game or not game.data then return end
 
+    local ui = game.data.ui
+    local state = game.data.state
+
     -- Clear FontString references
-    if game.data.p1ScoreText then
-        game.data.p1ScoreText:SetText("")
-        game.data.p1ScoreText = nil
+    if ui.p1ScoreText then
+        ui.p1ScoreText:SetText("")
+        ui.p1ScoreText = nil
     end
-    if game.data.p2ScoreText then
-        game.data.p2ScoreText:SetText("")
-        game.data.p2ScoreText = nil
+    if ui.p2ScoreText then
+        ui.p2ScoreText:SetText("")
+        ui.p2ScoreText = nil
     end
-    if game.data.turnText then
-        game.data.turnText:SetText("")
-        game.data.turnText = nil
+    if ui.turnText then
+        ui.turnText:SetText("")
+        ui.turnText = nil
     end
-    if game.data.boardText then
-        game.data.boardText:SetText("")
-        game.data.boardText = nil
+    if ui.boardText then
+        ui.boardText:SetText("")
+        ui.boardText = nil
     end
-    if game.data.lastMoveText then
-        game.data.lastMoveText:SetText("")
-        game.data.lastMoveText = nil
+    if ui.lastMoveText then
+        ui.lastMoveText:SetText("")
+        ui.lastMoveText = nil
     end
 
     -- Clear frame references
-    if game.data.p1Frame then
-        game.data.p1Frame:Hide()
-        game.data.p1Frame:SetParent(nil)
-        game.data.p1Frame = nil
+    if ui.p1Frame then
+        ui.p1Frame:Hide()
+        ui.p1Frame:SetParent(nil)
+        ui.p1Frame = nil
     end
-    if game.data.p2Frame then
-        game.data.p2Frame:Hide()
-        game.data.p2Frame:SetParent(nil)
-        game.data.p2Frame = nil
+    if ui.p2Frame then
+        ui.p2Frame:Hide()
+        ui.p2Frame:SetParent(nil)
+        ui.p2Frame = nil
     end
-    if game.data.boardFrame then
-        game.data.boardFrame:Hide()
-        game.data.boardFrame:SetParent(nil)
-        game.data.boardFrame = nil
+    if ui.boardFrame then
+        ui.boardFrame:Hide()
+        ui.boardFrame:SetParent(nil)
+        ui.boardFrame = nil
     end
 
     -- Clear window reference
-    if game.data.window then
-        game.data.window = nil
+    if ui.window then
+        ui.window = nil
     end
 
-    -- Clear row cache
-    if game.data.rowCache then
-        game.data.rowCache = nil
+    -- Clear state references
+    if state.rowCache then
+        state.rowCache = nil
+    end
+    if state.dirtyRows then
+        state.dirtyRows = nil
     end
 
-    -- Clear game data references
-    game.data.board = nil
-    game.data.moveHistory = nil
-    game.data.scores = nil
+    state.board = nil
+    state.moveHistory = nil
+    state.scores = nil
 end
 
 --[[
@@ -278,9 +305,11 @@ function WordGame:GetCurrentPlayer(gameId)
     local game = self.games[gameId]
     if not game then return nil end
 
-    if game.data.gameState == self.GAME_STATE.PLAYER1_TURN then
+    local state = game.data.state
+
+    if state.gameState == self.GAME_STATE.PLAYER1_TURN then
         return game.player1
-    elseif game.data.gameState == self.GAME_STATE.PLAYER2_TURN then
+    elseif state.gameState == self.GAME_STATE.PLAYER2_TURN then
         return game.player2
     end
 
@@ -310,7 +339,9 @@ function WordGame:PlaceWord(gameId, word, horizontal, startRow, startCol, player
         return false, "Game not found"
     end
 
-    if game.data.gameState == self.GAME_STATE.FINISHED then
+    local state = game.data.state
+
+    if state.gameState == self.GAME_STATE.FINISHED then
         return false, "Game is finished"
     end
 
@@ -327,26 +358,29 @@ function WordGame:PlaceWord(gameId, word, horizontal, startRow, startCol, player
     end
 
     -- Check if first word
-    local isFirstWord = game.data.board:IsBoardEmpty()
+    local isFirstWord = state.board:IsBoardEmpty()
 
     -- Validate placement
-    local canPlace, error = game.data.board:CanPlaceWord(word, startRow, startCol, horizontal, isFirstWord)
+    local canPlace, error = state.board:CanPlaceWord(word, startRow, startCol, horizontal, isFirstWord)
     if not canPlace then
         return false, error
     end
 
     -- Place the word
-    local placedTiles = game.data.board:PlaceWord(word, startRow, startCol, horizontal)
+    local placedTiles = state.board:PlaceWord(word, startRow, startCol, horizontal)
+
+    -- Invalidate cached rows that were modified (C3 optimization)
+    self:InvalidateRows(gameId, placedTiles)
 
     -- Find all words formed (main word + cross words)
-    local formedWords = game.data.board:FindFormedWords(placedTiles, horizontal)
+    local formedWords = state.board:FindFormedWords(placedTiles, horizontal)
 
     -- Validate all formed words
     for _, wordData in ipairs(formedWords) do
         if not self.WordDictionary:IsValidWord(wordData.word) then
             -- Undo placement
             for _, tile in ipairs(placedTiles) do
-                game.data.board:SetLetter(tile.row, tile.col, nil)
+                state.board:SetLetter(tile.row, tile.col, nil)
             end
             return false, "Cross-word '" .. wordData.word .. "' is not in the dictionary"
         end
@@ -355,7 +389,7 @@ function WordGame:PlaceWord(gameId, word, horizontal, startRow, startCol, player
     -- Calculate total score for all formed words
     local totalScore = 0
     for _, wordData in ipairs(formedWords) do
-        local wordScore = game.data.board:CalculateWordScore(
+        local wordScore = state.board:CalculateWordScore(
             wordData.word,
             wordData.startRow,
             wordData.startCol,
@@ -366,21 +400,21 @@ function WordGame:PlaceWord(gameId, word, horizontal, startRow, startCol, player
     end
 
     -- Update player score
-    game.data.scores[playerName] = (game.data.scores[playerName] or 0) + totalScore
+    state.scores[playerName] = (state.scores[playerName] or 0) + totalScore
 
     -- Record move
-    table.insert(game.data.moveHistory, {
+    table.insert(state.moveHistory, {
         player = playerName,
         word = word,
         startRow = startRow,
         startCol = startCol,
         horizontal = horizontal,
         score = totalScore,
-        turnNumber = game.data.turnCount,
+        turnNumber = state.turnCount,
     })
 
     -- Reset consecutive passes
-    game.data.consecutivePasses = 0
+    state.consecutivePasses = 0
 
     -- Print results
     HopeAddon:Print(playerName .. " played '" .. word .. "' for " .. totalScore .. " points!")
@@ -417,7 +451,9 @@ function WordGame:PassTurn(gameId, playerName)
         return false, "Game not found"
     end
 
-    if game.data.gameState == self.GAME_STATE.FINISHED then
+    local state = game.data.state
+
+    if state.gameState == self.GAME_STATE.FINISHED then
         return false, "Game is finished"
     end
 
@@ -425,12 +461,12 @@ function WordGame:PassTurn(gameId, playerName)
         return false, "Not your turn"
     end
 
-    game.data.consecutivePasses = game.data.consecutivePasses + 1
+    state.consecutivePasses = state.consecutivePasses + 1
 
     HopeAddon:Print(playerName .. " passed.")
 
     -- Check for game end (both players passed)
-    if game.data.consecutivePasses >= self.MAX_CONSECUTIVE_PASSES then
+    if state.consecutivePasses >= self.MAX_CONSECUTIVE_PASSES then
         if self.GameCore then
             self.GameCore:EndGame(gameId, "both_passed")
         end
@@ -458,12 +494,14 @@ function WordGame:NextTurn(gameId)
     local game = self.games[gameId]
     if not game then return end
 
-    game.data.turnCount = game.data.turnCount + 1
+    local state = game.data.state
 
-    if game.data.gameState == self.GAME_STATE.PLAYER1_TURN then
-        game.data.gameState = self.GAME_STATE.PLAYER2_TURN
+    state.turnCount = state.turnCount + 1
+
+    if state.gameState == self.GAME_STATE.PLAYER1_TURN then
+        state.gameState = self.GAME_STATE.PLAYER2_TURN
     else
-        game.data.gameState = self.GAME_STATE.PLAYER1_TURN
+        state.gameState = self.GAME_STATE.PLAYER1_TURN
     end
 
     local currentPlayer = self:GetCurrentPlayer(gameId)
@@ -480,19 +518,37 @@ end
     Handle word placement from remote player
 ]]
 function WordGame:HandleRemoteMove(sender, gameId, data)
-    local word, dir, startRow, startCol, score = strsplit("|", data)
+    local word, dir, startRow, startCol, remoteScore = strsplit("|", data)
     startRow = tonumber(startRow)
     startCol = tonumber(startCol)
-    score = tonumber(score)
+    remoteScore = tonumber(remoteScore)
     local horizontal = (dir == "H")
 
     local game = self.games[gameId]
     if not game then return end
 
-    -- Process the move
+    local state = game.data.state
+
+    -- Process the move (recalculates score locally for validation)
     local success, message = self:PlaceWord(gameId, word, horizontal, startRow, startCol, sender)
 
-    if not success then
+    if success then
+        -- Score validation: Compare remote claimed score vs locally calculated score
+        -- This prevents score manipulation by validating all word placements independently
+        if remoteScore then
+            local lastMove = state.moveHistory[#state.moveHistory]
+            if lastMove and lastMove.score ~= remoteScore then
+                -- Score mismatch detected - using local calculation (anti-cheat)
+                HopeAddon:Print(string.format(
+                    "|cFFFFAA00⚠ Score mismatch:|r %s claimed %d points but calculation shows %d (using verified score)",
+                    sender, remoteScore, lastMove.score
+                ))
+                HopeAddon:Debug("Words score validation - claimed: " .. remoteScore .. ", actual: " .. lastMove.score)
+                -- Note: PlaceWord already used the locally calculated score in state.scores
+                -- so we don't need to override it - we're just alerting the user
+            end
+        end
+    else
         HopeAddon:Print("|cFFFF0000Remote move failed:|r " .. message)
     end
 end
@@ -520,12 +576,15 @@ function WordGame:ShowUI(gameId)
 
     if not self.GameUI then return end
 
-    -- Create game window (larger for board display)
-    local window = self.GameUI:CreateGameWindow(gameId, "Words with WoW", "LARGE")
+    local ui = game.data.ui
+    local state = game.data.state
+
+    -- Create game window (dedicated WORDS size for board display)
+    local window = self.GameUI:CreateGameWindow(gameId, "Words with WoW", "WORDS")
     if not window then return end
 
     -- Store window reference for cleanup
-    game.data.window = window
+    ui.window = window
 
     local content = window.content
 
@@ -533,7 +592,7 @@ function WordGame:ShowUI(gameId)
     local p1Frame = CreateFrame("Frame", nil, content)
     p1Frame:SetPoint("TOPLEFT", 10, -10)
     p1Frame:SetSize(120, 60)
-    game.data.p1Frame = p1Frame  -- Store for cleanup
+    ui.p1Frame = p1Frame
 
     local p1Name = p1Frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     p1Name:SetPoint("TOP", 0, -5)
@@ -549,13 +608,13 @@ function WordGame:ShowUI(gameId)
     p1Score:SetPoint("TOP", p1ScoreLabel, "BOTTOM", 0, -2)
     p1Score:SetText("0")
     p1Score:SetTextColor(1, 0.84, 0)
-    game.data.p1ScoreText = p1Score
+    ui.p1ScoreText = p1Score
 
     -- Player 2 info (right side)
     local p2Frame = CreateFrame("Frame", nil, content)
     p2Frame:SetPoint("TOPRIGHT", -10, -10)
     p2Frame:SetSize(120, 60)
-    game.data.p2Frame = p2Frame  -- Store for cleanup
+    ui.p2Frame = p2Frame
 
     local p2Name = p2Frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     p2Name:SetPoint("TOP", 0, -5)
@@ -571,14 +630,14 @@ function WordGame:ShowUI(gameId)
     p2Score:SetPoint("TOP", p2ScoreLabel, "BOTTOM", 0, -2)
     p2Score:SetText("0")
     p2Score:SetTextColor(1, 0.84, 0)
-    game.data.p2ScoreText = p2Score
+    ui.p2ScoreText = p2Score
 
     -- Turn indicator (center top)
     local turnLabel = content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     turnLabel:SetPoint("TOP", 0, -15)
     turnLabel:SetText("Waiting to start...")
     turnLabel:SetTextColor(1, 1, 0.5)
-    game.data.turnText = turnLabel
+    ui.turnText = turnLabel
 
     -- Board display (center)
     local boardFrame = CreateFrame("ScrollFrame", nil, content)
@@ -586,7 +645,7 @@ function WordGame:ShowUI(gameId)
     boardFrame:SetPoint("BOTTOM", 0, 50)
     boardFrame:SetPoint("LEFT", 10, 0)
     boardFrame:SetPoint("RIGHT", -10, 0)
-    game.data.boardFrame = boardFrame  -- Store for cleanup
+    ui.boardFrame = boardFrame
 
     local boardContent = CreateFrame("Frame", nil, boardFrame)
     boardFrame:SetScrollChild(boardContent)
@@ -597,9 +656,9 @@ function WordGame:ShowUI(gameId)
     boardText:SetJustifyH("LEFT")
     boardText:SetJustifyV("TOP")
     boardText:SetFont("Fonts\\FRIZQT__.TTF", 10)  -- Monospaced-like font
-    boardText:SetText(self:RenderBoard(game.data.board))
+    boardText:SetText(self:RenderBoard(state.board, game.data))
     boardText:SetTextColor(0.9, 0.9, 0.9)
-    game.data.boardText = boardText
+    ui.boardText = boardText
 
     -- Last move display (bottom)
     local lastMoveLabel = self.GameUI:CreateLabel(content, "Last Move:", "GameFontNormalSmall")
@@ -612,7 +671,7 @@ function WordGame:ShowUI(gameId)
     lastMoveText:SetJustifyH("LEFT")
     lastMoveText:SetText("No moves yet")
     lastMoveText:SetTextColor(0.8, 0.8, 0.8)
-    game.data.lastMoveText = lastMoveText
+    ui.lastMoveText = lastMoveText
 
     window:Show()
 
@@ -627,122 +686,191 @@ function WordGame:UpdateUI(gameId)
     local game = self.games[gameId]
     if not game then return end
 
+    local ui = game.data.ui
+    local state = game.data.state
+
     -- Update scores
-    if game.data.p1ScoreText then
-        game.data.p1ScoreText:SetText(tostring(game.data.scores[game.player1] or 0))
+    if ui.p1ScoreText then
+        ui.p1ScoreText:SetText(tostring(state.scores[game.player1] or 0))
     end
-    if game.data.p2ScoreText then
-        game.data.p2ScoreText:SetText(tostring(game.data.scores[game.player2] or 0))
+    if ui.p2ScoreText then
+        ui.p2ScoreText:SetText(tostring(state.scores[game.player2] or 0))
     end
 
     -- Update turn indicator
-    if game.data.turnText then
+    if ui.turnText then
         local turnText = ""
-        if game.data.gameState == self.GAME_STATE.PLAYER1_TURN then
-            turnText = game.player1 .. "'s turn (Turn " .. game.data.turnCount .. ")"
-        elseif game.data.gameState == self.GAME_STATE.PLAYER2_TURN then
-            turnText = game.player2 .. "'s turn (Turn " .. game.data.turnCount .. ")"
-        elseif game.data.gameState == self.GAME_STATE.FINISHED then
+        if state.gameState == self.GAME_STATE.PLAYER1_TURN then
+            turnText = game.player1 .. "'s turn (Turn " .. state.turnCount .. ")"
+        elseif state.gameState == self.GAME_STATE.PLAYER2_TURN then
+            turnText = game.player2 .. "'s turn (Turn " .. state.turnCount .. ")"
+        elseif state.gameState == self.GAME_STATE.FINISHED then
             turnText = "Game Over!"
         else
             turnText = "Waiting to start..."
         end
 
-        if game.data.consecutivePasses > 0 then
-            turnText = turnText .. " (Pass count: " .. game.data.consecutivePasses .. ")"
+        if state.consecutivePasses > 0 then
+            turnText = turnText .. " (Pass count: " .. state.consecutivePasses .. ")"
         end
 
-        game.data.turnText:SetText(turnText)
+        ui.turnText:SetText(turnText)
     end
 
     -- Update board display
-    if game.data.boardText then
-        game.data.boardText:SetText(self:RenderBoard(game.data.board))
+    if ui.boardText then
+        ui.boardText:SetText(self:RenderBoard(state.board, game.data))
     end
 
     -- Update last move
-    if game.data.lastMoveText and #game.data.moveHistory > 0 then
-        local lastMove = game.data.moveHistory[#game.data.moveHistory]
+    if ui.lastMoveText and #state.moveHistory > 0 then
+        local lastMove = state.moveHistory[#state.moveHistory]
         local dir = lastMove.horizontal and "H" or "V"
         local moveText = string.format("%s: '%s' at %d,%d (%s) for %d points",
             lastMove.player, lastMove.word, lastMove.startRow, lastMove.startCol, dir, lastMove.score)
-        game.data.lastMoveText:SetText(moveText)
+        ui.lastMoveText:SetText(moveText)
     end
 end
 
 --[[
-    Render board as text (monospaced grid)
+    Render a single board row (for caching)
     @param board WordBoard
+    @param row number
     @return string
 ]]
-function WordGame:RenderBoard(board)
+function WordGame:RenderBoardRow(board, row)
+    local line = ""
+
+    -- Row label
+    if row < 10 then
+        line = " " .. row .. " |"
+    else
+        line = row .. " |"
+    end
+
+    -- Cells
+    for col = 1, board.size do
+        local letter = board:GetLetter(row, col)
+        local bonus = board:GetBonus(row, col)
+
+        if letter then
+            line = line .. " " .. letter
+        else
+            -- Show bonus square indicators
+            if bonus == board.BONUS.CENTER then
+                line = line .. " *"  -- Center star
+            elseif bonus == board.BONUS.TRIPLE_WORD then
+                line = line .. " ="  -- Triple word
+            elseif bonus == board.BONUS.DOUBLE_WORD then
+                line = line .. " -"  -- Double word
+            elseif bonus == board.BONUS.TRIPLE_LETTER then
+                line = line .. " +"  -- Triple letter
+            elseif bonus == board.BONUS.DOUBLE_LETTER then
+                line = line .. " ."  -- Double letter
+            else
+                line = line .. "  "  -- Empty
+            end
+        end
+
+        if col < board.size then
+            line = line .. " "
+        end
+    end
+
+    return line
+end
+
+--[[
+    Render board as text (monospaced grid) with row caching for performance
+    @param board WordBoard
+    @param gameData table - game.data containing cache
+    @return string
+]]
+function WordGame:RenderBoard(board, gameData)
     local lines = {}
 
-    -- Header row (column numbers)
-    local header = "    "  -- Row label spacing
-    for col = 1, board.size do
-        if col < 10 then
-            header = header .. " " .. col
-        else
-            header = header .. col
-        end
-        if col < board.size then
-            header = header .. " "
-        end
-    end
-    table.insert(lines, header)
+    -- Get or create cache from game data state
+    local state = gameData and gameData.state
+    local rowCache = state and state.rowCache or {}
+    local dirtyRows = state and state.dirtyRows or {}
 
-    -- Separator
-    table.insert(lines, "   " .. string.rep("-", board.size * 3 - 1))
-
-    -- Board rows
-    for row = 1, board.size do
-        local line = ""
-
-        -- Row label
-        if row < 10 then
-            line = " " .. row .. " |"
-        else
-            line = row .. " |"
-        end
-
-        -- Cells
+    -- Header row (column numbers) - cached since it never changes
+    if state and state.headerCache then
+        table.insert(lines, state.headerCache)
+    else
+        local header = "    "  -- Row label spacing
         for col = 1, board.size do
-            local letter = board:GetLetter(row, col)
-            local bonus = board:GetBonus(row, col)
-
-            if letter then
-                line = line .. " " .. letter
+            if col < 10 then
+                header = header .. " " .. col
             else
-                -- Show bonus square indicators
-                if bonus == board.BONUS.CENTER then
-                    line = line .. " *"  -- Center star
-                elseif bonus == board.BONUS.TRIPLE_WORD then
-                    line = line .. " ="  -- Triple word
-                elseif bonus == board.BONUS.DOUBLE_WORD then
-                    line = line .. " -"  -- Double word
-                elseif bonus == board.BONUS.TRIPLE_LETTER then
-                    line = line .. " +"  -- Triple letter
-                elseif bonus == board.BONUS.DOUBLE_LETTER then
-                    line = line .. " ."  -- Double letter
-                else
-                    line = line .. "  "  -- Empty
-                end
+                header = header .. col
             end
-
             if col < board.size then
-                line = line .. " "
+                header = header .. " "
             end
         end
-
-        table.insert(lines, line)
+        table.insert(lines, header)
+        if state then
+            state.headerCache = header
+        end
     end
 
-    -- Legend
+    -- Separator - cached since it never changes
+    if state and state.separatorCache then
+        table.insert(lines, state.separatorCache)
+    else
+        local separator = "   " .. string.rep("-", board.size * 3 - 1)
+        table.insert(lines, separator)
+        if state then
+            state.separatorCache = separator
+        end
+    end
+
+    -- Board rows - use cache where possible
+    for row = 1, board.size do
+        if rowCache[row] and not dirtyRows[row] then
+            -- Use cached row
+            table.insert(lines, rowCache[row])
+        else
+            -- Render and cache row
+            local line = self:RenderBoardRow(board, row)
+            rowCache[row] = line
+            if dirtyRows[row] then
+                dirtyRows[row] = nil  -- Clear dirty flag
+            end
+            table.insert(lines, line)
+        end
+    end
+
+    -- Store cache back to game data state
+    if state then
+        state.rowCache = rowCache
+        state.dirtyRows = dirtyRows
+    end
+
+    -- Legend (static)
     table.insert(lines, "")
     table.insert(lines, "Legend: * Center  = Triple Word  - Double Word  + Triple Letter  . Double Letter")
 
     return table.concat(lines, "\n")
+end
+
+--[[
+    Mark rows as dirty when tiles are placed
+    @param gameId string
+    @param placedTiles table - array of {row, col} entries
+]]
+function WordGame:InvalidateRows(gameId, placedTiles)
+    local game = self.games[gameId]
+    if not game or not game.data or not placedTiles then return end
+
+    local state = game.data.state
+
+    for _, tile in ipairs(placedTiles) do
+        if tile.row then
+            state.dirtyRows[tile.row] = true
+        end
+    end
 end
 
 --============================================================
