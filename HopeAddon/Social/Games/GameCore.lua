@@ -33,8 +33,8 @@ GameCore.GAME_MODE = {
     REMOTE = "REMOTE",       -- Using WHISPER channel (any distance)
 }
 
--- Frame rate target (30fps is smooth for WoW addon games)
-GameCore.TARGET_FPS = 30
+-- Frame rate target (60fps for smooth modern gameplay)
+GameCore.TARGET_FPS = 60
 GameCore.FRAME_TIME = 1 / GameCore.TARGET_FPS
 
 --============================================================
@@ -78,7 +78,12 @@ function GameCore:OnDisable()
     if self.updateFrame then
         self.updateFrame:SetScript("OnUpdate", nil)
         self.updateFrame:Hide()
+        self.updateFrame:SetParent(nil)
+        self.updateFrame = nil
     end
+
+    -- Clear key states to prevent memory accumulation
+    wipe(self.keyStates)
 end
 
 --============================================================

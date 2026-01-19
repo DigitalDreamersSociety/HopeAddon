@@ -1,0 +1,9 @@
+## Interface: 20400
+## Title: HopeAddon Tests
+## Notes: Test suite for HopeAddon Words with WoW game system
+## Author: HopeAddon Team
+## Version: 1.0.0
+## Dependencies: HopeAddon
+## LoadOnDemand: 1
+
+Tests\WordGameTests.lua

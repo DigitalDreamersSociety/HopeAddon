@@ -283,6 +283,8 @@ end
     Check if a roll is valid for the given game
 ]]
 function DeathRollGame:IsValidRoll(game, playerName, maxRoll)
+    if not game.data then return false end
+
     if game.data.rollState == self.ROLL_STATE.FINISHED then
         return false
     end
@@ -386,7 +388,7 @@ function DeathRollGame:HandleRemoteState(sender, gameId, data)
     rollResult = tonumber(rollResult)
 
     local game = self.games[gameId]
-    if not game then return end
+    if not game or not game.data then return end
 
     -- Sync our state
     game.data.currentMax = rollResult

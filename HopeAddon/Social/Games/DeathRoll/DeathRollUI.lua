@@ -58,6 +58,13 @@ end
 function DeathRollUI:OnDisable()
     if self.setupWindow then
         self.setupWindow:Hide()
+        self.setupWindow:SetParent(nil)
+        -- Clear child frame references to prevent memory leaks
+        self.setupWindow.opponentInput = nil
+        self.setupWindow.maxInput = nil
+        self.setupWindow.betInput = nil
+        self.setupWindow.escrowCheck = nil
+        self.setupWindow = nil
     end
 
     -- Clean up history windows

@@ -23,12 +23,17 @@ TetrisGame.SETTINGS = {
     MAX_LOCK_MOVES = 15,            -- Max moves/rotations before forced lock
     DAS_DELAY = 0.167,              -- Delayed Auto Shift initial delay (10 frames @ 60fps)
     ARR_INTERVAL = 0.033,           -- Auto Repeat Rate interval (2 frames @ 60fps)
+    ENTRY_DELAY = 0.1,              -- Auto Repeat Enable (ARE) spawn delay
 
     -- Scoring
     POINTS_SINGLE = 100,
     POINTS_DOUBLE = 300,
     POINTS_TRIPLE = 500,
     POINTS_TETRIS = 800,
+    POINTS_TSPIN_SINGLE = 800,
+    POINTS_TSPIN_DOUBLE = 1200,
+    POINTS_TSPIN_TRIPLE = 1600,
+    POINTS_MINI_TSPIN = 100,
 
     -- Garbage
     GARBAGE_SINGLE = 0,
@@ -162,6 +167,8 @@ function TetrisGame:CreateBoard(playerNum)
         isLocking = false,
         softDropping = false,
         softDropDistance = 0,       -- Track cells dropped for scoring
+        entryDelayTimer = 0,        -- Timer for spawn delay
+        waitingForEntry = false,    -- Flag for entry delay state
 
         -- Input state for DAS/ARR
         inputState = {
@@ -174,8 +181,17 @@ function TetrisGame:CreateBoard(playerNum)
         lines = 0,
         score = 0,
 
-        -- Pending garbage
-        pendingGarbage = 0,
+        -- Garbage system
+        incomingGarbage = 0,        -- Garbage received from opponent
+        outgoingGarbage = 0,        -- Garbage to send to opponent
+
+        -- T-Spin detection
+        lastActionWasRotation = false,
+        lastRotationKicked = false,
+
+        -- Combo system
+        backToBack = false,         -- Is back-to-back active?
+        comboCount = 0,             -- Consecutive line clears
 
         -- Player number (for input mapping)
         playerNum = playerNum,
@@ -267,6 +283,17 @@ function TetrisGame:UpdateBoard(gameId, playerNum, dt)
 
     local board = game.data.boards[playerNum]
     if not board then return end
+
+    -- Handle entry delay (ARE)
+    if board.waitingForEntry then
+        board.entryDelayTimer = board.entryDelayTimer + dt
+        if board.entryDelayTimer >= self.SETTINGS.ENTRY_DELAY then
+            board.waitingForEntry = false
+            board.entryDelayTimer = 0
+        else
+            return  -- Don't spawn yet
+        end
+    end
 
     -- Spawn new piece if needed
     if not board.currentPiece then
@@ -361,10 +388,11 @@ function TetrisGame:SpawnPiece(gameId, playerNum)
         return
     end
 
-    -- Add any pending garbage before the new piece
-    if board.pendingGarbage > 0 then
-        local gameOver = board.grid:AddGarbageRows(board.pendingGarbage)
-        board.pendingGarbage = 0
+    -- Process garbage canceling before spawning
+    local garbageToApply = self:ProcessGarbage(gameId, playerNum)
+    if garbageToApply > 0 then
+        local gameOver = board.grid:AddGarbageRows(garbageToApply)
+        board.incomingGarbage = 0
         if gameOver then
             self:OnBoardGameOver(gameId, playerNum)
             return
@@ -394,6 +422,9 @@ function TetrisGame:MovePiece(gameId, playerNum, dRow, dCol)
     if board.grid:CanPlace(blocks, newRow, newCol) then
         board.pieceRow = newRow
         board.pieceCol = newCol
+
+        -- Clear rotation flag (moving cancels T-Spin)
+        board.lastActionWasRotation = false
 
         -- Reset lock timer on successful move
         if board.isLocking then
@@ -440,6 +471,10 @@ function TetrisGame:RotatePiece(gameId, playerNum, direction)
             board.pieceCol = newCol
             board.pieceRotation = newRotation
 
+            -- Track rotation for T-Spin detection
+            board.lastActionWasRotation = true
+            board.lastRotationKicked = (kick[1] ~= 0 or kick[2] ~= 0)  -- True if not first kick (0,0)
+
             -- Reset lock timer on successful rotation
             if board.isLocking then
                 board.lockMoveCount = board.lockMoveCount + 1
@@ -479,12 +514,77 @@ function TetrisGame:HardDrop(gameId, playerNum)
     board.score = board.score + dropDistance * 2
 end
 
+function TetrisGame:DetectTSpin(gameId, playerNum)
+    local game = self.games[gameId]
+    local board = game.data.boards[playerNum]
+    local TetrisGrid = HopeAddon.TetrisGrid
+
+    -- Must be T-piece
+    if board.currentPiece ~= "T" then return false, false end
+
+    -- Must have rotated (not just moved)
+    if not board.lastActionWasRotation then return false, false end
+
+    -- Check 3-corner rule: Check all 4 corners of the 3x3 bounding box
+    local corners = {
+        {-1, -1}, {-1, 1}, {1, -1}, {1, 1}  -- TL, TR, BL, BR
+    }
+    local filledCorners = 0
+    local frontCorners = 0  -- Corners facing the T's direction
+
+    -- Determine front corners based on rotation (where T's point faces)
+    local frontCornerIndices = {}
+    if board.pieceRotation == 1 then  -- Pointing up
+        frontCornerIndices = {1, 2}  -- Top-left, Top-right
+    elseif board.pieceRotation == 2 then  -- Pointing right
+        frontCornerIndices = {2, 4}  -- Top-right, Bottom-right
+    elseif board.pieceRotation == 3 then  -- Pointing down
+        frontCornerIndices = {3, 4}  -- Bottom-left, Bottom-right
+    else  -- Pointing left
+        frontCornerIndices = {1, 3}  -- Top-left, Bottom-left
+    end
+
+    for i, corner in ipairs(corners) do
+        local row = board.pieceRow + corner[1]
+        local col = board.pieceCol + corner[2]
+
+        -- Check if corner is filled (out of bounds counts as filled)
+        local isFilled = false
+        if row < 1 or row > TetrisGrid.HEIGHT or col < 1 or col > TetrisGrid.WIDTH then
+            isFilled = true
+        elseif not board.grid:IsEmpty(row, col) then
+            isFilled = true
+        end
+
+        if isFilled then
+            filledCorners = filledCorners + 1
+            -- Check if this is a front corner
+            for _, frontIdx in ipairs(frontCornerIndices) do
+                if i == frontIdx then
+                    frontCorners = frontCorners + 1
+                    break
+                end
+            end
+        end
+    end
+
+    -- T-spin: 3+ corners filled
+    -- Mini T-spin: 2 corners filled, but neither front corners OR no rotation kick
+    local isTSpin = filledCorners >= 3
+    local isMini = filledCorners == 2 and (frontCorners == 0 or not board.lastRotationKicked)
+
+    return isTSpin, isMini
+end
+
 function TetrisGame:LockPiece(gameId, playerNum)
     local game = self.games[gameId]
     local board = game.data.boards[playerNum]
     local TetrisBlocks = HopeAddon.TetrisBlocks
 
     if not board.currentPiece then return end
+
+    -- Detect T-Spin before placing piece
+    local isTSpin, isMini = self:DetectTSpin(gameId, playerNum)
 
     -- Place piece on grid
     local blocks = TetrisBlocks:GetBlocks(board.currentPiece, board.pieceRotation)
@@ -500,9 +600,17 @@ function TetrisGame:LockPiece(gameId, playerNum)
     board.currentPiece = nil
     board.isLocking = false
     board.lockTimer = 0
+    board.waitingForEntry = true
+    board.entryDelayTimer = 0
 
-    -- Check for line clears
-    self:CheckLineClears(gameId, playerNum)
+    -- Check for line clears (pass T-Spin info)
+    local clearedLines = #board.grid:FindCompleteRows()
+    if clearedLines == 0 and not (isMini and clearedLines == 0) then
+        -- Reset combo if no lines cleared and not a mini T-Spin
+        board.comboCount = 0
+    end
+
+    self:CheckLineClears(gameId, playerNum, isTSpin, isMini)
 
     -- Play lock sound
     if HopeAddon.Sounds then
@@ -511,47 +619,131 @@ function TetrisGame:LockPiece(gameId, playerNum)
 end
 
 --============================================================
+-- GARBAGE SYSTEM
+--============================================================
+
+function TetrisGame:ProcessGarbage(gameId, playerNum)
+    local game = self.games[gameId]
+    if not game then return 0 end
+
+    local board = game.data.boards[playerNum]
+    if not board then return 0 end
+
+    -- Cancel incoming with outgoing
+    local canceled = math.min(board.incomingGarbage, board.outgoingGarbage)
+    board.incomingGarbage = board.incomingGarbage - canceled
+    board.outgoingGarbage = board.outgoingGarbage - canceled
+
+    -- Send remaining outgoing
+    if board.outgoingGarbage > 0 then
+        local opponentNum = playerNum == 1 and 2 or 1
+        self:SendGarbage(gameId, opponentNum, board.outgoingGarbage)
+        board.outgoingGarbage = 0
+    end
+
+    -- Return remaining incoming to be applied
+    return board.incomingGarbage
+end
+
+--============================================================
 -- LINE CLEAR & SCORING
 --============================================================
 
-function TetrisGame:CheckLineClears(gameId, playerNum)
+function TetrisGame:CheckLineClears(gameId, playerNum, isTSpin, isMini)
     local game = self.games[gameId]
     local board = game.data.boards[playerNum]
     local S = self.SETTINGS
 
     local completeRows = board.grid:FindCompleteRows()
-    if #completeRows == 0 then return end
+    local clearedCount = #completeRows
+
+    -- Handle T-Spin without line clear (Mini T-Spin)
+    if isMini and clearedCount == 0 then
+        board.score = board.score + S.POINTS_MINI_TSPIN * board.level
+        if HopeAddon.Sounds then
+            HopeAddon.Sounds:PlayClick()
+        end
+        return
+    end
+
+    if clearedCount == 0 then return end
 
     -- Clear the rows
-    local clearedCount = board.grid:ClearRows(completeRows)
+    clearedCount = board.grid:ClearRows(completeRows)
 
     -- Update stats
     board.lines = board.lines + clearedCount
 
-    -- Calculate score
+    -- Calculate score and garbage
     local points = 0
     local garbage = 0
 
-    if clearedCount == 1 then
-        points = S.POINTS_SINGLE
+    if isTSpin then
+        -- T-Spin scoring
+        if clearedCount == 1 then
+            points = S.POINTS_TSPIN_SINGLE
+            garbage = S.GARBAGE_DOUBLE + 2  -- Bonus garbage
+        elseif clearedCount == 2 then
+            points = S.POINTS_TSPIN_DOUBLE
+            garbage = S.GARBAGE_TETRIS + 2  -- Bonus garbage
+        elseif clearedCount >= 3 then
+            points = S.POINTS_TSPIN_TRIPLE
+            garbage = S.GARBAGE_TETRIS + 3  -- Bonus garbage
+        end
+    elseif isMini then
+        -- Mini T-Spin with line clear
+        points = S.POINTS_MINI_TSPIN * clearedCount
         garbage = S.GARBAGE_SINGLE
-    elseif clearedCount == 2 then
-        points = S.POINTS_DOUBLE
-        garbage = S.GARBAGE_DOUBLE
-    elseif clearedCount == 3 then
-        points = S.POINTS_TRIPLE
-        garbage = S.GARBAGE_TRIPLE
-    elseif clearedCount >= 4 then
-        points = S.POINTS_TETRIS
-        garbage = S.GARBAGE_TETRIS
+    else
+        -- Normal scoring
+        if clearedCount == 1 then
+            points = S.POINTS_SINGLE
+            garbage = S.GARBAGE_SINGLE
+        elseif clearedCount == 2 then
+            points = S.POINTS_DOUBLE
+            garbage = S.GARBAGE_DOUBLE
+        elseif clearedCount == 3 then
+            points = S.POINTS_TRIPLE
+            garbage = S.GARBAGE_TRIPLE
+        elseif clearedCount >= 4 then
+            points = S.POINTS_TETRIS
+            garbage = S.GARBAGE_TETRIS
+        end
+    end
+
+    -- Determine if this is a "difficult" clear (Tetris or T-Spin)
+    local isDifficult = (clearedCount >= 4) or isTSpin
+
+    -- Back-to-back bonus (50% more points)
+    if board.backToBack and isDifficult then
+        points = math.floor(points * 1.5)
+        HopeAddon:Print("Back-to-Back!")
+    end
+
+    -- Update back-to-back state
+    if isDifficult then
+        board.backToBack = true
+    elseif clearedCount > 0 then
+        board.backToBack = false
+    end
+
+    -- Combo system (rewards consecutive line clears)
+    if clearedCount > 0 then
+        board.comboCount = board.comboCount + 1
+        if board.comboCount > 1 then
+            local comboBonus = (board.comboCount - 1) * 50 * board.level
+            points = points + comboBonus
+            HopeAddon:Debug("Combo", board.comboCount, "- Bonus:", comboBonus)
+        end
+    else
+        board.comboCount = 0
     end
 
     board.score = board.score + points * board.level
 
-    -- Send garbage to opponent
-    local opponentNum = playerNum == 1 and 2 or 1
+    -- Queue garbage (will be sent after canceling in ProcessGarbage)
     if garbage > 0 then
-        self:SendGarbage(gameId, opponentNum, garbage)
+        board.outgoingGarbage = board.outgoingGarbage + garbage
     end
 
     -- Level up check
@@ -580,7 +772,7 @@ function TetrisGame:SendGarbage(gameId, targetPlayer, amount)
         -- Local mode: directly add to opponent's board
         local board = game.data.boards[targetPlayer]
         if board then
-            board.pendingGarbage = board.pendingGarbage + amount
+            board.incomingGarbage = board.incomingGarbage + amount
             HopeAddon:Debug("Sent", amount, "garbage to player", targetPlayer, "(local)")
         end
     else
@@ -613,7 +805,7 @@ function TetrisGame:OnOpponentMove(sender, gameId, data)
         -- Add to our board (always board 1 in REMOTE mode)
         local board = game.data.boards[1]
         if board then
-            board.pendingGarbage = board.pendingGarbage + amount
+            board.incomingGarbage = board.incomingGarbage + amount
             HopeAddon:Debug("Received", amount, "garbage from", sender)
         end
     end
@@ -764,7 +956,9 @@ function TetrisGame:OnKeyDown(gameId, key)
                 self:MovePiece(gameId, 1, 0, 1)  -- Immediate first move
             end
         elseif key == "W" or key == "UP" then
-            self:RotatePiece(gameId, 1, 1)
+            self:RotatePiece(gameId, 1, 1)  -- Clockwise
+        elseif key == "Q" then
+            self:RotatePiece(gameId, 1, -1)  -- Counter-clockwise
         elseif key == "S" or key == "DOWN" then
             game.data.boards[1].softDropping = true
         elseif key == "SPACE" or key == "ENTER" then
@@ -790,7 +984,9 @@ function TetrisGame:OnKeyDown(gameId, key)
                 self:MovePiece(gameId, 1, 0, 1)  -- Immediate first move
             end
         elseif key == "W" then
-            self:RotatePiece(gameId, 1, 1)
+            self:RotatePiece(gameId, 1, 1)  -- Clockwise
+        elseif key == "Q" then
+            self:RotatePiece(gameId, 1, -1)  -- Counter-clockwise
         elseif key == "S" then
             game.data.boards[1].softDropping = true
         elseif key == "SPACE" then
@@ -815,7 +1011,9 @@ function TetrisGame:OnKeyDown(gameId, key)
                 self:MovePiece(gameId, 2, 0, 1)  -- Immediate first move
             end
         elseif key == "UP" then
-            self:RotatePiece(gameId, 2, 1)
+            self:RotatePiece(gameId, 2, 1)  -- Clockwise
+        elseif key == "RSHIFT" or key == "LSHIFT" then
+            self:RotatePiece(gameId, 2, -1)  -- Counter-clockwise
         elseif key == "DOWN" then
             game.data.boards[2].softDropping = true
         elseif key == "ENTER" then
@@ -918,7 +1116,7 @@ function TetrisGame:CreateUI(gameId)
         -- Controls hint
         local controlsText = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         controlsText:SetPoint("BOTTOM", 0, 5)
-        controlsText:SetText("A/D to move | W to rotate | S to soft drop | Space to hard drop")
+        controlsText:SetText("A/D to move | W/Q to rotate CW/CCW | S to soft drop | Space to hard drop")
         controlsText:SetTextColor(0.5, 0.5, 0.5)
     else
         -- LOCAL MODE: Two boards side-by-side
@@ -947,7 +1145,7 @@ function TetrisGame:CreateUI(gameId)
         -- Controls hint
         local controlsText = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         controlsText:SetPoint("BOTTOM", 0, 5)
-        controlsText:SetText("P1: A/D/W/S/Space | P2: Arrows/Enter")
+        controlsText:SetText("P1: A/D/W/Q/S/Space | P2: Arrows/Up/Shift/Down/Enter")
         controlsText:SetTextColor(0.5, 0.5, 0.5)
     end
 
@@ -1165,11 +1363,20 @@ function TetrisGame:CleanupGame(gameId)
         game.data.countdownTimer = nil
     end
 
+    -- Clear countdown text FontString reference
+    if game.data then
+        game.data.countdownText = nil
+    end
+
     -- Destroy cell textures and clear input state for all boards
     if game.data and game.data.boards then
         for playerNum, board in pairs(game.data.boards) do
             -- Clear input state
             board.softDropping = false
+            if board.inputState then
+                board.inputState.left.pressed = false
+                board.inputState.right.pressed = false
+            end
 
             -- Destroy cell textures
             if board.cellTextures then

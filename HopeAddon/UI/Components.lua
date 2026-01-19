@@ -896,8 +896,12 @@ function Components:CreateCollapsibleSection(parent, title, colorName, startExpa
         -- Update section total height
         self:UpdateHeight()
 
-        -- Show/hide based on expanded state
-        childFrame:SetShown(self.isExpanded)
+        -- Show/hide based on expanded state (TBC compatible - no SetShown)
+        if self.isExpanded then
+            childFrame:Show()
+        else
+            childFrame:Hide()
+        end
     end
 
     -- Update total section height
@@ -917,7 +921,12 @@ function Components:CreateCollapsibleSection(parent, title, colorName, startExpa
         self.indicator:SetText(self.isExpanded and "[-]" or "[+]")
 
         for _, child in ipairs(self.childEntries) do
-            child:SetShown(self.isExpanded)
+            -- TBC compatible - no SetShown
+            if self.isExpanded then
+                child:Show()
+            else
+                child:Hide()
+            end
         end
 
         self:UpdateHeight()
@@ -1401,18 +1410,30 @@ function Components:CreateReputationBar(parent, width, height, options)
             self.outerBorder:Hide()
         end
 
-        -- Update tick marks visibility
+        -- Update tick marks visibility (TBC compatible - no SetShown)
         for _, tick in ipairs(self.tickMarks) do
-            tick:SetShown(visuals.showTickMarks)
+            if visuals.showTickMarks then
+                tick:Show()
+            else
+                tick:Hide()
+            end
         end
 
-        -- Update corner flourishes
+        -- Update corner flourishes (TBC compatible - no SetShown)
         for _, flourish in ipairs(self.flourishes) do
-            flourish:SetShown(visuals.showCornerFlourishes)
+            if visuals.showCornerFlourishes then
+                flourish:Show()
+            else
+                flourish:Hide()
+            end
         end
 
-        -- Update crown icon
-        self.crownIcon:SetShown(visuals.showCrown)
+        -- Update crown icon (TBC compatible - no SetShown)
+        if visuals.showCrown then
+            self.crownIcon:Show()
+        else
+            self.crownIcon:Hide()
+        end
 
         -- Update badge with item quality colors and loot glow
         if self.badgeText then
@@ -2064,7 +2085,7 @@ function Components:CreateGameCard(parent, gameData, onPractice, onChallenge)
     local BUTTON_WIDTH = 80
     local BUTTON_HEIGHT = 22
 
-    local card = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    local card = CreateFrame("Button", nil, parent)
     card:SetSize(CARD_WIDTH, CARD_HEIGHT)
     card:SetBackdrop({
         bgFile = AssetTextures.PARCHMENT,
@@ -2114,7 +2135,7 @@ function Components:CreateGameCard(parent, gameData, onPractice, onChallenge)
     card.stats = stats
 
     -- Practice button (left)
-    local practiceBtn = CreateFrame("Button", nil, card, "BackdropTemplate")
+    local practiceBtn = CreateFrame("Button", nil, card)
     practiceBtn:SetSize(BUTTON_WIDTH, BUTTON_HEIGHT)
     practiceBtn:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 8, 8)
     practiceBtn:SetBackdrop({
@@ -2150,7 +2171,7 @@ function Components:CreateGameCard(parent, gameData, onPractice, onChallenge)
     card.practiceBtn = practiceBtn
 
     -- Challenge button (right)
-    local challengeBtn = CreateFrame("Button", nil, card, "BackdropTemplate")
+    local challengeBtn = CreateFrame("Button", nil, card)
     challengeBtn:SetSize(BUTTON_WIDTH, BUTTON_HEIGHT)
     challengeBtn:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -8, 8)
     challengeBtn:SetBackdrop({

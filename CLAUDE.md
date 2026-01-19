@@ -15,8 +15,9 @@ HopeAddon/
 ├── Journal/        # Main journal system (Journal, Pages, Milestones, Zones, ProfileEditor)
 ├── Raids/          # Raid tracking (RaidData, Attunements, Karazhan, Gruul, Magtheridon)
 ├── Reputation/     # Faction tracking (ReputationData, Reputation)
-└── Social/         # Multiplayer features (Badges, FellowTravelers, TravelerIcons, Minigames, MapPins)
-    └── Games/      # Game system (GameCore, GameUI, GameComms, Tetris, DeathRoll, Pong, Words)
+├── Social/         # Multiplayer features (Badges, FellowTravelers, TravelerIcons, Minigames, MapPins)
+│   └── Games/      # Game system (GameCore, GameUI, GameComms, Tetris, DeathRoll, Pong, Words)
+└── Tests/          # Test suite (WordGameTests, LoadOnDemand)
 ```
 
 **SavedVariables:**
@@ -46,6 +47,7 @@ HopeAddon/
 | Pong | ✅ COMPLETE | Classic 2-player Pong with physics, local & remote |
 | Words with WoW | ✅ COMPLETE | Scrabble-style word game with WoW vocabulary |
 | Games Hall UI | ✅ COMPLETE | Storybook-style game selection in Directory tab |
+| Test Suite | ✅ COMPLETE | Comprehensive automated tests for Words with WoW |
 
 ---
 
@@ -159,6 +161,31 @@ end
 | `UI/Components.lua` | All reusable UI components | 59KB |
 | `UI/Glow.lua` | Glow effects | 11KB |
 | `UI/Animations.lua` | Animation utilities | 12KB |
+
+### Test Suite
+| File | Purpose | Size |
+|------|---------|------|
+| `Tests/WordGameTests.lua` | Comprehensive automated tests for Words with WoW | 17KB |
+| `Tests/README.md` | Test documentation and procedures | 10KB |
+
+**Test Coverage:**
+- Dictionary validation (valid/invalid words, letter values, tile bag)
+- Board placement rules (center, connectivity, bounds, conflicts)
+- Scoring mechanics (bonus squares, multipliers, cross-words)
+- Cross-word detection and validation
+- Game flow (state management, turn switching, pass system)
+- Network sync (manual test procedure for remote play)
+
+**Running Tests:**
+```
+/run LoadAddOn("HopeAddon_Tests")  -- Load test addon
+/wordtest all                       -- Run all tests
+/wordtest dict                      -- Test dictionary only
+/wordtest board                     -- Test board placement
+/wordtest score                     -- Test scoring
+/wordtest cross                     -- Test cross-words
+/wordtest flow                      -- Test game flow
+```
 
 ---
 
@@ -674,6 +701,21 @@ Messages follow format: `TYPE:VERSION:GAMETYPE:GAMEID:DATA`
 - ✅ **ShowTravelerPickerForGame** (MinigamesUI.lua:1527-1609) - New popup for selecting Fellow Traveler to challenge from Games Hall
 - ✅ **GetTravelerPickerPopup** (MinigamesUI.lua:1377-1463) - Creates traveler picker popup with scroll frame
 - ✅ **GetTravelerButton** (MinigamesUI.lua:1471-1521) - Reusable traveler selection buttons for picker
+
+### Phase 13: Words with WoW Test Suite
+
+- ✅ **WordGameTests.lua** (Tests/WordGameTests.lua) - Comprehensive automated test suite for Words with WoW game system
+- ✅ **Dictionary Tests** - Validate word validation, letter values, tile bag generation, case insensitivity
+- ✅ **Board Placement Tests** - Test center rule, connectivity, bounds checking, conflict detection
+- ✅ **Scoring Tests** - Verify bonus squares (DW, TW, DL, TL), multiplier calculations, cross-word scoring
+- ✅ **Cross-Word Tests** - Test cross-word detection, validation, GetHorizontalWord/GetVerticalWord
+- ✅ **Game Flow Tests** - Test state management, turn switching, pass system, game completion
+- ✅ **Test Infrastructure** - Assert/AssertEquals utilities, test counters, summary reports
+- ✅ **Slash Commands** - `/wordtest all`, `/wordtest dict`, `/wordtest board`, `/wordtest score`, `/wordtest cross`, `/wordtest flow`
+- ✅ **Test Documentation** (Tests/README.md) - Complete test coverage documentation, manual test procedures, troubleshooting guide
+- ✅ **Separate Test Addon** (HopeAddon_Tests.toc) - LoadOnDemand test addon that doesn't load by default in production
+- ✅ **50+ Test Cases** - Comprehensive coverage of all Words with WoW functionality
+- ✅ **Manual Network Test Procedure** - Step-by-step guide for testing remote multiplayer with 2 clients
 
 ---
 

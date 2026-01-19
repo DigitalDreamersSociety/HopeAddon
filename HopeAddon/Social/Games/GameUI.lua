@@ -33,7 +33,24 @@ local COLORS = {
     RED = { r = 0.8, g = 0.2, b = 0.2, a = 1 },
 }
 
--- Module-level button handlers (no closures, prevent memory leaks)
+-- Module-level handlers (no closures, prevent memory leaks)
+
+-- ESC key handler for game windows
+local function OnGameWindowKeyDown(self, key)
+    if key == "ESCAPE" then
+        local gameId = self.gameId
+        local GameCore = HopeAddon:GetModule("GameCore")
+        if GameCore then
+            GameCore:EndGame(gameId, "CLOSED")
+        end
+        self:Hide()
+        self:SetPropagateKeyboardInput(false)
+    else
+        self:SetPropagateKeyboardInput(true)
+    end
+end
+
+-- Button handlers
 local function OnButtonEnter(self)
     self:SetBackdropColor(COLORS.BUTTON_HOVER.r, COLORS.BUTTON_HOVER.g, COLORS.BUTTON_HOVER.b, COLORS.BUTTON_HOVER.a)
     if HopeAddon.Sounds then
@@ -173,6 +190,13 @@ function GameUI:CreateGameWindow(gameId, title, size)
         end
     end)
     window.closeBtn = closeBtn
+
+    -- Store gameId for ESC handler
+    window.gameId = gameId
+
+    -- ESC key handling
+    window:EnableKeyboard(true)
+    window:SetScript("OnKeyDown", OnGameWindowKeyDown)
 
     -- Content area
     local content = CreateFrame("Frame", nil, window)

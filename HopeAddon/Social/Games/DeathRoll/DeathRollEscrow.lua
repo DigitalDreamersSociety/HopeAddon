@@ -90,6 +90,16 @@ function DeathRollEscrow:OnEnable()
 end
 
 function DeathRollEscrow:OnDisable()
+    -- Cancel all cleanup timers and clear sessions
+    for sessionId, session in pairs(self.sessions) do
+        if session.cleanupTimer then
+            session.cleanupTimer:Cancel()
+            session.cleanupTimer = nil
+        end
+    end
+    wipe(self.sessions)
+    wipe(self.pendingTrades)
+
     if self.eventFrame then
         self.eventFrame:UnregisterAllEvents()
         self.eventFrame:SetScript("OnEvent", nil)
@@ -116,7 +126,7 @@ end
 
 function DeathRollEscrow:OnTradeShow()
     -- Check if this trade is relevant to any escrow session
-    local tradeName = GetUnitName("NPC", true) or UnitName("NPC")
+    local tradeName = UnitName("NPC")
     if not tradeName then return end
 
     HopeAddon:Debug("Trade opened with:", tradeName)

@@ -222,6 +222,17 @@ local function OnGameSelectionKeyDown(self, key)
     end
 end
 
+-- Challenge popup ESC handler
+local function OnChallengePopupKeyDown(self, key)
+    if key == "ESCAPE" then
+        -- Treat ESC as decline
+        OnChallengeDecline(self.declineBtn)
+        self:SetPropagateKeyboardInput(false)
+    else
+        self:SetPropagateKeyboardInput(true)
+    end
+end
+
 --============================================================
 -- LIFECYCLE
 --============================================================
@@ -318,6 +329,17 @@ function MinigamesUI:GetChallengePopup()
     declineBtn:SetText("Decline")
     declineBtn:SetScript("OnClick", OnChallengeDecline)
     popup.declineBtn = declineBtn
+
+    -- Close (X) button
+    local closeBtn = CreateFrame("Button", nil, popup, "UIPanelCloseButton")
+    closeBtn:SetPoint("TOPRIGHT", popup, "TOPRIGHT", -2, -2)
+    closeBtn:SetScript("OnClick", function(self)
+        OnChallengeDecline(self:GetParent().declineBtn)
+    end)
+
+    -- ESC key handling
+    popup:EnableKeyboard(true)
+    popup:SetScript("OnKeyDown", OnChallengePopupKeyDown)
 
     -- Timer update
     popup.timerTicker = nil
@@ -1244,6 +1266,11 @@ function MinigamesUI:GetGameSelectionPopup()
         btn:SetScript("OnLeave", OnGameButtonLeave)
     end
 
+    -- Close (X) button
+    local closeBtn = CreateFrame("Button", nil, popup, "UIPanelCloseButton")
+    closeBtn:SetPoint("TOPRIGHT", popup, "TOPRIGHT", -2, -2)
+    closeBtn:SetScript("OnClick", OnGameSelectionCancel)
+
     -- Cancel button
     local cancelBtn = CreateFrame("Button", nil, popup, "UIPanelButtonTemplate")
     cancelBtn:SetSize(80, 22)
@@ -1266,6 +1293,10 @@ end
 ]]
 function MinigamesUI:ShowGameSelectionPopup(targetName)
     if not targetName or targetName == "" then return end
+
+    -- Hide conflicting popups first
+    self:HideTravelerPickerPopup()
+    self:HideChallengePopup()
 
     local popup = self:GetGameSelectionPopup()
 
@@ -1436,10 +1467,33 @@ function MinigamesUI:GetTravelerPickerPopup()
     -- Traveler buttons pool
     popup.travelerButtons = {}
 
+    -- Store origin context (set when opening from Games Hall)
+    popup.originGameId = nil
+
+    -- Close (X) button
+    local closeBtn = CreateFrame("Button", nil, popup, "UIPanelCloseButton")
+    closeBtn:SetPoint("TOPRIGHT", popup, "TOPRIGHT", -2, -2)
+    closeBtn:SetScript("OnClick", OnTravelerPickerCancel)
+
+    -- Back button (left side, only shown when there's navigation history)
+    local backBtn = CreateFrame("Button", nil, popup, "UIPanelButtonTemplate")
+    backBtn:SetSize(80, 22)
+    backBtn:SetPoint("BOTTOMLEFT", popup, "BOTTOMLEFT", 15, 15)
+    backBtn:SetText("Back")
+    backBtn:SetScript("OnClick", function()
+        if HopeAddon.Sounds then
+            HopeAddon.Sounds:PlayClick()
+        end
+        popup:Hide()
+        -- Back just closes the popup (Games Hall remains visible)
+    end)
+    backBtn:Hide()  -- Only show when there's navigation history
+    popup.backBtn = backBtn
+
     -- Cancel button
     local cancelBtn = CreateFrame("Button", nil, popup, "UIPanelButtonTemplate")
     cancelBtn:SetSize(80, 22)
-    cancelBtn:SetPoint("BOTTOM", popup, "BOTTOM", 0, 15)
+    cancelBtn:SetPoint("BOTTOMRIGHT", popup, "BOTTOMRIGHT", -15, 15)
     cancelBtn:SetText("Cancel")
     cancelBtn:SetScript("OnClick", OnTravelerPickerCancel)
 
@@ -1478,7 +1532,7 @@ function MinigamesUI:GetTravelerButton(index, parent)
     end
 
     -- Create new button
-    local btn = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    local btn = CreateFrame("Button", nil, parent)
     btn:SetSize(TRAVELER_PICKER_WIDTH - 50, TRAVELER_BUTTON_HEIGHT)
     btn:SetBackdrop({
         bgFile = HopeAddon.assets.textures.TOOLTIP_BG,
@@ -1527,11 +1581,21 @@ end
 function MinigamesUI:ShowTravelerPickerForGame(gameId)
     if not gameId then return end
 
+    -- Hide conflicting popups first
+    self:HideGameSelectionPopup()
+    self:HideChallengePopup()
+
     local popup = self:GetTravelerPickerPopup()
     local Constants = HopeAddon.Constants
 
-    -- Store selected game
+    -- Store selected game and origin context
     popup.selectedGameId = gameId
+    popup.originGameId = gameId  -- Mark that we came from Games Hall
+
+    -- Show Back button when opened from Games Hall
+    if popup.backBtn then
+        popup.backBtn:Show()
+    end
 
     -- Get game display name
     local gameDef = Constants and Constants:GetGameDefinition(gameId)
@@ -1556,9 +1620,17 @@ function MinigamesUI:ShowTravelerPickerForGame(gameId)
         end
     end
 
-    -- Show/hide no travelers message
-    popup.noTravelersText:SetShown(#fellows == 0)
-    popup.scrollContent:SetShown(#fellows > 0)
+    -- Show/hide no travelers message (TBC compatible - no SetShown)
+    if #fellows == 0 then
+        popup.noTravelersText:Show()
+    else
+        popup.noTravelersText:Hide()
+    end
+    if #fellows > 0 then
+        popup.scrollContent:Show()
+    else
+        popup.scrollContent:Hide()
+    end
 
     if #fellows > 0 then
         -- Create buttons for each fellow traveler
