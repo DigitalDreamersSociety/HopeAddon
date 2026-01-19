@@ -163,6 +163,12 @@ function TetrisGame:CreateBoard(playerNum)
         softDropping = false,
         softDropDistance = 0,       -- Track cells dropped for scoring
 
+        -- Input state for DAS/ARR
+        inputState = {
+            left = { pressed = false, timer = 0, repeating = false },
+            right = { pressed = false, timer = 0, repeating = false },
+        },
+
         -- Stats
         level = 1,
         lines = 0,
@@ -267,6 +273,9 @@ function TetrisGame:UpdateBoard(gameId, playerNum, dt)
         self:SpawnPiece(gameId, playerNum)
         return
     end
+
+    -- Process DAS/ARR input
+    self:UpdateDASInput(gameId, playerNum, dt)
 
     -- Handle locking
     if board.isLocking then
