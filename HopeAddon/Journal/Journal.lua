@@ -551,7 +551,7 @@ function Journal:AcquireCard(parent, data)
     card.desc:ClearAllPoints()
     card.desc:SetPoint("TOPLEFT", card.title, "BOTTOMLEFT", 0, -Components.MARGIN_SMALL)
     card.desc:SetPoint("RIGHT", card, "RIGHT", -Components.MARGIN_NORMAL, 0)
-    card.desc:SetPoint("BOTTOM", card, "BOTTOM", 0, 22)
+    card.desc:SetMaxLines(3)  -- Limit to 3 lines instead of fixed bottom anchor
     card.desc:SetTextColor(HopeAddon:GetTextColor("SECONDARY"))
     card.desc:SetJustifyH("LEFT")
     card.desc:SetJustifyV("TOP")

@@ -31,6 +31,7 @@ GameUI.WINDOW_SIZES = {
     LARGE = { width = 600, height = 500 },
     PONG = { width = 500, height = 400 },
     TETRIS = { width = 700, height = 550 },
+    WORDS = { width = 650, height = 600 },  -- H2 fix: dedicated size for Words with WoW board
 }
 
 -- Colors

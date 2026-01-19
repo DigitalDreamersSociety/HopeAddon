@@ -145,6 +145,10 @@ function Sounds:PlaySuccess()
     self:Play("ui", "success")
 end
 
+function Sounds:PlayHover()
+    self:Play("ui", "hover")
+end
+
 function Sounds:PlayDeath()
     self:Play("combat", "death")
 end

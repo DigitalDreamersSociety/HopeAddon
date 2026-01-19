@@ -177,7 +177,9 @@ end
 | `Social/Relationships.lua` | Player notes system | ~8KB |
 | `Social/TravelerIcons.lua` | Icon rendering | 12KB |
 
-**FellowTravelers Module Details (Communication Hub):**
+<details>
+<summary>FellowTravelers Module Details (Communication Hub) - click to expand</summary>
+
 - Addon prefix: `HOPEADDON`, protocol version 1
 - Message types: PING, PONG, PREQ (profile request), PROF (profile data), LOC (location)
 - Key public API:
@@ -189,8 +191,11 @@ end
   - `GetMyProfile()` / `UpdateMyProfile(updates)` - Manage own RP profile
   - `RegisterMessageCallback(id, matchFunc, handler)` - For other modules to receive messages
 - Stores: `charDb.travelers.known`, `charDb.travelers.fellows`, `charDb.travelers.myProfile`
+</details>
 
-**Directory Module Details:**
+<details>
+<summary>Directory Module Details - click to expand</summary>
+
 - Combines `travelers.known` + `travelers.fellows` into unified list
 - Sort options: name (A-Z/Z-A), class, level (high/low), last seen
 - Search filters by name, class, or zone
@@ -205,8 +210,11 @@ end
   - `GetStats()` - Statistics: total, fellows, byClass, recentCount
   - `FormatEntryForDisplay(entry)` - Format for UI display
   - `IsPlayerNearby(name)` - Check if player in party/raid
+</details>
 
-**Relationships Module Details:**
+<details>
+<summary>Relationships Module Details - click to expand</summary>
+
 - Simple key-value note storage: `charDb.relationships[playerName] = { note, addedDate }`
 - 256 character note limit (NOTE_MAX_LENGTH)
 - Key functions:
@@ -220,6 +228,7 @@ end
   - `AddNoteFromChat(name, note)` - Add note from chat link
   - `ExportNotes()` / `ImportNotes(data)` - Backup/restore
 - Integrates with Directory for UI display
+</details>
 
 ### Game System
 | File | Purpose | Size |
@@ -251,24 +260,7 @@ end
 | `Tests/WordGameTests.lua` | Comprehensive automated tests for Words with WoW | 17KB |
 | `Tests/README.md` | Test documentation and procedures | 10KB |
 
-**Test Coverage:**
-- Dictionary validation (valid/invalid words, letter values, tile bag)
-- Board placement rules (center, connectivity, bounds, conflicts)
-- Scoring mechanics (bonus squares, multipliers, cross-words)
-- Cross-word detection and validation
-- Game flow (state management, turn switching, pass system)
-- Network sync (manual test procedure for remote play)
-
-**Running Tests:**
-```
-/run LoadAddOn("HopeAddon_Tests")  -- Load test addon
-/wordtest all                       -- Run all tests
-/wordtest dict                      -- Test dictionary only
-/wordtest board                     -- Test board placement
-/wordtest score                     -- Test scoring
-/wordtest cross                     -- Test cross-words
-/wordtest flow                      -- Test game flow
-```
+**Run tests:** `/run LoadAddOn("HopeAddon_Tests")` then `/wordtest all` (see Tests/README.md for details)
 
 ---
 
@@ -595,35 +587,6 @@ texture:SetVertexColor(color.r, color.g, color.b, 0.8)
 
 ---
 
-## Future Patterns (Planned)
-
-Patterns for features in development:
-
-### Settings Panel
-Will use existing tab pattern + `CreateCollapsibleSection`:
-```lua
--- Planned structure
-self:CreateCollapsibleSection("Sound Settings", {
-    { type = "checkbox", label = "Enable Sounds", key = "soundEnabled" },
-    { type = "slider", label = "Volume", key = "soundVolume", min = 0, max = 1 },
-})
-```
-
-### Boss Detection Verification
-Verify `COMBAT_LOG_EVENT_UNFILTERED` patterns:
-```lua
--- Expected event for boss kills:
--- UNIT_DIED with destGUID matching C.BOSS_NPC_IDS
-```
-
-### Milestone Modal
-Will reuse notification pool styling with expanded content area.
-
-### Attunement Icons
-Requires addon communication protocol extension for comparing attunement completion timestamps between players.
-
----
-
 ## Module Pattern
 
 All modules follow this pattern:
@@ -701,68 +664,31 @@ Messages follow format: `TYPE:VERSION:GAMETYPE:GAMEID:DATA`
 
 ### Game Implementations
 
+**Quick Summary:** Tetris Battle (garbage mechanic), Death Roll (gambling + escrow), Pong (classic physics), Words with WoW (Scrabble-style)
+
+<details>
+<summary>Detailed Game Specifications (click to expand)</summary>
+
 #### Tetris Battle
-
-**TetrisGrid** - 10x20 grid with piece placement validation, row clearing, and garbage system
-
-**TetrisBlocks** - All 7 standard pieces (I, O, T, S, Z, J, L) with SRS rotation and 7-bag randomizer
-
-**TetrisGame** - Battle system with:
-- Side-by-side boards for local mode
-- Garbage mechanic (cleared rows → opponent garbage)
-- Level progression with increasing speed
-- Full scoring (100/300/500/800 for 1/2/3/4 lines)
-- Keyboard controls:
-  - Player 1: A/D move, W rotate, S soft drop, Space hard drop
-  - Player 2: Arrows, Up rotate, Down soft drop, Enter hard drop
-- Remote multiplayer via GameComms
+- **TetrisGrid** - 10x20 grid with piece placement validation, row clearing, garbage system
+- **TetrisBlocks** - All 7 standard pieces (I, O, T, S, Z, J, L) with SRS rotation and 7-bag randomizer
+- **TetrisGame** - Battle system with side-by-side boards, garbage mechanic, level progression, full scoring (100/300/500/800)
+- **Controls:** P1: A/D move, W rotate, S soft drop, Space hard drop | P2: Arrows, Up rotate, Down soft drop, Enter hard drop
 
 #### Death Roll
-
-**DeathRollGame** - Turn-based gambling game:
-- Players roll decreasing dice (100 → N → ... → 1)
-- First player to roll 1 loses
-- Uses real `/roll` chat command for verification
-
-**DeathRollEscrow** - 3-player escrow system:
-- Third player holds stakes during match
-- Automatic payout on game completion
-- Dispute resolution for disconnects
-- Trust verification via addon communication
+- **DeathRollGame** - Turn-based gambling (100 → N → 1, first to roll 1 loses), uses real `/roll` chat command
+- **DeathRollEscrow** - 3-player escrow system with automatic payout, dispute resolution, trust verification
 
 #### Pong
-
-**PongGame** - Classic arcade game:
-- Ball physics with angle reflection
-- Paddle collision detection
-- Score to 11 to win
-- Controls:
-  - Player 1: W/S keys
-  - Player 2: Up/Down arrows
-- Increasing ball speed over time
+- **PongGame** - Classic arcade with ball physics, paddle collision, score to 11, increasing speed
+- **Controls:** P1: W/S keys | P2: Up/Down arrows
 
 #### Words with WoW
+- **WordGame** - Scrabble-style with WoW vocabulary, slash command input (`/word DRAGON H 8 8`), text-based 15x15 board, cross-word validation, pass system (2 consecutive passes ends game)
+- **WordBoard** - 15x15 grid with bonus squares (double/triple letter/word), placement validation (connectivity, bounds, center), cross-word detection and scoring
+- **WordDictionary** - ~500 WoW-themed words, hash table for O(1) validation, standard Scrabble letter values, tile bag generation
 
-**WordGame** - Turn-based word game controller:
-- Scrabble-style gameplay with WoW vocabulary
-- Slash command input: `/word DRAGON H 8 8`
-- Text-based 15x15 board display
-- Score tracking with bonus squares
-- Cross-word validation and scoring
-- Pass system (2 consecutive passes ends game)
-- Remote multiplayer via GameComms
-
-**WordBoard** - Board mechanics:
-- 15x15 grid with bonus squares (double/triple letter/word)
-- Word placement validation (connectivity, bounds, first word center)
-- Cross-word detection and scoring
-- Bonus multiplier calculations
-
-**WordDictionary** - Vocabulary system:
-- ~500 WoW-themed words (classes, zones, bosses, items, spells)
-- Hash table for O(1) validation
-- Standard Scrabble letter values
-- Tile bag generation
+</details>
 
 ---
 
@@ -792,7 +718,27 @@ Messages follow format: `TYPE:VERSION:GAMETYPE:GAMEID:DATA`
 
 See [CHANGELOG.md](CHANGELOG.md) for historical bug fixes (Phases 5-13).
 
-### Current Session Fixes
+### Phase 16: Implementation Guide Execution (2026-01-19)
+
+**Critical Fixes:**
+- ✅ **Pong Ball Desync (C2)** (PongGame.lua:418-422) - Added host-only ball physics check; client receives ball state from network instead of running local physics
+- ✅ **PlayHover Sound (A3)** (Sounds.lua:148-150) - Added missing `PlayHover()` function to fix error in GameUI button hover handlers
+
+**High Priority Fixes:**
+- ✅ **RecalculatePositions Consistency (M1)** (Components.lua:695-711) - Added component-type-aware fallback logic matching AddEntry; removed extra MARGIN_NORMAL from final height calculation to prevent layout shifts on collapsible toggle
+- ✅ **Words Score Validation (H4)** (WordGame.lua:490-514) - Added score validation in HandleRemoteMove comparing remote claimed score vs locally calculated; mismatches logged to debug
+
+**Documentation Updates:**
+- ✅ Updated UI_ORGANIZATION_GUIDE.md: H3, M2, M3, M5 marked as "Won't Fix - By Design" with justifications
+- ✅ Phase 2 (High Priority) and Phase 3 (Medium Priority) marked complete
+
+**Previously Implemented (Verified This Session):**
+- ✅ **Words Memory Leak (C1)** (WordGame.lua:201-258) - CleanupGame function with comprehensive FontString and frame cleanup
+- ✅ **Words Board Performance (C3)** (WordGame.lua:735-792) - Row caching with dirtyRows tracking for O(1) rendering
+- ✅ **Scroll Height Fallback (H1)** (Components.lua:654-666) - Component-type-aware fallbacks using `_componentType` metadata
+- ✅ **Words Window Size (H2)** (GameUI.lua:34, WordGame.lua:532) - Dedicated WORDS constant (650x600)
+
+### Previous Session Fixes
 
 - ✅ **Card Pool Frame Type** (Journal.lua:149) - Changed `"Frame"` to `"Button"` to support OnClick scripts
 - ✅ **Reputation Card Border Hover** (Journal.lua:1119) - Store standing color in `defaultBorderColor` so border returns to correct color after hover instead of grey
@@ -848,8 +794,6 @@ See [CHANGELOG.md](CHANGELOG.md) for historical bug fixes (Phases 5-13).
 
 ## Documentation Maintenance
 
-This document should be treated as **living documentation**. Keep it updated as the codebase evolves.
-
 **CRITICAL FOR AI CONTINUITY:** This project has no human developer. Documentation accuracy directly impacts whether future AI sessions can work effectively. When in doubt, document it.
 
 ### When to Update
@@ -857,52 +801,18 @@ This document should be treated as **living documentation**. Keep it updated as 
 | Event | Action |
 |-------|--------|
 | Feature completed | Move from "Known Incomplete Items" → "Feature Status Summary" with ✅ |
-| Bug fixed | Add entry to "Recent Changes" in CLAUDE.md; archive older phases to CHANGELOG.md periodically |
+| Bug fixed | Add entry to "Recent Changes"; archive older phases to CHANGELOG.md periodically |
 | New issue discovered | Add to "Known Incomplete Items" with file paths and code snippets |
-| New file created | Add to appropriate "File Quick Reference" table |
-| New module created | Add to Architecture Overview + Module Dependencies section |
-| Cross-module call added | Update Module Dependencies graph |
-| SavedVariables changed | Update Data Structures section |
-| Event handler added | Update WoW Event Handlers table |
-| Major refactor | Update Architecture Overview tree and file references |
-| Priority completed | Update "Development Priorities" list |
+| New file/module created | Add to appropriate "File Quick Reference" table + Architecture Overview |
+| SavedVariables/events changed | Update Data Structures section or WoW Event Handlers table |
+| Major refactor | Update Architecture Overview tree and Module Dependencies |
 
-### Entry Format Examples
+### Session Handoff Checklist
 
-**Feature Status:**
-```
-| Feature Name | ✅ COMPLETE | Brief description of functionality |
-```
-
-**Known Incomplete Item:**
-```
-### N. Feature Name (Priority)
-**File:** `Path/File.lua:line`
-**Issue:** Description of current state
-**Needed:** What needs to be implemented
-```
-
-**Bug Fix:**
-```
-- ✅ **Short Description** (File.lua:line) - What was changed
-```
-
-### AI Session Handoff Checklist
-
-Before ending a session, ensure:
-- [ ] All changes made are reflected in documentation
-- [ ] New module dependencies are documented
-- [ ] Any discovered issues are added to "Known Incomplete Items"
-- [ ] Line number references are approximately correct
-- [ ] File sizes are updated if significantly changed
-- [ ] The "Recent Bug Fixes" section reflects work done in this session
-
-### Verification Checklist
-
-Before committing CLAUDE.md changes, verify:
-- [ ] Feature status accurately reflects current implementation
-- [ ] Known incomplete items have file:line references where applicable
-- [ ] Development priorities are current and ordered correctly
-- [ ] No stale/outdated information remains
-- [ ] Module dependency graph reflects actual cross-module calls
-- [ ] File sizes are approximate but reasonable
+Before ending a session:
+- [ ] All changes reflected in documentation
+- [ ] New dependencies/modules documented
+- [ ] Issues added to "Known Incomplete Items"
+- [ ] Line numbers and file sizes approximately correct
+- [ ] "Recent Changes" section updated
+- [ ] Feature status and priorities accurate

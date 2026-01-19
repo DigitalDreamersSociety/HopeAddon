@@ -113,21 +113,45 @@ function TetrisGame:OnCreate(gameId, game)
     local isRemote = (game.mode == GameCore.GAME_MODE.REMOTE)
 
     game.data = {
-        -- Board setup: LOCAL has 2 boards, REMOTE has 1 board (local player only)
-        boards = {
-            [1] = self:CreateBoard(1),
+        ui = {
+            window = nil,
+            countdownText = nil,
+            boards = {
+                [1] = {
+                    container = nil,
+                    gridFrame = nil,
+                    cellTextures = nil,
+                    scoreLabel = nil,
+                    levelLabel = nil,
+                    linesLabel = nil,
+                },
+            },
         },
-
-        -- Game state
-        paused = false,
-        countdown = 3,
-        gameOver = false,
-        loser = nil,  -- Which player lost (1 or 2)
+        state = {
+            -- Board setup: LOCAL has 2 boards, REMOTE has 1 board (local player only)
+            boards = {
+                [1] = self:CreateBoard(1),
+            },
+            -- Game state
+            paused = false,
+            countdown = 3,
+            gameOver = false,
+            loser = nil,  -- Which player lost (1 or 2)
+            countdownTimer = nil,
+        },
     }
 
     -- In LOCAL mode, create second board for player 2
     if not isRemote then
-        game.data.boards[2] = self:CreateBoard(2)
+        game.data.state.boards[2] = self:CreateBoard(2)
+        game.data.ui.boards[2] = {
+            container = nil,
+            gridFrame = nil,
+            cellTextures = nil,
+            scoreLabel = nil,
+            levelLabel = nil,
+            linesLabel = nil,
+        }
     end
 
     self.games[gameId] = game
@@ -202,8 +226,10 @@ function TetrisGame:OnStart(gameId)
     local game = self.games[gameId]
     if not game then return end
 
+    local state = game.data.state
+
     -- Initialize piece queues for all boards
-    for playerNum, board in pairs(game.data.boards) do
+    for playerNum, board in pairs(state.boards) do
         self:RefillBag(board)
         for i = 1, 3 do
             table.insert(board.nextPieces, self:GetNextFromBag(board))
@@ -214,7 +240,7 @@ function TetrisGame:OnStart(gameId)
     self:CreateUI(gameId)
 
     -- Start countdown
-    game.data.countdown = 3
+    state.countdown = 3
     self:StartCountdown(gameId)
 end
 
@@ -222,12 +248,14 @@ function TetrisGame:OnUpdate(gameId, dt)
     local game = self.games[gameId]
     if not game then return end
 
-    if game.data.paused or game.data.countdown > 0 or game.data.gameOver then
+    local state = game.data.state
+
+    if state.paused or state.countdown > 0 or state.gameOver then
         return
     end
 
     -- Update all boards (1 for REMOTE, 2 for LOCAL)
-    for playerNum, board in pairs(game.data.boards) do
+    for playerNum, board in pairs(state.boards) do
         self:UpdateBoard(gameId, playerNum, dt)
     end
 
@@ -239,19 +267,22 @@ function TetrisGame:OnEnd(gameId, reason)
     local game = self.games[gameId]
     if not game then return end
 
+    local state = game.data.state
     local GameUI = HopeAddon:GetModule("GameUI")
+    local GameCore = HopeAddon:GetModule("GameCore")
+
     if GameUI then
-        local winner = game.data.loser == 1 and game.player2 or game.player1
+        local winner = state.loser == 1 and game.player2 or game.player1
 
         -- Build stats based on available boards
         local stats = {}
-        if game.data.boards[1] then
-            stats["Your Lines"] = game.data.boards[1].lines
-            stats["Your Score"] = game.data.boards[1].score
+        if state.boards[1] then
+            stats["Your Lines"] = state.boards[1].lines
+            stats["Your Score"] = state.boards[1].score
         end
-        if game.data.boards[2] then
-            stats["P2 Lines"] = game.data.boards[2].lines
-            stats["P2 Score"] = game.data.boards[2].score
+        if state.boards[2] then
+            stats["P2 Lines"] = state.boards[2].lines
+            stats["P2 Score"] = state.boards[2].score
         end
 
         GameUI:ShowGameOver(gameId, winner, stats)
@@ -262,8 +293,9 @@ function TetrisGame:OnEnd(gameId, reason)
         local Minigames = HopeAddon:GetModule("Minigames")
         if Minigames and Minigames.RecordGameResult then
             local playerName = UnitName("player")
+            local winner = state.loser == 1 and game.player2 or game.player1
             local result = (winner == playerName) and "win" or "lose"
-            local myScore = game.data.boards[1] and game.data.boards[1].score or 0
+            local myScore = state.boards[1] and state.boards[1].score or 0
             Minigames:RecordGameResult(game.opponent, "tetris", result, myScore)
         end
     end
@@ -281,7 +313,7 @@ function TetrisGame:UpdateBoard(gameId, playerNum, dt)
     local game = self.games[gameId]
     if not game then return end
 
-    local board = game.data.boards[playerNum]
+    local board = game.data.state.boards[playerNum]
     if not board then return end
 
     -- Handle entry delay (ARE)
@@ -332,7 +364,7 @@ function TetrisGame:UpdateDASInput(gameId, playerNum, dt)
     local game = self.games[gameId]
     if not game then return end
 
-    local board = game.data.boards[playerNum]
+    local board = game.data.state.boards[playerNum]
     if not board or not board.currentPiece then return end
 
     local S = self.SETTINGS
@@ -365,7 +397,7 @@ end
 
 function TetrisGame:SpawnPiece(gameId, playerNum)
     local game = self.games[gameId]
-    local board = game.data.boards[playerNum]
+    local board = game.data.state.boards[playerNum]
     local TetrisBlocks = HopeAddon.TetrisBlocks
 
     -- Get next piece
@@ -409,7 +441,7 @@ end
 
 function TetrisGame:MovePiece(gameId, playerNum, dRow, dCol)
     local game = self.games[gameId]
-    local board = game.data.boards[playerNum]
+    local board = game.data.state.boards[playerNum]
     local TetrisBlocks = HopeAddon.TetrisBlocks
 
     if not board.currentPiece then return false end
@@ -451,7 +483,7 @@ end
 
 function TetrisGame:RotatePiece(gameId, playerNum, direction)
     local game = self.games[gameId]
-    local board = game.data.boards[playerNum]
+    local board = game.data.state.boards[playerNum]
     local TetrisBlocks = HopeAddon.TetrisBlocks
 
     if not board.currentPiece then return false end
@@ -497,7 +529,7 @@ end
 
 function TetrisGame:HardDrop(gameId, playerNum)
     local game = self.games[gameId]
-    local board = game.data.boards[playerNum]
+    local board = game.data.state.boards[playerNum]
 
     if not board.currentPiece then return end
 
@@ -516,7 +548,7 @@ end
 
 function TetrisGame:DetectTSpin(gameId, playerNum)
     local game = self.games[gameId]
-    local board = game.data.boards[playerNum]
+    local board = game.data.state.boards[playerNum]
     local TetrisGrid = HopeAddon.TetrisGrid
 
     -- Must be T-piece
@@ -578,7 +610,7 @@ end
 
 function TetrisGame:LockPiece(gameId, playerNum)
     local game = self.games[gameId]
-    local board = game.data.boards[playerNum]
+    local board = game.data.state.boards[playerNum]
     local TetrisBlocks = HopeAddon.TetrisBlocks
 
     if not board.currentPiece then return end
@@ -626,7 +658,7 @@ function TetrisGame:ProcessGarbage(gameId, playerNum)
     local game = self.games[gameId]
     if not game then return 0 end
 
-    local board = game.data.boards[playerNum]
+    local board = game.data.state.boards[playerNum]
     if not board then return 0 end
 
     -- Cancel incoming with outgoing
@@ -651,7 +683,7 @@ end
 
 function TetrisGame:CheckLineClears(gameId, playerNum, isTSpin, isMini)
     local game = self.games[gameId]
-    local board = game.data.boards[playerNum]
+    local board = game.data.state.boards[playerNum]
     local S = self.SETTINGS
 
     local completeRows = board.grid:FindCompleteRows()
@@ -770,7 +802,7 @@ function TetrisGame:SendGarbage(gameId, targetPlayer, amount)
 
     if game.mode == GameCore.GAME_MODE.LOCAL then
         -- Local mode: directly add to opponent's board
-        local board = game.data.boards[targetPlayer]
+        local board = game.data.state.boards[targetPlayer]
         if board then
             board.incomingGarbage = board.incomingGarbage + amount
             HopeAddon:Debug("Sent", amount, "garbage to player", targetPlayer, "(local)")
@@ -803,7 +835,7 @@ function TetrisGame:OnOpponentMove(sender, gameId, data)
     if msgType == "GARBAGE" then
         local amount = tonumber(payload) or 0
         -- Add to our board (always board 1 in REMOTE mode)
-        local board = game.data.boards[1]
+        local board = game.data.state.boards[1]
         if board then
             board.incomingGarbage = board.incomingGarbage + amount
             HopeAddon:Debug("Received", amount, "garbage from", sender)
@@ -823,9 +855,11 @@ function TetrisGame:OnOpponentGameOver(sender, gameId, data)
         return
     end
 
+    local state = game.data.state
+
     -- Opponent lost, we win!
-    game.data.gameOver = true
-    game.data.loser = 2  -- Opponent is considered "player 2" in remote mode
+    state.gameOver = true
+    state.loser = 2  -- Opponent is considered "player 2" in remote mode
 
     HopeAddon:Debug("Opponent", sender, "lost - we win!")
 
@@ -844,8 +878,10 @@ function TetrisGame:OnBoardGameOver(gameId, losingPlayer)
     local game = self.games[gameId]
     if not game then return end
 
-    game.data.gameOver = true
-    game.data.loser = losingPlayer
+    local state = game.data.state
+
+    state.gameOver = true
+    state.loser = losingPlayer
 
     local GameCore = HopeAddon:GetModule("GameCore")
 
@@ -853,7 +889,7 @@ function TetrisGame:OnBoardGameOver(gameId, losingPlayer)
     if game.mode == GameCore.GAME_MODE.REMOTE then
         local GameComms = HopeAddon:GetModule("GameComms")
         if GameComms and game.opponent then
-            local score = game.data.boards[1] and game.data.boards[1].score or 0
+            local score = state.boards[1] and state.boards[1].score or 0
             GameComms:SendEnd(game.opponent, "TETRIS", gameId, "LOSS|" .. tostring(score))
             HopeAddon:Debug("Sent game over notification to", game.opponent)
         end
@@ -890,35 +926,38 @@ function TetrisGame:StartCountdown(gameId)
     local game = self.games[gameId]
     if not game then return end
 
-    game.data.countdown = 3
+    local state = game.data.state
+
+    state.countdown = 3
 
     -- Cancel existing countdown timer
-    if game.data.countdownTimer then
-        game.data.countdownTimer:Cancel()
+    if state.countdownTimer then
+        state.countdownTimer:Cancel()
     end
 
     local function tick()
         local currentGame = self.games[gameId]  -- Re-fetch each time
         if not currentGame then return end
 
-        currentGame.data.countdown = currentGame.data.countdown - 1
+        local currentState = currentGame.data.state
+        currentState.countdown = currentState.countdown - 1
 
-        if currentGame.data.countdown > 0 then
+        if currentState.countdown > 0 then
             if HopeAddon.Sounds then
                 HopeAddon.Sounds:PlayClick()
             end
-            currentGame.data.countdownTimer = HopeAddon.Timer:After(1, tick)
+            currentState.countdownTimer = HopeAddon.Timer:After(1, tick)
         else
             if HopeAddon.Sounds then
                 HopeAddon.Sounds:PlayAchievement()
             end
-            currentGame.data.countdownTimer = nil
+            currentState.countdownTimer = nil
         end
 
         self:UpdateUI(gameId)
     end
 
-    game.data.countdownTimer = HopeAddon.Timer:After(1, tick)
+    state.countdownTimer = HopeAddon.Timer:After(1, tick)
 end
 
 --============================================================
@@ -927,7 +966,8 @@ end
 
 function TetrisGame:OnKeyDown(gameId, key)
     local game = self.games[gameId]
-    if not game or game.data.paused or game.data.countdown > 0 or game.data.gameOver then
+    local state = game.data.state
+    if not game or state.paused or state.countdown > 0 or state.gameOver then
         return
     end
 
@@ -940,7 +980,7 @@ function TetrisGame:OnKeyDown(gameId, key)
         -- REMOTE MODE: All keys control board 1 (local player)
         -- Accept both WASD and arrow keys for convenience
         if key == "A" or key == "LEFT" then
-            local input = game.data.boards[1].inputState.left
+            local input = state.boards[1].inputState.left
             if not input.pressed then
                 input.pressed = true
                 input.timer = 0
@@ -948,7 +988,7 @@ function TetrisGame:OnKeyDown(gameId, key)
                 self:MovePiece(gameId, 1, 0, -1)  -- Immediate first move
             end
         elseif key == "D" or key == "RIGHT" then
-            local input = game.data.boards[1].inputState.right
+            local input = state.boards[1].inputState.right
             if not input.pressed then
                 input.pressed = true
                 input.timer = 0
@@ -960,7 +1000,7 @@ function TetrisGame:OnKeyDown(gameId, key)
         elseif key == "Q" then
             self:RotatePiece(gameId, 1, -1)  -- Counter-clockwise
         elseif key == "S" or key == "DOWN" then
-            game.data.boards[1].softDropping = true
+            state.boards[1].softDropping = true
         elseif key == "SPACE" or key == "ENTER" then
             self:HardDrop(gameId, 1)
         end
@@ -968,7 +1008,7 @@ function TetrisGame:OnKeyDown(gameId, key)
         -- LOCAL MODE: Separate controls for each player
         -- Player 1 controls (A/D/W/S/Space)
         if key == "A" then
-            local input = game.data.boards[1].inputState.left
+            local input = state.boards[1].inputState.left
             if not input.pressed then
                 input.pressed = true
                 input.timer = 0
@@ -976,7 +1016,7 @@ function TetrisGame:OnKeyDown(gameId, key)
                 self:MovePiece(gameId, 1, 0, -1)  -- Immediate first move
             end
         elseif key == "D" then
-            local input = game.data.boards[1].inputState.right
+            local input = state.boards[1].inputState.right
             if not input.pressed then
                 input.pressed = true
                 input.timer = 0
@@ -988,7 +1028,7 @@ function TetrisGame:OnKeyDown(gameId, key)
         elseif key == "Q" then
             self:RotatePiece(gameId, 1, -1)  -- Counter-clockwise
         elseif key == "S" then
-            game.data.boards[1].softDropping = true
+            state.boards[1].softDropping = true
         elseif key == "SPACE" then
             self:HardDrop(gameId, 1)
         end
@@ -1015,7 +1055,7 @@ function TetrisGame:OnKeyDown(gameId, key)
         elseif key == "RSHIFT" or key == "LSHIFT" then
             self:RotatePiece(gameId, 2, -1)  -- Counter-clockwise
         elseif key == "DOWN" then
-            game.data.boards[2].softDropping = true
+            state.boards[2].softDropping = true
         elseif key == "ENTER" then
             self:HardDrop(gameId, 2)
         end
@@ -1023,7 +1063,7 @@ function TetrisGame:OnKeyDown(gameId, key)
 
     -- Pause (common to both modes)
     if key == "ESCAPE" then
-        game.data.paused = not game.data.paused
+        state.paused = not state.paused
     end
 
     self:UpdateUI(gameId)
@@ -1033,6 +1073,7 @@ function TetrisGame:OnKeyUp(gameId, key)
     local game = self.games[gameId]
     if not game then return end
 
+    local state = game.data.state
     local GameCore = HopeAddon:GetModule("GameCore")
     if not GameCore then return end
 
@@ -1045,7 +1086,7 @@ function TetrisGame:OnKeyUp(gameId, key)
         elseif key == "D" or key == "RIGHT" then
             game.data.boards[1].inputState.right.pressed = false
         elseif key == "S" or key == "DOWN" then
-            game.data.boards[1].softDropping = false
+            state.boards[1].softDropping = false
         end
     else
         -- LOCAL MODE: Release keys for respective players
@@ -1055,16 +1096,16 @@ function TetrisGame:OnKeyUp(gameId, key)
         elseif key == "D" then
             game.data.boards[1].inputState.right.pressed = false
         elseif key == "S" then
-            game.data.boards[1].softDropping = false
+            state.boards[1].softDropping = false
         end
 
         -- Player 2
         if key == "LEFT" then
-            game.data.boards[2].inputState.left.pressed = false
+            state.boards[2].inputState.left.pressed = false
         elseif key == "RIGHT" then
-            game.data.boards[2].inputState.right.pressed = false
+            state.boards[2].inputState.right.pressed = false
         elseif key == "DOWN" then
-            game.data.boards[2].softDropping = false
+            state.boards[2].softDropping = false
         end
     end
 end
@@ -1083,6 +1124,8 @@ function TetrisGame:CreateUI(gameId)
     local GameCore = HopeAddon:GetModule("GameCore")
     local TetrisGrid = HopeAddon.TetrisGrid
 
+    local ui = game.data.ui
+
     -- Determine if this is remote mode
     local isRemote = (game.mode == GameCore.GAME_MODE.REMOTE)
 
@@ -1090,7 +1133,7 @@ function TetrisGame:CreateUI(gameId)
     local window = GameUI:CreateGameWindow(gameId, "Tetris Battle", isRemote and "TETRIS_REMOTE" or "TETRIS")
     if not window then return end
 
-    game.data.window = window  -- Store reference for cleanup
+    ui.window = window  -- Store reference for cleanup
     local content = window.content
 
     -- Cell size based on grid dimensions
@@ -1105,7 +1148,7 @@ function TetrisGame:CreateUI(gameId)
         boardContainer:SetPoint("CENTER", 0, 0)
 
         self:CreateBoardUI(boardContainer, gameId, 1, cellSize, true)
-        game.data.boards[1].container = boardContainer
+        ui.boards[1].container = boardContainer
 
         -- Opponent name label
         local opponentLabel = content:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
@@ -1126,7 +1169,7 @@ function TetrisGame:CreateUI(gameId)
         board1Container:SetPoint("LEFT", 20, 0)
 
         self:CreateBoardUI(board1Container, gameId, 1, cellSize, false)
-        game.data.boards[1].container = board1Container
+        ui.boards[1].container = board1Container
 
         -- Board 2 (right)
         local board2Container = CreateFrame("Frame", nil, content)
@@ -1134,7 +1177,7 @@ function TetrisGame:CreateUI(gameId)
         board2Container:SetPoint("RIGHT", -20, 0)
 
         self:CreateBoardUI(board2Container, gameId, 2, cellSize, false)
-        game.data.boards[2].container = board2Container
+        ui.boards[2].container = board2Container
 
         -- VS text
         local vsText = content:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
@@ -1154,7 +1197,7 @@ function TetrisGame:CreateUI(gameId)
     countdownText:SetPoint("CENTER", 0, 50)
     countdownText:SetText("3")
     countdownText:SetTextColor(1, 0.84, 0)
-    game.data.countdownText = countdownText
+    ui.countdownText = countdownText
 
     -- Keyboard handling
     window:SetScript("OnKeyDown", function(_, key)
@@ -1172,7 +1215,8 @@ end
 
 function TetrisGame:CreateBoardUI(container, gameId, playerNum, cellSize, isRemote)
     local game = self.games[gameId]
-    local board = game.data.boards[playerNum]
+    local ui = game.data.ui.boards[playerNum]
+    local board = game.data.state.boards[playerNum]
     local TetrisGrid = HopeAddon.TetrisGrid
     local GameUI = HopeAddon:GetModule("GameUI")
 
@@ -1193,12 +1237,12 @@ function TetrisGame:CreateBoardUI(container, gameId, playerNum, cellSize, isRemo
     -- Grid frame
     local gridFrame = GameUI:CreatePlayArea(container, gridWidth, gridHeight)
     gridFrame:SetPoint("TOP", playerLabel, "BOTTOM", 0, -10)
-    board.gridFrame = gridFrame
+    ui.gridFrame = gridFrame
 
     -- Create cell textures
-    board.cellTextures = {}
+    ui.cellTextures = {}
     for row = 1, TetrisGrid.HEIGHT do
-        board.cellTextures[row] = {}
+        ui.cellTextures[row] = {}
         for col = 1, TetrisGrid.WIDTH do
             local cell = gridFrame:CreateTexture(nil, "ARTWORK")
             cell:SetSize(cellSize - 1, cellSize - 1)
@@ -1206,7 +1250,7 @@ function TetrisGame:CreateBoardUI(container, gameId, playerNum, cellSize, isRemo
                 (col - 1) * cellSize + 1,
                 (TetrisGrid.HEIGHT - row) * cellSize + 1)
             cell:SetColorTexture(0.1, 0.1, 0.1, 1)
-            board.cellTextures[row][col] = cell
+            ui.cellTextures[row][col] = cell
         end
     end
 
@@ -1215,48 +1259,52 @@ function TetrisGame:CreateBoardUI(container, gameId, playerNum, cellSize, isRemo
     scoreLabel:SetPoint("TOPLEFT", gridFrame, "BOTTOMLEFT", 0, -5)
     scoreLabel:SetText("Score: 0")
     scoreLabel:SetTextColor(0.8, 0.8, 0.8)
-    board.scoreLabel = scoreLabel
+    ui.scoreLabel = scoreLabel
 
     local levelLabel = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     levelLabel:SetPoint("TOPRIGHT", gridFrame, "BOTTOMRIGHT", 0, -5)
     levelLabel:SetText("Lvl: 1")
     levelLabel:SetTextColor(0.8, 0.8, 0.8)
-    board.levelLabel = levelLabel
+    ui.levelLabel = levelLabel
 
     local linesLabel = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     linesLabel:SetPoint("TOP", gridFrame, "BOTTOM", 0, -5)
     linesLabel:SetText("Lines: 0")
     linesLabel:SetTextColor(0.8, 0.8, 0.8)
-    board.linesLabel = linesLabel
+    ui.linesLabel = linesLabel
 end
 
 function TetrisGame:UpdateUI(gameId)
     local game = self.games[gameId]
     if not game then return end
 
+    local ui = game.data.ui
+    local state = game.data.state
+
     -- Update countdown
-    if game.data.countdownText then
-        if game.data.countdown > 0 then
-            game.data.countdownText:SetText(tostring(game.data.countdown))
-            game.data.countdownText:Show()
+    if ui.countdownText then
+        if state.countdown > 0 then
+            ui.countdownText:SetText(tostring(state.countdown))
+            ui.countdownText:Show()
         else
-            game.data.countdownText:Hide()
+            ui.countdownText:Hide()
         end
     end
 
     -- Update all boards (1 for REMOTE, 2 for LOCAL)
-    for playerNum, board in pairs(game.data.boards) do
+    for playerNum, board in pairs(state.boards) do
         self:UpdateBoardUI(gameId, playerNum)
     end
 end
 
 function TetrisGame:UpdateBoardUI(gameId, playerNum)
     local game = self.games[gameId]
-    local board = game.data.boards[playerNum]
+    local ui = game.data.ui.boards[playerNum]
+    local board = game.data.state.boards[playerNum]
     local TetrisGrid = HopeAddon.TetrisGrid
     local TetrisBlocks = HopeAddon.TetrisBlocks
 
-    if not board.cellTextures then return end
+    if not ui.cellTextures then return end
 
     -- Mark old piece position as dirty (cells that need to be cleared)
     if board.lastPieceType and board.lastPieceRow then
@@ -1300,9 +1348,9 @@ function TetrisGame:UpdateBoardUI(gameId, playerNum)
         for col, _ in pairs(cols) do
             local color = board.grid:GetCell(row, col)
             if color then
-                board.cellTextures[row][col]:SetColorTexture(color.r, color.g, color.b, 1)
+                ui.cellTextures[row][col]:SetColorTexture(color.r, color.g, color.b, 1)
             else
-                board.cellTextures[row][col]:SetColorTexture(0.1, 0.1, 0.1, 1)
+                ui.cellTextures[row][col]:SetColorTexture(0.1, 0.1, 0.1, 1)
             end
         end
     end
@@ -1317,7 +1365,7 @@ function TetrisGame:UpdateBoardUI(gameId, playerNum)
             local col = board.pieceCol + block[2]
 
             if row >= 1 and row <= TetrisGrid.HEIGHT and col >= 1 and col <= TetrisGrid.WIDTH then
-                board.cellTextures[row][col]:SetColorTexture(color.r, color.g, color.b, 1)
+                ui.cellTextures[row][col]:SetColorTexture(color.r, color.g, color.b, 1)
             end
         end
     end
@@ -1326,22 +1374,22 @@ function TetrisGame:UpdateBoardUI(gameId, playerNum)
     board.grid:ClearDirtyCells()
 
     -- Update stats (only if changed to reduce string allocations)
-    if board.scoreLabel then
+    if ui.scoreLabel then
         local scoreText = "Score: " .. board.score
-        if board.scoreLabel:GetText() ~= scoreText then
-            board.scoreLabel:SetText(scoreText)
+        if ui.scoreLabel:GetText() ~= scoreText then
+            ui.scoreLabel:SetText(scoreText)
         end
     end
-    if board.levelLabel then
+    if ui.levelLabel then
         local levelText = "Lvl: " .. board.level
-        if board.levelLabel:GetText() ~= levelText then
-            board.levelLabel:SetText(levelText)
+        if ui.levelLabel:GetText() ~= levelText then
+            ui.levelLabel:SetText(levelText)
         end
     end
-    if board.linesLabel then
+    if ui.linesLabel then
         local linesText = "Lines: " .. board.lines
-        if board.linesLabel:GetText() ~= linesText then
-            board.linesLabel:SetText(linesText)
+        if ui.linesLabel:GetText() ~= linesText then
+            ui.linesLabel:SetText(linesText)
         end
     end
 end
@@ -1358,50 +1406,72 @@ function TetrisGame:CleanupGame(gameId)
     end
 
     -- Cancel countdown timer
-    if game.data and game.data.countdownTimer then
-        game.data.countdownTimer:Cancel()
-        game.data.countdownTimer = nil
+    if game.data and game.data.state then
+        local state = game.data.state
+        if state.countdownTimer then
+            state.countdownTimer:Cancel()
+            state.countdownTimer = nil
+        end
     end
 
-    -- Clear countdown text FontString reference
-    if game.data then
-        game.data.countdownText = nil
+    -- Clear UI references
+    if game.data and game.data.ui then
+        local ui = game.data.ui
+
+        -- Clear countdown text FontString reference
+        ui.countdownText = nil
+
+        -- Destroy cell textures and clear UI references for all boards
+        if ui.boards then
+            for playerNum, uiBoard in pairs(ui.boards) do
+                -- Destroy cell textures
+                if uiBoard.cellTextures then
+                    for row = 1, #uiBoard.cellTextures do
+                        for col = 1, #uiBoard.cellTextures[row] do
+                            local texture = uiBoard.cellTextures[row][col]
+                            if texture then
+                                texture:Hide()
+                                texture:SetParent(nil)
+                            end
+                        end
+                    end
+                    uiBoard.cellTextures = nil
+                end
+
+                -- Release frame references
+                if uiBoard.container then
+                    uiBoard.container:Hide()
+                    uiBoard.container:SetParent(nil)
+                    uiBoard.container = nil
+                end
+                if uiBoard.gridFrame then
+                    uiBoard.gridFrame:Hide()
+                    uiBoard.gridFrame:SetParent(nil)
+                    uiBoard.gridFrame = nil
+                end
+
+                -- Clear label references
+                uiBoard.scoreLabel = nil
+                uiBoard.levelLabel = nil
+                uiBoard.linesLabel = nil
+            end
+        end
+
+        -- Hide window
+        if ui.window then
+            ui.window:Hide()
+            ui.window = nil
+        end
     end
 
-    -- Destroy cell textures and clear input state for all boards
-    if game.data and game.data.boards then
-        for playerNum, board in pairs(game.data.boards) do
+    -- Clear input state and grids for all boards
+    if game.data and game.data.state and game.data.state.boards then
+        for playerNum, board in pairs(game.data.state.boards) do
             -- Clear input state
             board.softDropping = false
             if board.inputState then
                 board.inputState.left.pressed = false
                 board.inputState.right.pressed = false
-            end
-
-            -- Destroy cell textures
-            if board.cellTextures then
-                for row = 1, #board.cellTextures do
-                    for col = 1, #board.cellTextures[row] do
-                        local texture = board.cellTextures[row][col]
-                        if texture then
-                            texture:Hide()
-                            texture:SetParent(nil)
-                        end
-                    end
-                end
-                board.cellTextures = nil
-            end
-
-            -- Release frame references
-            if board.container then
-                board.container:Hide()
-                board.container:SetParent(nil)
-                board.container = nil
-            end
-            if board.gridFrame then
-                board.gridFrame:Hide()
-                board.gridFrame:SetParent(nil)
-                board.gridFrame = nil
             end
 
             -- Clear grid
@@ -1410,12 +1480,6 @@ function TetrisGame:CleanupGame(gameId)
                 board.grid = nil
             end
         end
-    end
-
-    -- Hide window
-    if game.data and game.data.window then
-        game.data.window:Hide()
-        game.data.window = nil
     end
 
     -- GameUI handles window destruction

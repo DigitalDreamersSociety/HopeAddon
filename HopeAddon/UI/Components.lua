@@ -128,6 +128,27 @@ Components.INPUT_PADDING = 8         -- For text input editbox
 Components.SCROLLBAR_WIDTH = 25      -- Space for scrollbar
 Components.ICON_SIZE_STANDARD = 40   -- Standard icon size in cards
 
+-- Component type constants for type-aware height fallbacks (H1 fix)
+Components.COMPONENT_TYPE = {
+    CARD = "card",
+    SECTION_HEADER = "section_header",
+    CATEGORY_HEADER = "category_header",
+    SPACER = "spacer",
+    COLLAPSIBLE = "collapsible",
+    DIVIDER = "divider",
+}
+
+-- Fallback heights by component type (for frames not yet laid out)
+Components.FALLBACK_HEIGHTS = {
+    card = 80,            -- Entry cards
+    section_header = 30,  -- Section headers
+    category_header = 20, -- Category headers
+    spacer = 10,          -- Default spacer
+    collapsible = 28,     -- Collapsible section headers
+    divider = 20,         -- Dividers
+    default = 80,         -- Default fallback
+}
+
 -- Module-level handlers (no closures, prevent memory leaks)
 local function OnParchmentKeyDown(self, key)
     if key == "ESCAPE" then
@@ -630,10 +651,18 @@ function Components:CreateScrollFrame(parent, width, height)
 
         table.insert(self.entries, entryFrame)
 
-        -- Get entry height - ensure minimum height to handle frames not yet laid out
+        -- Get entry height - use component-type-aware fallback if not laid out yet (H1 fix)
         local entryHeight = entryFrame:GetHeight()
         if entryHeight < 1 then
-            entryHeight = 80 -- Default card height fallback
+            -- Use stored component type for appropriate fallback, or check _spacerHeight for spacers
+            local componentType = entryFrame._componentType
+            if componentType and Components.FALLBACK_HEIGHTS[componentType] then
+                entryHeight = Components.FALLBACK_HEIGHTS[componentType]
+            elseif entryFrame._spacerHeight then
+                entryHeight = entryFrame._spacerHeight
+            else
+                entryHeight = Components.FALLBACK_HEIGHTS.default  -- Default card height fallback
+            end
         end
 
         -- Update cumulative offset and content height
@@ -662,9 +691,24 @@ function Components:CreateScrollFrame(parent, width, height)
             entry:ClearAllPoints()
             entry:SetPoint("TOPLEFT", self.content, "TOPLEFT", 0, -yOffset)
             entry:SetPoint("RIGHT", self.content, "RIGHT", 0, 0)
-            yOffset = yOffset + entry:GetHeight() + Components.MARGIN_SMALL
+
+            -- Use same fallback logic as AddEntry for consistency (M1 fix)
+            local entryHeight = entry:GetHeight()
+            if entryHeight < 1 then
+                local componentType = entry._componentType
+                if componentType and Components.FALLBACK_HEIGHTS[componentType] then
+                    entryHeight = Components.FALLBACK_HEIGHTS[componentType]
+                elseif entry._spacerHeight then
+                    entryHeight = entry._spacerHeight
+                else
+                    entryHeight = Components.FALLBACK_HEIGHTS.default
+                end
+            end
+
+            yOffset = yOffset + entryHeight + Components.MARGIN_SMALL
         end
-        self.content:SetHeight(yOffset + Components.MARGIN_NORMAL)
+        -- M1 fix: Match AddEntry height calculation (no extra padding)
+        self.content:SetHeight(yOffset)
     end
 
     return container
@@ -677,6 +721,7 @@ end
 function Components:CreateEntryCard(parent, entryData)
     local card = CreateBackdropFrame("Frame", nil, parent)
     card:SetHeight(80)
+    card._componentType = Components.COMPONENT_TYPE.CARD  -- H1 fix
     self:ApplyBackdrop(card, "TOOLTIP", "DARK_TRANSPARENT", "GREY")
 
     -- Store original border color for hover restoration
@@ -774,6 +819,7 @@ end
 function Components:CreateDivider(parent, text)
     local divider = CreateFrame("Frame", nil, parent)
     divider:SetHeight(20)
+    divider._componentType = Components.COMPONENT_TYPE.DIVIDER  -- H1 fix
 
     local line = divider:CreateTexture(nil, "ARTWORK")
     line:SetTexture(AssetTextures.DIVIDER)
@@ -888,6 +934,7 @@ function Components:CreateCollapsibleSection(parent, title, colorName, startExpa
     -- Main container
     local section = CreateFrame("Frame", nil, parent)
     section:SetHeight(28)
+    section._componentType = Components.COMPONENT_TYPE.COLLAPSIBLE  -- H1 fix
 
     -- Header bar (clickable)
     local header = CreateFrame("Button", nil, section)
@@ -2041,6 +2088,7 @@ function Components:CreateSectionHeader(parent, title, colorName, subtext)
     local headerHeight = subtext and 45 or 25
     local container = CreateFrame("Frame", nil, parent)
     container:SetHeight(headerHeight)
+    container._componentType = Components.COMPONENT_TYPE.SECTION_HEADER  -- H1 fix
 
     -- Header font string
     local header = container:CreateFontString(nil, "OVERLAY")
@@ -2075,6 +2123,7 @@ function Components:CreateCategoryHeader(parent, title, colorName)
 
     local container = CreateFrame("Frame", nil, parent)
     container:SetHeight(25)
+    container._componentType = Components.COMPONENT_TYPE.CATEGORY_HEADER  -- H1 fix
 
     -- Header font string
     local header = container:CreateFontString(nil, "OVERLAY")
@@ -2095,7 +2144,10 @@ end
 ]]
 function Components:CreateSpacer(parent, height)
     local spacer = CreateFrame("Frame", nil, parent)
-    spacer:SetHeight(height or 10)
+    local spacerHeight = height or 10
+    spacer:SetHeight(spacerHeight)
+    spacer._componentType = Components.COMPONENT_TYPE.SPACER  -- H1 fix
+    spacer._spacerHeight = spacerHeight  -- Store actual height for fallback
     return spacer
 end
 
