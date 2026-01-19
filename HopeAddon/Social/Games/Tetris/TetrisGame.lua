@@ -748,9 +748,21 @@ function TetrisGame:OnKeyDown(gameId, key)
         -- REMOTE MODE: All keys control board 1 (local player)
         -- Accept both WASD and arrow keys for convenience
         if key == "A" or key == "LEFT" then
-            self:MovePiece(gameId, 1, 0, -1)
+            local input = game.data.boards[1].inputState.left
+            if not input.pressed then
+                input.pressed = true
+                input.timer = 0
+                input.repeating = false
+                self:MovePiece(gameId, 1, 0, -1)  -- Immediate first move
+            end
         elseif key == "D" or key == "RIGHT" then
-            self:MovePiece(gameId, 1, 0, 1)
+            local input = game.data.boards[1].inputState.right
+            if not input.pressed then
+                input.pressed = true
+                input.timer = 0
+                input.repeating = false
+                self:MovePiece(gameId, 1, 0, 1)  -- Immediate first move
+            end
         elseif key == "W" or key == "UP" then
             self:RotatePiece(gameId, 1, 1)
         elseif key == "S" or key == "DOWN" then
@@ -762,9 +774,21 @@ function TetrisGame:OnKeyDown(gameId, key)
         -- LOCAL MODE: Separate controls for each player
         -- Player 1 controls (A/D/W/S/Space)
         if key == "A" then
-            self:MovePiece(gameId, 1, 0, -1)
+            local input = game.data.boards[1].inputState.left
+            if not input.pressed then
+                input.pressed = true
+                input.timer = 0
+                input.repeating = false
+                self:MovePiece(gameId, 1, 0, -1)  -- Immediate first move
+            end
         elseif key == "D" then
-            self:MovePiece(gameId, 1, 0, 1)
+            local input = game.data.boards[1].inputState.right
+            if not input.pressed then
+                input.pressed = true
+                input.timer = 0
+                input.repeating = false
+                self:MovePiece(gameId, 1, 0, 1)  -- Immediate first move
+            end
         elseif key == "W" then
             self:RotatePiece(gameId, 1, 1)
         elseif key == "S" then
@@ -775,9 +799,21 @@ function TetrisGame:OnKeyDown(gameId, key)
 
         -- Player 2 controls (Arrows/Enter)
         if key == "LEFT" then
-            self:MovePiece(gameId, 2, 0, -1)
+            local input = game.data.boards[2].inputState.left
+            if not input.pressed then
+                input.pressed = true
+                input.timer = 0
+                input.repeating = false
+                self:MovePiece(gameId, 2, 0, -1)  -- Immediate first move
+            end
         elseif key == "RIGHT" then
-            self:MovePiece(gameId, 2, 0, 1)
+            local input = game.data.boards[2].inputState.right
+            if not input.pressed then
+                input.pressed = true
+                input.timer = 0
+                input.repeating = false
+                self:MovePiece(gameId, 2, 0, 1)  -- Immediate first move
+            end
         elseif key == "UP" then
             self:RotatePiece(gameId, 2, 1)
         elseif key == "DOWN" then
@@ -805,14 +841,30 @@ function TetrisGame:OnKeyUp(gameId, key)
     local isRemote = (game.mode == GameCore.GAME_MODE.REMOTE)
 
     if isRemote then
-        -- REMOTE MODE: Release soft drop for board 1 only
-        if key == "S" or key == "DOWN" then
+        -- REMOTE MODE: Release keys for board 1 only
+        if key == "A" or key == "LEFT" then
+            game.data.boards[1].inputState.left.pressed = false
+        elseif key == "D" or key == "RIGHT" then
+            game.data.boards[1].inputState.right.pressed = false
+        elseif key == "S" or key == "DOWN" then
             game.data.boards[1].softDropping = false
         end
     else
-        -- LOCAL MODE: Release soft drop for respective players
-        if key == "S" then
+        -- LOCAL MODE: Release keys for respective players
+        -- Player 1
+        if key == "A" then
+            game.data.boards[1].inputState.left.pressed = false
+        elseif key == "D" then
+            game.data.boards[1].inputState.right.pressed = false
+        elseif key == "S" then
             game.data.boards[1].softDropping = false
+        end
+
+        -- Player 2
+        if key == "LEFT" then
+            game.data.boards[2].inputState.left.pressed = false
+        elseif key == "RIGHT" then
+            game.data.boards[2].inputState.right.pressed = false
         elseif key == "DOWN" then
             game.data.boards[2].softDropping = false
         end
