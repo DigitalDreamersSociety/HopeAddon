@@ -1,0 +1,40 @@
+# World of Warcraft SavedVariables and User Data
+WTF/
+*.lua.bak
+SavedVariables/
+
+# Claude Code local settings
+.claude/
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.zip
+release/
+dist/
+
+# Logs
+*.log
+debug.txt
+error.txt
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp

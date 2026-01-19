@@ -1,0 +1,2956 @@
+--[[
+    HopeAddon Journal Module
+    Main journal UI and entry management
+]]
+
+local Journal = {}
+HopeAddon:RegisterModule("Journal", Journal)
+
+-- Journal state
+Journal.isOpen = false
+Journal.currentTab = "timeline"
+Journal.mainFrame = nil
+Journal.notificationPool = nil  -- Frame pool for notifications
+Journal.pendingNotifications = {}  -- Track pending notifications to prevent stacking
+Journal.notificationQueue = {}  -- Queue for sequential notification display
+Journal.isShowingNotification = false  -- Flag to prevent overlapping notifications
+
+-- Cached counts (invalidated when entries change)
+Journal.cachedCounts = nil
+
+-- Cached timeline entries (invalidated when new entries added)
+Journal.cachedSortedTimeline = nil
+Journal.timelineCacheValid = false
+
+-- Cached riding skill (invalidated on SKILL_LINES_CHANGED)
+Journal.cachedRidingSkill = nil
+
+-- Cached stats data (invalidated on relevant events)
+Journal.cachedStatsData = nil
+
+-- Notification size constants
+local NOTIF_WIDTH_LARGE = 350
+local NOTIF_WIDTH_SMALL = 300
+local NOTIF_HEIGHT_LARGE = 100
+local NOTIF_HEIGHT_SMALL = 80
+local NOTIF_TOP_OFFSET = -100
+
+-- Lookup table for tracked combat events (faster than string comparison in loop)
+local TRACKED_DAMAGE_EVENTS = {
+    ["PARTY_KILL"] = true,
+    ["SPELL_DAMAGE"] = true,
+    ["SWING_DAMAGE"] = true,
+    ["RANGE_DAMAGE"] = true,
+}
+
+--[[
+    INITIALIZATION
+]]
+function Journal:OnInitialize()
+    -- Nothing yet - wait for OnEnable
+end
+
+function Journal:OnEnable()
+    -- Create pools FIRST - CreateMainFrame calls SelectTab which needs them
+    self:CreateNotificationPool()
+    self:CreateContainerPool()
+    self:CreateCardPool()
+    self:CreateCollapsibleSectionPool()
+    self:CreateBossInfoPool()
+    self:CreateMainFrame()
+    self:RegisterEvents()
+    HopeAddon:Debug("Journal module enabled")
+end
+
+function Journal:OnDisable()
+    -- Stop all active effects to prevent memory leaks
+    if HopeAddon.Effects then
+        -- Stop all glows tracked by Effects module
+        HopeAddon.Effects:StopAllGlows()
+
+        -- Stop all sparkles tracked per parent frame
+        for parent, sparkles in pairs(HopeAddon.Effects.frameSparkles or {}) do
+            HopeAddon.Effects:StopSparkles(sparkles)
+        end
+        HopeAddon.Effects.frameSparkles = {}
+        HopeAddon.Effects.activeGlows = {}
+        HopeAddon.Effects.activeAnimations = {}
+    end
+
+    -- Stop all glows tracked by Glow module
+    if HopeAddon.Glow then
+        HopeAddon.Glow:StopAll()
+        HopeAddon.Glow.registry = {}
+        HopeAddon.Glow.glowsByParent = {}
+    end
+
+    -- Clear cached data
+    self.cachedCounts = nil
+    self.cachedSortedTimeline = nil
+    self.timelineCacheValid = false
+    self.cachedRidingSkill = nil
+    self.cachedStatsData = nil
+
+    -- Hide main frame
+    if self.mainFrame then
+        self.mainFrame:Hide()
+    end
+
+    -- Unregister events
+    if self.eventFrame then
+        self.eventFrame:UnregisterAllEvents()
+        self.eventFrame:SetScript("OnEvent", nil)
+    end
+
+    -- Destroy frame pools
+    if self.notificationPool then
+        self.notificationPool:Destroy()
+    end
+    if self.cardPool then
+        self.cardPool:Destroy()
+    end
+    if self.collapsiblePool then
+        self.collapsiblePool:Destroy()
+    end
+    if self.containerPool then
+        self.containerPool:Destroy()
+    end
+    if self.bossInfoPool then
+        self.bossInfoPool:Destroy()
+    end
+end
+
+--[[
+    Create notification frame pool to avoid creating new frames each time
+]]
+function Journal:CreateNotificationPool()
+    local createFunc = function()
+        local frame = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
+        frame:SetFrameStrata("DIALOG")
+        frame:Hide()
+
+        -- Pre-create font strings that will be reused
+        frame.titleText = frame:CreateFontString(nil, "OVERLAY")
+        frame.line1 = frame:CreateFontString(nil, "OVERLAY")
+        frame.line2 = frame:CreateFontString(nil, "OVERLAY")
+
+        return frame
+    end
+
+    local resetFunc = function(frame)
+        frame:Hide()
+        frame:ClearAllPoints()
+        frame:SetParent(nil)
+        frame:SetAlpha(1)
+        -- Clear font string text
+        frame.titleText:SetText("")
+        frame.line1:SetText("")
+        frame.line2:SetText("")
+        -- Clear any stored effects references
+        frame._glowEffect = nil
+        frame._sparkles = nil
+    end
+
+    self.notificationPool = HopeAddon.FramePool:NewNamed("JournalNotifications", createFunc, resetFunc)
+end
+
+--[[
+    Release a notification frame back to the pool
+]]
+function Journal:ReleaseNotification(notif)
+    -- Stop any glow/sparkle effects first
+    if notif._glowEffect then
+        HopeAddon.Effects:StopGlow(notif._glowEffect)
+    end
+    if notif._sparkles then
+        HopeAddon.Effects:StopSparkles(notif._sparkles)
+    end
+    self.notificationPool:Release(notif)
+end
+
+--[[
+    Create container frame pool for headers, spacers, and simple containers
+    Reuses frames instead of creating new ones each tab switch
+]]
+function Journal:CreateContainerPool()
+    local createFunc = function()
+        local frame = CreateFrame("Frame")
+        frame:Hide()
+        return frame
+    end
+
+    local resetFunc = function(frame)
+        frame:Hide()
+        frame:ClearAllPoints()
+        frame:SetParent(nil)
+        frame:SetSize(1, 1)
+        frame._pooled = true
+        -- Clear all font strings
+        for _, region in pairs({frame:GetRegions()}) do
+            if region:GetObjectType() == "FontString" then
+                region:SetText("")
+            end
+        end
+    end
+
+    self.containerPool = HopeAddon.FramePool:NewNamed("JournalContainers", createFunc, resetFunc)
+end
+
+--[[
+    Create entry card frame pool for boss cards, timeline entries, etc.
+    Reuses card frames instead of creating new ones each tab switch
+]]
+function Journal:CreateCardPool()
+    local createFunc = function()
+        -- Create a minimal card frame (icon, title, desc, timestamp)
+        local card = CreateFrame("Button", nil, UIParent, "BackdropTemplate")
+        card:SetHeight(80)
+        card:SetBackdrop({
+            bgFile = HopeAddon.assets.textures.TOOLTIP_BG,
+            edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+            tile = true, tileSize = 8, edgeSize = 12,
+            insets = { left = 3, right = 3, top = 3, bottom = 3 }
+        })
+
+        -- Pre-create all elements
+        card.icon = card:CreateTexture(nil, "ARTWORK")
+        card.title = card:CreateFontString(nil, "OVERLAY")
+        card.desc = card:CreateFontString(nil, "OVERLAY")
+        card.timestamp = card:CreateFontString(nil, "OVERLAY")
+
+        -- Setup fonts (unchanging)
+        card.title:SetFont(HopeAddon.assets.fonts.HEADER, 14)
+        card.desc:SetFont(HopeAddon.assets.fonts.BODY, 11)
+        card.timestamp:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+
+        card:Hide()
+        return card
+    end
+
+    local resetFunc = function(card)
+        card:Hide()
+        card:ClearAllPoints()
+        card:SetParent(nil)
+        card:SetAlpha(1.0)
+        card:SetBackdropColor(HopeAddon:GetBgColor("DARK_TRANSPARENT"))
+        card:SetBackdropBorderColor(0.5, 0.5, 0.5, 1)
+        card.icon:SetTexture(nil)
+        card.icon:Hide()
+        card.title:SetText("")
+        card.desc:SetText("")
+        card.timestamp:SetText("")
+        card:SetScript("OnClick", nil)
+        card:SetScript("OnEnter", nil)
+        card:SetScript("OnLeave", nil)
+        -- Clean up any glow effects to prevent memory leaks
+        if card._glowEffect then
+            HopeAddon.Effects:StopGlow(card._glowEffect)
+            card._glowEffect = nil
+        end
+        -- Clean up any sparkle effects
+        if card._sparkles then
+            HopeAddon.Effects:StopSparkles(card._sparkles)
+            card._sparkles = nil
+        end
+        -- Clean up challengeBtn to prevent closure memory leaks
+        if card.challengeBtn then
+            card.challengeBtn:Hide()
+            card.challengeBtn:SetScript("OnClick", nil)
+            card.challengeBtn:SetScript("OnEnter", nil)
+            card.challengeBtn:SetScript("OnLeave", nil)
+            card.challengeBtn:SetScript("OnMouseDown", nil)
+            card.challengeBtn:SetScript("OnMouseUp", nil)
+            card.challengeBtn.targetName = nil
+        end
+        -- Clean up noteIcon
+        if card.noteIcon then
+            card.noteIcon:Hide()
+        end
+        -- Clear default border color cache
+        card.defaultBorderColor = nil
+        -- Clear OnCardClick callback to prevent stale closure references
+        card.OnCardClick = nil
+        card._pooled = true
+    end
+
+    self.cardPool = HopeAddon.FramePool:NewNamed("EntryCards", createFunc, resetFunc)
+end
+
+--[[
+    Create collapsible section frame pool for Milestones and Raids tabs.
+    These complex frames are expensive to create (header, content container, methods).
+    Pooling them avoids recreating 12+ sections on every tab switch.
+]]
+function Journal:CreateCollapsibleSectionPool()
+    local Components = HopeAddon.Components
+
+    local createFunc = function()
+        -- Create the full collapsible section structure via Components
+        local section = Components:CreateCollapsibleSection(UIParent, "", "GOLD_BRIGHT", true)
+        section:Hide()
+        return section
+    end
+
+    local resetFunc = function(section)
+        section:Hide()
+        section:ClearAllPoints()
+        section:SetParent(nil)
+        section:SetAlpha(1)
+
+        -- Reset state
+        section.childEntries = {}
+        section.contentHeight = 0
+        section.isExpanded = true
+        section.onToggle = nil
+
+        -- Reset indicator and title
+        section.indicator:SetText("[-]")
+        section.titleText:SetText("")
+
+        -- Reset subtitle if present
+        if section.subtitleText then
+            section.subtitleText:SetText("")
+            section.subtitleText:Hide()
+        end
+
+        -- Reset content container
+        section.contentContainer:SetHeight(1)
+        section.contentContainer:Show()
+
+        -- Hide all children in content container without destroying them
+        -- (they will be released by the cardPool separately)
+        local children = {section.contentContainer:GetChildren()}
+        for _, child in ipairs(children) do
+            child:Hide()
+            child:ClearAllPoints()
+            child:SetParent(nil)
+        end
+
+        -- Reset section height to header-only
+        section:SetHeight(28)
+
+        -- Mark as pooled for ClearEntries detection
+        section._pooled = true
+    end
+
+    self.collapsiblePool = HopeAddon.FramePool:NewNamed("CollapsibleSections", createFunc, resetFunc)
+end
+
+--[[
+    Create boss info card pool for raid metadata frames (location, size, etc.)
+    These simple frames are reused across Raids tab switches
+]]
+function Journal:CreateBossInfoPool()
+    local createFunc = function()
+        local card = CreateFrame("Frame", nil, UIParent)
+        card:SetHeight(22)
+
+        -- Pre-create text element
+        card.infoText = card:CreateFontString(nil, "OVERLAY")
+        card.infoText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+
+        card:Hide()
+        return card
+    end
+
+    local resetFunc = function(card)
+        card:Hide()
+        card:ClearAllPoints()
+        card:SetParent(nil)
+        card:SetAlpha(1.0)
+        card.infoText:SetText("")
+        card._pooled = true
+    end
+
+    self.bossInfoPool = HopeAddon.FramePool:NewNamed("BossInfoCards", createFunc, resetFunc)
+end
+
+--[[
+    Acquire and configure a boss info card from the pool
+    @param parent Frame - Parent to attach to
+    @param text string - Info text to display
+    @return Frame - Configured pooled info card
+]]
+function Journal:AcquireBossInfoCard(parent, text)
+    if not self.bossInfoPool then return nil end
+
+    local card = self.bossInfoPool:Acquire()
+    card:SetParent(parent)
+    card._pooled = true
+
+    -- Configure text
+    card.infoText:ClearAllPoints()
+    card.infoText:SetPoint("LEFT", card, "LEFT", HopeAddon.Components.MARGIN_SMALL, 0)
+    card.infoText:SetText(text)
+    card.infoText:SetTextColor(HopeAddon:GetTextColor("SUBTLE"))
+
+    return card
+end
+
+--[[
+    Acquire and configure a collapsible section from the pool
+    @param parent Frame - Parent to attach to
+    @param title string - Section title text
+    @param colorName string - Color name for the title
+    @param startExpanded boolean - Whether to start expanded (default true)
+    @return Frame - Configured pooled collapsible section
+]]
+function Journal:AcquireCollapsibleSection(parent, title, colorName, startExpanded)
+    if not self.collapsiblePool then return nil end
+
+    local section = self.collapsiblePool:Acquire()
+    section:SetParent(parent)
+    section._pooled = true
+
+    -- Configure title with color
+    colorName = colorName or "GOLD_BRIGHT"
+    section.titleText:SetText(HopeAddon:ColorText(title, colorName))
+
+    -- Set initial expansion state
+    startExpanded = startExpanded ~= false
+    section.isExpanded = startExpanded
+    section.indicator:SetText(startExpanded and "[-]" or "[+]")
+    section:UpdateHeight()
+
+    return section
+end
+
+--[[
+    Acquire and configure an entry card from the pool
+    @param parent Frame - Parent to attach to
+    @param data table - Card data { icon, title, description, timestamp }
+    @return Frame - Configured pooled card
+]]
+function Journal:AcquireCard(parent, data)
+    if not self.cardPool then return nil end
+    local card = self.cardPool:Acquire()
+    local Components = HopeAddon.Components
+
+    card:SetParent(parent)
+    card:SetHeight(80)
+    card._pooled = true
+
+    -- Configure icon
+    local iconOffset = Components.MARGIN_NORMAL
+    if data.icon then
+        card.icon:SetTexture(data.icon)
+        card.icon:SetSize(Components.ICON_SIZE_STANDARD, Components.ICON_SIZE_STANDARD)
+        card.icon:ClearAllPoints()
+        card.icon:SetPoint("LEFT", card, "LEFT", Components.MARGIN_NORMAL, 0)
+        card.icon:Show()
+        iconOffset = Components.ICON_SIZE_STANDARD + 2 * Components.MARGIN_NORMAL
+    else
+        card.icon:Hide()
+    end
+
+    -- Configure title
+    card.title:ClearAllPoints()
+    card.title:SetPoint("TOPLEFT", card, "TOPLEFT", iconOffset, -Components.MARGIN_NORMAL)
+    card.title:SetPoint("RIGHT", card, "RIGHT", -Components.MARGIN_NORMAL, 0)
+    card.title:SetText(HopeAddon:ColorText(data.title or "Entry", "GOLD_BRIGHT"))
+
+    -- Configure description
+    card.desc:ClearAllPoints()
+    card.desc:SetPoint("TOPLEFT", card.title, "BOTTOMLEFT", 0, -Components.MARGIN_SMALL)
+    card.desc:SetPoint("RIGHT", card, "RIGHT", -Components.MARGIN_NORMAL, 0)
+    card.desc:SetPoint("BOTTOM", card, "BOTTOM", 0, 22)
+    card.desc:SetTextColor(HopeAddon:GetTextColor("SECONDARY"))
+    card.desc:SetJustifyH("LEFT")
+    card.desc:SetJustifyV("TOP")
+    card.desc:SetWordWrap(true)
+    card.desc:SetText(data.description or "")
+
+    -- Configure timestamp
+    card.timestamp:ClearAllPoints()
+    card.timestamp:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -Components.MARGIN_NORMAL, 5)
+    card.timestamp:SetTextColor(HopeAddon:GetTextColor("SUBTLE"))
+    card.timestamp:SetText(data.timestamp or "")
+
+    -- Hover effects
+    card:SetScript("OnEnter", function(self)
+        self:SetBackdropBorderColor(HopeAddon:GetColor("GOLD_BRIGHT"))
+    end)
+    card:SetScript("OnLeave", function(self)
+        local bc = self.defaultBorderColor or {0.5, 0.5, 0.5, 1}
+        self:SetBackdropBorderColor(unpack(bc))
+    end)
+
+    card.defaultBorderColor = {0.5, 0.5, 0.5, 1}
+
+    return card
+end
+
+--[[
+    Acquire a container frame from the pool
+    @param parent Frame - Parent to attach to
+    @param height number - Desired height
+    @return Frame - Pooled container frame
+]]
+function Journal:AcquireContainer(parent, height)
+    if not self.containerPool then return nil end
+    local container = self.containerPool:Acquire()
+    container:SetParent(parent)
+    container:SetHeight(height or 20)
+    container._pooled = true
+    return container
+end
+
+--[[
+    Create a spacer frame from the pool
+    @param height number - Spacer height
+    @return Frame - Pooled spacer frame
+]]
+function Journal:CreateSpacer(height)
+    return self:AcquireContainer(self.mainFrame.scrollContainer.content, height or 15)
+end
+
+--[[
+    Get cached counts for zones and milestones
+    Avoids O(n) iteration on every footer update
+    @return table - { zones = n, milestones = n }
+]]
+function Journal:GetCachedCounts()
+    if not self.cachedCounts then
+        local zoneCount = 0
+        for _ in pairs(HopeAddon.charDb.journal.zoneDiscoveries) do
+            zoneCount = zoneCount + 1
+        end
+
+        local milestoneCount = 0
+        for _ in pairs(HopeAddon.charDb.journal.levelMilestones) do
+            milestoneCount = milestoneCount + 1
+        end
+
+        self.cachedCounts = {
+            zones = zoneCount,
+            milestones = milestoneCount,
+        }
+    end
+    return self.cachedCounts
+end
+
+--[[
+    Invalidate cached counts (call when entries are added)
+]]
+function Journal:InvalidateCounts()
+    self.cachedCounts = nil
+    -- Also invalidate timeline cache when entries change
+    self.timelineCacheValid = false
+    self.cachedSortedTimeline = nil
+    -- Invalidate stats cache since counts may have changed
+    self.cachedStatsData = nil
+end
+
+--[[
+    EVENT REGISTRATION
+]]
+function Journal:RegisterEvents()
+    -- Parent to mainFrame for proper cleanup and frame hierarchy
+    local eventFrame = CreateFrame("Frame", nil, self.mainFrame)
+
+    -- Level up tracking
+    eventFrame:RegisterEvent("PLAYER_LEVEL_UP")
+    eventFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+    eventFrame:RegisterEvent("QUEST_TURNED_IN")
+    eventFrame:RegisterEvent("PLAYER_DEAD")
+    -- Playtime tracking
+    eventFrame:RegisterEvent("TIME_PLAYED_MSG")
+    -- Combat log for stats (creatures slain, largest hit, dungeon bosses)
+    eventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+    -- Skill changes (for riding skill cache invalidation)
+    eventFrame:RegisterEvent("SKILL_LINES_CHANGED")
+
+    eventFrame:SetScript("OnEvent", function(_, event, ...)
+        if event == "PLAYER_LEVEL_UP" then
+            self:OnLevelUp(...)
+        elseif event == "ZONE_CHANGED_NEW_AREA" then
+            self:OnZoneChanged()
+        elseif event == "QUEST_TURNED_IN" then
+            self:OnQuestComplete(...)
+        elseif event == "PLAYER_DEAD" then
+            self:OnPlayerDeath()
+        elseif event == "TIME_PLAYED_MSG" then
+            self:OnTimePlayed(...)
+        elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
+            self:OnCombatLogEvent()
+        elseif event == "SKILL_LINES_CHANGED" then
+            -- Invalidate riding skill cache
+            self.cachedRidingSkill = nil
+            self.cachedStatsData = nil
+        end
+    end)
+
+    self.eventFrame = eventFrame
+
+    -- Request playtime on login (with slight delay to avoid spam)
+    HopeAddon.Timer:After(2, function()
+        RequestTimePlayed()
+    end)
+end
+
+--[[
+    CREATE MAIN FRAME
+]]
+function Journal:CreateMainFrame()
+    local Components = HopeAddon.Components
+    local Effects = HopeAddon.Effects
+
+    -- Main parchment frame
+    local frame = Components:CreateParchmentFrame("HopeJournalFrame", UIParent, 550, 650)
+    frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+    frame:SetFrameStrata("HIGH")
+    frame:Hide()
+
+    -- Make it close with Escape
+    tinsert(UISpecialFrames, "HopeJournalFrame")
+
+    -- Title
+    local titleBar = Components:CreateTitleBar(frame, "MY ADVENTURE", "ARCANE_PURPLE")
+
+    -- Character info display
+    local charInfo = frame:CreateFontString(nil, "OVERLAY")
+    charInfo:SetFont(HopeAddon.assets.fonts.HEADER, 12)
+    charInfo:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -50, -20)
+    local _, class = UnitClass("player")
+    local classColor = HopeAddon:GetClassColor(class)
+    charInfo:SetText(string.format("|cFF%02x%02x%02x%s|r - Level %d",
+        classColor.r * 255, classColor.g * 255, classColor.b * 255,
+        UnitName("player"), UnitLevel("player")))
+    frame.charInfo = charInfo
+
+    -- Close button
+    Components:CreateCloseButton(frame)
+
+    -- Tab bar (inherits HIGH strata from parent, but set explicitly for clarity)
+    local tabBar = CreateFrame("Frame", nil, frame)
+    tabBar:SetFrameStrata("HIGH")
+    tabBar:SetPoint("TOPLEFT", frame, "TOPLEFT", Components.MARGIN_LARGE, -65)
+    tabBar:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -Components.MARGIN_LARGE, -65)
+    tabBar:SetHeight(35)
+
+    -- Create tabs
+    local tabs = {}
+    local tabData = {
+        { id = "timeline", label = "Timeline", tooltip = "Chronological record of your adventures" },
+        { id = "milestones", label = "Milestones", tooltip = "Hero's Journey level milestones" },
+        { id = "zones", label = "Zones", tooltip = "Outland zone discoveries" },
+        { id = "reputation", label = "Reputation", tooltip = "Faction standings by category" },
+        { id = "raids", label = "Raids", tooltip = "Boss kill tracking by tier (T4/T5/T6)" },
+        { id = "attunements", label = "Attunements", tooltip = "Raid attunement quest chains" },
+        { id = "directory", label = "Directory", tooltip = "Fellow travelers you have encountered" },
+        { id = "stats", label = "Stats", tooltip = "Adventure statistics summary" },
+    }
+
+    local tabWidth = (frame:GetWidth() - 2 * Components.MARGIN_LARGE) / #tabData
+    for i, data in ipairs(tabData) do
+        local tab = Components:CreateTabButton(tabBar, data.label, tabWidth - 5, 30, data.tooltip)
+        tab:SetPoint("LEFT", tabBar, "LEFT", (i-1) * tabWidth, 0)
+        tab.id = data.id
+
+        tab:HookScript("OnClick", function()
+            self:SelectTab(data.id)
+        end)
+
+        tabs[data.id] = tab
+    end
+    frame.tabs = tabs
+
+    -- Content area (inherits HIGH strata from parent, but set explicitly for clarity)
+    local contentArea = CreateFrame("Frame", nil, frame)
+    contentArea:SetFrameStrata("HIGH")
+    contentArea:SetPoint("TOPLEFT", tabBar, "BOTTOMLEFT", 0, -Components.MARGIN_NORMAL)
+    contentArea:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -Components.MARGIN_LARGE, 30)
+    frame.contentArea = contentArea
+
+    -- Scroll frame for entries - use SetAllPoints instead of passing size params that get ignored
+    local scrollContainer = Components:CreateScrollFrame(contentArea)
+    scrollContainer:SetAllPoints(contentArea)
+    frame.scrollContainer = scrollContainer
+
+    -- Footer with stats summary
+    local footer = frame:CreateFontString(nil, "OVERLAY")
+    footer:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+    footer:SetPoint("BOTTOM", frame, "BOTTOM", 0, 25)
+    footer:SetTextColor(HopeAddon:GetTextColor("SUBTLE"))
+    frame.footer = footer
+
+    -- Store reference
+    self.mainFrame = frame
+
+    -- Select default tab
+    self:SelectTab("timeline")
+
+    return frame
+end
+
+--[[
+    TAB SELECTION
+]]
+function Journal:SelectTab(tabId)
+    -- Prevent rapid tab switching during animation
+    if self.isTabAnimating then return end
+    if tabId == self.currentTab then return end
+
+    self.isTabAnimating = true
+    self.currentTab = tabId
+
+    -- Update tab visuals
+    for id, tab in pairs(self.mainFrame.tabs) do
+        tab:SetSelected(id == tabId)
+    end
+
+    -- Stop any active glow effects before clearing content to prevent memory leaks
+    local Glow = HopeAddon.Glow
+    if Glow and Glow.StopAll then
+        Glow:StopAll()
+    end
+
+    -- Release pooled frames in correct order:
+    -- 1. Cards first (they're children of collapsible sections)
+    if self.cardPool then
+        self.cardPool:ReleaseAll()
+    end
+
+    -- 2. Collapsible sections second (after their card children are released)
+    if self.collapsiblePool then
+        self.collapsiblePool:ReleaseAll()
+    end
+
+    -- 3. Clear and repopulate content (pass containerPool for pooled frame release)
+    self.mainFrame.scrollContainer:ClearEntries(self.containerPool)
+
+    if tabId == "timeline" then
+        self:PopulateTimeline()
+    elseif tabId == "milestones" then
+        self:PopulateMilestones()
+    elseif tabId == "zones" then
+        self:PopulateZones()
+    elseif tabId == "reputation" then
+        self:PopulateReputation()
+    elseif tabId == "raids" then
+        self:PopulateRaids()
+    elseif tabId == "attunements" then
+        self:PopulateAttunements()
+    elseif tabId == "directory" then
+        self:PopulateDirectory()
+    elseif tabId == "stats" then
+        self:PopulateStats()
+    end
+
+    -- Update footer
+    self:UpdateFooter()
+
+    -- Reset animation throttle after tab transition completes
+    HopeAddon.Timer:After(0.3, function()
+        self.isTabAnimating = false
+    end)
+end
+
+--[[
+    UPDATE FOOTER
+]]
+function Journal:UpdateFooter()
+    local stats = HopeAddon.charDb.stats
+    local entryCount = #HopeAddon.charDb.journal.entries
+    local counts = self:GetCachedCounts()
+
+    self.mainFrame.footer:SetText(string.format(
+        "Journal Entries: %d | Zones: %d | Milestones: %d | Deaths: %d",
+        entryCount, counts.zones, counts.milestones, stats.deaths.total
+    ))
+end
+
+--[[
+    HELPER: Create Section Header
+    Creates a header that is properly added to the scroll container
+    Delegates to Components:CreateSectionHeader for consistent styling
+]]
+function Journal:CreateSectionHeader(title, colorName, subtext)
+    local parent = self.mainFrame.scrollContainer.content
+    return HopeAddon.Components:CreateSectionHeader(parent, title, colorName, subtext)
+end
+
+--[[
+    HELPER: Create Category Header (smaller)
+    Delegates to Components:CreateCategoryHeader for consistent styling
+]]
+function Journal:CreateCategoryHeader(title, colorName)
+    local parent = self.mainFrame.scrollContainer.content
+    return HopeAddon.Components:CreateCategoryHeader(parent, title, colorName)
+end
+
+--[[
+    POPULATE FUNCTIONS
+]]
+function Journal:PopulateTimeline()
+    local entries = HopeAddon.charDb.journal.entries
+    local Components = HopeAddon.Components
+
+    -- Use cached sorted entries if available (performance optimization)
+    -- Cache is invalidated when new entries are added via InvalidateCounts()
+    if not self.timelineCacheValid or not self.cachedSortedTimeline then
+        self.cachedSortedTimeline = {}
+        for _, entry in ipairs(entries) do
+            table.insert(self.cachedSortedTimeline, entry)
+        end
+        table.sort(self.cachedSortedTimeline, function(a, b)
+            return (a.timestamp or "") > (b.timestamp or "")
+        end)
+        self.timelineCacheValid = true
+    end
+
+    for _, entry in ipairs(self.cachedSortedTimeline) do
+        local card = self:AcquireCard(self.mainFrame.scrollContainer.content, {
+            icon = entry.icon,
+            title = entry.title,
+            description = entry.description or entry.story,
+            timestamp = entry.timestamp,
+        })
+        self.mainFrame.scrollContainer:AddEntry(card)
+    end
+
+    -- If no entries, show placeholder using proper scroll entry mechanism
+    if #entries == 0 then
+        local placeholderFrame = self:AcquireContainer(self.mainFrame.scrollContainer.content, 200)
+
+        local placeholder = placeholderFrame.headerText
+        if not placeholder then
+            placeholder = placeholderFrame:CreateFontString(nil, "OVERLAY")
+            placeholderFrame.headerText = placeholder
+        end
+        placeholder:SetFont(HopeAddon.assets.fonts.BODY, 14)
+        placeholder:ClearAllPoints()
+        placeholder:SetPoint("CENTER", placeholderFrame, "CENTER", 0, 0)
+        placeholder:SetText("Your adventure awaits...\n\nLevel up to start your journal!\nExplore new zones!\nComplete quests!")
+        placeholder:SetTextColor(HopeAddon:GetTextColor("SUBTLE"))
+        placeholder:SetJustifyH("CENTER")
+
+        self.mainFrame.scrollContainer:AddEntry(placeholderFrame)
+    end
+end
+
+--[[
+    CHRONICLE MILESTONES HELPERS
+    Three-act structure for the Hero's Journey milestones page
+]]
+
+-- Major milestones that get enhanced visual treatment
+local MAJOR_MILESTONES = { [40] = true, [58] = true, [60] = true, [70] = true }
+
+-- Act definitions for the chronicle structure
+local CHRONICLE_ACTS = {
+    {
+        name = "Act I: The Awakening",
+        subtitle = "Every legend begins with a single step",
+        color = "SKY_BLUE",
+        levels = { 5, 10, 15, 20 },
+    },
+    {
+        name = "Act II: The Journey",
+        subtitle = "Through trials and triumph, a hero emerges",
+        color = "GOLD_BRIGHT",
+        levels = { 25, 30, 35, 40, 45, 50, 55 },
+    },
+    {
+        name = "Act III: Through the Dark Portal",
+        subtitle = "Into the shattered realm of Outland",
+        color = "FEL_GREEN",
+        levels = { 58, 60, 65, 70 },
+    },
+}
+
+--[[
+    Create the chronicle header with title, subtitle, and progress bar
+    @return Frame - Header container
+]]
+function Journal:CreateChronicleHeader()
+    local Components = HopeAddon.Components
+    local milestones = HopeAddon.charDb.journal.levelMilestones
+    local playerName = UnitName("player")
+
+    -- Calculate completed milestone count
+    local totalMilestones = 15  -- Total milestone levels
+    local completedCount = 0
+    for _ in pairs(milestones) do
+        completedCount = completedCount + 1
+    end
+
+    -- Container for the header
+    local container = self:AcquireContainer(self.mainFrame.scrollContainer.content, 110)
+
+    -- Main title in Morpheus font
+    local title = container.titleText
+    if not title then
+        title = container:CreateFontString(nil, "OVERLAY")
+        container.titleText = title
+    end
+    title:SetFont(HopeAddon.assets.fonts.TITLE, 22)
+    title:ClearAllPoints()
+    title:SetPoint("TOP", container, "TOP", 0, -10)
+    title:SetText(HopeAddon:ColorText("THE HERO'S JOURNEY", "GOLD_BRIGHT"))
+    title:SetShadowOffset(2, -2)
+    title:SetShadowColor(0, 0, 0, 0.8)
+
+    -- Subtitle with character name
+    local subtitle = container.subtitleText
+    if not subtitle then
+        subtitle = container:CreateFontString(nil, "OVERLAY")
+        container.subtitleText = subtitle
+    end
+    subtitle:SetFont(HopeAddon.assets.fonts.BODY, 13)
+    subtitle:ClearAllPoints()
+    subtitle:SetPoint("TOP", title, "BOTTOM", 0, -5)
+    subtitle:SetText("The Chronicle of " .. playerName)
+    subtitle:SetTextColor(HopeAddon:GetTextColor("SECONDARY"))
+
+    -- Decorative divider line
+    local divider = container.dividerLine
+    if not divider then
+        divider = container:CreateTexture(nil, "ARTWORK")
+        container.dividerLine = divider
+    end
+    divider:SetTexture(HopeAddon.assets.textures.DIVIDER)
+    divider:SetHeight(2)
+    divider:ClearAllPoints()
+    divider:SetPoint("TOPLEFT", subtitle, "BOTTOMLEFT", -60, -8)
+    divider:SetPoint("TOPRIGHT", subtitle, "BOTTOMRIGHT", 60, -8)
+    divider:SetVertexColor(HopeAddon:GetColor("GOLD_BRIGHT"))
+
+    -- Progress bar showing overall completion
+    local progressBar = container.progressBar
+    if not progressBar then
+        progressBar = Components:CreateProgressBar(container, 300, 20, "GOLD_BRIGHT")
+        container.progressBar = progressBar
+    end
+    progressBar:ClearAllPoints()
+    progressBar:SetPoint("TOP", divider, "BOTTOM", 0, -12)
+    progressBar:SetProgress((completedCount / totalMilestones) * 100)
+
+    -- Progress text below bar
+    local progressText = container.progressLabel
+    if not progressText then
+        progressText = container:CreateFontString(nil, "OVERLAY")
+        container.progressLabel = progressText
+    end
+    progressText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+    progressText:ClearAllPoints()
+    progressText:SetPoint("TOP", progressBar, "BOTTOM", 0, -5)
+    progressText:SetText(string.format("%d of %d milestones completed", completedCount, totalMilestones))
+    progressText:SetTextColor(HopeAddon:GetTextColor("SUBTLE"))
+
+    return container
+end
+
+--[[
+    Create a milestone entry card (standard size)
+    @param level number - The milestone level
+    @param chapterNum number - The chapter number for display
+    @return Frame - The milestone card
+]]
+function Journal:CreateMilestoneEntry(level, chapterNum)
+    local Components = HopeAddon.Components
+    local Effects = HopeAddon.Effects
+    local MILESTONES = HopeAddon.Constants.LEVEL_MILESTONES
+    local milestones = HopeAddon.charDb.journal.levelMilestones
+    local playerLevel = UnitLevel("player")
+
+    local milestoneData = MILESTONES[level]
+    local completed = milestones[level] ~= nil
+    local earned = level <= playerLevel
+    local isMajor = MAJOR_MILESTONES[level]
+
+    local iconPath = milestoneData and ("Interface\\Icons\\" .. milestoneData.icon) or "Interface\\Icons\\INV_Misc_QuestionMark"
+
+    -- Build description based on state
+    local description
+    if completed then
+        local story = (milestoneData and milestoneData.story) or "Milestone reached!"
+        local dateStr = (milestones[level] and milestones[level].date) or "Unknown"
+        local zoneStr = (milestones[level] and milestones[level].zone) or ""
+        description = '"' .. story .. '"\n\n' .. HopeAddon:ColorText("Achieved: " .. dateStr, "FEL_GREEN")
+        if zoneStr ~= "" then
+            description = description .. " in " .. zoneStr
+        end
+    elseif earned then
+        description = '"' .. ((milestoneData and milestoneData.story) or "") .. '"\n\n' ..
+            HopeAddon:ColorText("Achieved! Open /hope to record this milestone.", "GOLD_BRIGHT")
+    else
+        description = '"' .. ((milestoneData and milestoneData.story) or "Your journey continues...") .. '"'
+    end
+
+    -- Create card with chapter badge in title
+    local chapterBadge = HopeAddon:ColorText("CHAPTER " .. chapterNum, "BRONZE") .. "\n"
+    local titleText = milestoneData and milestoneData.title or ("Level " .. level)
+
+    local card = self:AcquireCard(self.mainFrame.scrollContainer.content, {
+        icon = iconPath,
+        title = chapterBadge .. titleText,
+        description = description,
+        timestamp = "Level " .. level,
+    })
+
+    -- Adjust card height for major milestones
+    if isMajor then
+        card:SetHeight(120)
+        -- Larger icon for major milestones
+        if card.icon then
+            card.icon:SetSize(64, 64)
+        end
+    else
+        card:SetHeight(90)
+    end
+
+    -- Color coding based on state
+    if completed then
+        card:SetBackdropBorderColor(0.2, 0.8, 0.2, 1) -- Green for complete
+        card.defaultBorderColor = { 0.2, 0.8, 0.2, 1 }
+
+        -- Special glow for completed major milestones (store reference for cleanup)
+        if isMajor then
+            card._glowEffect = Effects:CreatePulsingGlow(card, "GOLD_BRIGHT", 0.4)
+        end
+    elseif earned then
+        card:SetBackdropBorderColor(1, 0.84, 0, 1) -- Gold for achieved but not recorded
+        card.defaultBorderColor = { 1, 0.84, 0, 1 }
+
+        -- Subtle pulse effect for earned milestones (store reference for cleanup)
+        card._glowEffect = Effects:CreatePulsingGlow(card, "GOLD_BRIGHT", 0.2)
+    else
+        card:SetAlpha(0.5) -- Dim for future
+        card:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+        card.defaultBorderColor = { 0.4, 0.4, 0.4, 1 }
+    end
+
+    -- Click handler to open detail page for completed milestones
+    if completed then
+        card.OnCardClick = function(cardFrame, entryData)
+            local Pages = HopeAddon.Pages
+            if Pages then
+                -- Open milestone detail page
+                local milestoneEntry = milestones[level]
+                local pageData = {
+                    chapter = chapterNum,
+                    level = level,
+                    title = titleText,
+                    icon = iconPath,
+                    story = milestoneData and milestoneData.story or "",
+                    date = milestoneEntry and milestoneEntry.date or "Unknown",
+                    zone = milestoneEntry and milestoneEntry.zone or "Unknown",
+                }
+                -- For now, just play a click sound - full page implementation would need modal
+                HopeAddon.Sounds:PlayClick()
+                HopeAddon:Print("Viewing milestone: " .. titleText)
+            end
+        end
+    end
+
+    return card
+end
+
+--[[
+    Create a collapsible act section with milestones
+    @param act table - Act definition with name, subtitle, color, levels
+    @param startChapter number - Starting chapter number
+    @return Frame, number - The section and next chapter number
+]]
+function Journal:CreateActSection(act, startChapter)
+    local Components = HopeAddon.Components
+    local milestones = HopeAddon.charDb.journal.levelMilestones
+
+    -- Count completed milestones in this act
+    local completedInAct = 0
+    for _, level in ipairs(act.levels) do
+        if milestones[level] then
+            completedInAct = completedInAct + 1
+        end
+    end
+
+    -- Acquire collapsible section from pool
+    local section = self:AcquireCollapsibleSection(
+        self.mainFrame.scrollContainer.content,
+        act.name,
+        act.color,
+        true -- Start expanded
+    )
+
+    -- Update title with completion count
+    section:SetItemCount(completedInAct, #act.levels)
+
+    -- Add subtitle to header area (reuse or create)
+    local subtitleText = section.subtitleText
+    if not subtitleText then
+        subtitleText = section:CreateFontString(nil, "OVERLAY")
+        section.subtitleText = subtitleText
+    end
+    subtitleText:SetFont(HopeAddon.assets.fonts.BODY, 10)
+    subtitleText:ClearAllPoints()
+    subtitleText:SetPoint("TOPLEFT", section.titleText, "BOTTOMLEFT", 0, -2)
+    subtitleText:SetText(act.subtitle)
+    subtitleText:SetTextColor(HopeAddon:GetTextColor("SUBTLE"))
+    subtitleText:Show()
+
+    -- Set callback to recalculate scroll positions on toggle
+    section.onToggle = function()
+        self.mainFrame.scrollContainer:RecalculatePositions()
+    end
+
+    -- Add milestone entries
+    local chapterNum = startChapter
+    for _, level in ipairs(act.levels) do
+        local card = self:CreateMilestoneEntry(level, chapterNum)
+        section:AddChild(card)
+        chapterNum = chapterNum + 1
+    end
+
+    return section, chapterNum
+end
+
+--[[
+    POPULATE MILESTONES - Chronicle Theme
+    Organizes milestones into a three-act structure with enhanced visuals
+]]
+function Journal:PopulateMilestones()
+    local scrollContainer = self.mainFrame.scrollContainer
+
+    -- Chronicle header with title and progress
+    local header = self:CreateChronicleHeader()
+    scrollContainer:AddEntry(header)
+
+    -- Small spacer after header
+    local headerSpacer = self:CreateSpacer(10)
+    scrollContainer:AddEntry(headerSpacer)
+
+    -- Create three-act structure
+    local chapterNum = 1
+    for _, act in ipairs(CHRONICLE_ACTS) do
+        local section
+        section, chapterNum = self:CreateActSection(act, chapterNum)
+        scrollContainer:AddEntry(section)
+
+        -- Spacer between acts
+        local actSpacer = self:CreateSpacer(15)
+        scrollContainer:AddEntry(actSpacer)
+    end
+end
+
+function Journal:PopulateZones()
+    local discoveries = HopeAddon.charDb.journal.zoneDiscoveries
+    local Components = HopeAddon.Components
+    local ZONES = HopeAddon.Constants.ZONE_DISCOVERIES
+    local Glow = HopeAddon.Glow
+    local colors = HopeAddon.colors
+
+    -- Header - properly added to scroll
+    local header = self:CreateSectionHeader("OUTLAND EXPLORATION", "FEL_GREEN")
+    self.mainFrame.scrollContainer:AddEntry(header)
+
+    -- TBC Zones
+    local tbcZones = {
+        "Hellfire Peninsula", "Zangarmarsh", "Terokkar Forest",
+        "Nagrand", "Blade's Edge Mountains", "Netherstorm",
+        "Shadowmoon Valley", "Shattrath City"
+    }
+
+    for _, zoneName in ipairs(tbcZones) do
+        local zoneData = ZONES[zoneName]
+        if zoneData then
+            local discovered = discoveries[zoneName] ~= nil
+
+            local card = self:AcquireCard(self.mainFrame.scrollContainer.content, {
+                icon = "Interface\\Icons\\" .. (zoneData.icon or "INV_Misc_QuestionMark"),
+                title = discovered and (zoneData.title or zoneName) or "???",
+                description = discovered and (zoneData.flavor or "") or "Undiscovered territory awaits...",
+                timestamp = discovered and ("First visit: " .. ((discoveries[zoneName] and discoveries[zoneName].firstVisit) or "Unknown")) or ("Levels " .. (zoneData.levelRange or "?")),
+            })
+
+            if discovered then
+                -- Apply zone-themed border color
+                local theme = Glow and Glow.zoneThemes and Glow.zoneThemes[zoneName]
+                if theme then
+                    local color = colors[theme.primary]
+                    if color then
+                        card:SetBackdropBorderColor(color.r, color.g, color.b, 1)
+                    end
+                end
+            else
+                card:SetAlpha(0.4)
+            end
+
+            self.mainFrame.scrollContainer:AddEntry(card)
+        end
+    end
+end
+
+function Journal:PopulateReputation()
+    local Components = HopeAddon.Components
+    local Data = HopeAddon.ReputationData
+    local Reputation = HopeAddon:GetModule("Reputation")
+
+    -- Header - properly added to scroll
+    local header = self:CreateSectionHeader("FACTION STANDING", "ARCANE_PURPLE", "Your reputation across Outland")
+    self.mainFrame.scrollContainer:AddEntry(header)
+
+    -- Check for Aldor/Scryers choice
+    local choice = HopeAddon.charDb.reputation and HopeAddon.charDb.reputation.aldorScryerChoice
+    if choice then
+        local choiceCard = self:CreateReputationCard({
+            name = "The Choice",
+            icon = "INV_Jewelry_Ring_54",
+            description = "You allied with " .. choice.chosen .. " on " .. choice.date,
+            standingId = 8, -- Use exalted color for importance
+            standingName = choice.chosen,
+            isSpecial = true,
+        })
+        self.mainFrame.scrollContainer:AddEntry(choiceCard)
+
+        local choiceSpacer = self:CreateSpacer(15)
+        self.mainFrame.scrollContainer:AddEntry(choiceSpacer)
+    end
+
+    -- Iterate through categories in order
+    local categories = Data:GetOrderedCategories()
+
+    for _, catInfo in ipairs(categories) do
+        local catId = catInfo.id
+        local catData = catInfo.data
+
+        -- Get factions for this category
+        local factions = Data:GetFactionsByCategory(catId)
+
+        if #factions > 0 then
+            -- Category header - properly added to scroll
+            local catHeader = self:CreateCategoryHeader(string.upper(catData.name), "GOLD_BRIGHT")
+            self.mainFrame.scrollContainer:AddEntry(catHeader)
+
+            -- Show factions
+            for _, factionInfo in ipairs(factions) do
+                local factionName = factionInfo.name
+                local factionData = factionInfo.data
+
+                -- Skip opposing faction if choice was made
+                if choice and factionData.isChoice and factionName == choice.opposing then
+                    -- Skip this faction - we chose the other
+                else
+                    local card = self:CreateReputationCard({
+                        name = factionName,
+                        data = factionData,
+                    })
+                    self.mainFrame.scrollContainer:AddEntry(card)
+                end
+            end
+
+            -- Spacer between categories
+            local categorySpacer = self:CreateSpacer(15)
+            self.mainFrame.scrollContainer:AddEntry(categorySpacer)
+        end
+    end
+end
+
+function Journal:CreateReputationCard(info)
+    local Components = HopeAddon.Components
+    local Data = HopeAddon.ReputationData
+    local Effects = HopeAddon.Effects
+    local Reputation = HopeAddon:GetModule("Reputation")
+
+    -- Get current standing
+    local standingId = 4 -- Default neutral
+    local standingName = "Neutral"
+    local current, max = 0, 0
+
+    if info.isSpecial then
+        -- Special card (like "The Choice")
+        standingId = info.standingId or 8
+        standingName = info.standingName or ""
+    elseif info.data then
+        -- Get live standing data
+        local cached = Reputation and Reputation:GetFactionStanding(info.name)
+        if cached then
+            standingId = cached.standingId
+            local standingInfo = Data:GetStandingInfo(standingId)
+            standingName = standingInfo and standingInfo.name or "Unknown"
+        end
+
+        -- Get progress
+        if Reputation then
+            local curr, mx, _ = Reputation:GetProgressInStanding(info.name)
+            if curr then current = curr end
+            if mx then max = mx end
+        end
+    end
+
+    local standingInfo = Data:GetStandingInfo(standingId)
+    local r, g, b = Data:GetStandingColor(standingId)
+
+    -- Determine icon
+    local icon = "Interface\\Icons\\"
+    if info.isSpecial then
+        icon = icon .. (info.icon or "INV_Misc_QuestionMark")
+    elseif info.data then
+        icon = icon .. (info.data.icon or "INV_Misc_QuestionMark")
+    end
+
+    -- Build description
+    local description = ""
+    if info.isSpecial then
+        description = info.description or ""
+    elseif info.data then
+        description = info.data.description or ""
+
+        -- Add lore if we have milestones
+        local milestones = HopeAddon.charDb.reputation and HopeAddon.charDb.reputation.milestones
+        if milestones and milestones[info.name] and milestones[info.name][standingId] then
+            local milestone = milestones[info.name][standingId]
+            description = milestone.story or description
+        end
+
+        -- Add progress info
+        if max > 0 then
+            description = description .. string.format("\n\nProgress: %d / %d", current, max)
+        end
+    end
+
+    -- Determine if we need progress bar (affects card height)
+    local needsProgressBar = not info.isSpecial and info.data and standingId < 8 and max > 0
+
+    -- Create card
+    local card = self:AcquireCard(self.mainFrame.scrollContainer.content, {
+        icon = icon,
+        title = info.name,
+        description = description,
+        timestamp = standingName,
+    })
+
+    -- Increase card height if progress bar needed to prevent overlap
+    if needsProgressBar then
+        card:SetHeight(95)
+    end
+
+    -- Set border color based on standing
+    card:SetBackdropBorderColor(r, g, b, 1)
+    card.defaultBorderColor = {r, g, b, 1}  -- Store for hover restore
+
+    -- Add RPG-themed progress bar for non-exalted factions
+    if needsProgressBar then
+        -- Calculate bar width: card width - icon - margins
+        local barWidth = card:GetWidth() - Components.ICON_SIZE_STANDARD - 3 * Components.MARGIN_NORMAL - 60 -- 60 for badge
+        local reputationBar = Components:CreateReputationBar(card, barWidth, 12, {
+            compact = true,
+            showStandingBadge = true,
+            showTickMarks = true,
+            showAnimations = true,
+        })
+        reputationBar:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT",
+            Components.ICON_SIZE_STANDARD + 2 * Components.MARGIN_NORMAL, 10)
+        reputationBar:SetReputation(info.name, current, max, standingId)
+        card.reputationBar = reputationBar
+    end
+
+    -- Add golden glow for Exalted (the reputation bar handles its own effects,
+    -- but we keep the card glow for consistency with other completed cards)
+    if standingId == 8 then
+        Effects:CreatePulsingGlow(card, "GOLD_BRIGHT", 0.3)
+    end
+
+    return card
+end
+
+function Journal:PopulateAttunements()
+    local Components = HopeAddon.Components
+    local Attunements = HopeAddon.Attunements
+    local C = HopeAddon.Constants
+
+    -- Header - properly added to scroll
+    local header = self:CreateSectionHeader("RAID ATTUNEMENTS", "ARCANE_PURPLE", "Your path through TBC raid content")
+    self.mainFrame.scrollContainer:AddEntry(header)
+
+    -- Tier colors
+    local tierColors = {
+        T4 = "GOLD_BRIGHT",
+        T5 = "SKY_BLUE",
+        T6 = "HELLFIRE_RED",
+    }
+
+    -- Display all attunements
+    local allAttunements = Attunements:GetAllAttunements()
+
+    for _, attunementInfo in ipairs(allAttunements) do
+        local raidKey = attunementInfo.key
+        local tier = attunementInfo.tier
+        local tierColor = tierColors[tier] or "ARCANE_PURPLE"
+
+        local summary = Attunements:GetSummary(raidKey)
+        local attunementData = Attunements:GetAttunementData(raidKey)
+        if not attunementData then
+            -- Skip if no data
+        else
+            -- Attunement section header - FontString properly parented to container
+            local headerContainer = self:AcquireContainer(self.mainFrame.scrollContainer.content, 25)
+            local raidHeader = headerContainer.headerText
+            if not raidHeader then
+                raidHeader = headerContainer:CreateFontString(nil, "OVERLAY")
+                headerContainer.headerText = raidHeader
+            end
+            raidHeader:ClearAllPoints()
+            raidHeader:SetFont(HopeAddon.assets.fonts.HEADER, 13)
+            raidHeader:SetPoint("TOPLEFT", headerContainer, "TOPLEFT", Components.MARGIN_NORMAL, -3)
+            raidHeader:SetText(HopeAddon:ColorText(
+                string.format("[%s] %s", tier, summary.raidName),
+                tierColor
+            ))
+            self.mainFrame.scrollContainer:AddEntry(headerContainer)
+
+            -- Sub-title with attunement chain name - FontString parented to container
+            local chainContainer = self:AcquireContainer(self.mainFrame.scrollContainer.content, 18)
+            local chainName = chainContainer.headerText
+            if not chainName then
+                chainName = chainContainer:CreateFontString(nil, "OVERLAY")
+                chainContainer.headerText = chainName
+            end
+            chainName:ClearAllPoints()
+            chainName:SetFont(HopeAddon.assets.fonts.BODY, 11)
+            chainName:SetPoint("TOPLEFT", chainContainer, "TOPLEFT", Components.MARGIN_NORMAL, -2)
+            chainName:SetText(summary.name)
+            chainName:SetTextColor(HopeAddon:GetTextColor("SECONDARY"))
+            self.mainFrame.scrollContainer:AddEntry(chainContainer)
+
+            -- Show prerequisite if any
+            if summary.prerequisite then
+                local prereqContainer = self:AcquireContainer(self.mainFrame.scrollContainer.content, 15)
+                local prereqText = prereqContainer.headerText
+                if not prereqText then
+                    prereqText = prereqContainer:CreateFontString(nil, "OVERLAY")
+                    prereqContainer.headerText = prereqText
+                end
+                prereqText:ClearAllPoints()
+                prereqText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+                prereqText:SetPoint("TOPLEFT", prereqContainer, "TOPLEFT", Components.MARGIN_NORMAL, -2)
+                prereqText:SetText("Requires: " .. summary.prerequisite)
+                prereqText:SetTextColor(1, 0.5, 0.3, 1)
+                self.mainFrame.scrollContainer:AddEntry(prereqContainer)
+            end
+
+            -- Progress bar
+            local progressBar = Components:CreateProgressBar(
+                self.mainFrame.scrollContainer.content,
+                self.mainFrame.scrollContainer.content:GetWidth() - 30,
+                20,
+                summary.isAttuned and "FEL_GREEN" or tierColor
+            )
+            progressBar:SetProgress(summary.percentage)
+
+            -- Progress text overlay
+            local progressText = progressBar:CreateFontString(nil, "OVERLAY")
+            progressText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+            progressText:SetPoint("CENTER", progressBar, "CENTER", 0, 0)
+            progressText:SetText(string.format("%d/%d Chapters (%d%%)",
+                summary.completedChapters, summary.totalChapters, summary.percentage))
+            progressText:SetTextColor(1, 1, 1, 1)
+
+            local progressContainer = self:CreateSpacer(30)
+            self.mainFrame.scrollContainer:AddEntry(progressContainer)
+
+            -- Add glow if complete
+            if summary.isAttuned then
+                HopeAddon.Effects:CreatePulsingGlow(progressBar, "GOLD_BRIGHT", 0.4)
+
+                -- Show title if applicable - FontString parented to container
+                if summary.title then
+                    local titleContainer = self:AcquireContainer(self.mainFrame.scrollContainer.content, 18)
+                    local titleText = titleContainer.headerText
+                    if not titleText then
+                        titleText = titleContainer:CreateFontString(nil, "OVERLAY")
+                        titleContainer.headerText = titleText
+                    end
+                    titleText:ClearAllPoints()
+                    titleText:SetFont(HopeAddon.assets.fonts.BODY, 10)
+                    titleText:SetPoint("TOPLEFT", titleContainer, "TOPLEFT", Components.MARGIN_NORMAL, -2)
+                    titleText:SetText("Title: " .. HopeAddon:ColorText(summary.title, "GOLD_BRIGHT"))
+                    self.mainFrame.scrollContainer:AddEntry(titleContainer)
+                end
+            end
+
+            -- Show chapters (collapsed by default, expandable)
+            local chapters = Attunements:GetChaptersForRaid(raidKey)
+
+            for i, chapter in ipairs(chapters) do
+                local chapterDetails = Attunements:GetChapterDetails(raidKey, i)
+                local isComplete = chapterDetails and chapterDetails.complete
+
+                local statusIcon = isComplete and "|cFF00FF00[+]|r " or "|cFF666666[ ]|r "
+
+                -- Build description using table.concat for efficiency
+                local descParts = { chapter.story or "" }
+
+                -- Add dungeon/raid requirements
+                if chapter.dungeon then
+                    descParts[#descParts + 1] = HopeAddon:ColorText("Dungeon: " .. chapter.dungeon, "SKY_BLUE")
+                end
+                if chapter.dungeons then
+                    descParts[#descParts + 1] = HopeAddon:ColorText("Dungeons: " .. table.concat(chapter.dungeons, ", "), "SKY_BLUE")
+                end
+                if chapter.raid then
+                    descParts[#descParts + 1] = HopeAddon:ColorText("Raid: " .. chapter.raid, "HELLFIRE_RED")
+                end
+                if chapter.boss then
+                    descParts[#descParts + 1] = HopeAddon:ColorText("Boss: " .. chapter.boss, "HELLFIRE_ORANGE")
+                end
+                if chapter.requires and type(chapter.requires) == "string" then
+                    descParts[#descParts + 1] = HopeAddon:ColorText("Requires: " .. chapter.requires, "BRONZE")
+                elseif chapter.requires and type(chapter.requires) == "table" then
+                    descParts[#descParts + 1] = HopeAddon:ColorText("Requires: " .. table.concat(chapter.requires, ", "), "BRONZE")
+                end
+                local descText = table.concat(descParts, "\n")
+
+                local card = self:AcquireCard(self.mainFrame.scrollContainer.content, {
+                    icon = "Interface\\Icons\\" .. attunementData.icon,
+                    title = statusIcon .. "Ch. " .. i .. ": " .. chapter.name,
+                    description = descText,
+                    timestamp = isComplete and (chapterDetails.completedDate or "Complete") or "",
+                })
+
+                if isComplete then
+                    card:SetBackdropBorderColor(0.2, 0.8, 0.2, 1)
+                elseif chapter.noFactionChosen then
+                    card:SetBackdropBorderColor(1, 0.5, 0.3, 1) -- Orange for no faction chosen
+                else
+                    card:SetAlpha(0.7)
+                end
+
+                self.mainFrame.scrollContainer:AddEntry(card)
+            end
+
+            -- Spacer between attunements
+            local attuneSpacer = self:CreateSpacer(20)
+            self.mainFrame.scrollContainer:AddEntry(attuneSpacer)
+        end
+    end
+
+    -- Cipher of Damnation section (TK prerequisite)
+    local cipherSpacer = self:CreateSpacer(10)
+    self.mainFrame.scrollContainer:AddEntry(cipherSpacer)
+
+    -- Cipher header - FontStrings properly parented to container
+    local cipherHeaderContainer = self:AcquireContainer(self.mainFrame.scrollContainer.content, 40)
+    local cipherHeader = cipherHeaderContainer.headerText
+    if not cipherHeader then
+        cipherHeader = cipherHeaderContainer:CreateFontString(nil, "OVERLAY")
+        cipherHeaderContainer.headerText = cipherHeader
+    end
+    cipherHeader:ClearAllPoints()
+    cipherHeader:SetFont(HopeAddon.assets.fonts.HEADER, 13)
+    cipherHeader:SetPoint("TOPLEFT", cipherHeaderContainer, "TOPLEFT", Components.MARGIN_NORMAL, -3)
+    cipherHeader:SetText(HopeAddon:ColorText("[PREREQUISITE] Cipher of Damnation", "HELLFIRE_ORANGE"))
+
+    local cipherSubHeader = cipherHeaderContainer.subText
+    if not cipherSubHeader then
+        cipherSubHeader = cipherHeaderContainer:CreateFontString(nil, "OVERLAY")
+        cipherHeaderContainer.subText = cipherSubHeader
+    end
+    cipherSubHeader:SetFont(HopeAddon.assets.fonts.BODY, 10)
+    cipherSubHeader:ClearAllPoints()
+    cipherSubHeader:SetPoint("TOPLEFT", cipherHeader, "BOTTOMLEFT", 0, -3)
+    cipherSubHeader:SetText("Required before starting Tempest Key attunement")
+    cipherSubHeader:SetTextColor(HopeAddon:GetTextColor("TERTIARY"))
+    self.mainFrame.scrollContainer:AddEntry(cipherHeaderContainer)
+
+    local cipherSummary = Attunements:GetSummary("cipher")
+    local cipherProgressBar = Components:CreateProgressBar(
+        self.mainFrame.scrollContainer.content,
+        self.mainFrame.scrollContainer.content:GetWidth() - 30,
+        18,
+        cipherSummary.isAttuned and "FEL_GREEN" or "HELLFIRE_ORANGE"
+    )
+    cipherProgressBar:SetProgress(cipherSummary.percentage)
+
+    local cipherProgressText = cipherProgressBar:CreateFontString(nil, "OVERLAY")
+    cipherProgressText:SetFont(HopeAddon.assets.fonts.SMALL, 9)
+    cipherProgressText:SetPoint("CENTER", cipherProgressBar, "CENTER", 0, 0)
+    cipherProgressText:SetText(string.format("%d/%d (%d%%)",
+        cipherSummary.completedChapters, cipherSummary.totalChapters, cipherSummary.percentage))
+    cipherProgressText:SetTextColor(1, 1, 1, 1)
+
+    local cipherProgressContainer = self:CreateSpacer(25)
+    self.mainFrame.scrollContainer:AddEntry(cipherProgressContainer)
+end
+
+function Journal:PopulateRaids()
+    local Components = HopeAddon.Components
+    local RaidData = HopeAddon.RaidData
+    local colors = HopeAddon.colors
+    local scrollContainer = self.mainFrame.scrollContainer
+
+    -- Header - properly added to scroll
+    local header = self:CreateSectionHeader("RAID PROGRESS", "HELLFIRE_RED", "Your conquest of TBC raid content")
+    scrollContainer:AddEntry(header)
+
+    -- Organized by tier
+    local tierColors = {
+        T4 = "GOLD_BRIGHT",
+        T5 = "SKY_BLUE",
+        T6 = "HELLFIRE_RED",
+    }
+
+    local raidsByTier = HopeAddon.Constants.RAIDS_BY_TIER
+
+    local tierOrder = { "T4", "T5", "T6" }
+
+    -- Quick jump tier buttons
+    local jumpBar = self:AcquireContainer(scrollContainer.content, 30)
+    self.tierSections = {}
+
+    local buttonWidth = 60
+    local buttonSpacing = 10
+
+    for i, tier in ipairs(tierOrder) do
+        local tierColorName = tierColors[tier]
+        local tierColor = colors[tierColorName]
+
+        -- Create nav button using component (includes click sound)
+        local jumpBtn = Components:CreateNavButton(jumpBar, tier, buttonWidth, tierColorName, function()
+            if self.tierSections[tier] then
+                local section = self.tierSections[tier]
+                local yOffset = 0
+                for _, entry in ipairs(scrollContainer.entries) do
+                    if entry == section then
+                        scrollContainer.scrollFrame:SetVerticalScroll(yOffset)
+                        break
+                    end
+                    yOffset = yOffset + entry:GetHeight() + Components.MARGIN_SMALL
+                end
+            end
+        end)
+        jumpBtn:SetPoint("LEFT", jumpBar, "LEFT", (i-1) * (buttonWidth + buttonSpacing), 0)
+
+        -- Add tooltip
+        jumpBtn:SetScript("OnEnter", function(btn)
+            GameTooltip:SetOwner(btn, "ANCHOR_RIGHT")
+            GameTooltip:SetText("Jump to " .. tier .. " Raids", tierColor.r, tierColor.g, tierColor.b)
+            GameTooltip:Show()
+        end)
+        jumpBtn:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+        end)
+    end
+    scrollContainer:AddEntry(jumpBar)
+
+    for _, tier in ipairs(tierOrder) do
+        local tierColor = tierColors[tier]
+        local raids = raidsByTier[tier]
+
+        -- Tier header - FontString properly parented to container
+        local tierHeaderContainer = self:AcquireContainer(scrollContainer.content, 30)
+        local tierHeader = tierHeaderContainer.headerText
+        if not tierHeader then
+            tierHeader = tierHeaderContainer:CreateFontString(nil, "OVERLAY")
+            tierHeaderContainer.headerText = tierHeader
+        end
+        tierHeader:ClearAllPoints()
+        tierHeader:SetFont(HopeAddon.assets.fonts.HEADER, 14)
+        tierHeader:SetPoint("LEFT", tierHeaderContainer, "LEFT", Components.MARGIN_SMALL, 0)
+        tierHeader:SetText(HopeAddon:ColorText("--- " .. tier .. " RAIDS ---", tierColor))
+        scrollContainer:AddEntry(tierHeaderContainer)
+        self.tierSections[tier] = tierHeaderContainer
+
+        for _, raidKey in ipairs(raids) do
+            local raid = RaidData:GetRaid(raidKey)
+            if raid then
+                local killed, total = RaidData:GetRaidProgress(raidKey)
+                local raidIsCleared = killed >= total
+
+                -- Create collapsible section for this raid
+                local raidTitle = string.format("%s (%d/%d)", raid.name, killed, total)
+                if raidIsCleared then
+                    raidTitle = raidTitle .. " - CLEARED!"
+                end
+
+                local raidSection = self:AcquireCollapsibleSection(
+                    scrollContainer.content,
+                    raidTitle,
+                    raidIsCleared and "FEL_GREEN" or tierColor,
+                    false -- Start collapsed
+                )
+
+                raidSection.onToggle = function()
+                    scrollContainer:RecalculatePositions()
+                end
+
+                -- Location and size info card (using pool for efficiency)
+                local infoCard = self:AcquireBossInfoCard(
+                    raidSection.contentContainer,
+                    string.format("%s | %d-player", raid.location, raid.size)
+                )
+                raidSection:AddChild(infoCard)
+
+                -- Boss cards
+                local bosses = RaidData:GetBosses(raidKey)
+                local kills = HopeAddon.charDb.journal.bossKills
+
+                for _, boss in ipairs(bosses) do
+                    local key = raidKey .. "_" .. boss.id
+                    local killData = kills[key]
+                    local isKilled = killData ~= nil
+
+                    local statusIcon = isKilled and "|cFF00FF00[X]|r " or "|cFF666666[ ]|r "
+                    local description
+                    if isKilled then
+                        description = string.format("Kills: %d | First: %s", killData.totalKills, killData.firstKill)
+                        -- Add boss quote in italics if available
+                        if boss.quote then
+                            description = description .. "\n\n" .. HopeAddon:ColorText('"' .. boss.quote .. '"', "GOLD_BRIGHT")
+                        end
+                    else
+                        description = boss.lore or boss.location
+                    end
+
+                    local card = self:AcquireCard(raidSection.contentContainer, {
+                        icon = "Interface\\Icons\\" .. (boss.icon or raid.icon),
+                        title = statusIcon .. boss.name .. (boss.finalBoss and " (Final)" or ""),
+                        description = description,
+                        timestamp = boss.optional and "(Optional)" or "",
+                    })
+
+                    if isKilled then
+                        card:SetBackdropBorderColor(0.2, 0.8, 0.2, 1)
+                        card.defaultBorderColor = { 0.2, 0.8, 0.2, 1 }
+                        if boss.finalBoss then
+                            card._glowEffect = HopeAddon.Effects:CreatePulsingGlow(card, "GOLD_BRIGHT", 0.3)
+                        end
+                    else
+                        card:SetAlpha(0.6)
+                    end
+
+                    raidSection:AddChild(card)
+                end
+
+                scrollContainer:AddEntry(raidSection)
+
+                -- Small spacer between raids
+                local raidSpacer = self:CreateSpacer(8)
+                scrollContainer:AddEntry(raidSpacer)
+            end
+        end
+
+        -- Spacer between tiers
+        local tierSpacer = self:CreateSpacer(15)
+        scrollContainer:AddEntry(tierSpacer)
+    end
+end
+
+--============================================================
+-- DIRECTORY TAB - Fellow Travelers List
+--============================================================
+function Journal:PopulateDirectory()
+    local Components = HopeAddon.Components
+    local Directory = HopeAddon.Directory
+    local Relationships = HopeAddon.Relationships
+    local scrollContainer = self.mainFrame.scrollContainer
+
+    -- Header
+    local header = self:CreateSectionHeader("FELLOW TRAVELERS", "FEL_GREEN", "Addon users you have encountered")
+    scrollContainer:AddEntry(header)
+
+    -- Stats summary
+    local stats = Directory and Directory:GetStats() or { total = 0, fellows = 0 }
+    local statsContainer = self:AcquireContainer(scrollContainer.content, 30)
+    local statsText = statsContainer.headerText
+    if not statsText then
+        statsText = statsContainer:CreateFontString(nil, "OVERLAY")
+        statsContainer.headerText = statsText
+    end
+    statsText:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    statsText:ClearAllPoints()
+    statsText:SetPoint("TOPLEFT", statsContainer, "TOPLEFT", Components.MARGIN_NORMAL, -8)
+    statsText:SetText(string.format(
+        "Total Travelers: |cFF00FF00%d|r | Fellow Addon Users: |cFF00FF00%d|r | Recent (7d): |cFF00FF00%d|r",
+        stats.total, stats.fellows, stats.recentCount or 0
+    ))
+    statsText:SetTextColor(HopeAddon:GetTextColor("SECONDARY"))
+    scrollContainer:AddEntry(statsContainer)
+
+    -- Get filtered/sorted entries
+    local entries = Directory and Directory:GetFilteredEntries() or {}
+
+    if #entries == 0 then
+        -- No entries placeholder
+        local placeholderFrame = self:AcquireContainer(scrollContainer.content, 150)
+        local placeholder = placeholderFrame.headerText
+        if not placeholder then
+            placeholder = placeholderFrame:CreateFontString(nil, "OVERLAY")
+            placeholderFrame.headerText = placeholder
+        end
+        placeholder:SetFont(HopeAddon.assets.fonts.BODY, 14)
+        placeholder:ClearAllPoints()
+        placeholder:SetPoint("CENTER", placeholderFrame, "CENTER", 0, 0)
+        placeholder:SetText("No fellow travelers found yet...\n\nGroup up with other HopeAddon users\nto discover them automatically!")
+        placeholder:SetTextColor(HopeAddon:GetTextColor("SUBTLE"))
+        placeholder:SetJustifyH("CENTER")
+        scrollContainer:AddEntry(placeholderFrame)
+    else
+        -- Create cards for each entry
+        for _, entry in ipairs(entries) do
+            local card = self:CreateDirectoryCard(entry)
+            scrollContainer:AddEntry(card)
+        end
+    end
+end
+
+--[[
+    Create a directory entry card for a fellow traveler
+    @param entry table - Directory entry data
+    @return Frame - Card frame
+]]
+function Journal:CreateDirectoryCard(entry)
+    local Components = HopeAddon.Components
+    local Directory = HopeAddon.Directory
+    local Relationships = HopeAddon.Relationships
+
+    -- Get formatted display data
+    local display = Directory and Directory:FormatEntryForDisplay(entry) or {}
+
+    -- Get class color once for reuse (description + border)
+    local classColor = entry.class and HopeAddon:GetClassColor(entry.class) or nil
+
+    -- Build description
+    local descParts = {}
+    if classColor then
+        local colorHex = string.format("%02x%02x%02x", classColor.r * 255, classColor.g * 255, classColor.b * 255)
+        table.insert(descParts, "|cFF" .. colorHex .. entry.class .. "|r")
+    end
+    if entry.level then
+        table.insert(descParts, "Level " .. entry.level)
+    end
+    if entry.lastSeenZone then
+        table.insert(descParts, "Last seen: " .. entry.lastSeenZone)
+    end
+    if entry.isFellow then
+        table.insert(descParts, "|cFF00FF00[Fellow Addon User]|r")
+    end
+
+    -- Add note preview if exists
+    local note = Relationships and Relationships:GetNote(entry.name) or nil
+    if note then
+        local notePreview = note:sub(1, 50)
+        if #note > 50 then
+            notePreview = notePreview .. "..."
+        end
+        table.insert(descParts, "|cFFFFD700Note:|r " .. notePreview)
+    end
+
+    local description = table.concat(descParts, "\n")
+
+    -- Get class icon
+    local icon = Directory and Directory:GetClassIcon(entry.class) or "Interface\\Icons\\INV_Misc_QuestionMark"
+
+    -- Create card
+    local card = self:AcquireCard(self.mainFrame.scrollContainer.content, {
+        icon = icon,
+        title = display.coloredName or entry.name,
+        description = description,
+        timestamp = entry.lastSeen or "",
+    })
+
+    -- Set border color based on class (reuse cached classColor)
+    if classColor then
+        card:SetBackdropBorderColor(classColor.r, classColor.g, classColor.b, 0.8)
+        card.defaultBorderColor = { classColor.r, classColor.g, classColor.b, 0.8 }
+    end
+
+    -- Add note indicator icon if has note
+    if note then
+        local noteIcon = card.noteIcon
+        if not noteIcon then
+            noteIcon = card:CreateTexture(nil, "OVERLAY")
+            card.noteIcon = noteIcon
+        end
+        noteIcon:SetSize(16, 16)
+        noteIcon:SetTexture("Interface\\Icons\\INV_Misc_Note_01")
+        noteIcon:ClearAllPoints()
+        noteIcon:SetPoint("TOPRIGHT", card, "TOPRIGHT", -8, -8)
+        noteIcon:Show()
+    elseif card.noteIcon then
+        card.noteIcon:Hide()
+    end
+
+    -- Add Challenge button for Fellow Addon Users
+    if entry.isFellow then
+        local challengeBtn = card.challengeBtn
+        if not challengeBtn then
+            challengeBtn = CreateFrame("Button", nil, card)
+            card.challengeBtn = challengeBtn
+
+            -- Icon texture (crossed swords)
+            local btnIcon = challengeBtn:CreateTexture(nil, "ARTWORK")
+            btnIcon:SetAllPoints()
+            btnIcon:SetTexture("Interface\\Icons\\Ability_DualWield")
+            challengeBtn.icon = btnIcon
+
+            -- Highlight on hover
+            local btnHighlight = challengeBtn:CreateTexture(nil, "HIGHLIGHT")
+            btnHighlight:SetAllPoints()
+            btnHighlight:SetTexture(HopeAddon.assets.textures.HIGHLIGHT)
+            btnHighlight:SetBlendMode("ADD")
+            btnHighlight:SetVertexColor(1, 1, 1, 0.3)
+
+            -- Border
+            local btnBorder = challengeBtn:CreateTexture(nil, "OVERLAY")
+            btnBorder:SetPoint("TOPLEFT", challengeBtn, "TOPLEFT", -2, 2)
+            btnBorder:SetPoint("BOTTOMRIGHT", challengeBtn, "BOTTOMRIGHT", 2, -2)
+            btnBorder:SetTexture(HopeAddon.assets.textures.TOOLTIP_BORDER)
+            btnBorder:SetVertexColor(0.6, 0.5, 0.3, 1)
+            challengeBtn.border = btnBorder
+
+            -- Tooltip
+            challengeBtn:SetScript("OnEnter", function(self)
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:SetText("Challenge to Minigame", 1, 0.84, 0)
+                GameTooltip:AddLine("Dice Roll or Rock-Paper-Scissors", 0.8, 0.8, 0.8)
+                GameTooltip:Show()
+            end)
+            challengeBtn:SetScript("OnLeave", function()
+                GameTooltip:Hide()
+            end)
+
+            -- Mouse down/up feedback
+            challengeBtn:SetScript("OnMouseDown", function(self)
+                self.icon:SetVertexColor(0.7, 0.7, 0.7, 1)
+            end)
+            challengeBtn:SetScript("OnMouseUp", function(self)
+                self.icon:SetVertexColor(1, 1, 1, 1)
+            end)
+
+            -- OnClick handler - set once, uses self.targetName for dynamic player name
+            challengeBtn:SetScript("OnClick", function(self)
+                if HopeAddon.Sounds then
+                    HopeAddon.Sounds:PlayClick()
+                end
+                if HopeAddon.MinigamesUI then
+                    HopeAddon.MinigamesUI:ShowGameSelectionPopup(self.targetName)
+                end
+            end)
+        end
+
+        -- Position and configure (runs every render, but no new closures)
+        challengeBtn:SetSize(24, 24)
+        challengeBtn:ClearAllPoints()
+        challengeBtn:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -10, 10)
+        challengeBtn.targetName = entry.name
+        challengeBtn:Show()
+    elseif card.challengeBtn then
+        card.challengeBtn:Hide()
+    end
+
+    -- Click handler to show details or add note
+    card.OnCardClick = function(cardFrame, entryData)
+        HopeAddon.Sounds:PlayClick()
+        -- For now, just print info - future: open detail modal
+        HopeAddon:Print("Viewing: " .. entry.name)
+        if note then
+            HopeAddon:Print("Note: " .. note)
+        end
+    end
+
+    return card
+end
+
+function Journal:PopulateStats()
+    local Components = HopeAddon.Components
+    local stats = HopeAddon.charDb.stats
+    local scrollContainer = self.mainFrame.scrollContainer
+
+    --============================================================
+    -- SECTION 1: ADVENTURE STATISTICS
+    --============================================================
+    local header1 = self:CreateSectionHeader("ADVENTURE STATISTICS", "GOLD_BRIGHT")
+    scrollContainer:AddEntry(header1)
+
+    -- Adventure Began
+    if HopeAddon.charDb.characterCreated then
+        local card = self:AcquireCard(scrollContainer.content, {
+            icon = "Interface\\Icons\\INV_Misc_Book_09",
+            title = "Adventure Began",
+            description = "Your journey started on " .. HopeAddon.charDb.characterCreated,
+            timestamp = "",
+        })
+        scrollContainer:AddEntry(card)
+    end
+
+    -- Total Playtime
+    local playtime = stats.playtime or 0
+    local playtimeStr = self:FormatPlaytime(playtime)
+    local playtimeCard = self:AcquireCard(scrollContainer.content, {
+        icon = "Interface\\Icons\\INV_Misc_PocketWatch_01",
+        title = "Total Playtime",
+        description = playtimeStr,
+        timestamp = "",
+    })
+    scrollContainer:AddEntry(playtimeCard)
+
+    -- Quests Completed
+    local questCard = self:AcquireCard(scrollContainer.content, {
+        icon = "Interface\\Icons\\INV_Misc_Note_01",
+        title = "Quests Completed",
+        description = "Total quests turned in: " .. (stats.questsCompleted or 0),
+        timestamp = "",
+    })
+    scrollContainer:AddEntry(questCard)
+
+    local spacer1 = self:CreateSpacer(15)
+    scrollContainer:AddEntry(spacer1)
+
+    --============================================================
+    -- SECTION 2: DUNGEON & RAID PROGRESS
+    --============================================================
+    local header2 = self:CreateSectionHeader("DUNGEON & RAID PROGRESS", "SKY_BLUE")
+    scrollContainer:AddEntry(header2)
+
+    -- Count dungeon runs
+    local normalRuns, heroicRuns = self:CountDungeonRuns()
+
+    -- Dungeon Runs (Normal)
+    local dungeonCard = self:AcquireCard(scrollContainer.content, {
+        icon = "Interface\\Icons\\INV_Misc_Key_10",
+        title = "Dungeon Runs",
+        description = normalRuns .. " normal dungeons completed",
+        timestamp = "",
+    })
+    scrollContainer:AddEntry(dungeonCard)
+
+    -- Heroic Dungeons Cleared
+    local heroicCard = self:AcquireCard(scrollContainer.content, {
+        icon = "Interface\\Icons\\INV_Misc_Key_13",
+        title = "Heroic Dungeons Cleared",
+        description = heroicRuns .. " heroic dungeons completed",
+        timestamp = "",
+    })
+    if heroicRuns > 0 then
+        heroicCard:SetBackdropBorderColor(0, 0.75, 1, 1) -- Sky blue for heroic
+    end
+    scrollContainer:AddEntry(heroicCard)
+
+    -- Raid Bosses Slain
+    local raidBossKills = self:CountRaidBossKills()
+    local bossCard = self:AcquireCard(scrollContainer.content, {
+        icon = "Interface\\Icons\\Spell_Shadow_SummonInfernal",
+        title = "Raid Bosses Slain",
+        description = raidBossKills .. " raid bosses defeated",
+        timestamp = "",
+    })
+    if raidBossKills > 0 then
+        bossCard:SetBackdropBorderColor(1, 0.27, 0.27, 1) -- Hellfire red
+    end
+    scrollContainer:AddEntry(bossCard)
+
+    -- Raids Cleared (full clears)
+    local raidsCleared = self:CountRaidsCleared()
+    local raidClearCard = self:AcquireCard(scrollContainer.content, {
+        icon = "Interface\\Icons\\INV_Helmet_06",
+        title = "Raids Cleared",
+        description = raidsCleared .. " full raid clears",
+        timestamp = "",
+    })
+    if raidsCleared > 0 then
+        raidClearCard._glowEffect = HopeAddon.Effects:CreatePulsingGlow(raidClearCard, "GOLD_BRIGHT", 0.3)
+    end
+    scrollContainer:AddEntry(raidClearCard)
+
+    local spacer2 = self:CreateSpacer(15)
+    scrollContainer:AddEntry(spacer2)
+
+    --============================================================
+    -- SECTION 3: COMBAT RECORD
+    --============================================================
+    local header3 = self:CreateSectionHeader("COMBAT RECORD", "HELLFIRE_RED")
+    scrollContainer:AddEntry(header3)
+
+    -- Battle Scars (Deaths)
+    local deathTitle, deathColor = HopeAddon.Constants:GetDeathTitle(stats.deaths.total)
+    local deathCard = self:AcquireCard(scrollContainer.content, {
+        icon = "Interface\\Icons\\Ability_Creature_Cursed_02",
+        title = "Battle Scars: " .. deathTitle,
+        description = "Total Deaths: " .. stats.deaths.total .. "\n\nEach death is a lesson learned.",
+        timestamp = "",
+    })
+    local deathColorData = HopeAddon.colors[deathColor]
+    if deathColorData then
+        deathCard:SetBackdropBorderColor(deathColorData.r, deathColorData.g, deathColorData.b, 1)
+    end
+    scrollContainer:AddEntry(deathCard)
+
+    -- Creatures Slain
+    local creaturesSlain = stats.creaturesSlain or 0
+    local creatureCard = self:AcquireCard(scrollContainer.content, {
+        icon = "Interface\\Icons\\Ability_DualWield",
+        title = "Creatures Slain",
+        description = self:FormatLargeNumber(creaturesSlain) .. " foes vanquished",
+        timestamp = "",
+    })
+    scrollContainer:AddEntry(creatureCard)
+
+    -- Largest Hit Dealt
+    local largestHit = stats.largestHit or 0
+    local hitCard = self:AcquireCard(scrollContainer.content, {
+        icon = "Interface\\Icons\\Ability_Warrior_Rampage",
+        title = "Largest Hit Dealt",
+        description = self:FormatLargeNumber(largestHit) .. " damage in a single strike",
+        timestamp = "",
+    })
+    if largestHit >= 10000 then
+        hitCard:SetBackdropBorderColor(1, 0.84, 0, 1) -- Gold for big hits
+    end
+    scrollContainer:AddEntry(hitCard)
+
+    local spacer3 = self:CreateSpacer(15)
+    scrollContainer:AddEntry(spacer3)
+
+    --============================================================
+    -- SECTION 4: EXPLORATION & DISCOVERY
+    --============================================================
+    local header4 = self:CreateSectionHeader("EXPLORATION & DISCOVERY", "FEL_GREEN")
+    scrollContainer:AddEntry(header4)
+
+    -- Zones Discovered
+    local counts = self:GetCachedCounts()
+    local zoneCard = self:AcquireCard(scrollContainer.content, {
+        icon = "Interface\\Icons\\INV_Misc_Map_01",
+        title = "Zones Discovered",
+        description = "Explored " .. counts.zones .. " new lands",
+        timestamp = "",
+    })
+    scrollContainer:AddEntry(zoneCard)
+
+    -- Outland Zones Explored
+    local outlandCount = self:CountOutlandZonesExplored()
+    local totalOutland = #HopeAddon.Constants.OUTLAND_ZONES
+    local outlandCard = self:AcquireCard(scrollContainer.content, {
+        icon = "Interface\\Icons\\INV_Misc_Map_08",
+        title = "Outland Zones Explored",
+        description = outlandCount .. " of " .. totalOutland .. " Outland zones discovered",
+        timestamp = "",
+    })
+    if outlandCount >= totalOutland then
+        outlandCard:SetBackdropBorderColor(0.2, 0.8, 0.2, 1) -- Green for complete
+        outlandCard._glowEffect = HopeAddon.Effects:CreatePulsingGlow(outlandCard, "FEL_GREEN", 0.3)
+    end
+    scrollContainer:AddEntry(outlandCard)
+
+    -- Milestones Reached
+    local milestoneCard = self:AcquireCard(scrollContainer.content, {
+        icon = "Interface\\Icons\\INV_Misc_QirajiCrystal_01",
+        title = "Milestones Reached",
+        description = counts.milestones .. " major achievements recorded",
+        timestamp = "",
+    })
+    scrollContainer:AddEntry(milestoneCard)
+
+    local spacer4 = self:CreateSpacer(15)
+    scrollContainer:AddEntry(spacer4)
+
+    --============================================================
+    -- SECTION 5: TBC PROGRESSION
+    --============================================================
+    local header5 = self:CreateSectionHeader("TBC PROGRESSION", "ARCANE_PURPLE")
+    scrollContainer:AddEntry(header5)
+
+    -- Attunements Completed
+    local attunementCount = self:CountAttunementsCompleted()
+    local attunementCard = self:AcquireCard(scrollContainer.content, {
+        icon = "Interface\\Icons\\INV_Misc_Key_14",
+        title = "Attunements Completed",
+        description = attunementCount .. " of 5 raid attunements completed",
+        timestamp = "",
+    })
+    if attunementCount > 0 then
+        attunementCard:SetBackdropBorderColor(0.61, 0.19, 1, 1) -- Arcane purple
+    end
+    scrollContainer:AddEntry(attunementCard)
+
+    -- Reputations at Exalted
+    local exaltedCount = self:CountExaltedReputations()
+    local repCard = self:AcquireCard(scrollContainer.content, {
+        icon = "Interface\\Icons\\INV_Misc_Token_ArgentDawn",
+        title = "Reputations at Exalted",
+        description = exaltedCount .. " factions at Exalted standing",
+        timestamp = "",
+    })
+    if exaltedCount > 0 then
+        repCard:SetBackdropBorderColor(1, 0.84, 0, 1) -- Gold
+    end
+    scrollContainer:AddEntry(repCard)
+
+    -- Flying Unlocked
+    local flyingStatus, flyingDate = self:GetFlyingStatus()
+    local flyingCard = self:AcquireCard(scrollContainer.content, {
+        icon = "Interface\\Icons\\Ability_Mount_GryphonRiding",
+        title = "Flying Unlocked",
+        description = flyingStatus,
+        timestamp = flyingDate or "",
+    })
+    if flyingDate then
+        flyingCard:SetBackdropBorderColor(0.2, 0.8, 0.2, 1)
+    else
+        flyingCard:SetAlpha(0.6)
+    end
+    scrollContainer:AddEntry(flyingCard)
+
+    -- Epic Flying Unlocked
+    local epicFlyingStatus, epicFlyingDate = self:GetEpicFlyingStatus()
+    local epicFlyingCard = self:AcquireCard(scrollContainer.content, {
+        icon = "Interface\\Icons\\Ability_Mount_NetherDrakeElite",
+        title = "Epic Flying Unlocked",
+        description = epicFlyingStatus,
+        timestamp = epicFlyingDate or "",
+    })
+    if epicFlyingDate then
+        epicFlyingCard:SetBackdropBorderColor(0.61, 0.19, 1, 1)
+        HopeAddon.Effects:CreatePulsingGlow(epicFlyingCard, "ARCANE_PURPLE", 0.3)
+    else
+        epicFlyingCard:SetAlpha(0.6)
+    end
+    scrollContainer:AddEntry(epicFlyingCard)
+end
+
+--[[
+    STATS HELPER FUNCTIONS
+]]
+
+-- Format playtime into days, hours, minutes
+function Journal:FormatPlaytime(seconds)
+    if not seconds or seconds == 0 then
+        return "Not yet recorded\n\nType /played to update"
+    end
+
+    local days = math.floor(seconds / 86400)
+    local hours = math.floor((seconds % 86400) / 3600)
+    local minutes = math.floor((seconds % 3600) / 60)
+
+    local parts = {}
+    if days > 0 then
+        table.insert(parts, days .. " day" .. (days ~= 1 and "s" or ""))
+    end
+    if hours > 0 then
+        table.insert(parts, hours .. " hour" .. (hours ~= 1 and "s" or ""))
+    end
+    if minutes > 0 or #parts == 0 then
+        table.insert(parts, minutes .. " minute" .. (minutes ~= 1 and "s" or ""))
+    end
+
+    return table.concat(parts, ", ")
+end
+
+-- Format large numbers with commas
+function Journal:FormatLargeNumber(num)
+    if not num then return "0" end
+    local formatted = tostring(num)
+    local k
+    while true do
+        formatted, k = formatted:gsub("^(-?%d+)(%d%d%d)", "%1,%2")
+        if k == 0 then break end
+    end
+    return formatted
+end
+
+-- Get cached stats data (all counts computed together and cached)
+-- Invalidated via InvalidateCounts() when entries change
+-- This avoids multiple iterations over the same data when opening Stats tab
+function Journal:GetCachedStatsData()
+    if self.cachedStatsData then
+        return self.cachedStatsData
+    end
+
+    -- Compute all counts in a batch
+    local normalRuns, heroicRuns = 0, 0
+    local dungeonRuns = HopeAddon.charDb.stats.dungeonRuns or {}
+    for _, runs in pairs(dungeonRuns) do
+        normalRuns = normalRuns + (runs.normal or 0)
+        heroicRuns = heroicRuns + (runs.heroic or 0)
+    end
+
+    local bossKills = 0
+    local bossKillsData = HopeAddon.charDb.journal.bossKills or {}
+    for _ in pairs(bossKillsData) do
+        bossKills = bossKills + 1
+    end
+
+    local raidsCleared = 0
+    local RaidData = HopeAddon.RaidData
+    if RaidData then
+        for _, raidKey in ipairs(HopeAddon.Constants.ALL_RAID_KEYS) do
+            local killed, total = RaidData:GetRaidProgress(raidKey)
+            if killed >= total and total > 0 then
+                raidsCleared = raidsCleared + 1
+            end
+        end
+    end
+
+    local outlandZones = 0
+    local discoveries = HopeAddon.charDb.journal.zoneDiscoveries or {}
+    local outlandZoneList = HopeAddon.Constants.OUTLAND_ZONES or {}
+    for _, zoneName in ipairs(outlandZoneList) do
+        if discoveries[zoneName] then
+            outlandZones = outlandZones + 1
+        end
+    end
+
+    local attunementsComplete = 0
+    local Attunements = HopeAddon.Attunements
+    if Attunements then
+        for _, raidKey in ipairs(HopeAddon.Constants.ATTUNEMENT_RAID_KEYS) do
+            local summary = Attunements:GetSummary(raidKey)
+            if summary and summary.isAttuned then
+                attunementsComplete = attunementsComplete + 1
+            end
+        end
+    end
+
+    local exaltedReps = 0
+    local Reputation = HopeAddon:GetModule("Reputation")
+    if Reputation and Reputation.cachedStandings then
+        for _, standing in pairs(Reputation.cachedStandings) do
+            if standing.standingId == 8 then
+                exaltedReps = exaltedReps + 1
+            end
+        end
+    end
+
+    self.cachedStatsData = {
+        normalDungeonRuns = normalRuns,
+        heroicDungeonRuns = heroicRuns,
+        raidBossKills = bossKills,
+        raidsCleared = raidsCleared,
+        outlandZonesExplored = outlandZones,
+        attunementsCompleted = attunementsComplete,
+        exaltedReputations = exaltedReps,
+        ridingSkill = self:GetRidingSkill(),
+    }
+
+    return self.cachedStatsData
+end
+
+-- Count normal and heroic dungeon runs
+function Journal:CountDungeonRuns()
+    -- Use cached data if available
+    local cached = self.cachedStatsData
+    if cached then
+        return cached.normalDungeonRuns, cached.heroicDungeonRuns
+    end
+
+    local normal, heroic = 0, 0
+    local dungeonRuns = HopeAddon.charDb.stats.dungeonRuns or {}
+
+    for _, runs in pairs(dungeonRuns) do
+        normal = normal + (runs.normal or 0)
+        heroic = heroic + (runs.heroic or 0)
+    end
+
+    return normal, heroic
+end
+
+-- Count raid boss kills from bossKills data
+function Journal:CountRaidBossKills()
+    -- Use cached data if available
+    local cached = self.cachedStatsData
+    if cached then
+        return cached.raidBossKills
+    end
+
+    local count = 0
+    local bossKills = HopeAddon.charDb.journal.bossKills or {}
+
+    for _ in pairs(bossKills) do
+        count = count + 1
+    end
+
+    return count
+end
+
+-- Count fully cleared raids
+function Journal:CountRaidsCleared()
+    -- Use cached data if available
+    local cached = self.cachedStatsData
+    if cached then
+        return cached.raidsCleared
+    end
+
+    local cleared = 0
+    local RaidData = HopeAddon.RaidData
+
+    if RaidData then
+        for _, raidKey in ipairs(HopeAddon.Constants.ALL_RAID_KEYS) do
+            local killed, total = RaidData:GetRaidProgress(raidKey)
+            if killed >= total and total > 0 then
+                cleared = cleared + 1
+            end
+        end
+    end
+
+    return cleared
+end
+
+-- Count Outland zones explored
+function Journal:CountOutlandZonesExplored()
+    -- Use cached data if available
+    local cached = self.cachedStatsData
+    if cached then
+        return cached.outlandZonesExplored
+    end
+
+    local count = 0
+    local discoveries = HopeAddon.charDb.journal.zoneDiscoveries or {}
+    local outlandZones = HopeAddon.Constants.OUTLAND_ZONES or {}
+
+    for _, zoneName in ipairs(outlandZones) do
+        if discoveries[zoneName] then
+            count = count + 1
+        end
+    end
+
+    return count
+end
+
+-- Count completed attunements
+function Journal:CountAttunementsCompleted()
+    -- Use cached data if available
+    local cached = self.cachedStatsData
+    if cached then
+        return cached.attunementsCompleted
+    end
+
+    local count = 0
+    local Attunements = HopeAddon.Attunements
+
+    if Attunements then
+        for _, raidKey in ipairs(HopeAddon.Constants.ATTUNEMENT_RAID_KEYS) do
+            local summary = Attunements:GetSummary(raidKey)
+            if summary and summary.isAttuned then
+                count = count + 1
+            end
+        end
+    end
+
+    return count
+end
+
+-- Count exalted reputations
+function Journal:CountExaltedReputations()
+    -- Use cached data if available
+    local cached = self.cachedStatsData
+    if cached then
+        return cached.exaltedReputations
+    end
+
+    local count = 0
+    local Reputation = HopeAddon:GetModule("Reputation")
+
+    if Reputation and Reputation.cachedStandings then
+        for _, standing in pairs(Reputation.cachedStandings) do
+            if standing.standingId == 8 then -- 8 = Exalted
+                count = count + 1
+            end
+        end
+    end
+
+    return count
+end
+
+-- Get riding skill with caching (invalidated on SKILL_LINES_CHANGED)
+-- Avoids O(n) linear search through 30-50 skills on every stats view
+function Journal:GetRidingSkill()
+    if self.cachedRidingSkill then
+        return self.cachedRidingSkill
+    end
+
+    local numSkills = GetNumSkillLines()
+    for i = 1, numSkills do
+        local skillName, _, _, skillRank = GetSkillLineInfo(i)
+        if skillName == "Riding" then
+            self.cachedRidingSkill = skillRank
+            return skillRank
+        end
+    end
+
+    self.cachedRidingSkill = 0
+    return 0
+end
+
+-- Get flying status
+function Journal:GetFlyingStatus()
+    local stats = HopeAddon.charDb.stats
+
+    -- Check if we've recorded flying unlocked
+    if stats.flyingUnlocked then
+        return "Soaring through Outland!", stats.flyingUnlocked
+    end
+
+    -- Use cached riding skill lookup
+    local ridingSkill = self:GetRidingSkill()
+
+    if ridingSkill >= 225 then
+        -- Record the date if not already recorded
+        stats.flyingUnlocked = HopeAddon:GetDate()
+        return "Soaring through Outland!", stats.flyingUnlocked
+    end
+
+    return "Requires Expert Riding (225)\nCost: 800g training + mount", nil
+end
+
+-- Get epic flying status
+function Journal:GetEpicFlyingStatus()
+    local stats = HopeAddon.charDb.stats
+
+    -- Check if we've recorded epic flying unlocked
+    if stats.epicFlyingUnlocked then
+        return "Swift as the wind!", stats.epicFlyingUnlocked
+    end
+
+    -- Use cached riding skill lookup
+    local ridingSkill = self:GetRidingSkill()
+
+    if ridingSkill >= 300 then
+        -- Record the date if not already recorded
+        stats.epicFlyingUnlocked = HopeAddon:GetDate()
+        return "Swift as the wind!", stats.epicFlyingUnlocked
+    end
+
+    return "Requires Artisan Riding (300)\nCost: 5000g training + mount", nil
+end
+
+--[[
+    EVENT HANDLERS
+]]
+function Journal:OnLevelUp(newLevel)
+    local MILESTONES = HopeAddon.Constants.LEVEL_MILESTONES
+
+    -- Update character info display if journal is open
+    if self.mainFrame and self.mainFrame:IsShown() then
+        local _, class = UnitClass("player")
+        local classColor = HopeAddon:GetClassColor(class)
+        self.mainFrame.charInfo:SetText(string.format("|cFF%02x%02x%02x%s|r - Level %d",
+            classColor.r * 255, classColor.g * 255, classColor.b * 255,
+            UnitName("player"), newLevel))
+    end
+
+    -- Check if this is a milestone level
+    if MILESTONES[newLevel] then
+        local milestone = MILESTONES[newLevel]
+
+        -- Create journal entry
+        local entry = {
+            type = "level_milestone",
+            level = newLevel,
+            title = milestone.title,
+            description = milestone.story,
+            story = milestone.story,
+            icon = "Interface\\Icons\\" .. milestone.icon,
+            zone = GetZoneText(),
+            timestamp = HopeAddon:GetTimestamp(),
+            date = HopeAddon:GetDate(),
+        }
+
+        -- Save to character DB
+        HopeAddon.charDb.journal.levelMilestones[newLevel] = entry
+        table.insert(HopeAddon.charDb.journal.entries, entry)
+
+        -- Invalidate cached counts
+        self:InvalidateCounts()
+
+        -- Show notification
+        self:ShowMilestoneNotification(milestone.title, newLevel, milestone.story)
+
+        -- Play sound
+        HopeAddon.Sounds:PlayAchievementFanfare()
+
+        HopeAddon:Print("Milestone reached: " .. HopeAddon:ColorText(milestone.title, "GOLD_BRIGHT"))
+    end
+end
+
+function Journal:OnZoneChanged()
+    local zoneName = GetZoneText()
+    local ZONES = HopeAddon.Constants.ZONE_DISCOVERIES
+
+    -- Check if this is a trackable zone
+    if ZONES[zoneName] and not HopeAddon.charDb.journal.zoneDiscoveries[zoneName] then
+        local zoneData = ZONES[zoneName]
+
+        -- Create discovery entry
+        local entry = {
+            type = "zone_discovery",
+            zone = zoneName,
+            title = zoneData.title,
+            description = zoneData.flavor,
+            icon = "Interface\\Icons\\" .. zoneData.icon,
+            level = UnitLevel("player"),
+            timestamp = HopeAddon:GetTimestamp(),
+            firstVisit = HopeAddon:GetDate(),
+        }
+
+        -- Save
+        HopeAddon.charDb.journal.zoneDiscoveries[zoneName] = entry
+        table.insert(HopeAddon.charDb.journal.entries, entry)
+
+        -- Invalidate cached counts
+        self:InvalidateCounts()
+
+        -- Notification
+        self:ShowDiscoveryNotification(zoneName, zoneData.title, zoneData.flavor)
+
+        HopeAddon.Sounds:PlayDiscovery()
+
+        HopeAddon:Print("Zone discovered: " .. HopeAddon:ColorText(zoneData.title, "SKY_BLUE"))
+    end
+end
+
+function Journal:OnQuestComplete(questID)
+    -- Increment quest counter (always track total, even without questID)
+    HopeAddon.charDb.stats.questsCompleted = HopeAddon.charDb.stats.questsCompleted + 1
+
+    -- TBC Classic compatibility: QUEST_TURNED_IN may not provide questID
+    -- If questID is nil or 0, we can still count the completion but can't track attunements
+    if questID and questID > 0 then
+        -- Check if this is an attunement quest using the Attunements module
+        HopeAddon.Attunements:OnQuestComplete(questID)
+    else
+        HopeAddon:Debug("Quest completed without valid questID (TBC Classic compatibility)")
+    end
+end
+
+function Journal:OnPlayerDeath()
+    -- Track death
+    HopeAddon.charDb.stats.deaths.total = HopeAddon.charDb.stats.deaths.total + 1
+
+    local zone = GetZoneText()
+    HopeAddon.charDb.stats.deaths.byZone[zone] = (HopeAddon.charDb.stats.deaths.byZone[zone] or 0) + 1
+end
+
+function Journal:OnTimePlayed(totalTime, levelTime)
+    -- Store total playtime in seconds
+    HopeAddon.charDb.stats.playtime = totalTime
+    HopeAddon:Debug("Playtime updated:", totalTime, "seconds")
+end
+
+function Journal:OnCombatLogEvent()
+    -- Check subEvent FIRST before unpacking all values (performance optimization)
+    -- COMBAT_LOG fires 50,000+ times per raid session - avoid unnecessary work
+    local subEvent = select(2, CombatLogGetCurrentEventInfo())
+    if not TRACKED_DAMAGE_EVENTS[subEvent] then return end
+
+    -- Only unpack remaining values after confirming relevant event
+    local _, _, _, sourceGUID, _, _, _, destGUID, _, _, _, arg12, _, _, arg15 = CombatLogGetCurrentEventInfo()
+
+    local playerGUID = UnitGUID("player")
+    if sourceGUID ~= playerGUID then return end
+
+    local stats = HopeAddon.charDb.stats
+
+    -- Track creature kills
+    if subEvent == "PARTY_KILL" then
+        local destType, _, _, _, _, npcId = strsplit("-", destGUID)
+        if destType == "Creature" then
+            stats.creaturesSlain = (stats.creaturesSlain or 0) + 1
+
+            npcId = tonumber(npcId)
+            if npcId then
+                local dungeonBoss = HopeAddon.Constants.DUNGEON_BOSS_NPC_IDS[npcId]
+                if dungeonBoss then
+                    self:OnDungeonBossKill(dungeonBoss.dungeon, dungeonBoss.name)
+                end
+            end
+        end
+        return
+    end
+
+    -- Track largest hit (damage events)
+    local amount = (subEvent == "SWING_DAMAGE") and arg12 or arg15
+    if amount and amount > (stats.largestHit or 0) then
+        stats.largestHit = amount
+    end
+end
+
+function Journal:OnDungeonBossKill(dungeonKey, dungeonName)
+    local stats = HopeAddon.charDb.stats
+
+    -- Initialize dungeon tracking if needed
+    if not stats.dungeonRuns then
+        stats.dungeonRuns = {}
+    end
+    if not stats.dungeonRuns[dungeonKey] then
+        stats.dungeonRuns[dungeonKey] = { normal = 0, heroic = 0 }
+    end
+
+    -- Check difficulty (TBC Classic uses GetInstanceDifficulty)
+    local difficulty = GetInstanceDifficulty and GetInstanceDifficulty() or 1
+    local isHeroic = difficulty == 2
+
+    if isHeroic then
+        stats.dungeonRuns[dungeonKey].heroic = stats.dungeonRuns[dungeonKey].heroic + 1
+        HopeAddon:Debug("Heroic dungeon clear:", dungeonName)
+    else
+        stats.dungeonRuns[dungeonKey].normal = stats.dungeonRuns[dungeonKey].normal + 1
+        HopeAddon:Debug("Normal dungeon clear:", dungeonName)
+    end
+end
+
+--[[
+    NOTIFICATIONS
+    Uses frame pool to avoid creating new frames for each notification
+    Queue system ensures notifications don't overlap visually
+]]
+
+-- Queue a notification for display
+function Journal:QueueNotification(notifType, data)
+    -- Check for duplicate in queue
+    for _, queued in ipairs(self.notificationQueue) do
+        if queued.type == notifType then
+            return -- Already queued
+        end
+    end
+
+    table.insert(self.notificationQueue, { type = notifType, data = data })
+    self:ProcessNotificationQueue()
+end
+
+-- Process the notification queue
+function Journal:ProcessNotificationQueue()
+    if self.isShowingNotification or #self.notificationQueue == 0 then
+        return
+    end
+
+    self.isShowingNotification = true
+    local next = table.remove(self.notificationQueue, 1)
+
+    if next.type == "milestone" then
+        self:ShowMilestoneNotificationInternal(next.data.title, next.data.level, next.data.story)
+    elseif next.type == "discovery" then
+        self:ShowDiscoveryNotificationInternal(next.data.zoneName, next.data.title, next.data.flavor)
+    elseif next.type == "bossKill" then
+        self:ShowBossKillNotificationInternal(next.data)
+    else
+        -- Unknown type, skip and continue
+        self.isShowingNotification = false
+        self:ProcessNotificationQueue()
+    end
+end
+
+-- Called when a notification finishes displaying
+function Journal:OnNotificationComplete()
+    self.isShowingNotification = false
+    -- Small delay before next notification
+    HopeAddon.Timer:After(0.3, function()
+        self:ProcessNotificationQueue()
+    end)
+end
+
+function Journal:ShowMilestoneNotification(title, level, story)
+    if HopeAddon.db and not HopeAddon.db.settings.notificationsEnabled then
+        return
+    end
+    if not self.notificationPool then return end
+
+    -- Queue instead of showing directly
+    self:QueueNotification("milestone", { title = title, level = level, story = story })
+end
+
+function Journal:ShowMilestoneNotificationInternal(title, level, story)
+
+    -- Acquire from pool instead of creating new frame
+    local notif = self.notificationPool:Acquire()
+    notif:SetSize(NOTIF_WIDTH_LARGE, NOTIF_HEIGHT_LARGE)
+    notif:SetPoint("TOP", UIParent, "TOP", 0, NOTIF_TOP_OFFSET)
+    notif:SetBackdrop({
+        bgFile = HopeAddon.assets.textures.PARCHMENT_DARK,
+        edgeFile = HopeAddon.assets.textures.GOLD_BORDER,
+        tile = true,
+        tileSize = 16,
+        edgeSize = 24,
+        insets = { left = 5, right = 5, top = 5, bottom = 5 }
+    })
+    notif:SetBackdropColor(HopeAddon:GetBgColor("PURPLE_TINT"))
+    notif:SetBackdropBorderColor(1, 0.84, 0, 1)
+
+    -- Configure pre-created font strings
+    notif.titleText:ClearAllPoints()
+    notif.titleText:SetFont(HopeAddon.assets.fonts.TITLE, 18)
+    notif.titleText:SetPoint("TOP", notif, "TOP", 0, -15)
+    notif.titleText:SetText(HopeAddon:ColorText("MILESTONE REACHED", "GOLD_BRIGHT"))
+
+    notif.line1:ClearAllPoints()
+    notif.line1:SetFont(HopeAddon.assets.fonts.HEADER, 14)
+    notif.line1:SetPoint("TOP", notif.titleText, "BOTTOM", 0, -8)
+    notif.line1:SetText("Level " .. level .. ": " .. title)
+    notif.line1:SetTextColor(1, 1, 1, 1)
+
+    notif.line2:ClearAllPoints()
+    notif.line2:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    notif.line2:SetPoint("TOP", notif.line1, "BOTTOM", 0, -5)
+    notif.line2:SetText('"' .. story .. '"')
+    notif.line2:SetTextColor(HopeAddon:GetTextColor("SECONDARY"))
+
+    -- Effects (store references for cleanup)
+    notif._glowEffect = HopeAddon.Effects:CreateBorderGlow(notif, "GOLD_BRIGHT")
+    notif._sparkles = HopeAddon.Effects:CreateSparkles(notif, 8, "GOLD_BRIGHT")
+    HopeAddon.Effects:CreateBurstEffect(notif, "GOLD_BRIGHT")
+
+    -- Animate in, then release back to pool
+    local self_ref = self
+    HopeAddon.Animations:NotificationSlideIn(notif, function()
+        HopeAddon.Timer:After(4, function()
+            HopeAddon.Animations:NotificationSlideOut(notif, function()
+                self_ref:ReleaseNotification(notif)
+                self_ref:OnNotificationComplete()
+            end)
+        end)
+    end)
+end
+
+function Journal:ShowDiscoveryNotification(zoneName, title, flavor)
+    if HopeAddon.db and not HopeAddon.db.settings.notificationsEnabled then
+        return
+    end
+    if not self.notificationPool then return end
+
+    -- Queue instead of showing directly
+    self:QueueNotification("discovery", { zoneName = zoneName, title = title, flavor = flavor })
+end
+
+function Journal:ShowDiscoveryNotificationInternal(zoneName, title, flavor)
+    -- Acquire from pool instead of creating new frame
+    local notif = self.notificationPool:Acquire()
+    notif:SetSize(NOTIF_WIDTH_SMALL, NOTIF_HEIGHT_SMALL)
+    notif:SetPoint("TOP", UIParent, "TOP", 0, NOTIF_TOP_OFFSET)
+    notif:SetBackdrop({
+        bgFile = HopeAddon.assets.textures.TOOLTIP_BG,
+        edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+        tile = true,
+        tileSize = 8,
+        edgeSize = 12,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 }
+    })
+    notif:SetBackdropColor(HopeAddon:GetBgColor("BLUE_TINT"))
+
+    -- Get zone color (with safe fallback)
+    local zoneColor = "SKY_BLUE"
+    local theme = HopeAddon.Glow and HopeAddon.Glow.zoneThemes and HopeAddon.Glow.zoneThemes[zoneName]
+    if theme then
+        zoneColor = theme.primary
+    end
+    local color = HopeAddon:GetSafeColor(zoneColor, "SKY_BLUE")
+    notif:SetBackdropBorderColor(color.r, color.g, color.b, 1)
+
+    -- Configure pre-created font strings
+    notif.titleText:ClearAllPoints()
+    notif.titleText:SetFont(HopeAddon.assets.fonts.HEADER, 14)
+    notif.titleText:SetPoint("TOP", notif, "TOP", 0, -12)
+    notif.titleText:SetText(HopeAddon:ColorText("NEW LAND DISCOVERED", zoneColor))
+
+    notif.line1:ClearAllPoints()
+    notif.line1:SetFont(HopeAddon.assets.fonts.BODY, 12)
+    notif.line1:SetPoint("TOP", notif.titleText, "BOTTOM", 0, -5)
+    notif.line1:SetText(title)
+    notif.line1:SetTextColor(1, 1, 1, 1)
+
+    notif.line2:ClearAllPoints()
+    notif.line2:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+    notif.line2:SetPoint("TOP", notif.line1, "BOTTOM", 0, -3)
+    notif.line2:SetWidth(280)
+    notif.line2:SetText('"' .. flavor .. '"')
+    notif.line2:SetTextColor(HopeAddon:GetTextColor("TERTIARY"))
+
+    -- Animate and release back to pool
+    local self_ref = self
+    HopeAddon.Animations:NotificationSlideIn(notif, function()
+        HopeAddon.Timer:After(3, function()
+            HopeAddon.Animations:NotificationSlideOut(notif, function()
+                self_ref:ReleaseNotification(notif)
+                self_ref:OnNotificationComplete()
+            end)
+        end)
+    end)
+end
+
+function Journal:ShowBossKillNotification(killData)
+    if HopeAddon.db and not HopeAddon.db.settings.notificationsEnabled then return end
+    if not self.notificationPool then return end
+
+    -- Queue instead of showing directly
+    self:QueueNotification("bossKill", killData)
+end
+
+function Journal:ShowBossKillNotificationInternal(killData)
+    -- Acquire from pool instead of creating new frame
+    local notif = self.notificationPool:Acquire()
+    notif:SetSize(NOTIF_WIDTH_LARGE, NOTIF_HEIGHT_LARGE)
+    notif:SetPoint("TOP", UIParent, "TOP", 0, NOTIF_TOP_OFFSET)
+    notif:SetBackdrop({
+        bgFile = HopeAddon.assets.textures.PARCHMENT_DARK,
+        edgeFile = HopeAddon.assets.textures.GOLD_BORDER,
+        tile = true, tileSize = 16, edgeSize = 24,
+        insets = { left = 5, right = 5, top = 5, bottom = 5 }
+    })
+    notif:SetBackdropColor(HopeAddon:GetBgColor("RED_TINT"))
+    notif:SetBackdropBorderColor(0.8, 0.2, 0.2, 1)
+
+    -- Configure pre-created font strings
+    notif.titleText:ClearAllPoints()
+    notif.titleText:SetFont(HopeAddon.assets.fonts.TITLE, 18)
+    notif.titleText:SetPoint("TOP", notif, "TOP", 0, -15)
+    notif.titleText:SetText(HopeAddon:ColorText("VICTORY!", "HELLFIRE_RED"))
+
+    notif.line1:ClearAllPoints()
+    notif.line1:SetFont(HopeAddon.assets.fonts.HEADER, 14)
+    notif.line1:SetPoint("TOP", notif.titleText, "BOTTOM", 0, -8)
+    notif.line1:SetText(killData.bossName .. " defeated!")
+    notif.line1:SetTextColor(1, 1, 1, 1)
+
+    notif.line2:ClearAllPoints()
+    notif.line2:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    notif.line2:SetPoint("TOP", notif.line1, "BOTTOM", 0, -5)
+    notif.line2:SetText(killData.raidName)
+    notif.line2:SetTextColor(HopeAddon:GetTextColor("TERTIARY"))
+
+    -- Animate and release back to pool
+    local self_ref = self
+    HopeAddon.Animations:NotificationSlideIn(notif, function()
+        HopeAddon.Timer:After(3, function()
+            HopeAddon.Animations:NotificationSlideOut(notif, function()
+                self_ref:ReleaseNotification(notif)
+                self_ref:OnNotificationComplete()
+            end)
+        end)
+    end)
+end
+
+--[[
+    PUBLIC API
+]]
+function Journal:Toggle()
+    if not self.mainFrame then
+        HopeAddon:Print("Journal not ready. Try /reload")
+        return
+    end
+    if self.mainFrame:IsShown() then
+        self.mainFrame:Hide()
+        HopeAddon.Sounds:PlayJournalClose()
+        self.isOpen = false
+        -- Save last selected tab
+        HopeAddon.charDb.journal.lastTab = self.currentTab
+    else
+        -- Update character level display
+        local _, class = UnitClass("player")
+        local classColor = HopeAddon:GetClassColor(class)
+        self.mainFrame.charInfo:SetText(string.format("|cFF%02x%02x%02x%s|r - Level %d",
+            classColor.r * 255, classColor.g * 255, classColor.b * 255,
+            UnitName("player"), UnitLevel("player")))
+
+        self.mainFrame:Show()
+        HopeAddon.Sounds:PlayJournalOpen()
+        self.isOpen = true
+
+        -- Restore last selected tab or default to timeline
+        local lastTab = HopeAddon.charDb.journal.lastTab or "timeline"
+        self:SelectTab(lastTab)
+    end
+end
+
+-- Register with addon
+if HopeAddon.Debug then
+    HopeAddon:Debug("Journal module loaded")
+end

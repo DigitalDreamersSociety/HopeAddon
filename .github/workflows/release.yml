@@ -1,0 +1,52 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Package addon
+        run: |
+          mkdir -p release
+          cd HopeAddon
+          zip -r ../release/HopeAddon-${{ steps.get_version.outputs.VERSION }}.zip . \
+            -x "*.git*" \
+            -x "*WTF/*" \
+            -x "*.DS_Store" \
+            -x "*Thumbs.db" \
+            -x "*.log"
+          cd ..
+
+      - name: Extract changelog for this version
+        id: changelog
+        run: |
+          VERSION=${{ steps.get_version.outputs.VERSION }}
+          # Extract section between [VERSION] and next [VERSION] or end of file
+          sed -n "/## \[$VERSION\]/,/## \[/p" CHANGELOG.md | sed '$d' > release_notes.md
+          # If no content, use default message
+          if [ ! -s release_notes.md ]; then
+            echo "Release $VERSION" > release_notes.md
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: HopeAddon v${{ steps.get_version.outputs.VERSION }}
+          body_path: release_notes.md
+          files: release/HopeAddon-${{ steps.get_version.outputs.VERSION }}.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

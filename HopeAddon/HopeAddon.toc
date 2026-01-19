@@ -1,0 +1,62 @@
+## Interface: 20400
+## Title: |cff9B30FFHope|r Addon
+## Notes: Your Personal TBC Adventure Journal
+## Author: Hope Guild
+## Version: 1.0.0
+## SavedVariables: HopeAddonDB
+## SavedVariablesPerCharacter: HopeAddonCharDB
+
+# Core (load first)
+Core\FramePool.lua
+Core\Constants.lua
+Core\Timer.lua
+Core\Core.lua
+Core\Sounds.lua
+Core\Effects.lua
+
+# UI Components
+UI\Components.lua
+UI\Glow.lua
+UI\Animations.lua
+
+# Journal System
+Journal\Journal.lua
+Journal\Pages.lua
+Journal\Milestones.lua
+Journal\Zones.lua
+Journal\ProfileEditor.lua
+
+# Raid Data
+Raids\RaidData.lua
+Raids\Attunements.lua
+Raids\Karazhan.lua
+Raids\Gruul.lua
+Raids\Magtheridon.lua
+
+# Reputation System
+Reputation\ReputationData.lua
+Reputation\Reputation.lua
+
+# Social Features
+Social\Badges.lua
+Social\FellowTravelers.lua
+Social\TravelerIcons.lua
+Social\Minigames.lua
+Social\MinigamesUI.lua
+Social\Directory.lua
+Social\Relationships.lua
+Social\MapPins.lua
+
+# Game System
+Social\Games\GameCore.lua
+Social\Games\GameUI.lua
+Social\Games\GameComms.lua
+Social\Games\Tetris\TetrisBlocks.lua
+Social\Games\Tetris\TetrisGrid.lua
+Social\Games\Tetris\TetrisGame.lua
+Social\Games\Pong\PongGame.lua
+Social\Games\DeathRoll\DeathRollGame.lua
+Social\Games\DeathRoll\DeathRollUI.lua
+Social\Games\DeathRoll\DeathRollEscrow.lua
+Social\Games\WordsWithWoW\WordBoard.lua
+Social\Games\WordsWithWoW\WordDictionary.lua
