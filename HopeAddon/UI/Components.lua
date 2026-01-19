@@ -11,6 +11,112 @@ local AssetFonts = HopeAddon.assets.fonts
 local AssetTextures = HopeAddon.assets.textures
 local Colors = HopeAddon.colors
 
+-- TBC 2.4.3 compatibility: BackdropTemplate handling
+-- In TBC Classic: BackdropTemplateMixin is required for SetBackdrop
+-- In original TBC (2.4.3): SetBackdrop is native to all frames
+local function CreateBackdropFrame(frameType, name, parent, additionalTemplate)
+    local frame
+
+    -- Check if BackdropTemplateMixin exists (TBC Classic / Retail)
+    if BackdropTemplateMixin then
+        -- TBC Classic: Use BackdropTemplate
+        local template = additionalTemplate and (additionalTemplate .. ", BackdropTemplate") or "BackdropTemplate"
+        frame = CreateFrame(frameType or "Frame", name, parent, template)
+
+        -- Double-check SetBackdrop was applied; if not, manually apply mixin
+        if not frame.SetBackdrop then
+            Mixin(frame, BackdropTemplateMixin)
+            -- Initialize backdrop hooks if needed
+            if frame.OnBackdropLoaded then
+                frame:OnBackdropLoaded()
+            end
+        end
+    else
+        -- Original TBC 2.4.3: SetBackdrop is native to all frames
+        frame = CreateFrame(frameType or "Frame", name, parent, additionalTemplate)
+    end
+
+    return frame
+end
+
+-- Export for other modules
+Components.CreateBackdropFrame = CreateBackdropFrame
+
+--[[
+    APPLY BACKDROP HELPER
+    Applies a centralized backdrop from Constants with optional colors
+
+    @param frame - Frame with BackdropTemplate
+    @param backdropKey - Key from C.BACKDROPS (e.g., "TOOLTIP", "PARCHMENT_GOLD")
+    @param bgColorKey - Optional key from C.BACKDROP_COLORS for background (default: nil = no change)
+    @param borderColorKey - Optional key from C.BACKDROP_COLORS for border (default: nil = no change)
+
+    Usage:
+        Components:ApplyBackdrop(frame, "TOOLTIP", "DARK_TRANSPARENT", "GREY")
+        Components:ApplyBackdrop(frame, "PARCHMENT_GOLD", "PARCHMENT", "GOLD")
+]]
+function Components:ApplyBackdrop(frame, backdropKey, bgColorKey, borderColorKey)
+    local C = HopeAddon.Constants
+    local backdrop = C.BACKDROPS[backdropKey]
+
+    if not backdrop then
+        HopeAddon:Debug("ApplyBackdrop: Unknown backdrop key:", backdropKey)
+        return
+    end
+
+    frame:SetBackdrop(backdrop)
+
+    -- Apply background color if specified
+    if bgColorKey then
+        local bgColor = C.BACKDROP_COLORS[bgColorKey]
+        if bgColor then
+            frame:SetBackdropColor(bgColor[1], bgColor[2], bgColor[3], bgColor[4] or 1)
+        else
+            HopeAddon:Debug("ApplyBackdrop: Unknown bg color key:", bgColorKey)
+        end
+    end
+
+    -- Apply border color if specified
+    if borderColorKey then
+        local borderColor = C.BACKDROP_COLORS[borderColorKey]
+        if borderColor then
+            frame:SetBackdropBorderColor(borderColor[1], borderColor[2], borderColor[3], borderColor[4] or 1)
+        else
+            HopeAddon:Debug("ApplyBackdrop: Unknown border color key:", borderColorKey)
+        end
+    end
+end
+
+--[[
+    APPLY BACKDROP WITH RAW COLORS
+    Applies a centralized backdrop with raw color values (not from constants)
+    Useful when colors are dynamic or computed
+
+    @param frame - Frame with BackdropTemplate
+    @param backdropKey - Key from C.BACKDROPS
+    @param bgR, bgG, bgB, bgA - Background color components (optional)
+    @param borderR, borderG, borderB, borderA - Border color components (optional)
+]]
+function Components:ApplyBackdropRaw(frame, backdropKey, bgR, bgG, bgB, bgA, borderR, borderG, borderB, borderA)
+    local C = HopeAddon.Constants
+    local backdrop = C.BACKDROPS[backdropKey]
+
+    if not backdrop then
+        HopeAddon:Debug("ApplyBackdropRaw: Unknown backdrop key:", backdropKey)
+        return
+    end
+
+    frame:SetBackdrop(backdrop)
+
+    if bgR then
+        frame:SetBackdropColor(bgR, bgG or 0, bgB or 0, bgA or 1)
+    end
+
+    if borderR then
+        frame:SetBackdropBorderColor(borderR, borderG or 0, borderB or 0, borderA or 1)
+    end
+end
+
 -- Standard margin constants for consistent spacing
 Components.MARGIN_SMALL = 5
 Components.MARGIN_NORMAL = 10
@@ -47,18 +153,9 @@ end
     Main container with journal-style background
 ]]
 function Components:CreateParchmentFrame(name, parent, width, height)
-    local frame = CreateFrame("Frame", name, parent or UIParent)
+    local frame = CreateBackdropFrame("Frame", name, parent or UIParent)
     frame:SetSize(width or 400, height or 500)
-    frame:SetBackdrop({
-        bgFile = AssetTextures.PARCHMENT,
-        edgeFile = AssetTextures.GOLD_BORDER,
-        tile = false,
-        tileSize = 0,
-        edgeSize = 32,
-        insets = { left = 11, right = 12, top = 12, bottom = 11 }
-    })
-    frame:SetBackdropColor(1, 1, 1, 1)
-    frame:SetBackdropBorderColor(1, 0.84, 0, 1)
+    self:ApplyBackdrop(frame, "PARCHMENT_GOLD", "PARCHMENT", "GOLD")
 
     -- Make draggable
     frame:SetMovable(true)
@@ -79,18 +176,9 @@ end
     For dramatic/raid content
 ]]
 function Components:CreateDarkFrame(name, parent, width, height)
-    local frame = CreateFrame("Frame", name, parent or UIParent)
+    local frame = CreateBackdropFrame("Frame", name, parent or UIParent)
     frame:SetSize(width or 400, height or 500)
-    frame:SetBackdrop({
-        bgFile = AssetTextures.PARCHMENT_DARK,
-        edgeFile = AssetTextures.DIALOG_BORDER,
-        tile = true,
-        tileSize = 32,
-        edgeSize = 32,
-        insets = { left = 11, right = 12, top = 12, bottom = 11 }
-    })
-    frame:SetBackdropColor(HopeAddon:GetBgColor("DARK_OPAQUE"))
-    frame:SetBackdropBorderColor(0.6, 0.6, 0.6, 1)
+    self:ApplyBackdrop(frame, "DARK_DIALOG", "DARK_SOLID", "GREY_LIGHT")
 
     return frame
 end
@@ -154,18 +242,9 @@ function Components:CreateProgressBar(parent, width, height, colorName)
     local color = HopeAddon:GetSafeColor(colorName)
 
     -- Container
-    local container = CreateFrame("Frame", nil, parent)
+    local container = CreateBackdropFrame("Frame", nil, parent)
     container:SetSize(width, height)
-    container:SetBackdrop({
-        bgFile = AssetTextures.TOOLTIP_BG,
-        edgeFile = AssetTextures.TOOLTIP_BORDER,
-        tile = true,
-        tileSize = 8,
-        edgeSize = 12,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 }
-    })
-    container:SetBackdropColor(HopeAddon:GetBgColor("DARK_SOLID"))
-    container:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+    self:ApplyBackdrop(container, "TOOLTIP", "DARK_SOLID", "GREY_DARK")
 
     -- Fill bar
     local fill = container:CreateTexture(nil, "ARTWORK")
@@ -547,6 +626,7 @@ function Components:CreateScrollFrame(parent, width, height)
         entryFrame:SetParent(self.content)
         entryFrame:SetPoint("TOPLEFT", self.content, "TOPLEFT", 0, -self.currentYOffset)
         entryFrame:SetPoint("RIGHT", self.content, "RIGHT", 0, 0)
+        entryFrame:Show()  -- Ensure pooled frames are visible
 
         table.insert(self.entries, entryFrame)
 
@@ -595,21 +675,12 @@ end
     Individual entry display with text overflow protection and click support
 ]]
 function Components:CreateEntryCard(parent, entryData)
-    local card = CreateFrame("Frame", nil, parent)
+    local card = CreateBackdropFrame("Frame", nil, parent)
     card:SetHeight(80)
-    card:SetBackdrop({
-        bgFile = AssetTextures.TOOLTIP_BG,
-        edgeFile = AssetTextures.TOOLTIP_BORDER,
-        tile = true,
-        tileSize = 8,
-        edgeSize = 12,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 }
-    })
-    card:SetBackdropColor(HopeAddon:GetBgColor("DARK_TRANSPARENT"))
-    card:SetBackdropBorderColor(0.5, 0.5, 0.5, 1)
+    self:ApplyBackdrop(card, "TOOLTIP", "DARK_TRANSPARENT", "GREY")
 
     -- Store original border color for hover restoration
-    card.defaultBorderColor = { 0.5, 0.5, 0.5, 1 }
+    card.defaultBorderColor = HopeAddon.Constants.BACKDROP_COLORS.GREY
 
     -- Icon
     local iconOffset = Components.MARGIN_NORMAL
@@ -766,18 +837,9 @@ function Components:CreateTextInput(parent, width, height, placeholder)
     width = width or 200
     height = height or 30
 
-    local container = CreateFrame("Frame", nil, parent)
+    local container = CreateBackdropFrame("Frame", nil, parent)
     container:SetSize(width, height)
-    container:SetBackdrop({
-        bgFile = AssetTextures.TOOLTIP_BG,
-        edgeFile = AssetTextures.TOOLTIP_BORDER,
-        tile = true,
-        tileSize = 8,
-        edgeSize = 12,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 }
-    })
-    container:SetBackdropColor(HopeAddon:GetBgColor("INPUT_BG"))
-    container:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+    self:ApplyBackdrop(container, "TOOLTIP", "INPUT_BG", "GREY_DARK")
 
     local editBox = CreateFrame("EditBox", nil, container)
     editBox:SetPoint("TOPLEFT", container, "TOPLEFT", Components.INPUT_PADDING, -Components.MARGIN_SMALL)
@@ -1276,27 +1338,17 @@ function Components:CreateReputationBar(parent, width, height, options)
         LAYER 6: Border Frame
         Switches between tooltip border (low) and gold border (high)
     ]]
-    local borderFrame = CreateFrame("Frame", nil, container)
+    local borderFrame = CreateBackdropFrame("Frame", nil, container)
     borderFrame:SetPoint("TOPLEFT", container, "TOPLEFT", -3, 3)
     borderFrame:SetPoint("BOTTOMRIGHT", container, "BOTTOMRIGHT", 3, -3)
-    borderFrame:SetBackdrop({
-        bgFile = nil,
-        edgeFile = AssetTextures.TOOLTIP_BORDER,
-        edgeSize = 12,
-    })
-    borderFrame:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+    self:ApplyBackdrop(borderFrame, "BORDER_ONLY_TOOLTIP", nil, "GREY_DARK")
     container.borderFrame = borderFrame
 
     -- Secondary border for "double gold" effect (Exalted)
-    local outerBorder = CreateFrame("Frame", nil, container)
+    local outerBorder = CreateBackdropFrame("Frame", nil, container)
     outerBorder:SetPoint("TOPLEFT", container, "TOPLEFT", -6, 6)
     outerBorder:SetPoint("BOTTOMRIGHT", container, "BOTTOMRIGHT", 6, -6)
-    outerBorder:SetBackdrop({
-        bgFile = nil,
-        edgeFile = AssetTextures.GOLD_BORDER,
-        edgeSize = 16,
-    })
-    outerBorder:SetBackdropBorderColor(1, 0.84, 0, 0.8)
+    self:ApplyBackdropRaw(outerBorder, "BORDER_ONLY_GOLD", nil, nil, nil, nil, 1, 0.84, 0, 0.8)
     outerBorder:Hide()
     container.outerBorder = outerBorder
 
@@ -1383,30 +1435,19 @@ function Components:CreateReputationBar(parent, width, height, options)
         -- Clean up previous effects
         self:CleanupEffects()
 
-        -- Update border style
+        -- Update border style using centralized backdrops
+        local C = HopeAddon.Constants
         if visuals.border == "GOLD" then
-            self.borderFrame:SetBackdrop({
-                bgFile = nil,
-                edgeFile = AssetTextures.GOLD_BORDER,
-                edgeSize = 16,
-            })
-            self.borderFrame:SetBackdropBorderColor(1, 0.84, 0, 1)
+            self.borderFrame:SetBackdrop(C.BACKDROPS.BORDER_ONLY_GOLD)
+            self.borderFrame:SetBackdropBorderColor(C.BACKDROP_COLORS.GOLD[1], C.BACKDROP_COLORS.GOLD[2], C.BACKDROP_COLORS.GOLD[3], 1)
             self.outerBorder:Hide()
         elseif visuals.border == "GOLD_DOUBLE" then
-            self.borderFrame:SetBackdrop({
-                bgFile = nil,
-                edgeFile = AssetTextures.GOLD_BORDER,
-                edgeSize = 16,
-            })
-            self.borderFrame:SetBackdropBorderColor(1, 0.84, 0, 1)
+            self.borderFrame:SetBackdrop(C.BACKDROPS.BORDER_ONLY_GOLD)
+            self.borderFrame:SetBackdropBorderColor(C.BACKDROP_COLORS.GOLD[1], C.BACKDROP_COLORS.GOLD[2], C.BACKDROP_COLORS.GOLD[3], 1)
             self.outerBorder:Show()
         else -- TOOLTIP
-            self.borderFrame:SetBackdrop({
-                bgFile = nil,
-                edgeFile = AssetTextures.TOOLTIP_BORDER,
-                edgeSize = 12,
-            })
-            self.borderFrame:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+            self.borderFrame:SetBackdrop(C.BACKDROPS.BORDER_ONLY_TOOLTIP)
+            self.borderFrame:SetBackdropBorderColor(C.BACKDROP_COLORS.GREY_DARK[1], C.BACKDROP_COLORS.GREY_DARK[2], C.BACKDROP_COLORS.GREY_DARK[3], 1)
             self.outerBorder:Hide()
         end
 
@@ -1908,18 +1949,9 @@ end
     @return Frame - Traveler card frame
 ]]
 function Components:CreateTravelerCard(parent, travelerData)
-    local card = CreateFrame("Frame", nil, parent)
+    local card = CreateBackdropFrame("Frame", nil, parent)
     card:SetHeight(50)
-    card:SetBackdrop({
-        bgFile = AssetTextures.TOOLTIP_BG,
-        edgeFile = AssetTextures.TOOLTIP_BORDER,
-        tile = true,
-        tileSize = 8,
-        edgeSize = 12,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 }
-    })
-    card:SetBackdropColor(HopeAddon:GetBgColor("DARK_TRANSPARENT"))
-    card:SetBackdropBorderColor(0.5, 0.5, 0.5, 1)
+    self:ApplyBackdrop(card, "TOOLTIP", "DARK_TRANSPARENT", "GREY")
 
     -- Class-colored name
     local classColor = HopeAddon:GetClassColor(travelerData.class)
@@ -2085,20 +2117,12 @@ function Components:CreateGameCard(parent, gameData, onPractice, onChallenge)
     local BUTTON_WIDTH = 80
     local BUTTON_HEIGHT = 22
 
-    local card = CreateFrame("Button", nil, parent)
+    local card = CreateBackdropFrame("Button", nil, parent)
     card:SetSize(CARD_WIDTH, CARD_HEIGHT)
-    card:SetBackdrop({
-        bgFile = AssetTextures.PARCHMENT,
-        edgeFile = AssetTextures.TOOLTIP_BORDER,
-        tile = false,
-        edgeSize = 12,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 }
-    })
-    card:SetBackdropColor(1, 1, 1, 0.9)
-    card:SetBackdropBorderColor(0.6, 0.5, 0.3, 1)
+    self:ApplyBackdropRaw(card, "PARCHMENT_SIMPLE", 1, 1, 1, 0.9, 0.6, 0.5, 0.3, 1)
 
     -- Store default border color
-    card.defaultBorderColor = { 0.6, 0.5, 0.3, 1 }
+    card.defaultBorderColor = HopeAddon.Constants.BACKDROP_COLORS.BROWN
 
     -- Icon (left side, 48x48)
     local icon = card:CreateTexture(nil, "ARTWORK")
@@ -2135,17 +2159,10 @@ function Components:CreateGameCard(parent, gameData, onPractice, onChallenge)
     card.stats = stats
 
     -- Practice button (left)
-    local practiceBtn = CreateFrame("Button", nil, card)
+    local practiceBtn = CreateBackdropFrame("Button", nil, card)
     practiceBtn:SetSize(BUTTON_WIDTH, BUTTON_HEIGHT)
     practiceBtn:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 8, 8)
-    practiceBtn:SetBackdrop({
-        bgFile = AssetTextures.DIALOG_BG,
-        edgeFile = AssetTextures.TOOLTIP_BORDER,
-        edgeSize = 10,
-        insets = { left = 2, right = 2, top = 2, bottom = 2 }
-    })
-    practiceBtn:SetBackdropColor(0.2, 0.3, 0.2, 0.9)
-    practiceBtn:SetBackdropBorderColor(0.4, 0.5, 0.4, 1)
+    self:ApplyBackdrop(practiceBtn, "BUTTON_SIMPLE", "GREEN_BTN_BG", "GREEN_DARK")
 
     local practiceBtnText = practiceBtn:CreateFontString(nil, "OVERLAY")
     practiceBtnText:SetFont(AssetFonts.SMALL, 10)
@@ -2171,17 +2188,10 @@ function Components:CreateGameCard(parent, gameData, onPractice, onChallenge)
     card.practiceBtn = practiceBtn
 
     -- Challenge button (right)
-    local challengeBtn = CreateFrame("Button", nil, card)
+    local challengeBtn = CreateBackdropFrame("Button", nil, card)
     challengeBtn:SetSize(BUTTON_WIDTH, BUTTON_HEIGHT)
     challengeBtn:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -8, 8)
-    challengeBtn:SetBackdrop({
-        bgFile = AssetTextures.DIALOG_BG,
-        edgeFile = AssetTextures.TOOLTIP_BORDER,
-        edgeSize = 10,
-        insets = { left = 2, right = 2, top = 2, bottom = 2 }
-    })
-    challengeBtn:SetBackdropColor(0.3, 0.2, 0.3, 0.9)
-    challengeBtn:SetBackdropBorderColor(0.5, 0.4, 0.5, 1)
+    self:ApplyBackdrop(challengeBtn, "BUTTON_SIMPLE", "ARCANE_BTN_BG", "ARCANE_BORDER")
 
     local challengeBtnText = challengeBtn:CreateFontString(nil, "OVERLAY")
     challengeBtnText:SetFont(AssetFonts.SMALL, 10)

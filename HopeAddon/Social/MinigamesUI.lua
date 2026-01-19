@@ -8,6 +8,21 @@
 local MinigamesUI = {}
 HopeAddon.MinigamesUI = MinigamesUI
 
+-- TBC 2.4.3 compatibility helper
+local function CreateBackdropFrame(frameType, name, parent, additionalTemplate)
+    local Comp = HopeAddon.Components
+    if Comp and Comp.CreateBackdropFrame then
+        return Comp.CreateBackdropFrame(frameType, name, parent, additionalTemplate)
+    end
+    local template = additionalTemplate and (additionalTemplate .. ", BackdropTemplate") or "BackdropTemplate"
+    local frame = CreateFrame(frameType or "Frame", name, parent, template)
+    if not frame.SetBackdrop then
+        frame:Hide()
+        frame = CreateFrame(frameType or "Frame", name, parent, additionalTemplate)
+    end
+    return frame
+end
+
 -- Local references
 local Components = nil  -- Set in OnEnable
 
@@ -34,6 +49,22 @@ local RESULT_DISPLAY = {
     win = { color = "00FF00", label = "YOU WIN!" },
     lose = { color = "FF0000", label = "YOU LOSE" },
     tie = { color = "FFFF00", label = "TIE!" },
+}
+
+-- Game ID to display name mapping (moved to top for early reference)
+local GAME_NAMES = {
+    dice = "Dice Roll",
+    rps = "Rock-Paper-Scissors",
+    deathroll = "Death Roll",
+    pong = "Pong",
+    tetris = "Tetris Battle",
+    words = "Words with Wow",
+    DICE = "Dice Roll",
+    RPS = "Rock-Paper-Scissors",
+    DEATHROLL = "Death Roll",
+    PONG = "Pong",
+    TETRIS = "Tetris Battle",
+    WORDS = "Words with Wow",
 }
 
 --============================================================
@@ -269,19 +300,11 @@ function MinigamesUI:GetChallengePopup()
     end
 
     -- Create popup frame
-    local popup = CreateFrame("Frame", "HopeMinigameChallengePopup", UIParent)
+    local popup = CreateBackdropFrame("Frame", "HopeMinigameChallengePopup", UIParent)
     popup:SetSize(POPUP_WIDTH, POPUP_HEIGHT)
     popup:SetPoint("TOP", UIParent, "TOP", 0, -150)
     popup:SetFrameStrata("DIALOG")
-    popup:SetBackdrop({
-        bgFile = HopeAddon.assets.textures.PARCHMENT,
-        edgeFile = HopeAddon.assets.textures.GOLD_BORDER,
-        tile = false,
-        edgeSize = 24,
-        insets = { left = 8, right = 8, top = 8, bottom = 8 }
-    })
-    popup:SetBackdropColor(1, 1, 1, 1)
-    popup:SetBackdropBorderColor(1, 0.84, 0, 1)
+    HopeAddon.Components:ApplyBackdrop(popup, "PARCHMENT_GOLD_SMALL", "PARCHMENT", "GOLD")
     popup:EnableMouse(true)
     popup:SetMovable(true)
     popup:RegisterForDrag("LeftButton")
@@ -429,19 +452,11 @@ function MinigamesUI:GetGameFrame()
     end
 
     -- Create main game frame
-    local frame = CreateFrame("Frame", "HopeMinigameFrame", UIParent)
+    local frame = CreateBackdropFrame("Frame", "HopeMinigameFrame", UIParent)
     frame:SetSize(GAME_WIDTH, GAME_HEIGHT)
     frame:SetPoint("CENTER", UIParent, "CENTER", 0, 100)
     frame:SetFrameStrata("DIALOG")
-    frame:SetBackdrop({
-        bgFile = HopeAddon.assets.textures.PARCHMENT,
-        edgeFile = HopeAddon.assets.textures.GOLD_BORDER,
-        tile = false,
-        edgeSize = 24,
-        insets = { left = 8, right = 8, top = 8, bottom = 8 }
-    })
-    frame:SetBackdropColor(1, 1, 1, 1)
-    frame:SetBackdropBorderColor(1, 0.84, 0, 1)
+    HopeAddon.Components:ApplyBackdrop(frame, "PARCHMENT_GOLD_SMALL", "PARCHMENT", "GOLD")
     frame:EnableMouse(true)
     frame:SetMovable(true)
     frame:RegisterForDrag("LeftButton")
@@ -532,18 +547,10 @@ function MinigamesUI:CreateDiceContainer(frame, content)
     playerLabel:SetTextColor(0.2, 0.2, 0.2, 1)
     frame.dicePlayerLabel = playerLabel
 
-    local playerRollFrame = CreateFrame("Frame", nil, container)
+    local playerRollFrame = CreateBackdropFrame("Frame", nil, container)
     playerRollFrame:SetSize(80, 80)
     playerRollFrame:SetPoint("TOP", playerLabel, "BOTTOM", 0, -10)
-    playerRollFrame:SetBackdrop({
-        bgFile = HopeAddon.assets.textures.TOOLTIP_BG,
-        edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
-        tile = true,
-        edgeSize = 12,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 }
-    })
-    playerRollFrame:SetBackdropColor(0.95, 0.95, 0.9, 1)
-    playerRollFrame:SetBackdropBorderColor(0.6, 0.5, 0.3, 1)
+    HopeAddon.Components:ApplyBackdropRaw(playerRollFrame, "TOOLTIP", 0.95, 0.95, 0.9, 1, 0.6, 0.5, 0.3, 1)
 
     local playerRollText = playerRollFrame:CreateFontString(nil, "OVERLAY")
     playerRollText:SetFont(HopeAddon.assets.fonts.TITLE, 32)
@@ -567,18 +574,10 @@ function MinigamesUI:CreateDiceContainer(frame, content)
     oppLabel:SetTextColor(0.2, 0.2, 0.2, 1)
     frame.diceOppLabel = oppLabel
 
-    local oppRollFrame = CreateFrame("Frame", nil, container)
+    local oppRollFrame = CreateBackdropFrame("Frame", nil, container)
     oppRollFrame:SetSize(80, 80)
     oppRollFrame:SetPoint("TOP", oppLabel, "BOTTOM", 0, -10)
-    oppRollFrame:SetBackdrop({
-        bgFile = HopeAddon.assets.textures.TOOLTIP_BG,
-        edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
-        tile = true,
-        edgeSize = 12,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 }
-    })
-    oppRollFrame:SetBackdropColor(0.95, 0.95, 0.9, 1)
-    oppRollFrame:SetBackdropBorderColor(0.6, 0.5, 0.3, 1)
+    HopeAddon.Components:ApplyBackdropRaw(oppRollFrame, "TOOLTIP", 0.95, 0.95, 0.9, 1, 0.6, 0.5, 0.3, 1)
 
     local oppRollText = oppRollFrame:CreateFontString(nil, "OVERLAY")
     oppRollText:SetFont(HopeAddon.assets.fonts.TITLE, 32)
@@ -631,14 +630,10 @@ function MinigamesUI:CreateRPSContainer(frame, content)
     frame.rpsButtons = {}
 
     for i, choice in ipairs(choices) do
-        local btn = CreateFrame("Button", nil, buttonRow)
+        local btn = CreateBackdropFrame("Button", nil, buttonRow)
         btn:SetSize(RPS_BUTTON_SIZE, RPS_BUTTON_SIZE)
         btn:SetPoint("LEFT", buttonRow, "LEFT", (i - 1) * (RPS_BUTTON_SIZE + 20), 0)
-        btn:SetBackdrop({
-            edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
-            edgeSize = 12,
-        })
-        btn:SetBackdropBorderColor(0.6, 0.5, 0.3, 1)
+        HopeAddon.Components:ApplyBackdrop(btn, "BORDER_ONLY_TOOLTIP", nil, "BROWN")
 
         -- Icon texture
         local icon = btn:CreateTexture(nil, "ARTWORK")
@@ -1139,22 +1134,6 @@ local GAME_DEFINITIONS = {
     {id = "words", name = "Words with Wow", system = "gamecore"},
 }
 
--- Game ID to display name mapping
-local GAME_NAMES = {
-    dice = "Dice Roll",
-    rps = "Rock-Paper-Scissors",
-    deathroll = "Death Roll",
-    pong = "Pong",
-    tetris = "Tetris Battle",
-    words = "Words with Wow",
-    DICE = "Dice Roll",
-    RPS = "Rock-Paper-Scissors",
-    DEATHROLL = "Death Roll",
-    PONG = "Pong",
-    TETRIS = "Tetris Battle",
-    WORDS = "Words with Wow",
-}
-
 --[[
     Create or return the game selection popup
 ]]
@@ -1164,19 +1143,11 @@ function MinigamesUI:GetGameSelectionPopup()
     end
 
     -- Create popup frame with parchment backdrop
-    local popup = CreateFrame("Frame", "HopeGameSelectionPopup", UIParent)
+    local popup = CreateBackdropFrame("Frame", "HopeGameSelectionPopup", UIParent)
     popup:SetSize(GAME_SELECTION_WIDTH, GAME_SELECTION_HEIGHT)
     popup:SetPoint("CENTER", UIParent, "CENTER", 0, 100)
     popup:SetFrameStrata("DIALOG")
-    popup:SetBackdrop({
-        bgFile = HopeAddon.assets.textures.PARCHMENT,
-        edgeFile = HopeAddon.assets.textures.GOLD_BORDER,
-        tile = false,
-        edgeSize = 24,
-        insets = { left = 8, right = 8, top = 8, bottom = 8 }
-    })
-    popup:SetBackdropColor(1, 1, 1, 1)
-    popup:SetBackdropBorderColor(1, 0.84, 0, 1)
+    HopeAddon.Components:ApplyBackdrop(popup, "PARCHMENT_GOLD_SMALL", "PARCHMENT", "GOLD")
     popup:EnableMouse(true)
     popup:SetMovable(true)
     popup:RegisterForDrag("LeftButton")
@@ -1227,14 +1198,10 @@ function MinigamesUI:GetGameSelectionPopup()
         local yOffset = -10 - row * (GAME_ICON_SIZE + BUTTON_SPACING_Y + 15)
 
         -- Create button
-        local btn = CreateFrame("Button", nil, buttonContainer)
+        local btn = CreateBackdropFrame("Button", nil, buttonContainer)
         btn:SetSize(GAME_ICON_SIZE, GAME_ICON_SIZE)
         btn:SetPoint("TOPLEFT", buttonContainer, "TOPLEFT", xOffset, yOffset)
-        btn:SetBackdrop({
-            edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
-            edgeSize = 12,
-        })
-        btn:SetBackdropBorderColor(0.6, 0.5, 0.3, 1)
+        HopeAddon.Components:ApplyBackdrop(btn, "BORDER_ONLY_TOOLTIP", nil, "BROWN")
 
         -- Store game definition reference
         btn.gameDef = gameDef
@@ -1411,19 +1378,11 @@ function MinigamesUI:GetTravelerPickerPopup()
     end
 
     -- Create popup frame with parchment backdrop
-    local popup = CreateFrame("Frame", "HopeTravelerPickerPopup", UIParent)
+    local popup = CreateBackdropFrame("Frame", "HopeTravelerPickerPopup", UIParent)
     popup:SetSize(TRAVELER_PICKER_WIDTH, TRAVELER_PICKER_HEIGHT)
     popup:SetPoint("CENTER", UIParent, "CENTER", 0, 100)
     popup:SetFrameStrata("DIALOG")
-    popup:SetBackdrop({
-        bgFile = HopeAddon.assets.textures.PARCHMENT,
-        edgeFile = HopeAddon.assets.textures.GOLD_BORDER,
-        tile = false,
-        edgeSize = 24,
-        insets = { left = 8, right = 8, top = 8, bottom = 8 }
-    })
-    popup:SetBackdropColor(1, 1, 1, 1)
-    popup:SetBackdropBorderColor(1, 0.84, 0, 1)
+    HopeAddon.Components:ApplyBackdrop(popup, "PARCHMENT_GOLD_SMALL", "PARCHMENT", "GOLD")
     popup:EnableMouse(true)
     popup:SetMovable(true)
     popup:RegisterForDrag("LeftButton")
@@ -1532,18 +1491,9 @@ function MinigamesUI:GetTravelerButton(index, parent)
     end
 
     -- Create new button
-    local btn = CreateFrame("Button", nil, parent)
+    local btn = CreateBackdropFrame("Button", nil, parent)
     btn:SetSize(TRAVELER_PICKER_WIDTH - 50, TRAVELER_BUTTON_HEIGHT)
-    btn:SetBackdrop({
-        bgFile = HopeAddon.assets.textures.TOOLTIP_BG,
-        edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
-        tile = true,
-        tileSize = 8,
-        edgeSize = 10,
-        insets = { left = 2, right = 2, top = 2, bottom = 2 }
-    })
-    btn:SetBackdropColor(HopeAddon:GetBgColor("DARK_TRANSPARENT"))
-    btn:SetBackdropBorderColor(0.5, 0.5, 0.5, 1)
+    HopeAddon.Components:ApplyBackdrop(btn, "TOOLTIP_SMALL", "DARK_TRANSPARENT", "GREY")
 
     -- Name text
     local nameText = btn:CreateFontString(nil, "OVERLAY")

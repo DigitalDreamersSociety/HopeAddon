@@ -22,6 +22,8 @@ end
     Module lifecycle: OnDisable
 ]]
 function Attunements:OnDisable()
+    -- Clear cached attunement map
+    attunementMapCache = nil
 end
 
 -- Attunement states

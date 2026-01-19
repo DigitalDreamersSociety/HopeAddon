@@ -3088,3 +3088,177 @@ end
 function C:GetGameDefinition(gameId)
     return self.GAME_BY_ID[gameId]
 end
+
+--============================================================
+-- BACKDROP DEFINITIONS
+-- Centralized backdrop templates for TBC Classic compatibility
+-- Naming convention: [TYPE]_[DESCRIPTION]
+--============================================================
+
+C.BACKDROPS = {
+    -- Standard tooltip-style (cards, entry items, buttons, input boxes)
+    -- Used by: entry cards, game cards, progress bars, input containers
+    TOOLTIP = {
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true,
+        tileSize = 8,
+        edgeSize = 12,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 }
+    },
+
+    -- Smaller tooltip border (for compact elements)
+    TOOLTIP_SMALL = {
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true,
+        tileSize = 8,
+        edgeSize = 10,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 }
+    },
+
+    -- Parchment with gold border (main frames, popups, notifications)
+    -- Used by: journal frame, challenge popups, milestone notifications
+    PARCHMENT_GOLD = {
+        bgFile = "Interface\\QUESTFRAME\\QuestBG",
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
+        tile = false,
+        tileSize = 0,
+        edgeSize = 32,
+        insets = { left = 11, right = 12, top = 12, bottom = 11 }
+    },
+
+    -- Parchment with gold border (smaller edge for pages)
+    PARCHMENT_GOLD_SMALL = {
+        bgFile = "Interface\\QUESTFRAME\\QuestBG",
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
+        tile = false,
+        edgeSize = 24,
+        insets = { left = 8, right = 8, top = 8, bottom = 8 }
+    },
+
+    -- Parchment with dialog border (zone pages, themed border color)
+    PARCHMENT_DIALOG = {
+        bgFile = "Interface\\QUESTFRAME\\QuestBG",
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+        tile = false,
+        edgeSize = 24,
+        insets = { left = 8, right = 8, top = 8, bottom = 8 }
+    },
+
+    -- Dark parchment with gold border (boss pages, smaller edge)
+    DARK_GOLD_SMALL = {
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
+        tile = true,
+        tileSize = 32,
+        edgeSize = 24,
+        insets = { left = 8, right = 8, top = 8, bottom = 8 }
+    },
+
+    -- Dark parchment with standard border (raid content, dark frames)
+    DARK_DIALOG = {
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+        tile = true,
+        tileSize = 32,
+        edgeSize = 32,
+        insets = { left = 11, right = 12, top = 12, bottom = 11 }
+    },
+
+    -- Dark parchment with gold border (notifications, alerts)
+    DARK_GOLD = {
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
+        tile = true,
+        tileSize = 16,
+        edgeSize = 24,
+        insets = { left = 5, right = 5, top = 5, bottom = 5 }
+    },
+
+    -- Dark background with gold border (game windows)
+    GAME_WINDOW = {
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
+        tile = true,
+        tileSize = 16,
+        edgeSize = 24,
+        insets = { left = 5, right = 5, top = 5, bottom = 5 }
+    },
+
+    -- Minimal overlay (game overlays, title bars)
+    OVERLAY = {
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = nil,
+        tile = true,
+        tileSize = 16,
+    },
+
+    -- Border only (reputation bars, decorative borders)
+    BORDER_ONLY_TOOLTIP = {
+        bgFile = nil,
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 12,
+    },
+
+    -- Border only with gold (exalted rep bars)
+    BORDER_ONLY_GOLD = {
+        bgFile = nil,
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
+        edgeSize = 16,
+    },
+
+    -- Parchment with tooltip border (game cards, lighter frames)
+    PARCHMENT_SIMPLE = {
+        bgFile = "Interface\\QUESTFRAME\\QuestBG",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = false,
+        edgeSize = 12,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 }
+    },
+
+    -- Button style (small buttons with minimal chrome)
+    BUTTON_SIMPLE = {
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 10,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 }
+    },
+
+    -- Solid color with tooltip border (tier cards, colored cards)
+    SOLID_TOOLTIP = {
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 12,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 }
+    },
+}
+
+-- Backdrop color presets (r, g, b, a)
+C.BACKDROP_COLORS = {
+    -- Background colors
+    PARCHMENT = { 1, 1, 1, 1 },
+    PARCHMENT_DARK = { 0.1, 0.1, 0.15, 0.95 },
+    DARK_TRANSPARENT = { 0.1, 0.1, 0.1, 0.8 },
+    DARK_SOLID = { 0.05, 0.05, 0.05, 0.9 },
+    DARK_FAINT = { 0.1, 0.1, 0.1, 0.5 },
+    PURPLE_TINT = { 0.15, 0.1, 0.2, 0.9 },
+    BLUE_TINT = { 0.1, 0.15, 0.2, 0.9 },
+    RED_TINT = { 0.2, 0.1, 0.1, 0.9 },
+    GREEN_TINT = { 0.1, 0.15, 0.1, 0.9 },
+    INPUT_BG = { 0.05, 0.05, 0.05, 0.8 },
+
+    -- Border colors
+    GOLD = { 1, 0.84, 0, 1 },
+    GREY = { 0.5, 0.5, 0.5, 1 },
+    GREY_DARK = { 0.4, 0.4, 0.4, 1 },
+    GREY_LIGHT = { 0.6, 0.6, 0.6, 1 },
+    BROWN = { 0.6, 0.5, 0.3, 1 },
+    GREEN = { 0.2, 0.8, 0.2, 1 },
+    GREEN_DARK = { 0.4, 0.5, 0.4, 1 },
+    GREEN_BTN_BG = { 0.2, 0.3, 0.2, 0.9 },
+    ARCANE_BTN_BG = { 0.3, 0.15, 0.4, 0.9 },
+    ARCANE_BORDER = { 0.5, 0.3, 0.6, 1 },
+    RED = { 0.8, 0.2, 0.2, 1 },
+    ARCANE = { 0.61, 0.19, 1, 1 },
+}

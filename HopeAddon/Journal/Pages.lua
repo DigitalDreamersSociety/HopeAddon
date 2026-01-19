@@ -6,6 +6,22 @@
 local Pages = {}
 HopeAddon.Pages = Pages
 
+-- TBC 2.4.3 compatibility helper (defined in Components.lua)
+local function CreateBackdropFrame(frameType, name, parent, additionalTemplate)
+    local Components = HopeAddon.Components
+    if Components and Components.CreateBackdropFrame then
+        return Components.CreateBackdropFrame(frameType, name, parent, additionalTemplate)
+    end
+    -- Fallback: try with template, then without
+    local template = additionalTemplate and (additionalTemplate .. ", BackdropTemplate") or "BackdropTemplate"
+    local frame = CreateFrame(frameType or "Frame", name, parent, template)
+    if not frame.SetBackdrop then
+        frame:Hide()
+        frame = CreateFrame(frameType or "Frame", name, parent, additionalTemplate)
+    end
+    return frame
+end
+
 --[[
     Module lifecycle: OnInitialize
 ]]
@@ -107,17 +123,9 @@ Pages.cachedPages = {}
 function Pages:CreateMilestonePage(parent, data)
     local Components = HopeAddon.Components
 
-    local page = CreateFrame("Frame", nil, parent)
+    local page = CreateBackdropFrame("Frame", nil, parent)
     page:SetSize(parent:GetWidth() - 40, 400)
-    page:SetBackdrop({
-        bgFile = HopeAddon.assets.textures.PARCHMENT,
-        edgeFile = HopeAddon.assets.textures.GOLD_BORDER,
-        tile = false,
-        edgeSize = 24,
-        insets = { left = 8, right = 8, top = 8, bottom = 8 }
-    })
-    page:SetBackdropColor(1, 1, 1, 0.95)
-    page:SetBackdropBorderColor(1, 0.84, 0, 1)
+    Components:ApplyBackdropRaw(page, "PARCHMENT_GOLD_SMALL", 1, 1, 1, 0.95, 1, 0.84, 0, 1)
 
     -- Chapter header
     local chapterText = page:CreateFontString(nil, "OVERLAY")
@@ -204,19 +212,10 @@ function Pages:CreateMilestonePage(parent, data)
     noteHeader:SetPoint("TOPLEFT", page, "TOPLEFT", 30, -360)
     noteHeader:SetText(HopeAddon:ColorText("My Thoughts:", "BRONZE"))
 
-    local noteBox = CreateFrame("Frame", nil, page)
+    local noteBox = CreateBackdropFrame("Frame", nil, page)
     noteBox:SetPoint("TOPLEFT", noteHeader, "BOTTOMLEFT", 0, -5)
     noteBox:SetPoint("BOTTOMRIGHT", page, "BOTTOMRIGHT", -30, 30)
-    noteBox:SetBackdrop({
-        bgFile = HopeAddon.assets.textures.TOOLTIP_BG,
-        edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
-        tile = true,
-        tileSize = 8,
-        edgeSize = 10,
-        insets = { left = 2, right = 2, top = 2, bottom = 2 }
-    })
-    noteBox:SetBackdropColor(0, 0, 0, 0.3)
-    noteBox:SetBackdropBorderColor(0.4, 0.4, 0.4, 0.5)
+    Components:ApplyBackdropRaw(noteBox, "TOOLTIP_SMALL", 0, 0, 0, 0.3, 0.4, 0.4, 0.4, 0.5)
 
     local noteText = noteBox:CreateFontString(nil, "OVERLAY")
     noteText:SetFont(HopeAddon.assets.fonts.BODY, 11)
@@ -240,16 +239,10 @@ end
     @return Frame - The page frame
 ]]
 function Pages:CreateZonePage(parent, data)
-    local page = CreateFrame("Frame", nil, parent)
+    local Components = HopeAddon.Components
+    local page = CreateBackdropFrame("Frame", nil, parent)
     page:SetSize(parent:GetWidth() - 40, 350)
-    page:SetBackdrop({
-        bgFile = HopeAddon.assets.textures.PARCHMENT,
-        edgeFile = HopeAddon.assets.textures.DIALOG_BORDER,
-        tile = false,
-        edgeSize = 24,
-        insets = { left = 8, right = 8, top = 8, bottom = 8 }
-    })
-    page:SetBackdropColor(1, 1, 1, 0.95)
+    Components:ApplyBackdropRaw(page, "PARCHMENT_DIALOG", 1, 1, 1, 0.95, nil, nil, nil, nil)
 
     -- Apply zone-themed border color
     local theme = HopeAddon.Glow.zoneThemes[data.zoneName]
@@ -312,18 +305,10 @@ end
     @return Frame - The page frame
 ]]
 function Pages:CreateBossPage(parent, data)
-    local page = CreateFrame("Frame", nil, parent)
+    local Components = HopeAddon.Components
+    local page = CreateBackdropFrame("Frame", nil, parent)
     page:SetSize(parent:GetWidth() - 40, 400)
-    page:SetBackdrop({
-        bgFile = HopeAddon.assets.textures.PARCHMENT_DARK,
-        edgeFile = HopeAddon.assets.textures.GOLD_BORDER,
-        tile = true,
-        tileSize = 32,
-        edgeSize = 24,
-        insets = { left = 8, right = 8, top = 8, bottom = 8 }
-    })
-    page:SetBackdropColor(HopeAddon:GetBgColor("DARK_OPAQUE"))
-    page:SetBackdropBorderColor(0.8, 0.2, 0.2, 1)
+    Components:ApplyBackdropRaw(page, "DARK_GOLD_SMALL", 0.1, 0.1, 0.1, 0.95, 0.8, 0.2, 0.2, 1)
 
     -- Victory header
     local header = page:CreateFontString(nil, "OVERLAY")
@@ -384,18 +369,11 @@ end
 ]]
 function Pages:CreateAttunementPage(parent, data)
     local Components = HopeAddon.Components
+    local arcaneColor = HopeAddon.colors.ARCANE_PURPLE
 
-    local page = CreateFrame("Frame", nil, parent)
+    local page = CreateBackdropFrame("Frame", nil, parent)
     page:SetSize(parent:GetWidth() - 40, 450)
-    page:SetBackdrop({
-        bgFile = HopeAddon.assets.textures.PARCHMENT,
-        edgeFile = HopeAddon.assets.textures.GOLD_BORDER,
-        tile = false,
-        edgeSize = 24,
-        insets = { left = 8, right = 8, top = 8, bottom = 8 }
-    })
-    page:SetBackdropColor(1, 1, 1, 0.95)
-    page:SetBackdropBorderColor(HopeAddon:GetColor("ARCANE_PURPLE"))
+    Components:ApplyBackdropRaw(page, "PARCHMENT_GOLD_SMALL", 1, 1, 1, 0.95, arcaneColor.r, arcaneColor.g, arcaneColor.b, 1)
 
     -- Large raid icon at top (64x64)
     local raidIconPath = data.headerIcon and ("Interface\\Icons\\" .. data.headerIcon) or
@@ -454,21 +432,16 @@ function Pages:CreateAttunementPage(parent, data)
     local yOffset = -45
 
     for i, chapter in ipairs(chapters) do
-        local chapterFrame = CreateFrame("Frame", nil, page)
+        local chapterFrame = CreateBackdropFrame("Frame", nil, page)
         chapterFrame:SetSize(page:GetWidth() - 40, 55)
         chapterFrame:SetPoint("TOP", progressBar, "BOTTOM", 0, yOffset)
-        chapterFrame:SetBackdrop({
-            bgFile = HopeAddon.assets.textures.TOOLTIP_BG,
-            edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
-            tile = true, tileSize = 8, edgeSize = 10,
-            insets = { left = 2, right = 2, top = 2, bottom = 2 }
-        })
+        chapterFrame:SetBackdrop(HopeAddon.Constants.BACKDROPS.TOOLTIP_SMALL)
 
         if chapter.complete then
-            chapterFrame:SetBackdropColor(HopeAddon:GetBgColor("GREEN_TINT"))
+            chapterFrame:SetBackdropColor(HopeAddon.Constants.BACKDROP_COLORS.GREEN_TINT[1], HopeAddon.Constants.BACKDROP_COLORS.GREEN_TINT[2], HopeAddon.Constants.BACKDROP_COLORS.GREEN_TINT[3], HopeAddon.Constants.BACKDROP_COLORS.GREEN_TINT[4])
             chapterFrame:SetBackdropBorderColor(0.2, 0.8, 0.2, 1)
         else
-            chapterFrame:SetBackdropColor(HopeAddon:GetBgColor("DARK_FAINT"))
+            chapterFrame:SetBackdropColor(HopeAddon.Constants.BACKDROP_COLORS.DARK_FAINT[1], HopeAddon.Constants.BACKDROP_COLORS.DARK_FAINT[2], HopeAddon.Constants.BACKDROP_COLORS.DARK_FAINT[3], HopeAddon.Constants.BACKDROP_COLORS.DARK_FAINT[4])
             chapterFrame:SetBackdropBorderColor(0.4, 0.4, 0.4, 0.8)
         end
 
@@ -541,17 +514,9 @@ end
 function Pages:CreateAttunementMilestonePage(parent, data)
     local Components = HopeAddon.Components
 
-    local page = CreateFrame("Frame", nil, parent)
+    local page = CreateBackdropFrame("Frame", nil, parent)
     page:SetSize(parent:GetWidth() - 40, 400)
-    page:SetBackdrop({
-        bgFile = HopeAddon.assets.textures.PARCHMENT,
-        edgeFile = HopeAddon.assets.textures.GOLD_BORDER,
-        tile = false,
-        edgeSize = 24,
-        insets = { left = 8, right = 8, top = 8, bottom = 8 }
-    })
-    page:SetBackdropColor(1, 1, 1, 0.95)
-    page:SetBackdropBorderColor(1, 0.84, 0, 1) -- Gold border for completion
+    Components:ApplyBackdrop(page, "PARCHMENT_GOLD_SMALL", "PARCHMENT", "GOLD")
 
     -- Header
     local header = page:CreateFontString(nil, "OVERLAY")
@@ -655,18 +620,9 @@ end
 function Pages:CreateFinalBossMilestonePage(parent, data)
     local Components = HopeAddon.Components
 
-    local page = CreateFrame("Frame", nil, parent)
+    local page = CreateBackdropFrame("Frame", nil, parent)
     page:SetSize(parent:GetWidth() - 40, 400)
-    page:SetBackdrop({
-        bgFile = HopeAddon.assets.textures.PARCHMENT_DARK,
-        edgeFile = HopeAddon.assets.textures.GOLD_BORDER,
-        tile = true,
-        tileSize = 32,
-        edgeSize = 24,
-        insets = { left = 8, right = 8, top = 8, bottom = 8 }
-    })
-    page:SetBackdropColor(HopeAddon:GetBgColor("RED_TINT"))
-    page:SetBackdropBorderColor(1, 0.84, 0, 1)
+    Components:ApplyBackdrop(page, "DARK_GOLD_SMALL", "RED_TINT", "GOLD")
 
     -- Header
     local header = page:CreateFontString(nil, "OVERLAY")
@@ -729,16 +685,10 @@ end
     @return Frame - The page frame
 ]]
 function Pages:CreateTierMilestonePage(parent, data)
-    local page = CreateFrame("Frame", nil, parent)
+    local Components = HopeAddon.Components
+    local page = CreateBackdropFrame("Frame", nil, parent)
     page:SetSize(parent:GetWidth() - 40, 300)
-    page:SetBackdrop({
-        bgFile = HopeAddon.assets.textures.PARCHMENT,
-        edgeFile = HopeAddon.assets.textures.GOLD_BORDER,
-        tile = false,
-        edgeSize = 24,
-        insets = { left = 8, right = 8, top = 8, bottom = 8 }
-    })
-    page:SetBackdropColor(1, 1, 1, 0.95)
+    Components:ApplyBackdropRaw(page, "PARCHMENT_GOLD_SMALL", 1, 1, 1, 0.95, nil, nil, nil, nil)
 
     -- Color based on tier
     local tierColors = {

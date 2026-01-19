@@ -6,6 +6,21 @@
 local Reputation = {}
 HopeAddon:RegisterModule("Reputation", Reputation)
 
+-- TBC 2.4.3 compatibility helper
+local function CreateBackdropFrame(frameType, name, parent, additionalTemplate)
+    local Components = HopeAddon.Components
+    if Components and Components.CreateBackdropFrame then
+        return Components.CreateBackdropFrame(frameType, name, parent, additionalTemplate)
+    end
+    local template = additionalTemplate and (additionalTemplate .. ", BackdropTemplate") or "BackdropTemplate"
+    local frame = CreateFrame(frameType or "Frame", name, parent, template)
+    if not frame.SetBackdrop then
+        frame:Hide()
+        frame = CreateFrame(frameType or "Frame", name, parent, additionalTemplate)
+    end
+    return frame
+end
+
 -- Module state
 Reputation.initialized = false
 Reputation.cachedStandings = {}
@@ -30,9 +45,11 @@ function Reputation:OnDisable()
     if self.eventFrame then
         self.eventFrame:UnregisterAllEvents()
         self.eventFrame:SetScript("OnEvent", nil)
+        self.eventFrame = nil
     end
     if self.notificationPool then
         self.notificationPool:Destroy()
+        self.notificationPool = nil
     end
 end
 
@@ -41,7 +58,7 @@ end
 ]]
 function Reputation:CreateNotificationPool()
     local createFunc = function()
-        local frame = CreateFrame("Frame", nil, UIParent)
+        local frame = CreateBackdropFrame("Frame", nil, UIParent)
         frame:SetFrameStrata("DIALOG")
         frame:Hide()
 

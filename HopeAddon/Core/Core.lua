@@ -361,6 +361,20 @@ function HopeAddon:Print(...)
     print("|cFF9B30FF[Hope]|r", ...)
 end
 
+--[[
+    SafeCall - Execute function with error protection
+    @param func function - Function to call
+    @param ... - Arguments to pass
+    @return boolean success, any result or error
+]]
+function HopeAddon:SafeCall(func, ...)
+    if type(func) ~= "function" then
+        self:Debug("SafeCall: not a function")
+        return false, "not a function"
+    end
+    return pcall(func, ...)
+end
+
 -- Format gold value
 function HopeAddon:FormatGold(copper)
     local gold = math.floor(copper / 10000)
@@ -495,11 +509,15 @@ function HopeAddon:OnPlayerLogin()
     if self.modulesEnabled then return end
     self.modulesEnabled = true
 
-    -- Initialize all registered modules
+    -- Initialize all registered modules with error protection
     for name, module in pairs(self.modules) do
         if module.OnEnable then
-            module:OnEnable()
-            self:Debug("Module enabled:", name)
+            local success, err = pcall(module.OnEnable, module)
+            if success then
+                self:Debug("Module enabled:", name)
+            else
+                self:Print("|cFFFF0000ERROR:|r Module " .. name .. " failed to enable: " .. tostring(err))
+            end
         end
     end
 
@@ -517,7 +535,7 @@ function HopeAddon:OnPlayerLogin()
     -- Show welcome or intro based on state
     if not self.charDb.hasSeenIntro then
         -- First time - show welcome
-        self:Print("Welcome, adventurer! Type /hope to open your journal.")
+        self:Print("Welcome, traveler! Type /hope to open your journal.")
         self.charDb.hasSeenIntro = true
     else
         -- Returning player
@@ -528,10 +546,13 @@ function HopeAddon:OnPlayerLogin()
 end
 
 function HopeAddon:OnPlayerLogout()
-    -- Save any pending data
+    -- Save any pending data with error protection
     for name, module in pairs(self.modules) do
         if module.OnDisable then
-            module:OnDisable()
+            local success, err = pcall(module.OnDisable, module)
+            if not success then
+                self:Debug("Module", name, "disable error:", tostring(err))
+            end
         end
     end
 end
@@ -641,6 +662,24 @@ end
 --[[
     Slash Commands
 ]]
+-- Player name validation constants
+local MAX_PLAYER_NAME_LENGTH = 12  -- WoW max character name length
+
+-- Validate player name input
+local function ValidatePlayerName(name)
+    if not name or name == "" then
+        return false, "Player name required"
+    end
+    if #name > MAX_PLAYER_NAME_LENGTH then
+        return false, "Player name too long (max " .. MAX_PLAYER_NAME_LENGTH .. " characters)"
+    end
+    -- WoW names are alphanumeric only (no special chars except accents)
+    if not name:match("^[%a]+$") then
+        return false, "Invalid player name format"
+    end
+    return true
+end
+
 SLASH_HOPE1 = "/hope"
 SLASH_HOPE2 = "/journal"
 SlashCmdList["HOPE"] = function(msg)
@@ -733,6 +772,12 @@ SlashCmdList["HOPE"] = function(msg)
         -- /hope words <player> (no local mode)
         local _, _, targetName = cmd:find("^words%s*(%S*)")
         if targetName and targetName ~= "" then
+            -- Validate player name
+            local valid, err = ValidatePlayerName(targetName)
+            if not valid then
+                HopeAddon:Print("|cFFFF0000Error:|r " .. err)
+                return
+            end
             -- Challenge player to Words with WoW
             local GameComms = HopeAddon:GetModule("GameComms")
             if GameComms then
@@ -752,6 +797,12 @@ SlashCmdList["HOPE"] = function(msg)
             HopeAddon:Print("Usage: /hope challenge <player> [dice|rps]")
             HopeAddon:Print("  Example: /hope challenge Thrall dice")
         else
+            -- Validate player name
+            local valid, err = ValidatePlayerName(targetName)
+            if not valid then
+                HopeAddon:Print("|cFFFF0000Error:|r " .. err)
+                return
+            end
             local Minigames = HopeAddon:GetModule("Minigames")
             if Minigames then
                 gameType = gameType ~= "" and gameType or "dice"
@@ -882,7 +933,7 @@ function HopeAddon:ShowStats()
     deathTitle = deathTitle or "Unknown"
     deathColor = deathColor or "ffffff"
 
-    self:Print("--- Your Adventure Stats ---")
+    self:Print("--- Your Journey Stats ---")
     self:Print("Deaths: " .. self:ColorText(tostring(stats.deaths.total), deathColor) .. " (" .. deathTitle .. ")")
     self:Print("Quests Completed: " .. stats.questsCompleted)
 

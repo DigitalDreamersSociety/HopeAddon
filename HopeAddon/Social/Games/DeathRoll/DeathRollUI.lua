@@ -5,6 +5,21 @@
 
 local DeathRollUI = {}
 
+-- TBC 2.4.3 compatibility helper
+local function CreateBackdropFrame(frameType, name, parent, additionalTemplate)
+    local Components = HopeAddon.Components
+    if Components and Components.CreateBackdropFrame then
+        return Components.CreateBackdropFrame(frameType, name, parent, additionalTemplate)
+    end
+    local template = additionalTemplate and (additionalTemplate .. ", BackdropTemplate") or "BackdropTemplate"
+    local frame = CreateFrame(frameType or "Frame", name, parent, template)
+    if not frame.SetBackdrop then
+        frame:Hide()
+        frame = CreateFrame(frameType or "Frame", name, parent, additionalTemplate)
+    end
+    return frame
+end
+
 --============================================================
 -- CONSTANTS
 --============================================================
@@ -98,7 +113,7 @@ function DeathRollUI:CreateSetupWindow()
     if not GameUI then return end
 
     -- Create window frame
-    local window = CreateFrame("Frame", "HopeDeathRollSetup", UIParent)
+    local window = CreateBackdropFrame("Frame", "HopeDeathRollSetup", UIParent)
     window:SetSize(self.SETUP_WINDOW.width, self.SETUP_WINDOW.height)
     window:SetPoint("CENTER")
     window:SetMovable(true)
@@ -275,7 +290,7 @@ function DeathRollUI:ShowHistory(gameId)
     end
 
     -- Create history window
-    local window = CreateFrame("Frame", "HopeDeathRollHistory_" .. gameId, UIParent)
+    local window = CreateBackdropFrame("Frame", "HopeDeathRollHistory_" .. gameId, UIParent)
     window:SetSize(self.HISTORY_WINDOW.width, self.HISTORY_WINDOW.height)
     window:SetPoint("CENTER", 200, 0)
     window:SetMovable(true)

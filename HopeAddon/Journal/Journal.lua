@@ -6,9 +6,24 @@
 local Journal = {}
 HopeAddon:RegisterModule("Journal", Journal)
 
+-- TBC 2.4.3 compatibility helper
+local function CreateBackdropFrame(frameType, name, parent, additionalTemplate)
+    local Components = HopeAddon.Components
+    if Components and Components.CreateBackdropFrame then
+        return Components.CreateBackdropFrame(frameType, name, parent, additionalTemplate)
+    end
+    local template = additionalTemplate and (additionalTemplate .. ", BackdropTemplate") or "BackdropTemplate"
+    local frame = CreateFrame(frameType or "Frame", name, parent, template)
+    if not frame.SetBackdrop then
+        frame:Hide()
+        frame = CreateFrame(frameType or "Frame", name, parent, additionalTemplate)
+    end
+    return frame
+end
+
 -- Journal state
 Journal.isOpen = false
-Journal.currentTab = "timeline"
+Journal.currentTab = "journey"
 Journal.mainFrame = nil
 Journal.notificationPool = nil  -- Frame pool for notifications
 Journal.pendingNotifications = {}  -- Track pending notifications to prevent stacking
@@ -101,26 +116,33 @@ function Journal:OnDisable()
     if self.eventFrame then
         self.eventFrame:UnregisterAllEvents()
         self.eventFrame:SetScript("OnEvent", nil)
+        self.eventFrame = nil
     end
 
     -- Destroy frame pools
     if self.notificationPool then
         self.notificationPool:Destroy()
+        self.notificationPool = nil
     end
     if self.cardPool then
         self.cardPool:Destroy()
+        self.cardPool = nil
     end
     if self.collapsiblePool then
         self.collapsiblePool:Destroy()
+        self.collapsiblePool = nil
     end
     if self.containerPool then
         self.containerPool:Destroy()
+        self.containerPool = nil
     end
     if self.bossInfoPool then
         self.bossInfoPool:Destroy()
+        self.bossInfoPool = nil
     end
     if self.gameCardPool then
         self.gameCardPool:Destroy()
+        self.gameCardPool = nil
     end
 end
 
@@ -129,7 +151,7 @@ end
 ]]
 function Journal:CreateNotificationPool()
     local createFunc = function()
-        local frame = CreateFrame("Frame", nil, UIParent)
+        local frame = CreateBackdropFrame("Frame", nil, UIParent)
         frame:SetFrameStrata("DIALOG")
         frame:Hide()
 
@@ -189,11 +211,17 @@ function Journal:CreateContainerPool()
         frame:SetParent(nil)
         frame:SetSize(1, 1)
         frame._pooled = true
-        -- Clear all font strings
+        -- Clear all regions (font strings, textures)
         for _, region in pairs({frame:GetRegions()}) do
             if region:GetObjectType() == "FontString" then
                 region:SetText("")
+            elseif region:GetObjectType() == "Texture" then
+                region:Hide()
             end
+        end
+        -- Hide child frames (tier cards, etc.) but don't destroy them
+        for _, child in pairs({frame:GetChildren()}) do
+            child:Hide()
         end
     end
 
@@ -207,14 +235,9 @@ end
 function Journal:CreateCardPool()
     local createFunc = function()
         -- Create a minimal card frame (icon, title, desc, timestamp)
-        local card = CreateFrame("Button", nil, UIParent)
+        local card = CreateBackdropFrame("Button", nil, UIParent)
         card:SetHeight(80)
-        card:SetBackdrop({
-            bgFile = HopeAddon.assets.textures.TOOLTIP_BG,
-            edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
-            tile = true, tileSize = 8, edgeSize = 12,
-            insets = { left = 3, right = 3, top = 3, bottom = 3 }
-        })
+        card:SetBackdrop(HopeAddon.Constants.BACKDROPS.TOOLTIP)
 
         -- Pre-create all elements
         card.icon = card:CreateTexture(nil, "ARTWORK")
@@ -561,11 +584,14 @@ end
     @param height number - Desired height
     @return Frame - Pooled container frame
 ]]
+-- Content width for Journey tab containers (frame 550 - margins 40 - scrollbar 25 = 485)
+local CONTAINER_WIDTH = 485
+
 function Journal:AcquireContainer(parent, height)
     if not self.containerPool then return nil end
     local container = self.containerPool:Acquire()
     container:SetParent(parent)
-    container:SetHeight(height or 20)
+    container:SetSize(CONTAINER_WIDTH, height or 20)
     container._pooled = true
     return container
 end
@@ -647,7 +673,10 @@ function Journal:RegisterEvents()
         elseif event == "TIME_PLAYED_MSG" then
             self:OnTimePlayed(...)
         elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
-            self:OnCombatLogEvent()
+            local success, err = pcall(self.OnCombatLogEvent, self)
+            if not success then
+                HopeAddon:Debug("Combat log handler error:", err)
+            end
         elseif event == "SKILL_LINES_CHANGED" then
             -- Invalidate riding skill cache
             self.cachedRidingSkill = nil
@@ -680,7 +709,7 @@ function Journal:CreateMainFrame()
     tinsert(UISpecialFrames, "HopeJournalFrame")
 
     -- Title
-    local titleBar = Components:CreateTitleBar(frame, "MY ADVENTURE", "ARCANE_PURPLE")
+    local titleBar = Components:CreateTitleBar(frame, "MY JOURNEY", "ARCANE_PURPLE")
 
     -- Character info display
     local charInfo = frame:CreateFontString(nil, "OVERLAY")
@@ -706,14 +735,14 @@ function Journal:CreateMainFrame()
     -- Create tabs
     local tabs = {}
     local tabData = {
-        { id = "timeline", label = "Timeline", tooltip = "Chronological record of your adventures" },
+        { id = "journey", label = "Journey", tooltip = "Your TBC progression and timeline" },
         { id = "milestones", label = "Milestones", tooltip = "Hero's Journey level milestones" },
         { id = "zones", label = "Zones", tooltip = "Outland zone discoveries" },
         { id = "reputation", label = "Reputation", tooltip = "Faction standings by category" },
         { id = "raids", label = "Raids", tooltip = "Boss kill tracking by tier (T4/T5/T6)" },
         { id = "attunements", label = "Attunements", tooltip = "Raid attunement quest chains" },
         { id = "directory", label = "Directory", tooltip = "Fellow travelers and minigames", color = "ARCANE_PURPLE" },
-        { id = "stats", label = "Stats", tooltip = "Adventure statistics summary" },
+        { id = "stats", label = "Stats", tooltip = "Journey statistics summary" },
     }
 
     local tabWidth = (frame:GetWidth() - 2 * Components.MARGIN_LARGE) / #tabData
@@ -753,7 +782,7 @@ function Journal:CreateMainFrame()
     self.mainFrame = frame
 
     -- Select default tab
-    self:SelectTab("timeline")
+    self:SelectTab("journey")
 
     return frame
 end
@@ -794,8 +823,8 @@ function Journal:SelectTab(tabId)
     -- 3. Clear and repopulate content (pass containerPool for pooled frame release)
     self.mainFrame.scrollContainer:ClearEntries(self.containerPool)
 
-    if tabId == "timeline" then
-        self:PopulateTimeline()
+    if tabId == "journey" then
+        self:PopulateJourney()
     elseif tabId == "milestones" then
         self:PopulateMilestones()
     elseif tabId == "zones" then
@@ -857,9 +886,833 @@ end
 --[[
     POPULATE FUNCTIONS
 ]]
-function Journal:PopulateTimeline()
+
+--[[
+    YOU ARE PREPARED - Summary Section Data Helpers
+]]
+
+-- Tier display names and colors
+local TIER_INFO = {
+    T4 = { name = "Tier 4", color = "UNCOMMON", raids = { "karazhan", "gruul", "magtheridon" } },
+    T5 = { name = "Tier 5", color = "RARE", raids = { "ssc", "tk" } },
+    T6 = { name = "Tier 6", color = "EPIC", raids = { "hyjal", "bt" } },
+}
+
+-- Raid display names
+local RAID_NAMES = {
+    karazhan = "Karazhan",
+    gruul = "Gruul's Lair",
+    magtheridon = "Magtheridon's Lair",
+    ssc = "Serpentshrine Cavern",
+    tk = "Tempest Keep",
+    hyjal = "Hyjal Summit",
+    bt = "Black Temple",
+}
+
+-- Boss counts per raid
+local RAID_BOSS_COUNTS = {
+    karazhan = 11,  -- Including optional bosses
+    gruul = 2,
+    magtheridon = 1,
+    ssc = 6,
+    tk = 4,
+    hyjal = 5,
+    bt = 9,
+}
+
+-- Key reputations for progression (faction IDs)
+local KEY_REPUTATIONS = {
+    { id = 942, name = "Cenarion Expedition", requirement = "Heroic Keys" },
+    { id = 935, name = "The Sha'tar", requirement = "Heroic Keys" },
+    { id = 989, name = "Keepers of Time", requirement = "Heroic Keys" },
+    { id = 1011, name = "Lower City", requirement = "Heroic Keys" },
+    { id = 932, name = "The Aldor", requirement = "Attunements", isChoice = true },
+    { id = 934, name = "The Scryers", requirement = "Attunements", isChoice = true },
+}
+
+--[[
+    Get raid tier status for summary display
+    @param tierKey string - "T4", "T5", or "T6"
+    @return table - { status, bossesKilled, totalBosses, raids }
+]]
+function Journal:GetTierStatus(tierKey)
+    local tierInfo = TIER_INFO[tierKey]
+    if not tierInfo then return nil end
+
+    local C = HopeAddon.Constants
+    local Attunements = HopeAddon.Attunements
+    local bossKills = HopeAddon.charDb.journal.bossKills or {}
+
+    local totalKilled = 0
+    local totalBosses = 0
+    local raids = {}
+
+    for _, raidKey in ipairs(tierInfo.raids) do
+        local raidBosses = C[string.upper(raidKey) .. "_BOSSES"] or {}
+        local bossCount = #raidBosses
+        local killedCount = 0
+
+        -- Count killed bosses for this raid
+        for _, boss in ipairs(raidBosses) do
+            if bossKills[boss.id] then
+                killedCount = killedCount + 1
+            end
+        end
+
+        -- Check attunement status (only karazhan, ssc, tk, hyjal, bt have attunements)
+        local attuned = false
+        local attuneProgress = 0
+        local attuneTotal = 0
+
+        if Attunements and Attunements.GetState then
+            local state = Attunements:GetState(raidKey)
+            attuned = (state == Attunements.STATE.COMPLETED)
+
+            -- Get progress for attunement
+            local attunementData = Attunements:GetAttunementData(raidKey)
+            if attunementData and attunementData.chapters then
+                attuneTotal = #attunementData.chapters
+                local progress = Attunements:GetProgress(raidKey)
+                if progress and progress.chapters then
+                    for _ in pairs(progress.chapters) do
+                        attuneProgress = attuneProgress + 1
+                    end
+                end
+            end
+        end
+
+        -- Gruul and Magtheridon don't require attunement
+        if raidKey == "gruul" or raidKey == "magtheridon" then
+            attuned = true  -- Always accessible if you can enter T4 raids
+        end
+
+        table.insert(raids, {
+            key = raidKey,
+            name = RAID_NAMES[raidKey],
+            bossesKilled = killedCount,
+            totalBosses = bossCount,
+            attuned = attuned,
+            attuneProgress = attuneProgress,
+            attuneTotal = attuneTotal,
+            cleared = killedCount >= bossCount,
+        })
+
+        totalKilled = totalKilled + killedCount
+        totalBosses = totalBosses + bossCount
+    end
+
+    -- Determine tier status
+    local status = "LOCKED"
+    if totalKilled >= totalBosses then
+        status = "CLEARED"
+    elseif totalKilled > 0 then
+        status = "IN_PROGRESS"
+    else
+        -- Check if any raid is attuned
+        for _, raid in ipairs(raids) do
+            if raid.attuned then
+                status = "READY"
+                break
+            end
+        end
+    end
+
+    return {
+        status = status,
+        bossesKilled = totalKilled,
+        totalBosses = totalBosses,
+        raids = raids,
+        color = tierInfo.color,
+        name = tierInfo.name,
+    }
+end
+
+--[[
+    Get current attunement progress summary
+    @return table - Array of attunement status objects
+]]
+function Journal:GetAttunementSummary()
+    local Attunements = HopeAddon.Attunements
+    if not Attunements then return {} end
+
+    local attunementOrder = { "karazhan", "ssc", "tk", "hyjal", "bt" }
+    local attunementNames = {
+        karazhan = "Karazhan",
+        ssc = "Serpentshrine Cavern",
+        tk = "Tempest Keep",
+        hyjal = "Hyjal Summit",
+        bt = "Black Temple",
+    }
+
+    local summary = {}
+
+    for _, raidKey in ipairs(attunementOrder) do
+        local state = Attunements:GetState(raidKey)
+        local attunementData = Attunements:GetAttunementData(raidKey)
+        local progress = Attunements:GetProgress(raidKey)
+
+        local completed = 0
+        local total = 0
+
+        if attunementData and attunementData.chapters then
+            total = #attunementData.chapters
+            if progress and progress.chapters then
+                for _ in pairs(progress.chapters) do
+                    completed = completed + 1
+                end
+            end
+        end
+
+        table.insert(summary, {
+            key = raidKey,
+            name = attunementNames[raidKey],
+            state = state,
+            completed = completed,
+            total = total,
+            isComplete = (state == Attunements.STATE.COMPLETED),
+        })
+    end
+
+    return summary
+end
+
+--[[
+    Get key reputation standings
+    @return table - Array of reputation status objects
+]]
+function Journal:GetKeyReputationSummary()
+    local ReputationData = HopeAddon.ReputationData
+    local summary = {}
+
+    for _, repInfo in ipairs(KEY_REPUTATIONS) do
+        -- Get current standing using TBC-compatible method
+        local standingId = nil
+        local standingName = "Unknown"
+        local repValue = 0
+        local repMax = 0
+
+        -- Iterate through factions to find the one we want
+        local numFactions = GetNumFactions()
+        for i = 1, numFactions do
+            local name, _, standId, barMin, barMax, barValue, _, _, isHeader, _, _, _, _, factionId = GetFactionInfo(i)
+            if factionId == repInfo.id then
+                standingId = standId
+                if ReputationData and ReputationData.STANDINGS[standId] then
+                    standingName = ReputationData.STANDINGS[standId].name
+                end
+                repValue = barValue - barMin
+                repMax = barMax - barMin
+                break
+            end
+        end
+
+        -- Only include if we found the faction
+        if standingId then
+            table.insert(summary, {
+                name = repInfo.name,
+                standing = standingName,
+                standingId = standingId or 4,
+                value = repValue,
+                max = repMax,
+                requirement = repInfo.requirement,
+                isChoice = repInfo.isChoice,
+                -- Honored (6) is needed for heroic keys
+                hasHeroicKey = (standingId or 0) >= 6,
+            })
+        end
+    end
+
+    return summary
+end
+
+--[[
+    Determine what the player should focus on next
+    @return table - { title, items } where items are checklist entries
+]]
+function Journal:GetNextFocus()
+    local playerLevel = UnitLevel("player")
+    local Attunements = HopeAddon.Attunements
+
+    -- Pre-58: Focus on leveling
+    if playerLevel < 58 then
+        return {
+            title = "REACH THE DARK PORTAL",
+            subtitle = "Level " .. playerLevel .. " / 58",
+            items = {
+                { text = "Reach level 58", done = false, current = true },
+                { text = "Journey to Blasted Lands", done = false },
+                { text = "Enter the Dark Portal", done = false },
+            }
+        }
+    end
+
+    -- Check Karazhan attunement first
+    if Attunements then
+        local karaState = Attunements:GetState("karazhan")
+        if karaState ~= Attunements.STATE.COMPLETED then
+            local progress = Attunements:GetProgress("karazhan")
+            local attunementData = Attunements:GetAttunementData("karazhan")
+            local items = {}
+
+            if attunementData and attunementData.chapters then
+                for i, chapter in ipairs(attunementData.chapters) do
+                    local done = progress and progress.chapters and progress.chapters[chapter.questId]
+                    table.insert(items, {
+                        text = chapter.title or ("Step " .. i),
+                        done = done or false,
+                        current = not done and #items == 0,
+                    })
+                    -- Only show first few uncompleted
+                    if not done and #items >= 4 then break end
+                end
+            end
+
+            -- Fallback if no items were added
+            if #items == 0 then
+                table.insert(items, { text = "Begin the attunement chain", done = false, current = true })
+            end
+
+            return {
+                title = "KARAZHAN ATTUNEMENT",
+                subtitle = "The Master's Key",
+                items = items,
+            }
+        end
+
+        -- Check SSC/TK attunements
+        local sscState = Attunements:GetState("ssc")
+        local tkState = Attunements:GetState("tk")
+
+        if sscState ~= Attunements.STATE.COMPLETED or tkState ~= Attunements.STATE.COMPLETED then
+            local items = {}
+
+            -- SSC items
+            if sscState ~= Attunements.STATE.COMPLETED then
+                local sscProgress = Attunements:GetProgress("ssc")
+                local sscData = Attunements:GetAttunementData("ssc")
+                if sscData and sscData.chapters then
+                    for _, chapter in ipairs(sscData.chapters) do
+                        local done = sscProgress and sscProgress.chapters and sscProgress.chapters[chapter.questId]
+                        if not done and #items < 3 then
+                            table.insert(items, {
+                                text = "[SSC] " .. (chapter.title or "Quest"),
+                                done = false,
+                            })
+                        end
+                    end
+                end
+            else
+                table.insert(items, { text = "SSC Attuned", done = true })
+            end
+
+            -- TK items
+            if tkState ~= Attunements.STATE.COMPLETED then
+                local tkProgress = Attunements:GetProgress("tk")
+                local tkData = Attunements:GetAttunementData("tk")
+                if tkData and tkData.chapters then
+                    for _, chapter in ipairs(tkData.chapters) do
+                        local done = tkProgress and tkProgress.chapters and tkProgress.chapters[chapter.questId]
+                        if not done and #items < 5 then
+                            table.insert(items, {
+                                text = "[TK] " .. (chapter.title or "Quest"),
+                                done = false,
+                            })
+                        end
+                    end
+                end
+            else
+                table.insert(items, { text = "TK Attuned", done = true })
+            end
+
+            return {
+                title = "TIER 5 ATTUNEMENTS",
+                subtitle = "Champion of the Naaru",
+                items = items,
+            }
+        end
+
+        -- Check Hyjal/BT attunements
+        local hyjalState = Attunements:GetState("hyjal")
+        local btState = Attunements:GetState("bt")
+
+        if hyjalState ~= Attunements.STATE.COMPLETED or btState ~= Attunements.STATE.COMPLETED then
+            local items = {}
+
+            if hyjalState ~= Attunements.STATE.COMPLETED then
+                table.insert(items, { text = "Defeat Lady Vashj (SSC)", done = false })
+                table.insert(items, { text = "Defeat Kael'thas (TK)", done = false })
+            else
+                table.insert(items, { text = "Hyjal Summit Access", done = true })
+            end
+
+            if btState ~= Attunements.STATE.COMPLETED then
+                table.insert(items, { text = "Complete Tablets of Baa'ri", done = false })
+                table.insert(items, { text = "Obtain Medallion of Karabor", done = false })
+            else
+                table.insert(items, { text = "Black Temple Access", done = true })
+            end
+
+            return {
+                title = "TIER 6 ATTUNEMENTS",
+                subtitle = "Hand of A'dal",
+                items = items,
+            }
+        end
+    end
+
+    -- All attuned - focus on clearing content
+    local t6Status = self:GetTierStatus("T6")
+    if t6Status and t6Status.status ~= "CLEARED" then
+        local items = {}
+        for _, raid in ipairs(t6Status.raids) do
+            if not raid.cleared then
+                table.insert(items, {
+                    text = "Clear " .. raid.name .. " (" .. raid.bossesKilled .. "/" .. raid.totalBosses .. ")",
+                    done = false,
+                })
+            else
+                table.insert(items, {
+                    text = raid.name .. " Cleared",
+                    done = true,
+                })
+            end
+        end
+        return {
+            title = "CONQUER TIER 6",
+            subtitle = "The Final Challenge",
+            items = items,
+        }
+    end
+
+    -- Everything done!
+    return {
+        title = "LEGEND OF OUTLAND",
+        subtitle = "All content conquered",
+        items = {
+            { text = "All attunements complete", done = true },
+            { text = "All raids cleared", done = true },
+            { text = "You are truly prepared!", done = true },
+        }
+    }
+end
+
+--[[
+    Create the "YOU ARE PREPARED" summary header
+]]
+function Journal:CreateJourneySummaryHeader()
+    local Components = HopeAddon.Components
+    local container = self:AcquireContainer(self.mainFrame.scrollContainer.content, 70)
+
+    -- Title: YOU ARE PREPARED
+    local title = container.summaryTitle
+    if not title then
+        title = container:CreateFontString(nil, "OVERLAY")
+        container.summaryTitle = title
+    end
+    title:SetFont(HopeAddon.assets.fonts.TITLE, 24)
+    title:ClearAllPoints()
+    title:SetPoint("TOP", container, "TOP", 0, -10)
+    title:SetText(HopeAddon:ColorText("YOU ARE PREPARED", "FEL_GREEN"))
+    title:Show()  -- Explicit show for pooled container children
+
+    -- Subtitle with player name
+    local subtitle = container.summarySubtitle
+    if not subtitle then
+        subtitle = container:CreateFontString(nil, "OVERLAY")
+        container.summarySubtitle = subtitle
+    end
+    subtitle:SetFont(HopeAddon.assets.fonts.BODY, 12)
+    subtitle:ClearAllPoints()
+    subtitle:SetPoint("TOP", title, "BOTTOM", 0, -5)
+    local playerName = UnitName("player")
+    local _, class = UnitClass("player")
+    local classColor = HopeAddon:GetClassColor(class)
+    subtitle:SetText(string.format("The journey of |cFF%02x%02x%02x%s|r through Outland",
+        classColor.r * 255, classColor.g * 255, classColor.b * 255, playerName))
+    subtitle:Show()  -- Explicit show for pooled container children
+
+    return container
+end
+
+--[[
+    Create tier progress cards (T4, T5, T6)
+]]
+function Journal:CreateTierProgressSection()
+    local Components = HopeAddon.Components
+    local container = self:AcquireContainer(self.mainFrame.scrollContainer.content, 140)
+
+    -- Section title
+    local sectionTitle = container.tierSectionTitle
+    if not sectionTitle then
+        sectionTitle = container:CreateFontString(nil, "OVERLAY")
+        container.tierSectionTitle = sectionTitle
+    end
+    sectionTitle:SetFont(HopeAddon.assets.fonts.HEADER, 14)
+    sectionTitle:ClearAllPoints()
+    sectionTitle:SetPoint("TOPLEFT", container, "TOPLEFT", 10, -5)
+    sectionTitle:SetText(HopeAddon:ColorText("RAID PROGRESSION", "GOLD_BRIGHT"))
+    sectionTitle:Show()  -- Explicit show for pooled container children
+
+    -- Create 3 tier cards side by side
+    local tiers = { "T4", "T5", "T6" }
+    local cardWidth = 150
+    local cardHeight = 100
+    local spacing = 10
+    local totalWidth = (cardWidth * 3) + (spacing * 2)
+    -- Use constant width since container hasn't been added to scroll yet
+    local startX = (CONTAINER_WIDTH - totalWidth) / 2
+
+    for i, tierKey in ipairs(tiers) do
+        local tierStatus = self:GetTierStatus(tierKey)
+        if tierStatus then
+            local cardKey = "tierCard" .. tierKey
+            local card = container[cardKey]
+
+            if not card then
+                card = CreateFrame("Frame", nil, container, "BackdropTemplate")
+                card:SetSize(cardWidth, cardHeight)
+                card:SetBackdrop(HopeAddon.Constants.BACKDROPS.SOLID_TOOLTIP)
+                container[cardKey] = card
+
+                -- Tier name
+                card.tierName = card:CreateFontString(nil, "OVERLAY")
+                card.tierName:SetFont(HopeAddon.assets.fonts.HEADER, 13)
+                card.tierName:SetPoint("TOP", card, "TOP", 0, -8)
+
+                -- Status text
+                card.statusText = card:CreateFontString(nil, "OVERLAY")
+                card.statusText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+                card.statusText:SetPoint("TOP", card.tierName, "BOTTOM", 0, -2)
+
+                -- Progress text
+                card.progressText = card:CreateFontString(nil, "OVERLAY")
+                card.progressText:SetFont(HopeAddon.assets.fonts.BODY, 11)
+                card.progressText:SetPoint("TOP", card.statusText, "BOTTOM", 0, -8)
+
+                -- Raid list
+                card.raidList = card:CreateFontString(nil, "OVERLAY")
+                card.raidList:SetFont(HopeAddon.assets.fonts.SMALL, 9)
+                card.raidList:SetPoint("BOTTOM", card, "BOTTOM", 0, 8)
+                card.raidList:SetWidth(140)  -- cardWidth - 10
+                card.raidList:SetJustifyH("CENTER")
+            end
+
+            -- Position card
+            card:ClearAllPoints()
+            card:SetPoint("TOPLEFT", container, "TOPLEFT", startX + (i-1) * (cardWidth + spacing), -25)
+
+            -- Set background color based on status
+            local bgColor = { 0.1, 0.1, 0.1, 0.8 }
+            local borderColor = { 0.3, 0.3, 0.3, 1 }
+
+            if tierStatus.status == "CLEARED" then
+                bgColor = { 0.1, 0.2, 0.1, 0.9 }
+                borderColor = { 0.0, 0.8, 0.0, 1 }
+            elseif tierStatus.status == "IN_PROGRESS" then
+                bgColor = { 0.15, 0.15, 0.1, 0.9 }
+                borderColor = { 0.8, 0.7, 0.0, 1 }
+            elseif tierStatus.status == "READY" then
+                bgColor = { 0.1, 0.1, 0.15, 0.9 }
+                borderColor = { 0.4, 0.4, 0.8, 1 }
+            end
+
+            card:SetBackdropColor(unpack(bgColor))
+            card:SetBackdropBorderColor(unpack(borderColor))
+
+            -- Set text
+            card.tierName:SetText(HopeAddon:ColorText(tierStatus.name, tierStatus.color))
+            card.tierName:Show()  -- Explicit show for pooled children
+
+            local statusColors = {
+                LOCKED = "CC4444",
+                READY = "4488CC",
+                IN_PROGRESS = "CCAA44",
+                CLEARED = "44CC44",
+            }
+            card.statusText:SetText("|cFF" .. (statusColors[tierStatus.status] or "FFFFFF") .. tierStatus.status .. "|r")
+            card.statusText:Show()  -- Explicit show for pooled children
+
+            card.progressText:SetText(tierStatus.bossesKilled .. " / " .. tierStatus.totalBosses .. " bosses")
+            card.progressText:Show()  -- Explicit show for pooled children
+
+            -- Build raid list
+            local raidLines = {}
+            for _, raid in ipairs(tierStatus.raids) do
+                local checkmark = raid.cleared and "|cFF44CC44[X]|r" or (raid.bossesKilled > 0 and "|cFFCCAA44[-]|r" or "|cFF666666[ ]|r")
+                table.insert(raidLines, checkmark .. " " .. raid.name)
+            end
+            card.raidList:SetText(table.concat(raidLines, "\n"))
+            card.raidList:Show()  -- Explicit show for pooled children
+
+            card:Show()
+        end
+    end
+
+    return container
+end
+
+--[[
+    Create the "What to Focus On" panel
+]]
+function Journal:CreateFocusPanel()
+    local Components = HopeAddon.Components
+    local focus = self:GetNextFocus()
+
+    local container = self:AcquireContainer(self.mainFrame.scrollContainer.content, 95 + (#focus.items * 16))
+
+    -- Section title
+    local sectionTitle = container.focusSectionTitle
+    if not sectionTitle then
+        sectionTitle = container:CreateFontString(nil, "OVERLAY")
+        container.focusSectionTitle = sectionTitle
+    end
+    sectionTitle:SetFont(HopeAddon.assets.fonts.HEADER, 12)
+    sectionTitle:ClearAllPoints()
+    sectionTitle:SetPoint("TOPLEFT", container, "TOPLEFT", 10, -5)
+    sectionTitle:SetText(HopeAddon:ColorText("CURRENT FOCUS", "GOLD_BRIGHT"))
+    sectionTitle:Show()  -- Explicit show for pooled container children
+
+    -- Focus title
+    local focusTitle = container.focusTitle
+    if not focusTitle then
+        focusTitle = container:CreateFontString(nil, "OVERLAY")
+        container.focusTitle = focusTitle
+    end
+    focusTitle:SetFont(HopeAddon.assets.fonts.HEADER, 14)
+    focusTitle:ClearAllPoints()
+    focusTitle:SetPoint("TOPLEFT", container, "TOPLEFT", 20, -25)
+    focusTitle:SetText(HopeAddon:ColorText(focus.title, "FEL_GREEN"))
+
+    -- Focus subtitle
+    local focusSubtitle = container.focusSubtitle
+    if not focusSubtitle then
+        focusSubtitle = container:CreateFontString(nil, "OVERLAY")
+        container.focusSubtitle = focusSubtitle
+    end
+    focusSubtitle:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+    focusSubtitle:ClearAllPoints()
+    focusSubtitle:SetPoint("TOPLEFT", focusTitle, "BOTTOMLEFT", 0, -2)
+    focusSubtitle:SetTextColor(HopeAddon:GetTextColor("SUBTLE"))
+    focusSubtitle:SetText(focus.subtitle)
+
+    -- Checklist items
+    local yOffset = -55
+    for i, item in ipairs(focus.items) do
+        local itemKey = "focusItem" .. i
+        local itemText = container[itemKey]
+        if not itemText then
+            itemText = container:CreateFontString(nil, "OVERLAY")
+            container[itemKey] = itemText
+        end
+        itemText:SetFont(HopeAddon.assets.fonts.BODY, 11)
+        itemText:ClearAllPoints()
+        itemText:SetPoint("TOPLEFT", container, "TOPLEFT", 30, yOffset)
+
+        local checkmark = item.done and "|cFF44CC44[X]|r" or "|cFF666666[ ]|r"
+        local textColor = item.done and "44CC44" or (item.current and "FFFFFF" or "AAAAAA")
+        itemText:SetText(checkmark .. " |cFF" .. textColor .. item.text .. "|r")
+        itemText:Show()
+
+        yOffset = yOffset - 16
+    end
+
+    -- Hide any extra item texts
+    for i = #focus.items + 1, 10 do
+        local itemKey = "focusItem" .. i
+        if container[itemKey] then
+            container[itemKey]:Hide()
+        end
+    end
+
+    return container
+end
+
+--[[
+    Create attunement summary row
+]]
+function Journal:CreateAttunementSummary()
+    local Components = HopeAddon.Components
+    local attunements = self:GetAttunementSummary()
+
+    local container = self:AcquireContainer(self.mainFrame.scrollContainer.content, 90)
+
+    -- Section title
+    local sectionTitle = container.attuneSectionTitle
+    if not sectionTitle then
+        sectionTitle = container:CreateFontString(nil, "OVERLAY")
+        container.attuneSectionTitle = sectionTitle
+    end
+    sectionTitle:SetFont(HopeAddon.assets.fonts.HEADER, 12)
+    sectionTitle:ClearAllPoints()
+    sectionTitle:SetPoint("TOPLEFT", container, "TOPLEFT", 10, -5)
+    sectionTitle:SetText(HopeAddon:ColorText("ATTUNEMENTS", "GOLD_BRIGHT"))
+
+    -- Attunement items
+    local yOffset = -25
+    for i, attune in ipairs(attunements) do
+        local itemKey = "attuneItem" .. i
+        local itemText = container[itemKey]
+        if not itemText then
+            itemText = container:CreateFontString(nil, "OVERLAY")
+            container[itemKey] = itemText
+        end
+        itemText:SetFont(HopeAddon.assets.fonts.BODY, 10)
+        itemText:ClearAllPoints()
+        itemText:SetPoint("TOPLEFT", container, "TOPLEFT", 20, yOffset)
+
+        local status
+        if attune.isComplete then
+            status = "|cFF44CC44[X]|r"
+        elseif attune.completed > 0 then
+            status = "|cFFCCAA44[" .. attune.completed .. "/" .. attune.total .. "]|r"
+        else
+            status = "|cFF666666[ ]|r"
+        end
+
+        local textColor = attune.isComplete and "44CC44" or (attune.completed > 0 and "CCAA44" or "888888")
+        itemText:SetText(status .. " |cFF" .. textColor .. attune.name .. "|r")
+        itemText:Show()
+
+        yOffset = yOffset - 13
+    end
+
+    return container
+end
+
+--[[
+    Create key reputation summary
+]]
+function Journal:CreateReputationSummary()
+    local Components = HopeAddon.Components
+    local reps = self:GetKeyReputationSummary()
+
+    local container = self:AcquireContainer(self.mainFrame.scrollContainer.content, 100)
+
+    -- Section title
+    local sectionTitle = container.repSectionTitle
+    if not sectionTitle then
+        sectionTitle = container:CreateFontString(nil, "OVERLAY")
+        container.repSectionTitle = sectionTitle
+    end
+    sectionTitle:SetFont(HopeAddon.assets.fonts.HEADER, 12)
+    sectionTitle:ClearAllPoints()
+    sectionTitle:SetPoint("TOPLEFT", container, "TOPLEFT", 10, -5)
+    sectionTitle:SetText(HopeAddon:ColorText("KEY REPUTATIONS", "GOLD_BRIGHT"))
+
+    -- Reputation items (2 columns)
+    local leftY = -25
+    local rightY = -25
+    local leftCount = 0
+    local rightCount = 0
+
+    for i, rep in ipairs(reps) do
+        -- Skip choice factions if player hasn't chosen
+        if not rep.isChoice or (rep.standingId and rep.standingId >= 5) then
+            local itemKey = "repItem" .. i
+            local itemText = container[itemKey]
+            if not itemText then
+                itemText = container:CreateFontString(nil, "OVERLAY")
+                container[itemKey] = itemText
+            end
+            itemText:SetFont(HopeAddon.assets.fonts.SMALL, 9)
+            itemText:ClearAllPoints()
+
+            -- Alternate columns
+            if leftCount <= rightCount then
+                itemText:SetPoint("TOPLEFT", container, "TOPLEFT", 20, leftY)
+                leftY = leftY - 14
+                leftCount = leftCount + 1
+            else
+                itemText:SetPoint("TOPLEFT", container, "TOP", 10, rightY)
+                rightY = rightY - 14
+                rightCount = rightCount + 1
+            end
+
+            -- Color based on standing
+            local standingColors = {
+                [1] = "CC0000", [2] = "FF3333", [3] = "FF8000", [4] = "FFFF00",
+                [5] = "00CC00", [6] = "0099CC", [7] = "0066CC", [8] = "9933FF",
+            }
+            local standingColor = standingColors[rep.standingId] or "FFFFFF"
+            local keyIcon = rep.hasHeroicKey and "|cFF44CC44*|r" or ""
+
+            itemText:SetText(rep.name .. ": |cFF" .. standingColor .. rep.standing .. "|r" .. keyIcon)
+            itemText:Show()
+        end
+    end
+
+    return container
+end
+
+--[[
+    Create timeline section header (separator before entries)
+]]
+function Journal:CreateTimelineSeparator()
+    local Components = HopeAddon.Components
+    local container = self:AcquireContainer(self.mainFrame.scrollContainer.content, 30)
+
+    local header = container.timelineHeader
+    if not header then
+        header = container:CreateFontString(nil, "OVERLAY")
+        container.timelineHeader = header
+    end
+    header:SetFont(HopeAddon.assets.fonts.HEADER, 12)
+    header:ClearAllPoints()
+    header:SetPoint("LEFT", container, "LEFT", 10, 0)
+    header:SetText(HopeAddon:ColorText("TIMELINE", "GOLD_BRIGHT"))
+
+    -- Divider line
+    local divider = container.timelineDivider
+    if not divider then
+        divider = container:CreateTexture(nil, "ARTWORK")
+        container.timelineDivider = divider
+    end
+    divider:SetColorTexture(0.4, 0.4, 0.4, 0.5)
+    divider:SetHeight(1)
+    divider:ClearAllPoints()
+    divider:SetPoint("LEFT", header, "RIGHT", 10, 0)
+    divider:SetPoint("RIGHT", container, "RIGHT", -10, 0)
+    divider:Show()
+
+    return container
+end
+
+--[[
+    Main Journey tab populate function
+    Includes "YOU ARE PREPARED" summary section followed by timeline entries
+]]
+function Journal:PopulateJourney()
     local entries = HopeAddon.charDb.journal.entries
     local Components = HopeAddon.Components
+    local scrollContainer = self.mainFrame.scrollContainer
+
+    -- === YOU ARE PREPARED SUMMARY SECTION ===
+
+    -- 1. Header with title
+    local header = self:CreateJourneySummaryHeader()
+    scrollContainer:AddEntry(header)
+
+    -- 2. Tier Progress Cards (T4/T5/T6)
+    local tierSection = self:CreateTierProgressSection()
+    scrollContainer:AddEntry(tierSection)
+
+    -- 3. Current Focus Panel
+    local focusPanel = self:CreateFocusPanel()
+    scrollContainer:AddEntry(focusPanel)
+
+    -- 4. Attunement Summary (compact)
+    local attuneSection = self:CreateAttunementSummary()
+    scrollContainer:AddEntry(attuneSection)
+
+    -- 5. Key Reputations (compact)
+    local repSection = self:CreateReputationSummary()
+    scrollContainer:AddEntry(repSection)
+
+    -- === TIMELINE SECTION ===
+
+    -- Separator
+    local separator = self:CreateTimelineSeparator()
+    scrollContainer:AddEntry(separator)
 
     -- Use cached sorted entries if available (performance optimization)
     -- Cache is invalidated when new entries are added via InvalidateCounts()
@@ -875,32 +1728,32 @@ function Journal:PopulateTimeline()
     end
 
     for _, entry in ipairs(self.cachedSortedTimeline) do
-        local card = self:AcquireCard(self.mainFrame.scrollContainer.content, {
+        local card = self:AcquireCard(scrollContainer.content, {
             icon = entry.icon,
             title = entry.title,
             description = entry.description or entry.story,
             timestamp = entry.timestamp,
         })
-        self.mainFrame.scrollContainer:AddEntry(card)
+        scrollContainer:AddEntry(card)
     end
 
-    -- If no entries, show placeholder using proper scroll entry mechanism
+    -- If no entries, show placeholder
     if #entries == 0 then
-        local placeholderFrame = self:AcquireContainer(self.mainFrame.scrollContainer.content, 200)
+        local placeholderFrame = self:AcquireContainer(scrollContainer.content, 100)
 
         local placeholder = placeholderFrame.headerText
         if not placeholder then
             placeholder = placeholderFrame:CreateFontString(nil, "OVERLAY")
             placeholderFrame.headerText = placeholder
         end
-        placeholder:SetFont(HopeAddon.assets.fonts.BODY, 14)
+        placeholder:SetFont(HopeAddon.assets.fonts.BODY, 12)
         placeholder:ClearAllPoints()
         placeholder:SetPoint("CENTER", placeholderFrame, "CENTER", 0, 0)
-        placeholder:SetText("Your adventure awaits...\n\nLevel up to start your journal!\nExplore new zones!\nComplete quests!")
+        placeholder:SetText("Your journey awaits...\n\nLevel up to record your first milestone!")
         placeholder:SetTextColor(HopeAddon:GetTextColor("SUBTLE"))
         placeholder:SetJustifyH("CENTER")
 
-        self.mainFrame.scrollContainer:AddEntry(placeholderFrame)
+        scrollContainer:AddEntry(placeholderFrame)
     end
 end
 
@@ -2179,16 +3032,16 @@ function Journal:PopulateStats()
     local scrollContainer = self.mainFrame.scrollContainer
 
     --============================================================
-    -- SECTION 1: ADVENTURE STATISTICS
+    -- SECTION 1: JOURNEY STATISTICS
     --============================================================
-    local header1 = self:CreateSectionHeader("ADVENTURE STATISTICS", "GOLD_BRIGHT")
+    local header1 = self:CreateSectionHeader("JOURNEY STATISTICS", "GOLD_BRIGHT")
     scrollContainer:AddEntry(header1)
 
-    -- Adventure Began
+    -- Journey Began
     if HopeAddon.charDb.characterCreated then
         local card = self:AcquireCard(scrollContainer.content, {
             icon = "Interface\\Icons\\INV_Misc_Book_09",
-            title = "Adventure Began",
+            title = "Journey Began",
             description = "Your journey started on " .. HopeAddon.charDb.characterCreated,
             timestamp = "",
         })
@@ -2976,16 +3829,7 @@ function Journal:ShowMilestoneNotificationInternal(title, level, story)
     local notif = self.notificationPool:Acquire()
     notif:SetSize(NOTIF_WIDTH_LARGE, NOTIF_HEIGHT_LARGE)
     notif:SetPoint("TOP", UIParent, "TOP", 0, NOTIF_TOP_OFFSET)
-    notif:SetBackdrop({
-        bgFile = HopeAddon.assets.textures.PARCHMENT_DARK,
-        edgeFile = HopeAddon.assets.textures.GOLD_BORDER,
-        tile = true,
-        tileSize = 16,
-        edgeSize = 24,
-        insets = { left = 5, right = 5, top = 5, bottom = 5 }
-    })
-    notif:SetBackdropColor(HopeAddon:GetBgColor("PURPLE_TINT"))
-    notif:SetBackdropBorderColor(1, 0.84, 0, 1)
+    HopeAddon.Components:ApplyBackdrop(notif, "DARK_GOLD", "PURPLE_TINT", "GOLD")
 
     -- Configure pre-created font strings
     notif.titleText:ClearAllPoints()
@@ -3037,15 +3881,7 @@ function Journal:ShowDiscoveryNotificationInternal(zoneName, title, flavor)
     local notif = self.notificationPool:Acquire()
     notif:SetSize(NOTIF_WIDTH_SMALL, NOTIF_HEIGHT_SMALL)
     notif:SetPoint("TOP", UIParent, "TOP", 0, NOTIF_TOP_OFFSET)
-    notif:SetBackdrop({
-        bgFile = HopeAddon.assets.textures.TOOLTIP_BG,
-        edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
-        tile = true,
-        tileSize = 8,
-        edgeSize = 12,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 }
-    })
-    notif:SetBackdropColor(HopeAddon:GetBgColor("BLUE_TINT"))
+    HopeAddon.Components:ApplyBackdrop(notif, "TOOLTIP", "BLUE_TINT", nil)
 
     -- Get zone color (with safe fallback)
     local zoneColor = "SKY_BLUE"
@@ -3100,14 +3936,7 @@ function Journal:ShowBossKillNotificationInternal(killData)
     local notif = self.notificationPool:Acquire()
     notif:SetSize(NOTIF_WIDTH_LARGE, NOTIF_HEIGHT_LARGE)
     notif:SetPoint("TOP", UIParent, "TOP", 0, NOTIF_TOP_OFFSET)
-    notif:SetBackdrop({
-        bgFile = HopeAddon.assets.textures.PARCHMENT_DARK,
-        edgeFile = HopeAddon.assets.textures.GOLD_BORDER,
-        tile = true, tileSize = 16, edgeSize = 24,
-        insets = { left = 5, right = 5, top = 5, bottom = 5 }
-    })
-    notif:SetBackdropColor(HopeAddon:GetBgColor("RED_TINT"))
-    notif:SetBackdropBorderColor(0.8, 0.2, 0.2, 1)
+    HopeAddon.Components:ApplyBackdrop(notif, "DARK_GOLD", "RED_TINT", "RED")
 
     -- Configure pre-created font strings
     notif.titleText:ClearAllPoints()
@@ -3166,7 +3995,7 @@ function Journal:Toggle()
         self.isOpen = true
 
         -- Restore last selected tab or default to timeline
-        local lastTab = HopeAddon.charDb.journal.lastTab or "timeline"
+        local lastTab = HopeAddon.charDb.journal.lastTab or "journey"
         self:SelectTab(lastTab)
     end
 end

@@ -269,16 +269,8 @@ end
 -- MESSAGE PARSING
 --============================================================
 
--- Message format definitions for validation
-local MESSAGE_FORMATS = {
-    [Minigames.MSG_GAME_CHALLENGE] = {"gameType", "sessionId", "challengerName"},
-    [Minigames.MSG_GAME_ACCEPT] = {"sessionId", "accepterName"},
-    [Minigames.MSG_GAME_REJECT] = {"sessionId", "reason"},
-    [Minigames.MSG_GAME_MOVE] = {"sessionId", "value", "timestamp"},
-    [Minigames.MSG_GAME_REVEAL] = {"sessionId", "choice", "salt"},
-    [Minigames.MSG_GAME_RESULT] = {"sessionId", "winner", "move1", "move2"},
-    [Minigames.MSG_GAME_CANCEL] = {"sessionId", "reason"},
-}
+-- Note: MESSAGE_FORMATS defined at top of file (line 34) is used by both
+-- local ParseMessage() and Minigames:ParseMessage() below
 
 --[[
     Parse and validate a message

@@ -191,9 +191,74 @@ function WordGame:OnEnd(gameId, reason)
 end
 
 --[[
+    Clean up game UI elements (memory leak prevention)
+]]
+function WordGame:CleanupGame(gameId)
+    local game = self.games[gameId]
+    if not game or not game.data then return end
+
+    -- Clear FontString references
+    if game.data.p1ScoreText then
+        game.data.p1ScoreText:SetText("")
+        game.data.p1ScoreText = nil
+    end
+    if game.data.p2ScoreText then
+        game.data.p2ScoreText:SetText("")
+        game.data.p2ScoreText = nil
+    end
+    if game.data.turnText then
+        game.data.turnText:SetText("")
+        game.data.turnText = nil
+    end
+    if game.data.boardText then
+        game.data.boardText:SetText("")
+        game.data.boardText = nil
+    end
+    if game.data.lastMoveText then
+        game.data.lastMoveText:SetText("")
+        game.data.lastMoveText = nil
+    end
+
+    -- Clear frame references
+    if game.data.p1Frame then
+        game.data.p1Frame:Hide()
+        game.data.p1Frame:SetParent(nil)
+        game.data.p1Frame = nil
+    end
+    if game.data.p2Frame then
+        game.data.p2Frame:Hide()
+        game.data.p2Frame:SetParent(nil)
+        game.data.p2Frame = nil
+    end
+    if game.data.boardFrame then
+        game.data.boardFrame:Hide()
+        game.data.boardFrame:SetParent(nil)
+        game.data.boardFrame = nil
+    end
+
+    -- Clear window reference
+    if game.data.window then
+        game.data.window = nil
+    end
+
+    -- Clear row cache
+    if game.data.rowCache then
+        game.data.rowCache = nil
+    end
+
+    -- Clear game data references
+    game.data.board = nil
+    game.data.moveHistory = nil
+    game.data.scores = nil
+end
+
+--[[
     Called when game is destroyed
 ]]
 function WordGame:OnDestroy(gameId)
+    -- Clean up UI elements first
+    self:CleanupGame(gameId)
+
     -- Clean up UI window
     if self.GameUI then
         self.GameUI:DestroyGameWindow(gameId)
@@ -380,7 +445,7 @@ function WordGame:PassTurn(gameId, playerName)
 
     -- Send to remote player if networked
     if self.GameCore and game.mode == self.GameCore.GAME_MODE.REMOTE and self.GameComms then
-        self.GameComms:SendCustom(game.opponent, "WORDS", gameId, "PASS", "")
+        self.GameComms:SendMove(game.opponent, "WORDS", gameId, "PASS")
     end
 
     return true, "Turn passed"
@@ -468,6 +533,7 @@ function WordGame:ShowUI(gameId)
     local p1Frame = CreateFrame("Frame", nil, content)
     p1Frame:SetPoint("TOPLEFT", 10, -10)
     p1Frame:SetSize(120, 60)
+    game.data.p1Frame = p1Frame  -- Store for cleanup
 
     local p1Name = p1Frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     p1Name:SetPoint("TOP", 0, -5)
@@ -489,6 +555,7 @@ function WordGame:ShowUI(gameId)
     local p2Frame = CreateFrame("Frame", nil, content)
     p2Frame:SetPoint("TOPRIGHT", -10, -10)
     p2Frame:SetSize(120, 60)
+    game.data.p2Frame = p2Frame  -- Store for cleanup
 
     local p2Name = p2Frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     p2Name:SetPoint("TOP", 0, -5)
@@ -519,6 +586,7 @@ function WordGame:ShowUI(gameId)
     boardFrame:SetPoint("BOTTOM", 0, 50)
     boardFrame:SetPoint("LEFT", 10, 0)
     boardFrame:SetPoint("RIGHT", -10, 0)
+    game.data.boardFrame = boardFrame  -- Store for cleanup
 
     local boardContent = CreateFrame("Frame", nil, boardFrame)
     boardFrame:SetScrollChild(boardContent)

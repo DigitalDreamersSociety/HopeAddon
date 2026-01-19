@@ -11,6 +11,9 @@ local string_sub = string.sub
 
 local Effects = {}
 
+-- Export to HopeAddon namespace for direct access
+HopeAddon.Effects = Effects
+
 -- Cache for active effects
 Effects.activeGlows = {}
 Effects.glowsByParent = {}  -- O(1) lookup for glows by parent frame

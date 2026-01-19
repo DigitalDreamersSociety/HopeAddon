@@ -1,6 +1,6 @@
 ## Interface: 20400
 ## Title: |cff9B30FFHope|r Addon
-## Notes: Your Personal TBC Adventure Journal
+## Notes: Your Personal TBC Journey Journal
 ## Author: Hope Guild
 ## Version: 1.0.0
 ## SavedVariables: HopeAddonDB

@@ -336,16 +336,24 @@ local recentKills = {}
     Register for combat events
 ]]
 function RaidData:RegisterEvents()
-    -- Try ENCOUNTER_END first (may or may not exist in TBC Classic)
+    -- NOTE: ENCOUNTER_END does NOT exist in TBC Classic 2.4.3
+    -- Boss detection relies on COMBAT_LOG_EVENT_UNFILTERED UNIT_DIED
+    -- Keeping registration for potential compatibility, but it will silently fail to fire
     eventFrame:RegisterEvent("ENCOUNTER_END")
     -- Always register COMBAT_LOG as fallback (definitely exists in TBC Classic)
     eventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 
     eventFrame:SetScript("OnEvent", function(_, event, ...)
         if event == "ENCOUNTER_END" then
-            RaidData:OnEncounterEnd(...)
+            local success, err = pcall(RaidData.OnEncounterEnd, RaidData, ...)
+            if not success then
+                HopeAddon:Debug("ENCOUNTER_END handler error:", err)
+            end
         elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
-            RaidData:OnCombatLogEvent(...)
+            local success, err = pcall(RaidData.OnCombatLogEvent, RaidData, ...)
+            if not success then
+                HopeAddon:Debug("Combat log handler error:", err)
+            end
         end
     end)
 end
@@ -501,6 +509,11 @@ function RaidData:OnDisable()
     if eventFrame then
         eventFrame:UnregisterAllEvents()
         eventFrame:SetScript("OnEvent", nil)
+        eventFrame = nil
+    end
+    -- Clear recent kills cache
+    if recentKills then
+        wipe(recentKills)
     end
 end
 

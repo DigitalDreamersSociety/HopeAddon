@@ -1,0 +1,1532 @@
+# UI Organization & Design Specification Guide
+
+## Task Summary
+This document provides:
+1. Exact specifications for TBC/Outland themed UI aesthetics
+2. Catalog of all current UI issues organized by severity
+3. Detailed checklists for maintaining visual consistency
+4. Documentation of icon organization patterns (talent-tree-inspired layouts)
+5. Standards for Quest Log and Achievement Panel styling
+
+## Design Vision
+
+### Target Aesthetic
+- **Primary Theme:** Outland/TBC (fel green, arcane purple palette)
+- **NOT:** Classic WoW brown leather aesthetic
+- **NOT:** Traditional talent tree with connecting lines
+- **IS:** Icon organization inspired by talent trees (rows/columns for stages)
+
+### UI Elements to Emulate
+1. **Quest Log Styling:**
+   - Parchment backgrounds
+   - Quest text formatting
+   - Header styles
+   - Objective layouts
+
+2. **Achievement Panel Patterns:**
+   - Icon badges with quality borders
+   - Progress bars with completion states
+   - Celebration effects
+   - Tooltip patterns
+
+3. **Icon Organization (Talent-Tree-Inspired):**
+   - Icons arranged in rows/columns for multi-part stages
+   - Example: Stage with 3 parts → 3 icons in row/column
+   - Simple and scalable for Lua
+   - Clear visual grouping without complex connecting lines
+
+### Reference Implementations (Good Examples)
+✓ **Milestones tab** - Collapsible acts structure
+✓ **Raids tab** - Tier groupings with boss cards
+✓ **Directory Games Hall** - 3-column game card grid
+
+---
+
+## Part 1: Design Specifications
+
+### 1.1 TBC/Outland Color Palette (Exact Values)
+
+**Fel Green Spectrum:**
+- Primary Fel Green: `{r=0.20, g=0.80, b=0.20}` (#32CD32) - Zone headers, nature elements
+- Fel Glow: `{r=0.40, g=1.00, b=0.40}` (#66FF66) - Hover effects, active states
+- Outland Teal: `{r=0.00, g=0.81, b=0.82}` (#00CED1) - Water/sky elements
+
+**Arcane Purple Spectrum:**
+- Primary Arcane Purple: `{r=0.61, g=0.19, b=1.00}` (#9B30FF) - Directory tab, social features
+- Nether Lavender: `{r=0.69, g=0.53, b=0.93}` (#B088EE) - Subtle accents, secondary elements
+- Void Purple: `{r=0.50, g=0.00, b=0.50}` (#800080) - Dark borders, shadows
+
+**Hellfire Spectrum (Combat/Danger):**
+- Hellfire Red: `{r=1.00, g=0.27, b=0.27}` (#FF4444) - Errors, warnings
+- Hellfire Orange: `{r=1.00, g=0.55, b=0.00}` (#FF8C00) - Legendary quality
+- Lava Orange: `{r=1.00, g=0.65, b=0.00}` (#FFA500) - Fire elements
+
+**Achievement/UI Gold:**
+- Gold Bright: `{r=1.00, g=0.84, b=0.00}` (#FFD700) - Headers, hover states, completion
+- Gold Pale: `{r=1.00, g=0.93, b=0.55}` (#FFEE8C) - Subtle gold accents
+- Bronze: `{r=0.80, g=0.50, b=0.20}` (#CD853F) - Brown accents (use sparingly)
+
+**Item Quality Borders:**
+- Poor (Gray): `{r=0.62, g=0.62, b=0.62}` (#9D9D9D)
+- Common (White): `{r=1.00, g=1.00, b=1.00}` (#FFFFFF)
+- Uncommon (Green): `{r=0.12, g=1.00, b=0.00}` (#1EFF00)
+- Rare (Blue): `{r=0.00, g=0.44, b=0.87}` (#0070DD)
+- Epic (Purple): `{r=0.64, g=0.21, b=0.93}` (#A335EE)
+- Legendary (Orange): `{r=1.00, g=0.50, b=0.00}` (#FF8000)
+
+**Background Colors (from HopeAddon.bgColors):**
+- Dark Transparent: `{r=0.1, g=0.1, b=0.1, a=0.7}` - Overlays
+- Dark Solid: `{r=0.1, g=0.1, b=0.1, a=0.8}` - Containers
+- Dark Opaque: `{r=0.1, g=0.1, b=0.1, a=0.95}` - Main frames
+- Input BG: `{r=0.05, g=0.05, b=0.05, a=0.9}` - Text inputs
+- Purple Tint: `{r=0.1, g=0.08, b=0.15, a=0.95}` - Arcane-themed frames
+
+**Checklist for Color Usage:**
+- [ ] All tabs use consistent TBC palette
+- [ ] No brown leather colors (classic WoW) used
+- [ ] Hover states use brighter versions of base colors
+- [ ] Disabled states use desaturated versions
+- [ ] Text contrast meets readability standards
+
+---
+
+### 1.2 Parchment & Background Standards
+
+**Backdrop Texture Paths (from HopeAddon.assets.textures):**
+```lua
+PARCHMENT = "Interface\\QUESTFRAME\\QuestBG"                      -- Standard quest log
+PARCHMENT_DARK = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark"  -- Darker variant
+DIALOG_BG = "Interface\\DialogFrame\\UI-DialogBox-Background"     -- Standard dialog
+TOOLTIP_BG = "Interface\\Tooltips\\UI-Tooltip-Background"         -- Tooltip style
+SOLID = "Interface\\BUTTONS\\WHITE8X8"                            -- Solid color fill
+```
+
+**Border Texture Paths:**
+```lua
+GOLD_BORDER = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border"  -- Gold/achievement borders
+DIALOG_BORDER = "Interface\\DialogFrame\\UI-DialogBox-Border"     -- Standard borders
+TOOLTIP_BORDER = "Interface\\Tooltips\\UI-Tooltip-Border"         -- Tooltip borders
+```
+
+**Standard Background Colors:**
+- Main frame: `{r=0.1, g=0.1, b=0.1, a=0.95}` (DARK_OPAQUE) - Journal, major windows
+- Tab content: `{r=0.1, g=0.1, b=0.1, a=0.8}` (DARK_SOLID) - Scroll containers
+- Card backgrounds: `{r=0.1, g=0.1, b=0.1, a=0.7}` (DARK_TRANSPARENT) - Individual cards
+- Section headers: `{r=0.1, g=0.08, b=0.15, a=0.95}` (PURPLE_TINT) - Arcane-themed headers
+- Input fields: `{r=0.05, g=0.05, b=0.05, a=0.9}` (INPUT_BG) - Text inputs, edit boxes
+
+**Game UI Background Colors (from GameUI.lua COLORS):**
+- Window BG: `{r=0.1, g=0.1, b=0.1, a=0.95}` - Game windows
+- Title BG: `{r=0.2, g=0.15, b=0.3, a=1.0}` - Title bars (purple tint)
+- Button Normal: `{r=0.3, g=0.25, b=0.4, a=1.0}` - Button base color
+- Button Hover: `{r=0.4, g=0.35, b=0.55, a=1.0}` - Button hover state
+- Button Pressed: `{r=0.25, g=0.2, b=0.35, a=1.0}` - Button pressed state
+
+**Checklist for Backgrounds:**
+- [ ] All major frames use appropriate backdrop textures
+- [ ] Cards have consistent backdrop with proper insets
+- [ ] Nested containers have proper alpha to show depth
+- [ ] Scrollable areas have appropriate edge treatment
+
+---
+
+### 1.3 Icon Organization Patterns
+
+Specifications for talent-tree-inspired icon layouts:
+
+**Pattern A: Linear Stage (single icon per stage)**
+```
+[Icon] Stage 1
+  ↓ (5-10px vertical spacing)
+[Icon] Stage 2
+  ↓
+[Icon] Stage 3
+```
+- Vertical spacing: 5-10 pixels
+- Icon size: 40x40 pixels (standard)
+- Connector: Simple arrow or line texture
+
+**Pattern B: Multi-Part Stage (row layout)**
+```
+[Icon] [Icon] [Icon]  ← 3 parts in Stage 1 (10px spacing between)
+       ↓ (5px vertical spacing)
+     [Icon]            ← Stage 2 (centered)
+```
+- Horizontal spacing: 10 pixels between icons in row
+- Vertical spacing: 5 pixels between stages
+- Centered alignment for next stage
+
+**Pattern C: Multi-Part Stage (column layout)**
+```
+[Icon]
+[Icon]  ← 3 parts stacked (5px spacing)
+[Icon]
+  ↓
+[Icon]  ← Next stage
+```
+- Vertical spacing: 5 pixels between icons in column
+- Column width: 40 pixels (icon size)
+
+**Checklist for Icon Layouts:**
+- [ ] Icons in same stage use consistent size (40x40)
+- [ ] Spacing between stage icons uses MARGIN_NORMAL (10px)
+- [ ] Vertical flow clearly shows progression
+- [ ] No overlapping hitboxes on icon buttons
+- [ ] Tooltips don't obscure adjacent icons
+
+---
+
+### 1.4 Achievement Badge Standards
+
+**Icon Sizes:**
+- Standard: 40x40 pixels (Components.ICON_SIZE_STANDARD)
+- Large: 48x48 pixels (used in Milestones, boss cards)
+- Miniature: 24x24 pixels (used for inline buttons, notes)
+- Tiny: 16x16 pixels (used for status badges)
+
+**Quality Border Colors (from Item Quality system):**
+- Common (gray): `{r=0.62, g=0.62, b=0.62}`
+- Uncommon (green): `{r=0.12, g=1.00, b=0.00}`
+- Rare (blue): `{r=0.00, g=0.44, b=0.87}`
+- Epic (purple): `{r=0.64, g=0.21, b=0.93}`
+- Legendary (orange): `{r=1.00, g=0.50, b=0.00}`
+
+**Border Thickness:** 2 pixels (standard)
+**Icon Padding:** 8 pixels inside border (Components.INPUT_PADDING)
+
+**Glow Effects for Completion:**
+- Glow type: Icon glow (scale: 1.5x)
+- Glow color: Gold `{r=1, g=0.84, b=0}`
+- Duration: 1-2 seconds
+- Fade pattern: Fade in, hold, fade out
+
+**Checklist for Achievement Icons:**
+- [ ] All achievement icons use quality-based borders
+- [ ] Locked icons show desaturated texture
+- [ ] Unlocked icons show celebration effect
+- [ ] Icon tooltips follow achievement panel format
+- [ ] Icon size consistent within same context (40x40 standard)
+
+---
+
+### 1.5 Progress Bar Standards
+
+**Bar Dimensions:**
+- Width: Full container width - 16 margins (MARGIN_NORMAL * 2)
+- Height: 20 pixels
+- Corner radius: Uses textured borders (no explicit radius)
+
+**Fill Animation:**
+- Duration: 0.5 seconds
+- Easing: Linear progression with ticker
+- Update frequency: 0.03 seconds (30 FPS)
+
+**Color Patterns:**
+
+**Incomplete:**
+- Background: `{r=0.1, g=0.1, b=0.1, a=0.8}` (Dark)
+- Fill: Gradient from `{r=0.1, g=0.6, b=0.1}` to `{r=0.2, g=0.9, b=0.2}` (Dark green → Bright green)
+- Border: `{r=0.5, g=0.5, b=0.5}` (Gray)
+
+**Complete:**
+- Background: `{r=0.1, g=0.1, b=0.1, a=0.8}` (Dark)
+- Fill: Solid `{r=0.2, g=0.9, b=0.2}` (Bright green)
+- Border: `{r=1, g=0.84, b=0}` (Gold)
+
+**Text Overlay:**
+- Font: GameFontNormal
+- Size: 12 points
+- Color: White `{r=1, g=1, b=1}` with black outline
+- Format: "X / Y (Z%)"
+- Shadow: Offset (1, -1), Color `{r=0, g=0, b=0, a=1}`
+
+**Checklist for Progress Bars:**
+- [ ] All progress bars use consistent dimensions (20px height)
+- [ ] Completion triggers sparkle effect
+- [ ] Text overlay readable on all fill states
+- [ ] Animation doesn't cause UI stutter (0.03s ticker)
+- [ ] Bar fills left-to-right consistently
+
+---
+
+### 1.6 Typography Hierarchy
+
+**Available Font Files (from HopeAddon.assets.fonts):**
+- TITLE: "Fonts\\MORPHEUS.TTF" - Decorative, large headings
+- HEADER: "Fonts\\FRIZQT__.TTF" - Standard WoW UI font
+- BODY: "Fonts\\FRIZQT__.TTF" - Same as header
+- SMALL: "Fonts\\ARIALN.TTF" - Condensed, small text
+
+**Standard GameFont Variants (Blizzard built-in):**
+- GameFontNormalLarge - ~16pt, for major headings
+- GameFontNormal - ~12pt, standard UI text
+- GameFontNormalSmall - ~10pt, body text
+- GameFontHighlight - White color variant
+- GameFontHighlightSmall - ~10pt white text
+- GameFontNormalHuge - ~20pt, for emphasis
+
+**Heading Levels:**
+- **H1 (Tab Title):** GameFontNormalLarge, ~16pt, GOLD `{r=1, g=0.84, b=0}`
+- **H2 (Section Header):** GameFontNormal, ~12pt, Color varies by context
+- **H3 (Category Header):** GameFontNormalSmall, ~10pt, Gray `{r=0.8, g=0.8, b=0.8}`
+
+**Body Text:**
+- **Primary:** GameFontHighlightSmall, ~10pt, White `{r=1, g=1, b=1}`
+- **Secondary:** GameFontNormalSmall, ~10pt, Light gray `{r=0.7, g=0.7, b=0.7}`
+- **Flavor Text:** GameFontNormalSmall, ~10pt, Arcane purple `{r=0.69, g=0.53, b=0.93}` (italic)
+- **Monospace (Words board):** FRIZQT__.TTF, 10pt fixed - For grid-based text rendering
+
+**Special Text:**
+- **Quest Objectives:** Green `{r=0, g=1, b=0}` when complete, white when incomplete
+- **Timestamps:** Gray `{r=0.6, g=0.6, b=0.6}`, ~9pt GameFontNormalSmall
+- **Stats:** Gold `{r=1, g=0.84, b=0}` for numbers, white for labels
+- **Player Names:** Class color, ~12pt GameFontNormal
+- **Game Scores:** GameFontNormalHuge, ~20pt, white or gold
+
+**Line Spacing:**
+- Between paragraphs: 10 pixels (MARGIN_NORMAL)
+- Between list items: 5 pixels (MARGIN_SMALL)
+- Before section headers: 20 pixels (MARGIN_LARGE)
+- Card title to subtitle: 5 pixels (MARGIN_SMALL)
+- Subtitle to body: 5 pixels (MARGIN_SMALL)
+
+**Text Shadows (for readability):**
+- Standard shadow: Offset (1, -1), Color `{r=0, g=0, b=0, a=1}`
+- Heavy shadow (large text): Offset (2, -2), Color `{r=0, g=0, b=0, a=1}`
+
+**Checklist for Typography:**
+- [ ] All headings use consistent hierarchy
+- [ ] Body text uses GameFont variants (not custom fonts)
+- [ ] Line height provides comfortable reading
+- [ ] Text color contrast meets readability standards
+- [ ] Flavor text visually distinct from mechanics
+
+---
+
+### 1.7 Card Component Specification
+
+**Dimensions:**
+- Width: Container width (485px typical for journal)
+- Height: Auto-sizing with minimum 80 pixels
+- Margin: 5 pixels between cards (MARGIN_SMALL)
+
+**Layout Structure:**
+```
+┌─────────────────────────────────────────────┐
+│ [Icon 40x40]  [Title: GOLD, 12pt]          │
+│               [Subtitle: Gray, 10pt]       │
+│               [Body text: White, 10pt]     │
+│               [Timestamp: Gray, 9pt]       │
+└─────────────────────────────────────────────┘
+```
+
+**Icon Positioning:**
+- Top-left corner
+- Margin: 10 pixels from edges (MARGIN_NORMAL)
+- Size: 40x40 standard, 48x48 for important entries
+
+**Text Positioning:**
+- Title: 10 pixels right of icon, 10 pixels from top
+- Subtitle: Below title, 5 pixel gap (MARGIN_SMALL)
+- Body: Below subtitle, 5 pixel gap, word-wrapped
+- Timestamp: Bottom-right, 10 pixels from edges, 8 pixels from bottom
+
+**Visual States:**
+- **Default:** Border `{r=0.5, g=0.5, b=0.5}`, no glow
+- **Hover:** Border `{r=1, g=0.84, b=0}` (gold), subtle glow
+- **Clicked:** Border brightens, press animation (scale 0.98x)
+- **New/Unread:** Fel green glow, "NEW" badge in corner
+
+**Checklist for Cards:**
+- [ ] Icon always top-left with 10px margin
+- [ ] Text never overlaps icon
+- [ ] Timestamp always bottom-right
+- [ ] Hover state transitions smoothly (0.15s)
+- [ ] Click animation doesn't break layout
+
+---
+
+### 1.8 Collapsible Section Specification
+
+**Header Dimensions:**
+- Width: Full container width
+- Height: 28 pixels
+- Margin: 5 pixels above content (MARGIN_SMALL)
+
+**Header Layout:**
+```
+┌─────────────────────────────────────────────┐
+│ [▼] [Title: Large font]  [Progress: X/Y]  │
+└─────────────────────────────────────────────┘
+```
+
+**Toggle Icon:**
+- Position: Left edge, 8 pixels margin (INPUT_PADDING)
+- Size: Font-based (GameFontNormalLarge)
+- States: ▼ (expanded), ▶ (collapsed)
+- Animation: Rotate 90° over 0.3 seconds
+
+**Title Text:**
+- Font: GameFontNormal, 12 pt
+- Color: Based on section type (Act = green, Tier = purple, etc.)
+- Position: 8 pixels right of toggle icon (INPUT_PADDING)
+
+**Progress Display:**
+- Position: Right edge, 10 pixels margin (MARGIN_NORMAL)
+- Format: "X / Y" or "XX%"
+- Color: White for incomplete, Gold for complete
+
+**Content Container:**
+- Indent: 10 pixels from left edge (MARGIN_NORMAL)
+- Background: Slightly darker than parent (alpha: 0.3)
+- Padding: 5 pixels top/bottom (MARGIN_SMALL)
+
+**Animation:**
+- Expand: Fade in + slide down, 0.3 seconds
+- Collapse: Fade out + slide up, 0.3 seconds
+- Recalculate scroll height on toggle
+
+**Checklist for Collapsible Sections:**
+- [ ] Toggle icon rotates smoothly
+- [ ] Content fades in/out during transition
+- [ ] Scroll height recalculates correctly
+- [ ] Progress display updates on child changes
+- [ ] Nested sections don't break layout
+
+---
+
+### 1.9 Layout Constants Reference
+
+**Spacing (from Components.lua):**
+```lua
+MARGIN_SMALL = 5      -- Between related elements (list items, icon rows)
+MARGIN_NORMAL = 10    -- Standard spacing (between cards, buttons)
+MARGIN_LARGE = 20     -- Between major sections (headers, spacers)
+INPUT_PADDING = 8     -- For text input editbox
+SCROLLBAR_WIDTH = 25  -- Space for scrollbar
+```
+
+**Container Sizes:**
+```lua
+FRAME_WIDTH = 550           -- Main journal frame
+FRAME_HEIGHT = 650          -- Main journal frame
+CONTAINER_WIDTH = 485       -- Scroll content (550 - 40 margin - 25 scrollbar)
+TAB_HEIGHT = 32             -- Tab button height
+FOOTER_HEIGHT = 40          -- Stats footer height
+```
+
+**Icon Sizes:**
+```lua
+ICON_SIZE_STANDARD = 40     -- Default for entries (Components constant)
+ICON_SIZE_LARGE = 48        -- Milestones, bosses, important entries
+ICON_SIZE_SMALL = 24        -- Minimap pins, inline buttons
+ICON_SIZE_TINY = 16         -- Notes, status badges
+```
+
+**Card Specifications:**
+```lua
+CARD_HEIGHT_MIN = 80        -- Minimum card height (scroll fallback)
+CARD_PADDING = 8            -- Internal padding (icon margin)
+CARD_ICON_MARGIN = 10       -- Icon to edge margin (MARGIN_NORMAL)
+CARD_TEXT_OFFSET = 10       -- Text to right of icon (MARGIN_NORMAL)
+```
+
+**Button Sizes:**
+```lua
+BUTTON_HEIGHT_STANDARD = 22 -- Default button (Practice, Challenge)
+BUTTON_HEIGHT_LARGE = 32    -- Primary action button
+BUTTON_WIDTH_STANDARD = 80  -- Default button width
+BUTTON_WIDTH_ICON = 24      -- Icon button size (square)
+```
+
+**Game Card Grid (Directory Games Hall):**
+```lua
+GAME_CARD_WIDTH = 200       -- Individual game card
+GAME_CARD_HEIGHT = 110      -- Card height
+GAME_CARD_SPACING = 10      -- Gap between cards (MARGIN_NORMAL)
+CARDS_PER_ROW = 3           -- Grid columns
+ROW_HEIGHT = 115            -- Card height + spacing (110 + 5)
+```
+
+**Window Sizes (GameUI.WINDOW_SIZES):**
+```lua
+SMALL = { width = 300, height = 200 }    -- Small dialogs
+MEDIUM = { width = 450, height = 350 }   -- Medium games
+LARGE = { width = 600, height = 500 }    -- Large content
+PONG = { width = 500, height = 400 }     -- Pong-specific
+TETRIS = { width = 700, height = 550 }   -- Tetris battle
+```
+
+**Checklist for Layout:**
+- [ ] All spacing uses named constants (no magic numbers)
+- [ ] Nested containers account for parent margins
+- [ ] Scrollbar width subtracted from content width (485 = 550 - 40 - 25)
+- [ ] Minimum heights prevent layout collapse
+- [ ] Button sizes consistent within same context
+
+---
+
+## Part 2: Current Architecture Documentation
+
+### 2.1 System Overview
+
+```
+HopeAddon UI Architecture
+├─ Journal System (Main Hub)
+│  ├─ Frame Pools (6 types)
+│  ├─ Tab System (8 tabs)
+│  ├─ Scroll Container
+│  └─ Footer Stats
+├─ Game System
+│  ├─ GameCore (Loop & State)
+│  ├─ GameUI (Windows & Components)
+│  ├─ GameComms (Network)
+│  └─ 4 Game Implementations
+└─ Social System
+   ├─ Directory (Games Hall + Travelers)
+   ├─ Profile Editor
+   ├─ MapPins
+   └─ TravelerIcons
+```
+
+---
+
+### 2.2 Frame Pool Architecture
+
+| Pool | Purpose | Create Function | Reset Pattern | Usage |
+|------|---------|-----------------|---------------|-------|
+| **notificationPool** | Pop-up notifications | CreateBackdropFrame(Frame) | Clear FontStrings + effects | Achievement unlocks |
+| **containerPool** | Headers, spacers, sections | CreateFrame(Frame) | Clear children | All tabs |
+| **cardPool** | Entry cards | CreateBackdropFrame(Button) | Clear text, effects, handlers | Most tabs |
+| **collapsiblePool** | Expandable sections | CreateCollapsibleSection | Reset childEntries array | Raids, Milestones |
+| **bossInfoPool** | Raid metadata frames | CreateFrame(Frame) | Clear FontString | Raids tab |
+| **gameCardPool** | Games Hall cards | CreateGameCard | Reset text, handlers, colors | Directory tab |
+
+**Pool Lifecycle:**
+1. **OnEnable:** Create all pools
+2. **SelectTab:** ReleaseAll in dependency order (cards → sections → containers)
+3. **Populate:** Acquire frames from pools
+4. **OnDisable:** Destroy all pools
+
+**Memory Management:**
+- Frames released to pool, not destroyed
+- Reset functions clear all references
+- Parent set to nil to hide frames
+- Effects/glows stopped before release
+
+---
+
+### 2.3 Tab System Flow
+
+```
+User clicks tab
+      ↓
+SelectTab(tabIndex) called
+      ↓
+Check if same tab (early return)
+      ↓
+Set isTabAnimating = true (debounce)
+      ↓
+Update tab button visual states
+      ↓
+Stop all glow effects
+      ↓
+Release pooled frames:
+  1. cardPool:ReleaseAll()
+  2. collapsiblePool:ReleaseAll()
+  3. scrollContainer:ClearEntries(containerPool)
+      ↓
+Call Populate function for tab
+  - PopulateTimeline()
+  - PopulateMilestones()
+  - PopulateZones()
+  - etc.
+      ↓
+UpdateFooter() with stats
+      ↓
+Set isTabAnimating = false after 0.3s
+```
+
+---
+
+### 2.4 Component Hierarchy
+
+```
+Journal Frame (Draggable backdrop)
+├─ Tab Container (Top)
+│  ├─ Tab Button 1 (Journey)
+│  ├─ Tab Button 2 (Milestones)
+│  ├─ ... (8 tabs total)
+├─ Content Container (Middle)
+│  └─ Scroll Frame
+│     └─ Scroll Content
+│        ├─ Section Header
+│        ├─ Collapsible Section
+│        │  └─ Child Cards
+│        ├─ Spacer
+│        ├─ Entry Card
+│        └─ ... (pooled frames)
+└─ Footer Container (Bottom)
+   └─ Stats Text
+```
+
+---
+
+### 2.5 Scroll Container System
+
+**Key Concept:** Track cumulative Y offset instead of recalculating every frame.
+
+```lua
+container.currentYOffset = 0
+
+function AddEntry(frame)
+    -- Position using cached offset
+    frame:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -currentYOffset)
+
+    -- Measure frame
+    local height = frame:GetHeight() or 80  -- Fallback
+
+    -- Update offset for next entry
+    currentYOffset = currentYOffset + height + MARGIN_SMALL
+    content:SetHeight(currentYOffset)
+end
+```
+
+**Performance:** O(1) per entry instead of O(n²) for full recalculation.
+
+**Known Issue:** Fallback height (80px) doesn't match all component types (see Issue H1).
+
+---
+
+### 2.6 Color System Organization
+
+**Current color definitions in `HopeAddon.colors`:**
+- All TBC/Outland themed colors defined with r, g, b, a, hex values
+- Item quality colors for borders
+- Achievement gold for completion states
+- Fel green for nature/zone elements
+- Arcane purple for social/directory features
+
+**Background colors in `HopeAddon.bgColors`:**
+- Multiple alpha levels for layering (0.7, 0.8, 0.95)
+- Themed tints (purple, blue, red, green)
+- Input-specific darker backgrounds
+
+**Text colors in `HopeAddon.textColors`:**
+- Hierarchical grayscale (PRIMARY → DISABLED)
+- Consistent readability across contexts
+
+---
+
+## Part 3: Issue Catalog
+
+### 3.1 Critical Issues
+
+#### Issue C1: Words with WoW - Missing UI Cleanup
+**Severity:** Critical (Memory Leak)
+**Category:** Memory Management
+**File:** `Social/Games/WordsWithWoW/WordGame.lua:196-203`
+
+**Problem:**
+No dedicated `CleanupGame()` function. OnDestroy only calls `DestroyGameWindow()` but doesn't clean FontStrings (p1ScoreText, p2ScoreText, boardText, turnText, lastMoveText), boardFrame, or game data (board, moveHistory).
+
+**Impact:** Memory leak on every game end.
+
+**Fix:** Create CleanupGame() function following Tetris/Pong pattern.
+
+**Checklist:**
+- [ ] CleanupGame function created
+- [ ] All FontStrings cleared
+- [ ] boardFrame released
+- [ ] Game data references nil'd
+- [ ] Called from OnDestroy and OnDisable
+
+---
+
+#### Issue C2: Pong - Ball Position Not Synchronized
+**Severity:** Critical (Multiplayer Desync)
+**Category:** Network Synchronization
+**File:** `Social/Games/Pong/PongGame.lua:556-611`
+
+**Problem:**
+Only paddle positions synchronized. Ball physics run locally on both clients → divergence → inconsistent scoring.
+
+**Impact:** Remote opponents see different ball positions. Score discrepancies.
+
+**Fix:** Implement server-authoritative ball sync (host sends ball x,y,dx,dy with paddle updates).
+
+**Checklist:**
+- [ ] Determine host/client role on game start
+- [ ] Host sends ball updates with paddle
+- [ ] Client applies received ball position
+- [ ] Test scoring consistency
+- [ ] Handle late packets/interpolation
+
+---
+
+#### Issue C3: Words with WoW - Board Re-render Performance
+**Severity:** Critical (Performance)
+**Category:** Rendering Optimization
+**File:** `Social/Games/WordsWithWoW/WordGame.lua:592`
+
+**Problem:**
+Entire 15x15 board re-rendered as concatenated string on every update. O(n²) string operations.
+
+**Impact:** Frame drops during active play.
+
+**Fix:** Implement row caching - invalidate only changed rows.
+
+**Checklist:**
+- [ ] Implement row caching
+- [ ] Invalidate cache on cell changes
+- [ ] Benchmark before/after performance
+- [ ] Ensure cache cleared on game reset
+- [ ] Test with full board
+
+---
+
+### 3.2 High Priority Issues
+
+#### Issue H1: Scroll Container Height Fallback Mismatch
+**Severity:** High (Layout Bug)
+**Category:** Layout
+**File:** `UI/Components.lua:635-640`
+
+**Problem:**
+80px fallback doesn't match component heights. Section headers ~30px, spacers variable, collapsible headers 28px (all UNDER fallback).
+
+**Symptom:** Double-spacing or compressed layout.
+
+**Fix:** Store component type (_componentType field), use type-specific fallbacks.
+
+**Checklist:**
+- [ ] Component type stored in _componentType field
+- [ ] Fallback heights match actual component heights
+- [ ] Spacer height stored in _spacerHeight field
+- [ ] Test all tab layouts
+- [ ] Verify no double-spacing
+
+---
+
+#### Issue H2: Game Window Size - Words Uses Generic "LARGE"
+**Severity:** High (UX)
+**Category:** Consistency
+**File:** `Social/Games/WordsWithWoW/WordGame.lua`
+
+**Problem:**
+Words uses generic LARGE (600x500) instead of dedicated WORDS constant.
+
+**Fix:** Add `WORDS = {width=650, height=600}` to WINDOW_SIZES.
+
+**Checklist:**
+- [ ] WORDS constant added to WINDOW_SIZES
+- [ ] WordGame.lua updated to use "WORDS"
+- [ ] Test board fits comfortably
+- [ ] No horizontal scrolling
+- [ ] Adjust dimensions if needed
+
+---
+
+#### Issue H3: Inconsistent Frame Reference Storage Patterns
+**Severity:** High (Maintainability)
+**Category:** Code Consistency
+**Files:** All game implementations
+
+**Problem:**
+Each game stores frame references differently. Hard to maintain cleanup patterns.
+
+**Fix:** Standardize on nested structure (game.data.ui for frames, game.data.state for state).
+
+**Checklist:**
+- [ ] All games use consistent ui/state structure
+- [ ] Cleanup loops through ui table
+- [ ] No frame references outside ui table
+- [ ] Update all game implementations
+- [ ] Test cleanup thoroughly
+
+---
+
+#### Issue H4: Words Network Score Validation Missing
+**Severity:** High (Multiplayer Integrity)
+**Category:** Network Synchronization
+**File:** `Social/Games/WordsWithWoW/WordGame.lua:337-341`
+
+**Problem:**
+Score sent in move message but not validated by opponent. Scores can diverge if dictionaries or scoring differ.
+
+**Fix:** Opponent recalculates score locally and validates against claimed score.
+
+**Checklist:**
+- [ ] Score recalculated on move receipt
+- [ ] Mismatch logged to chat
+- [ ] Local calculation trusted
+- [ ] Test with identical boards
+- [ ] Document validation logic
+
+---
+
+### 3.3 Medium Priority Issues
+
+#### Issue M1: RecalculatePositions Layout Shift
+**Severity:** Medium (UX Bug)
+**Category:** Layout
+**File:** `UI/Components.lua:659-668`
+
+**Problem:**
+RecalculatePositions uses MARGIN_NORMAL (10px) at line 667, AddEntry uses MARGIN_SMALL (5px) at line 640. Causes layout shift on collapsible toggle.
+
+**Fix:** Use consistent MARGIN_SMALL in RecalculatePositions.
+
+**Checklist:**
+- [ ] Use MARGIN_SMALL in RecalculatePositions
+- [ ] Test collapsible toggle doesn't shift layout
+- [ ] Verify spacing consistent before/after toggle
+- [ ] Check all tabs with collapsible sections
+
+---
+
+#### Issue M2: Card Description Bottom Clipping
+**Severity:** Medium (UX)
+**Category:** Layout
+**File:** `Journal/Journal.lua`
+
+**Problem:**
+Description pinned to BOTTOM at fixed Y offset. Long descriptions may overflow.
+
+**Fix:** Use SetMaxLines(3) instead of fixed bottom constraint. Adjust card height dynamically.
+
+**Checklist:**
+- [ ] Description uses SetMaxLines instead of fixed bottom
+- [ ] Card height adjusts to text content
+- [ ] Minimum card height maintained (80px)
+- [ ] Test with long descriptions
+- [ ] Verify no overlapping elements
+
+---
+
+#### Issue M3: Challenge Button Offset Inconsistency
+**Severity:** Medium (Visual Polish)
+**Category:** Styling
+**Files:** `Journal/Journal.lua`
+
+**Problem:**
+Game cards use offset (-8, 8), directory cards use (-10, 10). Minor visual misalignment.
+
+**Fix:** Standardize to MARGIN_NORMAL (10px): `(-10, 10)` for both.
+
+**Checklist:**
+- [ ] Both use (-10, 10) offset
+- [ ] Verify buttons don't overlap borders
+- [ ] Visual consistency confirmed
+- [ ] Update any other button positioning
+
+---
+
+#### Issue M4: Game Card Border Color Restoration
+**Severity:** Medium (Visual Bug)
+**Category:** Styling
+**File:** `UI/Components.lua:~2219-2225`
+
+**Problem:**
+Game cards may not properly restore border color after hover if defaultBorderColor isn't initialized.
+
+**Fix:** Store defaultBorderColor on card creation.
+
+**Checklist:**
+- [ ] defaultBorderColor stored on card creation
+- [ ] Border restores correctly after hover
+- [ ] Test with multiple game cards
+- [ ] Verify no color bleed between cards
+
+---
+
+#### Issue M5: Profile Editor Absolute Positioning
+**Severity:** Medium (Maintainability)
+**Category:** Layout
+**File:** `Journal/ProfileEditor.lua:130-246`
+
+**Problem:**
+Uses manual Y offset tracking instead of layout system.
+
+**Fix:** Use AddField pattern with relative positioning.
+
+**Checklist:**
+- [ ] Replace manual offsets with AddField pattern
+- [ ] Test profile editor layout
+- [ ] Verify scrolling works
+- [ ] Easier to add new fields
+
+---
+
+### 3.4 Low Priority Issues
+
+#### Issue L1: Minimap Tooltip No Icon Display
+**Severity:** Low (Feature Gap)
+**Category:** Visual Polish
+**File:** `Social/MapPins.lua:30-44`
+
+**Problem:**
+Tooltip shows text only. Could show Fellow Traveler icon.
+
+**Enhancement:** Add GameTooltip:AddTexture(playerIcon) before AddLine calls.
+
+**Checklist:**
+- [ ] Icon texture path retrieved from TravelerIcons
+- [ ] AddTexture called before AddLine
+- [ ] Icon size appropriate (32x32)
+- [ ] Fallback if no icon available
+
+---
+
+#### Issue L2: Inline Button Handler Closures
+**Severity:** Low (Code Quality)
+**Category:** Memory Management
+**Files:** `Social/MinigamesUI.lua`
+
+**Problem:**
+Some buttons create inline closures instead of module-level handlers.
+
+**Better Pattern:** Move handlers to module level, reference in SetScript.
+
+**Checklist:**
+- [ ] Move inline handlers to module level
+- [ ] No new closures per button
+- [ ] Test button functionality unchanged
+- [ ] Pattern consistent across UI
+
+---
+
+#### Issue L3: Font Size Constants Not Centralized
+**Severity:** Low (Consistency)
+**Category:** Styling
+**Files:** Multiple game implementations
+
+**Problem:**
+Each game uses different font choices inconsistently.
+
+**Enhancement:** Create GAME_FONTS table in GameUI with centralized font constants.
+
+**Checklist:**
+- [ ] GAME_FONTS table added to GameUI
+- [ ] All games reference constants
+- [ ] Consistent font sizes across games
+- [ ] Monospaced font documented
+
+---
+
+#### Issue L4: No Render Optimization Outside Tetris
+**Severity:** Low (Performance)
+**Category:** Optimization
+
+**Note:**
+- Pong is acceptable (3 objects)
+- Words addressed in Issue C3
+
+**Checklist:**
+- [ ] Words optimization addressed in C3
+- [ ] Pong performance acceptable (monitor)
+- [ ] Document optimization patterns for future games
+
+---
+
+#### Issue L5: Color Scheme Fully TBC-Themed
+**Severity:** Low (Visual Consistency)
+**Category:** Styling
+**File:** `Core/Core.lua`
+
+**Status:** Current color palette is fully TBC-themed. Verification needed for any custom backdrop colors.
+
+**Checklist:**
+- [ ] Review all backdrop color usage
+- [ ] Ensure no brown/leather colors in production
+- [ ] Verify TBC theme maintained throughout
+- [ ] Update if any classic colors found
+
+---
+
+## Part 4: Implementation Roadmap
+
+### Phase 1: Critical Fixes (Week 1)
+1. **Issue C1:** Words UI cleanup (memory leak)
+2. **Issue C2:** Pong ball sync (multiplayer desync)
+3. **Issue C3:** Words board optimization (performance)
+
+**Success Criteria:**
+- [ ] No memory leaks on game end
+- [ ] Pong scores consistent between players
+- [ ] Words board renders < 5ms
+
+---
+
+### Phase 2: High Priority (Week 2)
+1. **Issue H1:** Scroll container height fallback
+2. **Issue H2:** Words window size constant
+3. **Issue H3:** Frame reference standardization
+4. **Issue H4:** Words score validation
+
+**Success Criteria:**
+- [ ] No layout spacing issues in any tab
+- [ ] All games use dedicated window sizes
+- [ ] Consistent cleanup patterns across games
+- [ ] Score mismatches logged and handled
+
+---
+
+### Phase 3: Medium Priority (Week 3)
+1. **Issue M1:** RecalculatePositions margin consistency
+2. **Issue M2:** Card description clipping fix
+3. **Issue M3:** Challenge button offset standardization
+4. **Issue M4:** Game card border restoration
+5. **Issue M5:** Profile editor layout refactor
+
+**Success Criteria:**
+- [ ] No layout shifts on collapsible toggle
+- [ ] Long descriptions don't overflow
+- [ ] Visual consistency across all cards
+- [ ] Profile editor easier to modify
+
+---
+
+### Phase 4: Low Priority Polish (Week 4)
+1. **Issue L1:** Minimap tooltip icons
+2. **Issue L2:** Inline handler cleanup
+3. **Issue L3:** Font constant centralization
+4. **Issue L4:** Document optimization patterns
+5. **Issue L5:** Verify TBC color theme
+
+**Success Criteria:**
+- [ ] All tooltips show icons where applicable
+- [ ] No closure-creating button handlers
+- [ ] Consistent font usage across games
+- [ ] Color palette verified TBC-themed
+
+---
+
+### Phase 5: Documentation & Standards (Ongoing)
+1. Update CLAUDE.md with new patterns
+2. Maintain this UI guide
+3. Add code examples for common patterns
+4. Keep issue catalog current
+
+**Success Criteria:**
+- [ ] Documentation reflects current state
+- [ ] All new code follows standards
+- [ ] AI assistants can reference style guide
+- [ ] Issue catalog stays current
+
+---
+
+## Part 5: Quick Reference Checklists
+
+### Adding a New UI Component Checklist
+- [ ] Uses TBC color palette (fel green/arcane purple)
+- [ ] Uses named spacing constants (MARGIN_SMALL/NORMAL/LARGE)
+- [ ] Follows quest log parchment styling
+- [ ] Icon organization uses row/column pattern if multi-part
+- [ ] Achievement badge uses quality border colors
+- [ ] Progress bars use standardized dimensions (20px height)
+- [ ] Typography follows hierarchy (H1/H2/H3/body)
+- [ ] Frame pooled if used repeatedly
+- [ ] Cleanup function releases all references
+- [ ] Hover states use smooth transitions (0.15s)
+- [ ] Tooltips use GameTooltip with consistent anchoring
+
+### Adding a New Game Checklist
+- [ ] Uses GameUI:CreateGameWindow() for window
+- [ ] Window size defined in WINDOW_SIZES constant
+- [ ] Uses GameCore for game loop/state
+- [ ] Uses GameComms for multiplayer
+- [ ] Implements CleanupGame() function
+- [ ] Cleanup called from OnDestroy and OnDisable
+- [ ] Frame references stored in game.data.ui table
+- [ ] Game state stored in game.data.state table
+- [ ] Network messages include validation data
+- [ ] Font sizes use GAME_FONTS constants
+- [ ] Colors use GameUI color constants
+- [ ] Button handlers at module level (not closures)
+- [ ] Tested in LOCAL and REMOTE modes
+
+### Tab Layout Checklist
+- [ ] Uses scroll container pattern
+- [ ] Calls ReleaseAll on pools before rendering
+- [ ] Uses AcquireCard/AcquireSection from pools
+- [ ] Adds section headers with CreateSectionHeader
+- [ ] Uses CreateSpacer for vertical spacing (MARGIN_LARGE)
+- [ ] Collapsible sections use AcquireCollapsibleSection
+- [ ] Calls UpdateFooter() after populating
+- [ ] No magic numbers (uses constants)
+- [ ] Handles empty state with placeholder message
+- [ ] Progress bars show completion state
+
+### Visual Consistency Checklist
+- [ ] Card heights uniform within same context (min 80px)
+- [ ] Icon sizes consistent (40x40 standard)
+- [ ] Margins consistent (10px standard between elements)
+- [ ] Border colors match quality/context
+- [ ] Hover effects use GOLD_BRIGHT
+- [ ] Text colors follow hierarchy
+- [ ] Backgrounds use appropriate alpha levels
+- [ ] No classic WoW brown colors
+- [ ] Fel green/arcane purple accents
+- [ ] Button sizes match context (22px or 32px height)
+
+---
+
+## Part 6: Code Pattern Examples
+
+### Example 1: Creating a Card with Icon Organization
+
+For a multi-stage feature (e.g., attunement with 3 chapters in Act 1):
+
+```lua
+-- Stage 1: 3 parts in a row
+local stage1Container = CreateFrame("Frame", nil, parent)
+stage1Container:SetSize(140, 50)  -- 3 icons * 40px + 2*10px spacing
+
+local icons = {}
+for i = 1, 3 do
+    local icon = CreateFrame("Button", nil, stage1Container)
+    icon:SetSize(40, 40)  -- ICON_SIZE_STANDARD
+    icon:SetPoint("LEFT", stage1Container, "LEFT", (i-1) * 50, 0)
+
+    -- Icon texture
+    local tex = icon:CreateTexture(nil, "ARTWORK")
+    tex:SetAllPoints()
+    tex:SetTexture("Interface\\Icons\\Achievement_Icon_" .. i)
+
+    -- Quality border
+    icon:SetBackdrop({
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 12,
+    })
+
+    -- State-based border color
+    if completed[i] then
+        icon:SetBackdropBorderColor(1, 0.84, 0, 1)  -- GOLD_BRIGHT
+    else
+        icon:SetBackdropBorderColor(0.64, 0.21, 0.93, 1)  -- EPIC
+        tex:SetDesaturated(true)
+    end
+
+    icons[i] = icon
+end
+
+-- Arrow connector (5px below stage)
+local arrow = stage1Container:CreateTexture(nil, "OVERLAY")
+arrow:SetSize(16, 16)
+arrow:SetPoint("TOP", stage1Container, "BOTTOM", 0, -5)
+arrow:SetTexture("Interface\\Buttons\\UI-MicroStream-Yellow")
+arrow:SetVertexColor(0.5, 0.5, 0.5)
+
+-- Stage 2: Single icon (centered below, 5px from arrow)
+local stage2Icon = CreateFrame("Button", nil, parent)
+stage2Icon:SetSize(40, 40)
+stage2Icon:SetPoint("TOP", arrow, "BOTTOM", 0, -5)
+```
+
+**Checklist:**
+- [ ] Multi-part stages use row layout
+- [ ] Icons 40x40 standard size
+- [ ] 10px spacing between icons (MARGIN_NORMAL)
+- [ ] 5px spacing between stages (MARGIN_SMALL)
+- [ ] Connector arrow between stages
+- [ ] Next stage centered below
+- [ ] Locked icons desaturated
+- [ ] Completed icons have gold border
+
+---
+
+### Example 2: Creating a Progress Bar
+
+```lua
+local function CreateProgressBar(parent, width, initialProgress)
+    local bar = CreateFrame("Frame", nil, parent)
+    bar:SetSize(width, 20)
+
+    -- Background
+    bar.bg = bar:CreateTexture(nil, "BACKGROUND")
+    bar.bg:SetAllPoints()
+    bar.bg:SetColorTexture(0.1, 0.1, 0.1, 0.8)  -- DARK_SOLID
+
+    -- Border
+    bar:SetBackdrop({
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 8,
+    })
+    bar:SetBackdropBorderColor(0.5, 0.5, 0.5, 1)  -- Gray
+
+    -- Fill (StatusBar with gradient)
+    bar.fill = CreateFrame("StatusBar", nil, bar)
+    bar.fill:SetSize(width - 4, 16)  -- Inset 2px each side
+    bar.fill:SetPoint("LEFT", bar, "LEFT", 2, 0)
+    bar.fill:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+
+    -- Gradient: Dark green to bright green
+    bar.fill:GetStatusBarTexture():SetGradient("HORIZONTAL",
+        {r=0.1, g=0.6, b=0.1},
+        {r=0.2, g=0.9, b=0.2}
+    )
+
+    bar.fill:SetMinMaxValues(0, 100)
+    bar.fill:SetValue(0)
+
+    -- Text overlay
+    bar.text = bar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    bar.text:SetPoint("CENTER", bar, "CENTER", 0, 0)
+    bar.text:SetTextColor(1, 1, 1)
+    bar.text:SetShadowOffset(1, -1)
+    bar.text:SetShadowColor(0, 0, 0, 1)
+
+    -- Animate to target value
+    local function AnimateTo(targetValue, duration)
+        local startValue = bar.fill:GetValue()
+        local startTime = GetTime()
+        local endTime = startTime + duration
+
+        local ticker = C_Timer.NewTicker(0.03, function()  -- 30 FPS
+            local now = GetTime()
+            if now >= endTime then
+                bar.fill:SetValue(targetValue)
+                bar.text:SetText(string.format("%.0f%%", targetValue))
+                ticker:Cancel()
+
+                if targetValue >= 100 then
+                    HopeAddon.Effects:Sparkles(bar, 1.5)
+                    bar:SetBackdropBorderColor(1, 0.84, 0, 1)  -- Gold
+                end
+            else
+                local progress = (now - startTime) / duration
+                local currentValue = startValue + (targetValue - startValue) * progress
+                bar.fill:SetValue(currentValue)
+                bar.text:SetText(string.format("%.0f%%", currentValue))
+            end
+        end)
+    end
+
+    bar.SetProgress = function(self, value)
+        AnimateTo(value, 0.5)
+    end
+
+    bar:SetProgress(initialProgress or 0)
+
+    return bar
+end
+```
+
+**Checklist:**
+- [ ] Dark background (DARK_SOLID)
+- [ ] Gradient fill (dark green → bright green)
+- [ ] Text overlay with shadow
+- [ ] Animated fill over 0.5s at 30 FPS
+- [ ] Sparkle effect on 100% completion
+- [ ] Gold border on completion
+- [ ] SetProgress() method for updates
+
+---
+
+### Example 3: Creating Collapsible Section
+
+```lua
+local function CreateCollapsibleSection(parent, title, progressText, color)
+    local section = CreateFrame("Frame", nil, parent)
+    section:SetSize(485, 28)  -- CONTAINER_WIDTH, header height
+
+    -- Header background (Button for clickability)
+    section.header = CreateFrame("Button", nil, section)
+    section.header:SetSize(485, 28)
+    section.header:SetPoint("TOPLEFT", section, "TOPLEFT", 0, 0)
+    section.header:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = false,
+        edgeSize = 8,
+    })
+    section.header:SetBackdropColor(color.r * 0.3, color.g * 0.3, color.b * 0.3, 0.8)
+    section.header:SetBackdropBorderColor(color.r, color.g, color.b, 1)
+
+    -- Toggle icon
+    section.toggleIcon = section.header:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    section.toggleIcon:SetPoint("LEFT", section.header, "LEFT", 10, 0)  -- MARGIN_NORMAL
+    section.toggleIcon:SetText("▼")  -- Expanded
+    section.toggleIcon:SetTextColor(color.r, color.g, color.b)
+
+    -- Title text
+    section.titleText = section.header:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    section.titleText:SetPoint("LEFT", section.toggleIcon, "RIGHT", 10, 0)  -- MARGIN_NORMAL
+    section.titleText:SetText(title)
+    section.titleText:SetTextColor(color.r, color.g, color.b)
+
+    -- Progress text (right-aligned)
+    section.progressText = section.header:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    section.progressText:SetPoint("RIGHT", section.header, "RIGHT", -10, 0)  -- MARGIN_NORMAL
+    section.progressText:SetText(progressText or "")
+    section.progressText:SetTextColor(1, 1, 1)
+
+    -- Content container (indented)
+    section.contentContainer = CreateFrame("Frame", nil, section)
+    section.contentContainer:SetPoint("TOPLEFT", section.header, "BOTTOMLEFT", 10, 0)  -- MARGIN_NORMAL
+    section.contentContainer:SetPoint("RIGHT", section, "RIGHT", 0, 0)
+    section.contentContainer:SetHeight(0)
+    section.contentContainer:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        tile = false,
+    })
+    section.contentContainer:SetBackdropColor(0, 0, 0, 0.3)
+
+    -- State
+    section.isExpanded = true
+    section.childEntries = {}
+    section.contentHeight = 0
+
+    -- Add child helper
+    function section:AddChild(childFrame)
+        childFrame:SetPoint("TOPLEFT", self.contentContainer, "TOPLEFT", 0, -self.contentHeight)
+        childFrame:SetPoint("RIGHT", self.contentContainer, "RIGHT", 0, 0)
+        table.insert(self.childEntries, childFrame)
+
+        local childHeight = childFrame:GetHeight() or 80
+        self.contentHeight = self.contentHeight + childHeight + 5  -- MARGIN_SMALL
+        self.contentContainer:SetHeight(self.contentHeight)
+        self:UpdateHeight()
+    end
+
+    -- Update section height
+    function section:UpdateHeight()
+        if self.isExpanded then
+            self:SetHeight(28 + self.contentHeight + 5)  -- Header + content + MARGIN_SMALL
+        else
+            self:SetHeight(28)  -- Header only
+        end
+    end
+
+    -- Toggle handler
+    function section:Toggle()
+        self.isExpanded = not self.isExpanded
+
+        if self.isExpanded then
+            self.toggleIcon:SetText("▼")
+            HopeAddon.Animations:FadeTo(self.contentContainer, 1, 0.3)
+            self.contentContainer:Show()
+        else
+            self.toggleIcon:SetText("▶")
+            HopeAddon.Animations:FadeTo(self.contentContainer, 0, 0.3, function()
+                self.contentContainer:Hide()
+            end)
+        end
+
+        self:UpdateHeight()
+
+        if self.onToggle then
+            self.onToggle()
+        end
+    end
+
+    section.header:SetScript("OnClick", function(self)
+        section:Toggle()
+        HopeAddon.Sounds:PlayClick()
+    end)
+
+    -- Hover effect
+    section.header:SetScript("OnEnter", function(self)
+        self:SetBackdropBorderColor(1, 0.84, 0, 1)  -- Gold
+    end)
+    section.header:SetScript("OnLeave", function(self)
+        self:SetBackdropBorderColor(color.r, color.g, color.b, 1)
+    end)
+
+    return section
+end
+```
+
+**Usage:**
+```lua
+local t4Section = CreateCollapsibleSection(
+    scrollContent,
+    "Tier 4: Rise of the Burning Legion",
+    "3 / 5 Bosses",
+    HopeAddon.colors.ARCANE_PURPLE
+)
+
+-- Add boss cards as children
+for _, boss in ipairs(t4Bosses) do
+    local card = CreateBossCard(boss)
+    t4Section:AddChild(card)
+end
+
+-- Register toggle callback
+t4Section.onToggle = function()
+    scrollContainer:RecalculatePositions()
+end
+```
+
+**Checklist:**
+- [ ] Header uses theme color
+- [ ] Toggle icon rotates (▼ → ▶)
+- [ ] Content fades in/out over 0.3s
+- [ ] AddChild helper manages layout
+- [ ] UpdateHeight called after changes
+- [ ] onToggle callback for scroll recalc
+- [ ] Hover changes border to gold
+- [ ] Content indented 10px (MARGIN_NORMAL)
+
+---
+
+## Part 7: Critical Files to Modify
+
+| File | Purpose | Priority Issues |
+|------|---------|-----------------|
+| `UI/Components.lua` | Reusable UI components | H1 (height fallback), M1 (margins) |
+| `Social/Games/GameUI.lua` | Game window system | H2 (window sizes), L3 (font constants) |
+| `Social/Games/WordsWithWoW/WordGame.lua` | Words implementation | C1 (cleanup), C3 (optimization), H4 (validation) |
+| `Social/Games/Pong/PongGame.lua` | Pong implementation | C2 (ball sync) |
+| `Journal/Journal.lua` | Main journal UI | H1 (scroll), M2 (card clipping), M3 (button offset) |
+| `Journal/ProfileEditor.lua` | Profile editor | M5 (layout refactor) |
+| `Social/MapPins.lua` | Minimap pins | L1 (tooltip icons) |
+| `Core/Core.lua` | Core constants | L5 (color verification) |
+
+---
+
+## Part 8: Visual Reference (ASCII Diagrams)
+
+### Ideal Card Layout (Quest Log Style)
+
+```
+┌────────────────────────────────────────────────────────────┐
+│  [Icon]  Chapter I: Shattered Halls                  [NEW] │
+│  40x40   The warlocks of the Burning Legion await...      │
+│          Completed on 2024-01-15                           │
+│          ──────────────────────────────────────────────    │
+│          Progress: ███████████████───────────── 75%        │
+└────────────────────────────────────────────────────────────┘
+ ^        ^                                            ^      ^
+ 10px     Icon ends                                   Note   10px
+ margin   10px from left edge                        badge   margin
+```
+
+**Key measurements:**
+- Card padding: 10px all sides (MARGIN_NORMAL)
+- Icon: 40x40 (ICON_SIZE_STANDARD), top-left at (10, -10)
+- Title: 10px right of icon, GameFontNormal, GOLD_BRIGHT
+- Description: 5px below title (MARGIN_SMALL), GameFontNormalSmall
+- Timestamp: 5px below description
+- Progress bar: Full width - 20px margins, 20px height
+- Border: Varies by context
+
+---
+
+### Icon Organization Pattern (Multi-Part Stage)
+
+```
+┌─────────────────────────────────────────┐
+│ ACT I: THE VIOLET TOWER              ▼ │
+├─────────────────────────────────────────┤
+│                                         │
+│  [Icon1]  [Icon2]  [Icon3]             │
+│  Chapter  Chapter  Chapter              │
+│    1        2        3                  │
+│  (10px spacing between, row centered)  │
+│              ↓ (5px spacing)            │
+│           [Icon4]                       │
+│  ACT II: Medivh's Shadow               │
+│       (Centered below)                  │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+**Layout specs:**
+- Row icons: 40x40 each
+- Spacing between icons: 10px (MARGIN_NORMAL)
+- Total row width: 3 * 40 + 2 * 10 = 140px
+- Arrow: 16x16, 5px below row (MARGIN_SMALL)
+- Next stage: 40x40, 5px below arrow
+
+---
+
+### Progress Bar Visual States
+
+**Incomplete (< 100%):**
+```
+┌──────────────────────────────────────────┐
+│ ███████████───────────────────           │
+│             35 / 100 (35%)               │
+└──────────────────────────────────────────┘
+    Gray border (0.5, 0.5, 0.5)
+```
+
+**Complete (100%):**
+```
+┌──────────────────────────────────────────┐
+│ ██████████████████████████████████████   │
+│  ✨     100 / 100 (100%)        ✨       │
+└──────────────────────────────────────────┘
+    Gold border (1, 0.84, 0) + sparkles
+```
+
+---
+
+## Verification Steps
+
+### Visual Consistency Checklist
+1. [ ] Colors match TBC palette (no brown leather)
+2. [ ] Icons 40x40 in standard contexts
+3. [ ] Spacing uses named constants (MARGIN_SMALL/NORMAL/LARGE)
+4. [ ] Progress bars 20px height
+5. [ ] Borders use quality-based or context colors
+6. [ ] Text follows typography hierarchy
+7. [ ] Hover states transition smoothly (0.15s)
+8. [ ] Tooltips use GameTooltip with consistent style
+
+### Functional Checklist
+1. [ ] Frame pooling used if component repeats
+2. [ ] Cleanup function releases all references
+3. [ ] No memory leaks after tab switches
+4. [ ] Scroll container height calculates correctly
+5. [ ] Collapsible sections animate smoothly (0.3s)
+6. [ ] Network sync validated for multiplayer
+7. [ ] Performance: < 16ms per frame (60fps)
+
+### Code Quality Checklist
+1. [ ] No magic numbers (uses constants)
+2. [ ] No inline button handlers (uses module-level)
+3. [ ] Consistent naming (ui/state structure)
+4. [ ] Comments explain "why" not "what"
+5. [ ] Follows existing patterns in codebase
+
+---
+
+## Document Maintenance
+
+This guide should be updated when:
+- [ ] New UI issue discovered → Add to Issue Catalog
+- [ ] Issue fixed → Mark resolved, update checklist
+- [ ] New component added → Add spec to Design Specifications
+- [ ] Pattern changed → Update Code Pattern Examples
+- [ ] Constants changed → Update Quick Reference Tables
+
+---
+
+## Summary
+
+This UI Organization Guide provides:
+✓ Complete TBC/Outland design specifications with exact values
+✓ All current UI issues cataloged by severity (Critical/High/Medium/Low)
+✓ Icon organization patterns (talent-tree-inspired)
+✓ Quest log and achievement panel styling standards
+✓ Implementation roadmap with 5 phases
+✓ Code examples and checklists
+✓ Visual reference diagrams with measurements
+
+**Use this document as the authoritative reference for all UI work.**
+
+When in doubt:
+1. Check the relevant specification section
+2. Reference the code examples
+3. Verify against the checklists
+4. Maintain visual consistency with TBC theme
+
+---
+
+**Document Created:** 2026-01-19
+**Last Updated:** 2026-01-19
+**Status:** Active - v1.0
+**Maintainer:** AI Assistant (Claude Code)

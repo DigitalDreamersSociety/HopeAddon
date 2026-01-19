@@ -4,7 +4,22 @@
 ]]
 
 local ProfileEditor = {}
-HopeAddon.ProfileEditor = ProfileEditor
+HopeAddon:RegisterModule("ProfileEditor", ProfileEditor)
+
+-- TBC 2.4.3 compatibility helper
+local function CreateBackdropFrame(frameType, name, parent, additionalTemplate)
+    local Components = HopeAddon.Components
+    if Components and Components.CreateBackdropFrame then
+        return Components.CreateBackdropFrame(frameType, name, parent, additionalTemplate)
+    end
+    local template = additionalTemplate and (additionalTemplate .. ", BackdropTemplate") or "BackdropTemplate"
+    local frame = CreateFrame(frameType or "Frame", name, parent, template)
+    if not frame.SetBackdrop then
+        frame:Hide()
+        frame = CreateFrame(frameType or "Frame", name, parent, additionalTemplate)
+    end
+    return frame
+end
 
 -- UI State
 ProfileEditor.frame = nil
@@ -17,6 +32,37 @@ local MARGIN = 12
 local ROW_HEIGHT = 24
 
 --============================================================
+-- MODULE LIFECYCLE
+--============================================================
+
+function ProfileEditor:OnInitialize()
+    -- Nothing needed during init
+end
+
+function ProfileEditor:OnEnable()
+    -- Frame created on demand when :Show() is called
+end
+
+function ProfileEditor:OnDisable()
+    -- Cleanup frame and handlers on disable
+    if self.frame then
+        self.frame:Hide()
+        self.frame:SetScript("OnDragStart", nil)
+        self.frame:SetScript("OnDragStop", nil)
+        -- Clear child frame scripts
+        if self.frame.closeBtn then
+            self.frame.closeBtn:SetScript("OnClick", nil)
+        end
+        if self.frame.saveBtn then
+            self.frame.saveBtn:SetScript("OnClick", nil)
+        end
+        self.frame:SetParent(nil)
+        self.frame = nil
+    end
+    self.isOpen = false
+end
+
+--============================================================
 -- MAIN FRAME CREATION
 --============================================================
 
@@ -26,7 +72,7 @@ local ROW_HEIGHT = 24
 function ProfileEditor:CreateFrame()
     if self.frame then return self.frame end
 
-    local frame = CreateFrame("Frame", "HopeAddonProfileEditor", UIParent)
+    local frame = CreateBackdropFrame("Frame", "HopeAddonProfileEditor", UIParent)
     frame:SetSize(FRAME_WIDTH, FRAME_HEIGHT)
     frame:SetPoint("CENTER")
     frame:SetMovable(true)
@@ -38,13 +84,7 @@ function ProfileEditor:CreateFrame()
     frame:Hide()
 
     -- Backdrop
-    frame:SetBackdrop({
-        bgFile = HopeAddon.assets.textures.DIALOG_BG,
-        edgeFile = HopeAddon.assets.textures.GOLD_BORDER,
-        tile = true, tileSize = 32, edgeSize = 32,
-        insets = { left = 8, right = 8, top = 8, bottom = 8 }
-    })
-    frame:SetBackdropColor(HopeAddon:GetBgColor("DARK_OPAQUE"))
+    HopeAddon.Components:ApplyBackdrop(frame, "DARK_GOLD", "DARK_SOLID", nil)
 
     -- Title
     local title = frame:CreateFontString(nil, "OVERLAY")
@@ -324,17 +364,11 @@ end
 --============================================================
 
 function ProfileEditor:CreateEditBox(parent, width, height)
-    local box = CreateFrame("EditBox", nil, parent)
+    local box = CreateBackdropFrame("EditBox", nil, parent)
     box:SetSize(width, height)
     box:SetAutoFocus(false)
     box:SetFontObject(ChatFontNormal)
-    box:SetBackdrop({
-        bgFile = HopeAddon.assets.textures.TOOLTIP_BG,
-        edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
-        tile = true, tileSize = 8, edgeSize = 12,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 }
-    })
-    box:SetBackdropColor(HopeAddon:GetBgColor("DARK_SOLID"))
+    HopeAddon.Components:ApplyBackdrop(box, "TOOLTIP", "DARK_SOLID", nil)
     box:SetTextInsets(5, 5, 3, 3)
     box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
     box:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
@@ -342,15 +376,9 @@ function ProfileEditor:CreateEditBox(parent, width, height)
 end
 
 function ProfileEditor:CreateMultiLineEditBox(parent, width, height)
-    local scrollFrame = CreateFrame("ScrollFrame", nil, parent, "UIPanelScrollFrameTemplate")
+    local scrollFrame = CreateBackdropFrame("ScrollFrame", nil, parent, "UIPanelScrollFrameTemplate")
     scrollFrame:SetSize(width, height)
-    scrollFrame:SetBackdrop({
-        bgFile = HopeAddon.assets.textures.TOOLTIP_BG,
-        edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
-        tile = true, tileSize = 8, edgeSize = 12,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 }
-    })
-    scrollFrame:SetBackdropColor(HopeAddon:GetBgColor("DARK_SOLID"))
+    HopeAddon.Components:ApplyBackdrop(scrollFrame, "TOOLTIP", "DARK_SOLID", nil)
 
     local editBox = CreateFrame("EditBox", nil, scrollFrame)
     editBox:SetMultiLine(true)

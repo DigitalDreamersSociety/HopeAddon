@@ -101,7 +101,7 @@ function Karazhan:CreateFirstKillEntry(boss)
         bossId = boss.id,
         location = boss.location,
         timestamp = HopeAddon:GetTimestamp(),
-        party = HopeAddon.FellowTravelers:GetPartySnapshot(),
+        party = HopeAddon.FellowTravelers and HopeAddon.FellowTravelers:GetPartySnapshot() or {},
     }
 
     table.insert(HopeAddon.charDb.journal.entries, entry)

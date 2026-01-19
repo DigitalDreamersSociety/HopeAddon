@@ -392,6 +392,7 @@ function MapPins:OnDisable()
     if self.eventFrame then
         self.eventFrame:UnregisterAllEvents()
         self.eventFrame:SetScript("OnEvent", nil)
+        self.eventFrame = nil
     end
 
     if self.updateTicker then

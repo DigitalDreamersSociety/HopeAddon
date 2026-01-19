@@ -68,6 +68,10 @@ function TravelerIcons:AwardIcon(travelerName, iconId, context)
     end
 
     -- Get or create traveler entry
+    if not HopeAddon.charDb or not HopeAddon.charDb.travelers or not HopeAddon.charDb.travelers.known then
+        HopeAddon:Debug("Traveler data not initialized")
+        return false
+    end
     local travelers = HopeAddon.charDb.travelers.known
     if not travelers[travelerName] then
         HopeAddon:Debug("Traveler not found:", travelerName)
