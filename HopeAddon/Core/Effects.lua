@@ -642,6 +642,104 @@ function Effects:StopSparkles(sparkles)
     end
 end
 
+--[[
+    COMPOSITE EFFECTS
+    Combine multiple effects for common scenarios
+]]
+
+--[[
+    Celebration effect: glow + sparkles + sound
+    Perfect for achievements, level-ups, quest completions
+
+    @param frame Frame - Frame to celebrate
+    @param duration number - Duration in seconds (default 2.0)
+    @param options table - Optional { colorName, soundOverride }
+]]
+function Effects:Celebrate(frame, duration, options)
+    if not frame then return end
+
+    duration = duration or 2.0
+    options = options or {}
+    local colorName = options.colorName or "GOLD_BRIGHT"
+
+    -- Stop any existing effects on this frame first
+    self:StopGlowsOnParent(frame)
+    if self.frameSparkles[frame] then
+        self:StopSparkles(self.frameSparkles[frame])
+        self.frameSparkles[frame] = nil
+    end
+
+    -- Create pulsing glow effect
+    self:CreatePulsingGlow(frame, colorName, 0.8)
+
+    -- Add sparkles
+    local sparkles = self:CreateSparkles(frame, 8, colorName)
+
+    -- Victory sound
+    if HopeAddon.Sounds and not options.soundOverride then
+        HopeAddon.Sounds:PlayVictory()
+    elseif options.soundOverride and HopeAddon.Sounds then
+        options.soundOverride()
+    end
+
+    -- Auto-cleanup after duration
+    if duration and duration > 0 then
+        HopeAddon.Timer:After(duration, function()
+            self:StopGlowsOnParent(frame)
+            if sparkles then
+                self:StopSparkles(sparkles)
+                self.frameSparkles[frame] = nil
+            end
+        end)
+    end
+end
+
+--[[
+    Icon glow effect (shorter celebration for icons/badges)
+    @param frame Frame - Icon frame
+    @param duration number - Duration in seconds (default 1.5)
+]]
+function Effects:IconGlow(frame, duration)
+    if not frame then return end
+    duration = duration or 1.5
+
+    -- Create subtle glow
+    self:CreateBorderGlow(frame, "GOLD_BRIGHT")
+
+    -- Auto-cleanup
+    HopeAddon.Timer:After(duration, function()
+        self:StopGlowsOnParent(frame)
+    end)
+end
+
+--[[
+    Progress completion sparkles
+    Specifically for progress bars reaching 100%
+
+    @param progressBar Frame - Progress bar frame
+    @param duration number - Duration in seconds (default 1.5)
+]]
+function Effects:ProgressSparkles(progressBar, duration)
+    if not progressBar then return end
+    duration = duration or 1.5
+
+    -- Create sparkles at the progress bar
+    local sparkles = self:CreateSparkles(progressBar, 6, "GOLD_BRIGHT")
+
+    -- Small sound effect
+    if HopeAddon.Sounds then
+        HopeAddon.Sounds:PlaySuccess()
+    end
+
+    -- Auto-cleanup
+    HopeAddon.Timer:After(duration, function()
+        if sparkles then
+            self:StopSparkles(sparkles)
+            self.frameSparkles[progressBar] = nil
+        end
+    end)
+end
+
 -- Module lifecycle hooks
 function Effects:OnInitialize()
     -- No initialization needed
