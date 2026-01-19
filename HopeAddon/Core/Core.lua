@@ -445,6 +445,117 @@ function HopeAddon:GetClassColor(className)
 end
 
 --[[
+    COLOR UTILITIES
+    Helper functions for color manipulation and application
+]]
+HopeAddon.ColorUtils = {}
+
+--[[
+    Lighten a color by percentage
+    @param color table - {r, g, b, a}
+    @param percent number - 0.0 to 1.0 (e.g., 0.2 = 20% lighter)
+    @return table - New color table
+]]
+function HopeAddon.ColorUtils:Lighten(color, percent)
+    return {
+        r = math.min(1, color.r + (color.r * percent)),
+        g = math.min(1, color.g + (color.g * percent)),
+        b = math.min(1, color.b + (color.b * percent)),
+        a = color.a
+    }
+end
+
+--[[
+    Darken a color by percentage
+    @param color table - {r, g, b, a}
+    @param percent number - 0.0 to 1.0 (e.g., 0.2 = 20% darker)
+    @return table - New color table
+]]
+function HopeAddon.ColorUtils:Darken(color, percent)
+    return {
+        r = math.max(0, color.r - (color.r * percent)),
+        g = math.max(0, color.g - (color.g * percent)),
+        b = math.max(0, color.b - (color.b * percent)),
+        a = color.a
+    }
+end
+
+--[[
+    Apply vertex color from color name
+    @param texture Texture
+    @param colorName string - Key from HopeAddon.colors
+]]
+function HopeAddon.ColorUtils:ApplyVertexColor(texture, colorName)
+    local color = HopeAddon.colors[colorName]
+    if color then
+        texture:SetVertexColor(color.r, color.g, color.b, color.a or 1)
+    else
+        HopeAddon:Debug("ColorUtils:ApplyVertexColor: Unknown color", colorName)
+    end
+end
+
+--[[
+    Apply text color from color name
+    @param fontString FontString
+    @param colorName string - Key from HopeAddon.colors
+]]
+function HopeAddon.ColorUtils:ApplyTextColor(fontString, colorName)
+    local color = HopeAddon.colors[colorName]
+    if color then
+        fontString:SetTextColor(color.r, color.g, color.b, color.a or 1)
+    else
+        HopeAddon:Debug("ColorUtils:ApplyTextColor: Unknown color", colorName)
+    end
+end
+
+--[[
+    Blend two colors
+    @param color1 table - {r, g, b, a}
+    @param color2 table - {r, g, b, a}
+    @param ratio number - 0.0 to 1.0 (0 = color1, 1 = color2, 0.5 = midpoint)
+    @return table - New blended color
+]]
+function HopeAddon.ColorUtils:Blend(color1, color2, ratio)
+    ratio = math.max(0, math.min(1, ratio))  -- Clamp to 0-1
+    local invRatio = 1 - ratio
+    return {
+        r = (color1.r * invRatio) + (color2.r * ratio),
+        g = (color1.g * invRatio) + (color2.g * ratio),
+        b = (color1.b * invRatio) + (color2.b * ratio),
+        a = (color1.a or 1) * invRatio + (color2.a or 1) * ratio
+    }
+end
+
+--[[
+    Convert hex string to color table
+    @param hex string - Hex color like "FF9B30" or "#FF9B30"
+    @return table - {r, g, b, a} with values 0-1
+]]
+function HopeAddon.ColorUtils:HexToRGB(hex)
+    -- Remove # if present
+    hex = hex:gsub("#", "")
+
+    if #hex == 6 then
+        return {
+            r = tonumber(hex:sub(1, 2), 16) / 255,
+            g = tonumber(hex:sub(3, 4), 16) / 255,
+            b = tonumber(hex:sub(5, 6), 16) / 255,
+            a = 1
+        }
+    elseif #hex == 8 then
+        return {
+            r = tonumber(hex:sub(1, 2), 16) / 255,
+            g = tonumber(hex:sub(3, 4), 16) / 255,
+            b = tonumber(hex:sub(5, 6), 16) / 255,
+            a = tonumber(hex:sub(7, 8), 16) / 255
+        }
+    else
+        HopeAddon:Debug("ColorUtils:HexToRGB: Invalid hex format", hex)
+        return { r = 1, g = 1, b = 1, a = 1 }
+    end
+end
+
+--[[
     Module Registration System
 ]]
 function HopeAddon:RegisterModule(name, module)
