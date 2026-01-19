@@ -301,6 +301,37 @@ function TetrisGame:UpdateBoard(gameId, playerNum, dt)
     end
 end
 
+function TetrisGame:UpdateDASInput(gameId, playerNum, dt)
+    local game = self.games[gameId]
+    if not game then return end
+
+    local board = game.data.boards[playerNum]
+    if not board or not board.currentPiece then return end
+
+    local S = self.SETTINGS
+
+    for direction, input in pairs(board.inputState) do
+        if input.pressed then
+            input.timer = input.timer + dt
+
+            if not input.repeating then
+                -- Wait for DAS delay
+                if input.timer >= S.DAS_DELAY then
+                    input.repeating = true
+                    input.timer = 0
+                end
+            else
+                -- ARR auto-repeat
+                if input.timer >= S.ARR_INTERVAL then
+                    local dCol = (direction == "left") and -1 or 1
+                    self:MovePiece(gameId, playerNum, 0, dCol)
+                    input.timer = 0
+                end
+            end
+        end
+    end
+end
+
 --============================================================
 -- PIECE OPERATIONS
 --============================================================
