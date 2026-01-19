@@ -738,6 +738,88 @@ See [CHANGELOG.md](CHANGELOG.md) for historical bug fixes (Phases 5-13).
 - ✅ **Scroll Height Fallback (H1)** (Components.lua:654-666) - Component-type-aware fallbacks using `_componentType` metadata
 - ✅ **Words Window Size (H2)** (GameUI.lua:34, WordGame.lua:532) - Dedicated WORDS constant (650x600)
 
+### Phase 17: PAYLOADS 1-4 Implementation (2026-01-19)
+
+**PAYLOAD 1: Layout Consistency Fixes (4 hours)**
+- ✅ **Words ui/state Refactoring** (WordGame.lua) - Completed refactoring of 12 functions to use `game.data.ui.*` and `game.data.state.*` structure
+  - OnStart, OnEnd, CleanupGame, GetCurrentPlayer
+  - PlaceWord, PassTurn, NextTurn, HandleRemoteMove, HandleRemotePass
+  - ShowUI, UpdateUI, RenderBoard, InvalidateRows
+  - CRITICAL: Preserved `state.board` as WordBoard instance with methods intact
+- ✅ **All Games Refactored** - Pong (17 functions), DeathRoll (11 functions), Tetris (30+ functions), Words (12 functions)
+- ✅ **Memory Leak Prevention** - All games now have O(1) CleanupGame with proper frame lifecycle
+
+**PAYLOAD 2: Code Refactoring (12 hours)**
+- ✅ **CreateBackdropFrame Centralized** (Core.lua:378-411) - Eliminated ~150 lines of duplication across 8 files
+  - Handles TBC Classic vs original TBC with BackdropTemplateMixin check
+  - Replaced local implementations in: Components.lua, Journal.lua, ProfileEditor.lua, Pages.lua, MinigamesUI.lua, GameUI.lua, DeathRollUI.lua, Reputation.lua
+- ✅ **LayoutBuilder Component** (Components.lua:697-764) - Automated form layout with yOffset tracking
+  - AddRow(frame, spacing) - Auto-positions frames vertically
+  - AddSpacer(height) - Adds vertical spacing
+  - Reset() - Resets for multi-column layouts
+- ✅ **Labeled Control Factories** (Components.lua:975-1084)
+  - CreateLabeledEditBox(parent, labelText, placeholder, maxLetters)
+  - CreateLabeledDropdown(parent, labelText, options)
+  - CreateCheckboxWithLabel(parent, labelText, defaultChecked)
+- ✅ **ColorUtils Namespace** (Core.lua:447-556)
+  - Lighten(color, percent) / Darken(color, percent)
+  - ApplyVertexColor(texture, colorName) / ApplyTextColor(fontString, colorName)
+  - Blend(color1, color2, ratio)
+  - HexToRGB(hex)
+- ✅ **CreateStyledButton Factory** (Components.lua:1098-1176) - Consistent button styling with hover effects
+
+**PAYLOAD 3: Animation Integration (10 hours)**
+- ✅ **ColorTransition Function** (Animations.lua:202-244) - Smooth 150ms border color transitions using custom tween system
+  - Uses easeOutQuad for smooth transitions
+  - Stores current color for next transition
+  - Respects animationsEnabled setting
+- ✅ **Hover Transitions Applied** - All styled buttons and labeled dropdowns use ColorTransition
+  - OnEnter: Transition to GOLD_BRIGHT (150ms)
+  - OnLeave: Transition back to default border color (150ms)
+- ✅ **Celebration Effects** (Effects.lua:645-741)
+  - Celebrate(frame, duration, options) - Composite effect: glow + sparkles + sound
+  - IconGlow(frame, duration) - Shorter icon celebration
+  - ProgressSparkles(progressBar, duration) - Progress bar completion sparkles
+- ✅ **Integration Points**
+  - Progress bars at 100%: Sparkles + gold border (Components.lua:286-309)
+  - Game victories: Full celebration effect (GameUI.lua:517-520)
+  - Collapsible sections: 200ms fade animations (Components.lua:1302-1340)
+- ✅ **TBC Compatibility** - All animations use HopeAddon.Timer and custom tween system (no retail APIs)
+
+**PAYLOAD 4: TBC Theme Audit (5 hours)**
+- ✅ **Game Card Colors Updated** (Components.lua:2465-2469) - Replaced BROWN with ARCANE_PURPLE (0.61, 0.19, 1.0)
+- ✅ **MinigamesUI Colors Updated** (MinigamesUI.lua:627, 1196) - Replaced BROWN with ARCANE_PURPLE for RPS buttons and game icon buttons
+- ✅ **Tab Color Verification** - Audited all 8 journal tabs, confirmed TBC palette usage:
+  - Journey: GOLD_BRIGHT (primary), FEL_GREEN (Outland content)
+  - Milestones: GOLD_BRIGHT, FEL_GREEN (Act III)
+  - Zones: FEL_GREEN (Outland Exploration)
+  - Reputation: ARCANE_PURPLE (main header), GOLD_BRIGHT (categories)
+  - Attunements: ARCANE_PURPLE (magic theme), tier colors
+  - Raids: Tier colors (T4=GOLD_BRIGHT, T5=SKY_BLUE, T6=HELLFIRE_RED)
+  - Directory: ARCANE_PURPLE (Games Hall), FEL_GREEN (Fellow Travelers)
+  - Stats: GOLD_BRIGHT, FEL_GREEN, ARCANE_PURPLE
+- ✅ **BROWN Eliminated** - All UI elements now use TBC palette (only color definition remains in Constants.lua)
+- ✅ **Documentation Verified** - All color values already documented with actual RGB values (no 0.XX placeholders)
+- ✅ **Icon Organization Examples** - UI_ORGANIZATION_GUIDE.md already has comprehensive examples (no additions needed)
+
+**Files Modified (Total: 12 files)**
+- Core.lua (CreateBackdropFrame, ColorUtils)
+- Components.lua (LayoutBuilder, labeled controls, CreateStyledButton, progress bar sparkles, collapsible animations, game card colors)
+- Animations.lua (ColorTransition)
+- Effects.lua (Celebrate, IconGlow, ProgressSparkles)
+- GameUI.lua (victory celebrations)
+- MinigamesUI.lua (ARCANE_PURPLE for RPS/game buttons)
+- WordGame.lua (ui/state refactoring, 12 functions)
+- 5 other files (CreateBackdropFrame centralized): Journal.lua, ProfileEditor.lua, Pages.lua, DeathRollUI.lua, Reputation.lua
+
+**Results:**
+- ~150 lines of duplication eliminated
+- Consistent ui/state structure across all 4 games
+- Smooth animations on all buttons (150ms color transitions)
+- Celebration effects on victories and achievements
+- 100% TBC aesthetic (arcane purple, fel green, gold - no brown)
+- All TBC 2.4.3 compatible (no retail APIs used)
+
 ### Previous Session Fixes
 
 - ✅ **Card Pool Frame Type** (Journal.lua:149) - Changed `"Frame"` to `"Button"` to support OnClick scripts
