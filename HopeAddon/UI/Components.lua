@@ -1084,6 +1084,98 @@ function Components:CreateCheckboxWithLabel(parent, labelText, defaultChecked)
 end
 
 --[[
+    STYLED BUTTON
+    General-purpose button with consistent styling, hover effects, and sound
+
+    @param parent Frame
+    @param text string - Button label
+    @param width number - Button width (default 100)
+    @param height number - Button height (default 22)
+    @param onClick function - Click handler
+    @param options table - Optional { colorName, disabled }
+    @return Button
+]]
+function Components:CreateStyledButton(parent, text, width, height, onClick, options)
+    options = options or {}
+    width = width or 100
+    height = height or 22
+    local colorName = options.colorName or "ARCANE_PURPLE"
+
+    local button = CreateBackdropFrame("Button", nil, parent)
+    button:SetSize(width, height)
+    self:ApplyBackdrop(button, "TOOLTIP", "PURPLE_TINT", colorName)
+
+    -- Store default border color for hover restoration
+    local defaultBorderColor = HopeAddon.colors[colorName]
+    button.defaultBorderColor = defaultBorderColor
+
+    -- Text
+    button.text = button:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    button.text:SetPoint("CENTER")
+    button.text:SetText(text or "Button")
+    button.text:SetTextColor(0.9, 0.9, 0.9)
+
+    -- Hover effects
+    button:SetScript("OnEnter", function(self)
+        if not self:IsEnabled() then return end
+
+        -- Smooth border color transition (gold highlight)
+        self:SetBackdropBorderColor(Colors.GOLD_BRIGHT.r, Colors.GOLD_BRIGHT.g, Colors.GOLD_BRIGHT.b, 1)
+
+        -- Play hover sound
+        if HopeAddon.Sounds then
+            HopeAddon.Sounds:PlayHover()
+        end
+    end)
+
+    button:SetScript("OnLeave", function(self)
+        -- Restore original border color
+        if self.defaultBorderColor then
+            self:SetBackdropBorderColor(
+                self.defaultBorderColor.r,
+                self.defaultBorderColor.g,
+                self.defaultBorderColor.b,
+                1
+            )
+        end
+    end)
+
+    -- Click handler
+    if onClick then
+        button:SetScript("OnClick", function(self)
+            if HopeAddon.Sounds then
+                HopeAddon.Sounds:PlayClick()
+            end
+            onClick(self)
+        end)
+    end
+
+    -- Disabled state
+    if options.disabled then
+        button:Disable()
+        button.text:SetTextColor(0.5, 0.5, 0.5)
+    end
+
+    -- Helper to update text
+    function button:SetButtonText(newText)
+        self.text:SetText(newText)
+    end
+
+    -- Helper to enable/disable
+    function button:SetButtonEnabled(enabled)
+        if enabled then
+            self:Enable()
+            self.text:SetTextColor(0.9, 0.9, 0.9)
+        else
+            self:Disable()
+            self.text:SetTextColor(0.5, 0.5, 0.5)
+        end
+    end
+
+    return button
+end
+
+--[[
     COLLAPSIBLE SECTION
     Expandable/collapsible section header for organizing content
 ]]
