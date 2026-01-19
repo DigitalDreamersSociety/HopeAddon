@@ -297,6 +297,13 @@ function Components:CreateProgressBar(parent, width, height, colorName)
 
             if progress >= 1 then
                 ticker:Cancel()
+
+                -- Celebration at 100% completion
+                if targetPercent >= 100 and HopeAddon.Effects then
+                    HopeAddon.Effects:ProgressSparkles(self, 1.5)
+                    -- Gold border flash
+                    self:SetBackdropBorderColor(Colors.GOLD_BRIGHT.r, Colors.GOLD_BRIGHT.g, Colors.GOLD_BRIGHT.b, 1)
+                end
             end
         end)
     end

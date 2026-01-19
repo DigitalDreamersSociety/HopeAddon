@@ -513,6 +513,11 @@ function GameUI:ShowGameOver(gameId, winner, stats)
     elseif winner == UnitName("player") then
         resultText:SetText("VICTORY!")
         resultText:SetTextColor(0.2, 1, 0.2)
+
+        -- Celebration effect for victory
+        if HopeAddon.Effects then
+            HopeAddon.Effects:Celebrate(resultText, 2.5, { colorName = "FEL_GREEN" })
+        end
     else
         resultText:SetText("DEFEAT")
         resultText:SetTextColor(0.8, 0.2, 0.2)
