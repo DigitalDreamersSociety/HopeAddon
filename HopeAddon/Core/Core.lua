@@ -375,6 +375,41 @@ function HopeAddon:SafeCall(func, ...)
     return pcall(func, ...)
 end
 
+--[[
+    CreateBackdropFrame - Create backdrop-compatible frame
+    Handles TBC Classic vs original TBC 2.4.3 differences
+
+    @param frameType string - Frame type (e.g., "Frame", "Button", "ScrollFrame")
+    @param name string|nil - Frame name
+    @param parent Frame - Parent frame
+    @param additionalTemplate string|nil - Additional template(s)
+    @return Frame
+]]
+function HopeAddon:CreateBackdropFrame(frameType, name, parent, additionalTemplate)
+    local frame
+
+    -- Check if BackdropTemplateMixin exists (TBC Classic / Retail)
+    if BackdropTemplateMixin then
+        -- TBC Classic: Use BackdropTemplate
+        local template = additionalTemplate and (additionalTemplate .. ", BackdropTemplate") or "BackdropTemplate"
+        frame = CreateFrame(frameType or "Frame", name, parent, template)
+
+        -- Double-check SetBackdrop was applied; if not, manually apply mixin
+        if not frame.SetBackdrop then
+            Mixin(frame, BackdropTemplateMixin)
+            -- Initialize backdrop hooks if needed
+            if frame.OnBackdropLoaded then
+                frame:OnBackdropLoaded()
+            end
+        end
+    else
+        -- Original TBC 2.4.3: SetBackdrop is native to all frames
+        frame = CreateFrame(frameType or "Frame", name, parent, additionalTemplate)
+    end
+
+    return frame
+end
+
 -- Format gold value
 function HopeAddon:FormatGold(copper)
     local gold = math.floor(copper / 10000)

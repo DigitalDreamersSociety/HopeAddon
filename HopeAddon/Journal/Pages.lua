@@ -6,20 +6,9 @@
 local Pages = {}
 HopeAddon.Pages = Pages
 
--- TBC 2.4.3 compatibility helper (defined in Components.lua)
+-- Use centralized backdrop frame creation from Core.lua
 local function CreateBackdropFrame(frameType, name, parent, additionalTemplate)
-    local Components = HopeAddon.Components
-    if Components and Components.CreateBackdropFrame then
-        return Components.CreateBackdropFrame(frameType, name, parent, additionalTemplate)
-    end
-    -- Fallback: try with template, then without
-    local template = additionalTemplate and (additionalTemplate .. ", BackdropTemplate") or "BackdropTemplate"
-    local frame = CreateFrame(frameType or "Frame", name, parent, template)
-    if not frame.SetBackdrop then
-        frame:Hide()
-        frame = CreateFrame(frameType or "Frame", name, parent, additionalTemplate)
-    end
-    return frame
+    return HopeAddon:CreateBackdropFrame(frameType, name, parent, additionalTemplate)
 end
 
 --[[

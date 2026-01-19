@@ -8,19 +8,9 @@
 local MinigamesUI = {}
 HopeAddon.MinigamesUI = MinigamesUI
 
--- TBC 2.4.3 compatibility helper
+-- Use centralized backdrop frame creation from Core.lua
 local function CreateBackdropFrame(frameType, name, parent, additionalTemplate)
-    local Comp = HopeAddon.Components
-    if Comp and Comp.CreateBackdropFrame then
-        return Comp.CreateBackdropFrame(frameType, name, parent, additionalTemplate)
-    end
-    local template = additionalTemplate and (additionalTemplate .. ", BackdropTemplate") or "BackdropTemplate"
-    local frame = CreateFrame(frameType or "Frame", name, parent, template)
-    if not frame.SetBackdrop then
-        frame:Hide()
-        frame = CreateFrame(frameType or "Frame", name, parent, additionalTemplate)
-    end
-    return frame
+    return HopeAddon:CreateBackdropFrame(frameType, name, parent, additionalTemplate)
 end
 
 -- Local references

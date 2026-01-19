@@ -14,29 +14,9 @@ local Colors = HopeAddon.colors
 -- TBC 2.4.3 compatibility: BackdropTemplate handling
 -- In TBC Classic: BackdropTemplateMixin is required for SetBackdrop
 -- In original TBC (2.4.3): SetBackdrop is native to all frames
+-- Use centralized backdrop frame creation from Core.lua
 local function CreateBackdropFrame(frameType, name, parent, additionalTemplate)
-    local frame
-
-    -- Check if BackdropTemplateMixin exists (TBC Classic / Retail)
-    if BackdropTemplateMixin then
-        -- TBC Classic: Use BackdropTemplate
-        local template = additionalTemplate and (additionalTemplate .. ", BackdropTemplate") or "BackdropTemplate"
-        frame = CreateFrame(frameType or "Frame", name, parent, template)
-
-        -- Double-check SetBackdrop was applied; if not, manually apply mixin
-        if not frame.SetBackdrop then
-            Mixin(frame, BackdropTemplateMixin)
-            -- Initialize backdrop hooks if needed
-            if frame.OnBackdropLoaded then
-                frame:OnBackdropLoaded()
-            end
-        end
-    else
-        -- Original TBC 2.4.3: SetBackdrop is native to all frames
-        frame = CreateFrame(frameType or "Frame", name, parent, additionalTemplate)
-    end
-
-    return frame
+    return HopeAddon:CreateBackdropFrame(frameType, name, parent, additionalTemplate)
 end
 
 -- Export for other modules
