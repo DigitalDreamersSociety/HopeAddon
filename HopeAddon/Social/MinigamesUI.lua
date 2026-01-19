@@ -623,7 +623,8 @@ function MinigamesUI:CreateRPSContainer(frame, content)
         local btn = CreateBackdropFrame("Button", nil, buttonRow)
         btn:SetSize(RPS_BUTTON_SIZE, RPS_BUTTON_SIZE)
         btn:SetPoint("LEFT", buttonRow, "LEFT", (i - 1) * (RPS_BUTTON_SIZE + 20), 0)
-        HopeAddon.Components:ApplyBackdrop(btn, "BORDER_ONLY_TOOLTIP", nil, "BROWN")
+        -- TBC Theme: Using ARCANE_PURPLE for minigames UI (matches social theme)
+        HopeAddon.Components:ApplyBackdrop(btn, "BORDER_ONLY_TOOLTIP", nil, "ARCANE_PURPLE")
 
         -- Icon texture
         local icon = btn:CreateTexture(nil, "ARTWORK")
@@ -1191,7 +1192,8 @@ function MinigamesUI:GetGameSelectionPopup()
         local btn = CreateBackdropFrame("Button", nil, buttonContainer)
         btn:SetSize(GAME_ICON_SIZE, GAME_ICON_SIZE)
         btn:SetPoint("TOPLEFT", buttonContainer, "TOPLEFT", xOffset, yOffset)
-        HopeAddon.Components:ApplyBackdrop(btn, "BORDER_ONLY_TOOLTIP", nil, "BROWN")
+        -- TBC Theme: Using ARCANE_PURPLE for minigames UI (matches social theme)
+        HopeAddon.Components:ApplyBackdrop(btn, "BORDER_ONLY_TOOLTIP", nil, "ARCANE_PURPLE")
 
         -- Store game definition reference
         btn.gameDef = gameDef

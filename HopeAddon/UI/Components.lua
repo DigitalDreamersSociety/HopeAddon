@@ -2462,10 +2462,11 @@ function Components:CreateGameCard(parent, gameData, onPractice, onChallenge)
 
     local card = CreateBackdropFrame("Button", nil, parent)
     card:SetSize(CARD_WIDTH, CARD_HEIGHT)
-    self:ApplyBackdropRaw(card, "PARCHMENT_SIMPLE", 1, 1, 1, 0.9, 0.6, 0.5, 0.3, 1)
+    -- TBC Theme: Using ARCANE_PURPLE border instead of BROWN for TBC aesthetic
+    self:ApplyBackdropRaw(card, "PARCHMENT_SIMPLE", 1, 1, 1, 0.9, 0.61, 0.19, 1.0, 1)
 
-    -- Store default border color
-    card.defaultBorderColor = HopeAddon.Constants.BACKDROP_COLORS.BROWN
+    -- Store default border color (ARCANE_PURPLE)
+    card.defaultBorderColor = HopeAddon.Constants.BACKDROP_COLORS.ARCANE
 
     -- Icon (left side, 48x48)
     local icon = card:CreateTexture(nil, "ARTWORK")
