@@ -402,6 +402,7 @@ function Attunements:GetChapterDetails(raidKey, chapterIndex)
     local isComplete = progress.chapters[chapterIndex] and progress.chapters[chapterIndex].complete
 
     return {
+        -- Existing fields
         name = chapter.name,
         story = chapter.story,
         quests = chapter.quests,
@@ -413,6 +414,11 @@ function Attunements:GetChapterDetails(raidKey, chapterIndex)
         boss = chapter.boss,
         requires = chapter.requires,
         noFactionChosen = chapter.noFactionChosen,
+        -- New enhanced fields
+        questGiver = chapter.questGiver,
+        location = chapter.location,
+        difficulty = chapter.difficulty,
+        tips = chapter.tips,
     }
 end
 

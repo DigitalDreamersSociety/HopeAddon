@@ -18,12 +18,12 @@ Core\Effects.lua
 UI\Components.lua
 UI\Glow.lua
 UI\Animations.lua
+UI\MinimapButton.lua
 
 # Journal System
 Journal\Journal.lua
 Journal\Pages.lua
 Journal\Milestones.lua
-Journal\Zones.lua
 Journal\ProfileEditor.lua
 
 # Raid Data
@@ -51,6 +51,8 @@ Social\MapPins.lua
 Social\Games\GameCore.lua
 Social\Games\GameUI.lua
 Social\Games\GameComms.lua
+Social\Games\GameChat.lua
+Social\Games\ScoreChallenge.lua
 Social\Games\Tetris\TetrisBlocks.lua
 Social\Games\Tetris\TetrisGrid.lua
 Social\Games\Tetris\TetrisGame.lua
@@ -60,4 +62,10 @@ Social\Games\DeathRoll\DeathRollUI.lua
 Social\Games\DeathRoll\DeathRollEscrow.lua
 Social\Games\WordsWithWoW\WordBoard.lua
 Social\Games\WordsWithWoW\WordDictionary.lua
+Social\Games\WordsWithWoW\WordGamePersistence.lua
+Social\Games\WordsWithWoW\WordGameInvites.lua
 Social\Games\WordsWithWoW\WordGame.lua
+Social\Games\Battleship\BattleshipBoard.lua
+Social\Games\Battleship\BattleshipAI.lua
+Social\Games\Battleship\BattleshipUI.lua
+Social\Games\Battleship\BattleshipGame.lua

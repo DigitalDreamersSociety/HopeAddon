@@ -22,6 +22,45 @@ local COLORS = {
     MUTED = { r = 0.6, g = 0.6, b = 0.6 },
 }
 
+-- Danger level colors and messages for gameshow effect
+local DANGER_LEVELS = {
+    SAFE = {
+        color = { r = 1, g = 0.84, b = 0 },       -- Gold
+        message = "SAFE!",
+        sound = "safe",
+    },
+    CAUTION = {
+        color = { r = 1, g = 0.8, b = 0 },        -- Yellow
+        message = "Getting risky...",
+        sound = "caution",
+    },
+    DANGER = {
+        color = { r = 1, g = 0.5, b = 0 },        -- Orange
+        message = "DANGER ZONE!",
+        sound = "danger",
+    },
+    CRITICAL = {
+        color = { r = 1, g = 0.2, b = 0.2 },      -- Red
+        message = "ONE WRONG MOVE...",
+        sound = "critical",
+    },
+    DEATH = {
+        color = { r = 0.5, g = 0, b = 0 },        -- Dark red
+        message = "ELIMINATED!",
+        sound = "death",
+    },
+}
+
+-- Animation timing constants (in seconds)
+local ANIMATION_TIMING = {
+    SUSPENSE_DELAY = 0.05,      -- Time before showing number
+    REVEAL_DURATION = 0.4,      -- PopIn animation duration
+    MESSAGE_DELAY = 0.15,       -- Delay before showing danger message
+    MESSAGE_FADE = 0.8,         -- How long danger message stays
+    TURN_PROMPT_DELAY = 1.2,    -- Delay before showing turn prompt
+    TOTAL_SEQUENCE = 1.5,       -- Total animation lock time
+}
+
 -- Window sizes
 DeathRollUI.SETUP_WINDOW = { width = 320, height = 280 }
 DeathRollUI.HISTORY_WINDOW = { width = 250, height = 300 }
@@ -48,6 +87,14 @@ DeathRollUI.WINDOW_BACKDROP = {
 DeathRollUI.setupWindow = nil
 DeathRollUI.historyWindows = {}
 
+-- Gameshow UI frames (per game)
+DeathRollUI.gameshowFrames = {}  -- [gameId] = { bigNumber, turnPrompt }
+DeathRollUI.animationTimers = {}  -- [gameId] = { timer handles }
+
+-- Frame pools for efficient memory management
+DeathRollUI.bigNumberPool = nil
+DeathRollUI.turnPromptPool = nil
+
 --============================================================
 -- LIFECYCLE
 --============================================================
@@ -58,6 +105,114 @@ end
 
 function DeathRollUI:OnEnable()
     HopeAddon:Debug("DeathRollUI enabled")
+
+    -- Create frame pools for gameshow UI
+    self:CreateFramePools()
+end
+
+--[[
+    Create frame pools for gameshow UI components
+    Uses HopeAddon.FramePool for efficient memory management
+]]
+function DeathRollUI:CreateFramePools()
+    local FramePool = HopeAddon.FramePool
+    if not FramePool then
+        HopeAddon:Debug("FramePool not available, pools disabled")
+        return
+    end
+
+    -- Big number frame pool
+    self.bigNumberPool = FramePool:NewNamed("DeathRoll_BigNumber",
+        -- Create function
+        function()
+            local container = CreateFrame("Frame", nil, UIParent)
+            container:SetSize(1, 120)  -- Width set dynamically when parented
+
+            -- Semi-transparent background for focus
+            local bg = container:CreateTexture(nil, "BACKGROUND")
+            bg:SetAllPoints()
+            bg:SetColorTexture(0, 0, 0, 0.3)
+            container.bg = bg
+
+            -- The big number text (using largest available font)
+            local numberText = container:CreateFontString(nil, "OVERLAY", "NumberFontNormalHuge")
+            numberText:SetPoint("CENTER", container, "CENTER", 0, 15)
+            numberText:SetText("")
+            container.numberText = numberText
+
+            -- Danger message below number
+            local dangerMessage = container:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+            dangerMessage:SetPoint("TOP", numberText, "BOTTOM", 0, -5)
+            dangerMessage:SetText("")
+            container.dangerMessage = dangerMessage
+
+            container:Hide()
+            return container
+        end,
+        -- Reset function
+        function(frame)
+            frame:Hide()
+            frame:SetAlpha(0)
+            frame:ClearAllPoints()
+            frame:SetParent(UIParent)  -- Park at UIParent when pooled
+            frame.numberText:SetText("")
+            frame.numberText:SetTextColor(COLORS.GOLD.r, COLORS.GOLD.g, COLORS.GOLD.b)
+            frame.dangerMessage:SetText("")
+            -- Stop any active effects
+            if HopeAddon.Effects then
+                HopeAddon.Effects:StopGlowsOnParent(frame)
+            end
+        end
+    )
+
+    -- Turn prompt frame pool
+    self.turnPromptPool = FramePool:NewNamed("DeathRoll_TurnPrompt",
+        -- Create function
+        function()
+            local frame = CreateBackdropFrame("Frame", nil, UIParent)
+            frame:SetSize(1, 50)  -- Width set dynamically when parented
+
+            frame:SetBackdrop({
+                bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+                edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+                tile = true,
+                tileSize = 16,
+                edgeSize = 12,
+                insets = { left = 3, right = 3, top = 3, bottom = 3 }
+            })
+            frame:SetBackdropColor(0.1, 0.08, 0.15, 0.95)
+
+            -- Main prompt text
+            local promptText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+            promptText:SetPoint("TOP", frame, "TOP", 0, -8)
+            promptText:SetText("")
+            frame.promptText = promptText
+
+            -- Command hint text
+            local hintText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            hintText:SetPoint("TOP", promptText, "BOTTOM", 0, -3)
+            hintText:SetText("")
+            frame.hintText = hintText
+
+            frame:Hide()
+            return frame
+        end,
+        -- Reset function
+        function(frame)
+            frame:Hide()
+            frame:ClearAllPoints()
+            frame:SetParent(UIParent)  -- Park at UIParent when pooled
+            frame:SetBackdropBorderColor(COLORS.GOLD.r, COLORS.GOLD.g, COLORS.GOLD.b, 1)
+            frame.promptText:SetText("")
+            frame.hintText:SetText("")
+            -- Stop any active effects
+            if HopeAddon.Effects then
+                HopeAddon.Effects:StopGlowsOnParent(frame)
+            end
+        end
+    )
+
+    HopeAddon:Debug("DeathRollUI frame pools created")
 end
 
 function DeathRollUI:OnDisable()
@@ -80,6 +235,30 @@ function DeathRollUI:OnDisable()
         end
     end
     wipe(self.historyWindows)
+
+    -- Clean up gameshow frames (releases back to pools)
+    for gameId, _ in pairs(self.gameshowFrames) do
+        self:CleanupGameshowFrames(gameId)
+    end
+    wipe(self.gameshowFrames)
+
+    -- Cancel all animation timers
+    for gameId, timers in pairs(self.animationTimers) do
+        for _, timer in ipairs(timers) do
+            if timer and timer.Cancel then timer:Cancel() end
+        end
+    end
+    wipe(self.animationTimers)
+
+    -- Destroy frame pools
+    if self.bigNumberPool then
+        self.bigNumberPool:Destroy()
+        self.bigNumberPool = nil
+    end
+    if self.turnPromptPool then
+        self.turnPromptPool:Destroy()
+        self.turnPromptPool = nil
+    end
 end
 
 --============================================================
@@ -341,6 +520,362 @@ function DeathRollUI:ShowHistory(gameId)
     closeBtn:SetScript("OnClick", function() window:Hide() end)
 
     window:Show()
+end
+
+--============================================================
+-- GAMESHOW UI COMPONENTS
+--============================================================
+
+--[[
+    Calculate danger level based on roll result and max
+    @param roll number - The roll result
+    @param max number - The maximum possible roll
+    @return string - Danger level key (SAFE, CAUTION, DANGER, CRITICAL, DEATH)
+]]
+function DeathRollUI:GetDangerLevel(roll, max)
+    if roll == 1 then
+        return "DEATH"
+    end
+
+    local ratio = roll / max
+    if ratio <= 0.10 then
+        return "CRITICAL"  -- 2-10%
+    elseif ratio <= 0.25 then
+        return "DANGER"    -- 10-25%
+    elseif ratio <= 0.50 then
+        return "CAUTION"   -- 25-50%
+    else
+        return "SAFE"      -- 50%+
+    end
+end
+
+--[[
+    Acquire and configure a big number frame from the pool
+    @param parent Frame - Parent frame (game window content)
+    @return Frame - The big number container frame
+]]
+function DeathRollUI:AcquireBigNumberFrame(parent)
+    local container
+
+    if self.bigNumberPool then
+        container = self.bigNumberPool:Acquire()
+    else
+        -- Fallback: create frame directly if pool not available
+        container = CreateFrame("Frame", nil, parent)
+        local bg = container:CreateTexture(nil, "BACKGROUND")
+        bg:SetAllPoints()
+        bg:SetColorTexture(0, 0, 0, 0.3)
+        container.bg = bg
+        local numberText = container:CreateFontString(nil, "OVERLAY", "NumberFontNormalHuge")
+        numberText:SetPoint("CENTER", container, "CENTER", 0, 15)
+        container.numberText = numberText
+        local dangerMessage = container:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+        dangerMessage:SetPoint("TOP", numberText, "BOTTOM", 0, -5)
+        container.dangerMessage = dangerMessage
+    end
+
+    -- Configure for this parent
+    container:SetParent(parent)
+    container:SetSize(parent:GetWidth() - 20, 120)
+    container:ClearAllPoints()
+    container:SetPoint("CENTER", parent, "CENTER", 0, 20)
+    container:SetAlpha(0)
+    container:Hide()
+
+    -- Reset text styling
+    container.numberText:SetText("")
+    container.numberText:SetTextColor(COLORS.GOLD.r, COLORS.GOLD.g, COLORS.GOLD.b)
+    container.dangerMessage:SetText("")
+    container.dangerMessage:SetTextColor(1, 1, 1)
+
+    return container
+end
+
+--[[
+    Acquire and configure a turn prompt frame from the pool
+    @param parent Frame - Parent frame (game window content)
+    @return Frame - The turn prompt frame
+]]
+function DeathRollUI:AcquireTurnPromptFrame(parent)
+    local frame
+
+    if self.turnPromptPool then
+        frame = self.turnPromptPool:Acquire()
+    else
+        -- Fallback: create frame directly if pool not available
+        frame = CreateBackdropFrame("Frame", nil, parent)
+        frame:SetBackdrop({
+            bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            tile = true, tileSize = 16, edgeSize = 12,
+            insets = { left = 3, right = 3, top = 3, bottom = 3 }
+        })
+        frame:SetBackdropColor(0.1, 0.08, 0.15, 0.95)
+        local promptText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+        promptText:SetPoint("TOP", frame, "TOP", 0, -8)
+        frame.promptText = promptText
+        local hintText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        hintText:SetPoint("TOP", promptText, "BOTTOM", 0, -3)
+        frame.hintText = hintText
+    end
+
+    -- Configure for this parent
+    frame:SetParent(parent)
+    frame:SetSize(parent:GetWidth() - 30, 50)
+    frame:ClearAllPoints()
+    frame:SetPoint("BOTTOM", parent, "BOTTOM", 0, 60)
+    frame:SetBackdropBorderColor(COLORS.GOLD.r, COLORS.GOLD.g, COLORS.GOLD.b, 1)
+    frame:Hide()
+
+    -- Reset text
+    frame.promptText:SetText("YOUR TURN!")
+    frame.promptText:SetTextColor(COLORS.GOLD.r, COLORS.GOLD.g, COLORS.GOLD.b)
+    frame.hintText:SetText("/roll 1-1000")
+    frame.hintText:SetTextColor(0.8, 0.8, 0.8)
+
+    return frame
+end
+
+--[[
+    Initialize gameshow frames for a game (acquires from pools)
+    @param gameId string - Game ID
+    @param contentFrame Frame - The game window content frame
+]]
+function DeathRollUI:InitializeGameshowFrames(gameId, contentFrame)
+    if self.gameshowFrames[gameId] then
+        -- Already initialized
+        return
+    end
+
+    local bigNumber = self:AcquireBigNumberFrame(contentFrame)
+    local turnPrompt = self:AcquireTurnPromptFrame(contentFrame)
+
+    self.gameshowFrames[gameId] = {
+        bigNumber = bigNumber,
+        turnPrompt = turnPrompt,
+        contentFrame = contentFrame,
+    }
+
+    self.animationTimers[gameId] = {}
+    HopeAddon:Debug("Gameshow frames initialized for", gameId)
+end
+
+--[[
+    Cleanup gameshow frames for a game (releases back to pools)
+    @param gameId string - Game ID
+]]
+function DeathRollUI:CleanupGameshowFrames(gameId)
+    local frames = self.gameshowFrames[gameId]
+    if not frames then return end
+
+    -- Cancel timers first to prevent callbacks on released frames
+    local timers = self.animationTimers[gameId]
+    if timers then
+        for _, timer in ipairs(timers) do
+            if timer and timer.Cancel then timer:Cancel() end
+        end
+    end
+    self.animationTimers[gameId] = nil
+
+    -- Release big number frame back to pool
+    if frames.bigNumber then
+        if self.bigNumberPool then
+            self.bigNumberPool:Release(frames.bigNumber)
+        else
+            -- Fallback: destroy if no pool
+            frames.bigNumber:Hide()
+            frames.bigNumber:SetParent(nil)
+        end
+    end
+
+    -- Release turn prompt frame back to pool
+    if frames.turnPrompt then
+        if self.turnPromptPool then
+            self.turnPromptPool:Release(frames.turnPrompt)
+        else
+            -- Fallback: destroy if no pool
+            frames.turnPrompt:Hide()
+            frames.turnPrompt:SetParent(nil)
+        end
+    end
+
+    self.gameshowFrames[gameId] = nil
+    HopeAddon:Debug("Gameshow frames cleaned up for", gameId)
+end
+
+--[[
+    Add a timer to the game's timer list for cleanup
+    @param gameId string - Game ID
+    @param timer table - Timer handle with Cancel method
+]]
+function DeathRollUI:AddTimer(gameId, timer)
+    if not self.animationTimers[gameId] then
+        self.animationTimers[gameId] = {}
+    end
+    table.insert(self.animationTimers[gameId], timer)
+end
+
+--[[
+    Show roll result with gameshow animation sequence
+    @param gameId string - Game ID
+    @param roll number - The roll result
+    @param max number - The maximum possible roll
+    @param playerName string - Who rolled
+    @param isLocalPlayer boolean - Is this the local player's roll
+]]
+function DeathRollUI:ShowRollResult(gameId, roll, max, playerName, isLocalPlayer)
+    local frames = self.gameshowFrames[gameId]
+    if not frames or not frames.bigNumber then
+        HopeAddon:Debug("No gameshow frames for", gameId)
+        return
+    end
+
+    local bigNumber = frames.bigNumber
+    local dangerLevel = self:GetDangerLevel(roll, max)
+    local dangerInfo = DANGER_LEVELS[dangerLevel]
+
+    -- Hide turn prompt during roll reveal
+    if frames.turnPrompt then
+        frames.turnPrompt:Hide()
+        if HopeAddon.Effects then
+            HopeAddon.Effects:StopGlowsOnParent(frames.turnPrompt)
+        end
+    end
+
+    -- Play suspense sound
+    if HopeAddon.Sounds then
+        HopeAddon.Sounds:PlayDeathRollSuspense()
+    end
+
+    -- Short suspense delay before reveal
+    local revealTimer = HopeAddon.Timer:After(ANIMATION_TIMING.SUSPENSE_DELAY, function()
+        -- Set the number
+        bigNumber.numberText:SetText(tostring(roll))
+        bigNumber.numberText:SetTextColor(dangerInfo.color.r, dangerInfo.color.g, dangerInfo.color.b)
+
+        -- Clear danger message initially
+        bigNumber.dangerMessage:SetText("")
+
+        -- Show frame
+        bigNumber:Show()
+
+        -- Pop in animation
+        if HopeAddon.Effects then
+            HopeAddon.Effects:PopIn(bigNumber, ANIMATION_TIMING.REVEAL_DURATION)
+        else
+            bigNumber:SetAlpha(1)
+        end
+
+        -- Play reveal sound
+        if HopeAddon.Sounds then
+            HopeAddon.Sounds:PlayDeathRollReveal()
+        end
+
+        -- Show danger message after brief delay
+        local messageTimer = HopeAddon.Timer:After(ANIMATION_TIMING.MESSAGE_DELAY, function()
+            bigNumber.dangerMessage:SetText(dangerInfo.message)
+            bigNumber.dangerMessage:SetTextColor(dangerInfo.color.r, dangerInfo.color.g, dangerInfo.color.b)
+
+            -- Play danger-appropriate sound
+            if HopeAddon.Sounds then
+                HopeAddon.Sounds:PlayDeathRoll(dangerInfo.sound)
+            end
+
+            -- Shake effect for dangerous rolls
+            if (dangerLevel == "CRITICAL" or dangerLevel == "DANGER") and HopeAddon.Effects then
+                HopeAddon.Effects:Shake(bigNumber, 6, 0.3)
+            end
+
+            -- Burst effect for death roll
+            if dangerLevel == "DEATH" and HopeAddon.Effects then
+                HopeAddon.Effects:CreateBurstEffect(bigNumber, "HELLFIRE_RED")
+            end
+        end)
+        self:AddTimer(gameId, messageTimer)
+
+        -- Fade message after delay (but keep number visible)
+        local fadeTimer = HopeAddon.Timer:After(ANIMATION_TIMING.MESSAGE_FADE, function()
+            bigNumber.dangerMessage:SetText("")
+        end)
+        self:AddTimer(gameId, fadeTimer)
+    end)
+    self:AddTimer(gameId, revealTimer)
+end
+
+--[[
+    Show turn prompt for the next player
+    @param gameId string - Game ID
+    @param maxRoll number - The current max roll for hint text
+    @param isYourTurn boolean - Is it the local player's turn
+    @param opponentName string|nil - Opponent name if waiting
+]]
+function DeathRollUI:ShowTurnPrompt(gameId, maxRoll, isYourTurn, opponentName)
+    local frames = self.gameshowFrames[gameId]
+    if not frames or not frames.turnPrompt then return end
+
+    local turnPrompt = frames.turnPrompt
+
+    -- Stop any existing glow
+    if HopeAddon.Effects then
+        HopeAddon.Effects:StopGlowsOnParent(turnPrompt)
+    end
+
+    if isYourTurn then
+        -- YOUR TURN - pulsing gold
+        turnPrompt.promptText:SetText("YOUR TURN!")
+        turnPrompt.promptText:SetTextColor(COLORS.GOLD.r, COLORS.GOLD.g, COLORS.GOLD.b)
+        turnPrompt.hintText:SetText("/roll 1-" .. maxRoll)
+        turnPrompt:SetBackdropBorderColor(COLORS.GOLD.r, COLORS.GOLD.g, COLORS.GOLD.b, 1)
+
+        -- Add pulsing glow effect
+        if HopeAddon.Effects then
+            HopeAddon.Effects:CreatePulsingGlow(turnPrompt, "GOLD_BRIGHT", 0.6)
+        end
+
+        -- Play turn notification sound
+        if HopeAddon.Sounds then
+            HopeAddon.Sounds:PlayDeathRollYourTurn()
+        end
+    else
+        -- Waiting for opponent
+        local name = opponentName or "opponent"
+        turnPrompt.promptText:SetText("Waiting for " .. name .. "...")
+        turnPrompt.promptText:SetTextColor(0.6, 0.6, 0.6)
+        turnPrompt.hintText:SetText("They must /roll 1-" .. maxRoll)
+        turnPrompt:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+    end
+
+    turnPrompt:Show()
+end
+
+--[[
+    Hide turn prompt
+    @param gameId string - Game ID
+]]
+function DeathRollUI:HideTurnPrompt(gameId)
+    local frames = self.gameshowFrames[gameId]
+    if not frames or not frames.turnPrompt then return end
+
+    frames.turnPrompt:Hide()
+    if HopeAddon.Effects then
+        HopeAddon.Effects:StopGlowsOnParent(frames.turnPrompt)
+    end
+end
+
+--[[
+    Update the big number display without animation (for UI refresh)
+    @param gameId string - Game ID
+    @param currentMax number - Current max roll value
+]]
+function DeathRollUI:UpdateBigNumber(gameId, currentMax)
+    local frames = self.gameshowFrames[gameId]
+    if not frames or not frames.bigNumber then return end
+
+    frames.bigNumber.numberText:SetText(tostring(currentMax))
+    frames.bigNumber.numberText:SetTextColor(COLORS.GOLD.r, COLORS.GOLD.g, COLORS.GOLD.b)
+    frames.bigNumber.dangerMessage:SetText("")
+    frames.bigNumber:SetAlpha(1)
+    frames.bigNumber:Show()
 end
 
 --============================================================

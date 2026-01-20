@@ -101,6 +101,7 @@ end
 Components.MARGIN_SMALL = 5
 Components.MARGIN_NORMAL = 10
 Components.MARGIN_LARGE = 20
+Components.SECTION_SPACER = 15       -- Standard spacer between content sections
 
 -- Additional layout constants
 Components.PADDING_INTERNAL = 4      -- For progress bar fill insets
@@ -152,11 +153,15 @@ end
 --[[
     PARCHMENT FRAME
     Main container with journal-style background
+    Uses explicit texture layer for parchment to ensure proper fill
 ]]
 function Components:CreateParchmentFrame(name, parent, width, height)
     local frame = CreateBackdropFrame("Frame", name, parent or UIParent)
     frame:SetSize(width or 400, height or 500)
-    self:ApplyBackdrop(frame, "PARCHMENT_GOLD", "PARCHMENT", "GOLD")
+
+    -- Use PARCHMENT_TILED which uses UI-DialogBox-Background (tiles properly at any size)
+    -- The QuestBG texture is locked to quest log dimensions and can't scale
+    self:ApplyBackdrop(frame, "PARCHMENT_TILED", "PARCHMENT", "GOLD")
 
     -- Make draggable
     frame:SetMovable(true)
@@ -619,9 +624,24 @@ function Components:CreateScrollFrame(parent, width, height)
 
     -- Content frame (child of scroll)
     local content = CreateFrame("Frame", nil, scrollFrame)
-    content:SetWidth(scrollFrame:GetWidth())
     content:SetHeight(1) -- Will grow as content added
     scrollFrame:SetScrollChild(content)
+
+    -- Update content width when scroll frame is resized (fixes width calculation timing issue)
+    -- This ensures content width is set correctly even when SetAllPoints is called after creation
+    scrollFrame:SetScript("OnSizeChanged", function(self, newWidth, newHeight)
+        if newWidth and newWidth > 0 then
+            content:SetWidth(newWidth)
+        end
+    end)
+
+    -- Set initial width (may be 0 if not laid out yet, OnSizeChanged will fix it)
+    local initialWidth = scrollFrame:GetWidth()
+    if initialWidth and initialWidth > 0 then
+        content:SetWidth(initialWidth)
+    else
+        content:SetWidth(width - Components.SCROLLBAR_WIDTH - 2 * Components.MARGIN_SMALL)
+    end
 
     container.scrollFrame = scrollFrame
     container.content = content
@@ -1634,17 +1654,37 @@ function Components:CreateReputationBar(parent, width, height, options)
     container.bgTrack = bgTrack
 
     --[[
-        LAYER 3: Fill Bar (Skills Bar texture)
-        The main progress fill using classic WoW skills bar texture
+        LAYER 3: Fill Bar (Status Bar texture)
+        Smooth metallic gradient for gaming-style progress feel
     ]]
     local fillBar = container:CreateTexture(nil, "ARTWORK", nil, 0)
-    fillBar:SetTexture(AssetTextures.SKILLS_BAR)
+    fillBar:SetTexture(AssetTextures.STATUS_BAR)
     fillBar:SetPoint("TOPLEFT", container, "TOPLEFT", 2, -2)
     fillBar:SetPoint("BOTTOMLEFT", container, "BOTTOMLEFT", 2, 2)
     fillBar:SetWidth(1) -- Start empty
     fillBar:SetVertexColor(0.2, 0.8, 0.2, 1) -- Default friendly green
     container.fillBar = fillBar
     container.maxFillWidth = width - 4 -- Account for 2px padding each side
+
+    --[[
+        LAYER 3.5: Inner Bevel (3D depth effect)
+        Top shadow and bottom highlight for gaming-style depth
+    ]]
+    local topShadow = container:CreateTexture(nil, "ARTWORK", nil, 1)
+    topShadow:SetTexture(AssetTextures.SOLID)
+    topShadow:SetHeight(2)
+    topShadow:SetPoint("TOPLEFT", fillBar, "TOPLEFT", 0, 0)
+    topShadow:SetPoint("TOPRIGHT", fillBar, "TOPRIGHT", 0, 0)
+    topShadow:SetVertexColor(0, 0, 0, 0.35)
+    container.topShadow = topShadow
+
+    local bottomHighlight = container:CreateTexture(nil, "ARTWORK", nil, 1)
+    bottomHighlight:SetTexture(AssetTextures.SOLID)
+    bottomHighlight:SetHeight(1)
+    bottomHighlight:SetPoint("BOTTOMLEFT", fillBar, "BOTTOMLEFT", 0, 0)
+    bottomHighlight:SetPoint("BOTTOMRIGHT", fillBar, "BOTTOMRIGHT", 0, 0)
+    bottomHighlight:SetVertexColor(1, 1, 1, 0.2)
+    container.bottomHighlight = bottomHighlight
 
     --[[
         LAYER 4: Shine Overlay (ADD blend for highlights)
@@ -1657,17 +1697,33 @@ function Components:CreateReputationBar(parent, width, height, options)
     container.shineOverlay = shineOverlay
 
     --[[
-        LAYER 5: Tick Marks at 25%, 50%, 75%
-        Thin vertical lines to show milestones
+        LAYER 4.5: Segment Dividers (Gaming XP-bar style)
+        9 vertical dividers at 10%, 20%, ... 90% for chunky segment feel
+    ]]
+    container.segmentDividers = {}
+    for i = 1, 9 do
+        local pct = i * 0.10
+        local divider = container:CreateTexture(nil, "ARTWORK", nil, 2)
+        divider:SetTexture(AssetTextures.SOLID)
+        divider:SetSize(1, height - 4)
+        divider:SetPoint("CENTER", container, "LEFT", width * pct, 0)
+        divider:SetVertexColor(0, 0, 0, 0.4)
+        container.segmentDividers[i] = divider
+    end
+
+    --[[
+        LAYER 5: Diamond Milestone Markers at 25%, 50%, 75%
+        Rotated star4 diamonds that glow when crossed
     ]]
     container.tickMarks = {}
     local tickPositions = { 0.25, 0.50, 0.75 }
     for i, pct in ipairs(tickPositions) do
-        local tick = container:CreateTexture(nil, "ARTWORK", nil, 2)
-        tick:SetTexture(AssetTextures.SOLID)
-        tick:SetSize(1, height - 4)
+        local tick = container:CreateTexture(nil, "ARTWORK", nil, 4)
+        tick:SetTexture(AssetTextures.GLOW_STAR)
+        tick:SetSize(10, 10)
         tick:SetPoint("CENTER", container, "LEFT", width * pct, 0)
-        tick:SetVertexColor(0.3, 0.3, 0.3, 0.6)
+        tick:SetVertexColor(0.4, 0.4, 0.4, 0.6)
+        tick:SetRotation(math.rad(45)) -- Diamond orientation
         tick:Hide() -- Hidden until enabled by standing
         container.tickMarks[i] = tick
     end
@@ -1723,6 +1779,18 @@ function Components:CreateReputationBar(parent, width, height, options)
     crownIcon:SetPoint("TOP", container, "TOP", 0, 12)
     crownIcon:Hide()
     container.crownIcon = crownIcon
+
+    --[[
+        LAYER 9: Leading Edge Glow
+        Pulsing glow at the progress front for gaming feel
+    ]]
+    local leadingGlow = container:CreateTexture(nil, "ARTWORK", nil, 5)
+    leadingGlow:SetTexture(AssetTextures.GLOW_BUTTON)
+    leadingGlow:SetBlendMode("ADD")
+    leadingGlow:SetSize(20, height * 2.5)
+    leadingGlow:SetVertexColor(1, 1, 1, 0.5)
+    leadingGlow:Hide()
+    container.leadingGlow = leadingGlow
 
     --[[
         Standing Badge
@@ -1881,9 +1949,12 @@ function Components:CreateReputationBar(parent, width, height, options)
             local r, g, b = Data:GetStandingColor(standingId)
             self.fillBar:SetVertexColor(r, g, b, 1)
         end
+
+        -- Update leading edge glow
+        self:UpdateLeadingGlow()
     end
 
-    -- Animate progress to a target value
+    -- Animate progress to a target value with gaming-style segment feedback
     function container:AnimateProgress(targetValue, duration)
         duration = duration or 0.5
 
@@ -1899,11 +1970,23 @@ function Components:CreateReputationBar(parent, width, height, options)
             local percent = self.currentValue / self.maxValue
             local fillWidth = math.max(1, self.maxFillWidth * percent)
             self.fillBar:SetWidth(fillWidth)
+            self:UpdateLeadingGlow()
             return
         end
 
         local startValue = self.currentValue
         local elapsed = 0
+
+        -- Track segment crossings (every 10%)
+        local startPercent = startValue / self.maxValue
+        local lastSegment = math.floor(startPercent * 10)
+
+        -- Track milestone crossings (25%, 50%, 75%)
+        local lastMilestoneIdx = 0
+        if startPercent >= 0.75 then lastMilestoneIdx = 3
+        elseif startPercent >= 0.50 then lastMilestoneIdx = 2
+        elseif startPercent >= 0.25 then lastMilestoneIdx = 1
+        end
 
         self._progressTicker = HopeAddon.Timer:NewTicker(0.02, function()
             elapsed = elapsed + 0.02
@@ -1918,13 +2001,110 @@ function Components:CreateReputationBar(parent, width, height, options)
             local fillWidth = math.max(1, self.maxFillWidth * percent)
             self.fillBar:SetWidth(fillWidth)
 
+            -- Update leading edge glow position
+            self:UpdateLeadingGlow()
+
+            -- Check for segment crossing (every 10%)
+            local currentSegment = math.floor(percent * 10)
+            if currentSegment > lastSegment and currentSegment <= 10 then
+                self:OnSegmentCrossed(currentSegment)
+                lastSegment = currentSegment
+            end
+
+            -- Check for milestone crossing (25%, 50%, 75%)
+            local currentMilestoneIdx = 0
+            if percent >= 0.75 then currentMilestoneIdx = 3
+            elseif percent >= 0.50 then currentMilestoneIdx = 2
+            elseif percent >= 0.25 then currentMilestoneIdx = 1
+            end
+            if currentMilestoneIdx > lastMilestoneIdx then
+                self:OnMilestoneCrossed(currentMilestoneIdx)
+                lastMilestoneIdx = currentMilestoneIdx
+            end
+
             if progress >= 1 then
                 self._progressTicker:Cancel()
                 self._progressTicker = nil
+
+                -- Check for 100% completion
+                if percent >= 1.0 then
+                    self:OnProgressComplete()
+                end
             end
         end)
 
         table.insert(self._effects, { ticker = self._progressTicker })
+    end
+
+    -- Update leading edge glow position
+    function container:UpdateLeadingGlow()
+        if not self.leadingGlow then return end
+        local percent = self.currentValue / self.maxValue
+        if percent > 0.02 and percent < 0.98 then
+            self.leadingGlow:ClearAllPoints()
+            self.leadingGlow:SetPoint("CENTER", self.fillBar, "RIGHT", 0, 0)
+            self.leadingGlow:Show()
+        else
+            self.leadingGlow:Hide()
+        end
+    end
+
+    -- Called when crossing 10% segment boundaries
+    function container:OnSegmentCrossed(segmentNumber)
+        -- Play subtle tick sound
+        if HopeAddon.Sounds then
+            HopeAddon.Sounds:PlayProgressTick()
+        end
+
+        -- Flash the segment divider gold briefly
+        local divider = self.segmentDividers and self.segmentDividers[segmentNumber - 1]
+        if divider then
+            divider:SetVertexColor(1, 0.84, 0, 0.9)
+            HopeAddon.Timer:After(0.15, function()
+                if divider then divider:SetVertexColor(0, 0, 0, 0.4) end
+            end)
+        end
+    end
+
+    -- Called when crossing 25%, 50%, or 75% milestones
+    function container:OnMilestoneCrossed(milestoneIndex)
+        -- Play bell chime
+        if HopeAddon.Sounds then
+            HopeAddon.Sounds:PlayProgressMilestone()
+        end
+
+        -- Flash the diamond marker gold
+        local marker = self.tickMarks and self.tickMarks[milestoneIndex]
+        if marker then
+            marker:SetVertexColor(1, 0.84, 0, 1)
+            marker:Show()
+
+            -- Burst effect at the marker position
+            if HopeAddon.Effects and HopeAddon.Effects.CreateBurstEffect then
+                local burstFrame = CreateFrame("Frame", nil, self)
+                burstFrame:SetPoint("CENTER", marker, "CENTER", 0, 0)
+                burstFrame:SetSize(1, 1)
+                HopeAddon.Effects:CreateBurstEffect(burstFrame, "GOLD_BRIGHT")
+            end
+        end
+    end
+
+    -- Called when progress reaches 100%
+    function container:OnProgressComplete()
+        -- Play completion sound
+        if HopeAddon.Sounds then
+            HopeAddon.Sounds:PlayProgressComplete()
+        end
+
+        -- Hide leading glow at completion
+        if self.leadingGlow then
+            self.leadingGlow:Hide()
+        end
+
+        -- Celebration sparkles
+        if HopeAddon.Effects and HopeAddon.Effects.ProgressSparkles then
+            HopeAddon.Effects:ProgressSparkles(self, 1.5)
+        end
     end
 
     -- Stop all glow animations and reset flags (allows re-triggering)
@@ -2074,6 +2254,25 @@ function Components:CreateReputationBar(parent, width, height, options)
         -- Reset badge glow
         if self.badgeGlow then
             self.badgeGlow:Hide()
+        end
+
+        -- Reset leading glow
+        if self.leadingGlow then
+            self.leadingGlow:Hide()
+        end
+
+        -- Reset segment dividers to default color
+        if self.segmentDividers then
+            for _, divider in ipairs(self.segmentDividers) do
+                divider:SetVertexColor(0, 0, 0, 0.4)
+            end
+        end
+
+        -- Reset diamond markers to default
+        if self.tickMarks then
+            for _, marker in ipairs(self.tickMarks) do
+                marker:SetVertexColor(0.4, 0.4, 0.4, 0.6)
+            end
         end
 
         -- Reset animation state flags
@@ -2454,24 +2653,24 @@ end
     @return Frame - Game card frame with all elements
 ]]
 function Components:CreateGameCard(parent, gameData, onPractice, onChallenge)
-    local CARD_WIDTH = 200
+    local CARD_WIDTH = 230
     local CARD_HEIGHT = 110
-    local ICON_SIZE = 48
-    local BUTTON_WIDTH = 80
+    local ICON_SIZE = 40
+    local BUTTON_WIDTH = 70
     local BUTTON_HEIGHT = 22
 
     local card = CreateBackdropFrame("Button", nil, parent)
     card:SetSize(CARD_WIDTH, CARD_HEIGHT)
-    -- TBC Theme: Using ARCANE_PURPLE border instead of BROWN for TBC aesthetic
-    self:ApplyBackdropRaw(card, "PARCHMENT_SIMPLE", 1, 1, 1, 0.9, 0.61, 0.19, 1.0, 1)
+    -- Use SOLID_TOOLTIP with dark tint - color will be set per game in SetGameData
+    self:ApplyBackdropRaw(card, "SOLID_TOOLTIP", 0.15, 0.1, 0.2, 0.9, 0.61, 0.19, 1.0, 1)
 
-    -- Store default border color (ARCANE_PURPLE)
+    -- Store default border color (ARCANE_PURPLE) - will be updated per game
     card.defaultBorderColor = HopeAddon.Constants.BACKDROP_COLORS.ARCANE
 
-    -- Icon (left side, 48x48)
+    -- Icon (left side)
     local icon = card:CreateTexture(nil, "ARTWORK")
     icon:SetSize(ICON_SIZE, ICON_SIZE)
-    icon:SetPoint("TOPLEFT", card, "TOPLEFT", 8, -8)
+    icon:SetPoint("TOPLEFT", card, "TOPLEFT", 6, -6)
     icon:SetTexCoord(0.08, 0.92, 0.08, 0.92) -- Trim icon edges
     card.icon = icon
 
@@ -2505,7 +2704,7 @@ function Components:CreateGameCard(parent, gameData, onPractice, onChallenge)
     -- Practice button (left)
     local practiceBtn = CreateBackdropFrame("Button", nil, card)
     practiceBtn:SetSize(BUTTON_WIDTH, BUTTON_HEIGHT)
-    practiceBtn:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 8, 8)
+    practiceBtn:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 6, 6)
     self:ApplyBackdrop(practiceBtn, "BUTTON_SIMPLE", "GREEN_BTN_BG", "GREEN_DARK")
 
     local practiceBtnText = practiceBtn:CreateFontString(nil, "OVERLAY")
@@ -2534,7 +2733,7 @@ function Components:CreateGameCard(parent, gameData, onPractice, onChallenge)
     -- Challenge button (right)
     local challengeBtn = CreateBackdropFrame("Button", nil, card)
     challengeBtn:SetSize(BUTTON_WIDTH, BUTTON_HEIGHT)
-    challengeBtn:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -8, 8)
+    challengeBtn:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -6, 6)
     self:ApplyBackdrop(challengeBtn, "BUTTON_SIMPLE", "ARCANE_BTN_BG", "ARCANE_BORDER")
 
     local challengeBtnText = challengeBtn:CreateFontString(nil, "OVERLAY")
@@ -2583,6 +2782,18 @@ function Components:CreateGameCard(parent, gameData, onPractice, onChallenge)
         local color = Colors[data.color] or Colors.GOLD_BRIGHT
         self.title:SetText(data.name)
         self.title:SetTextColor(color.r, color.g, color.b, 1)
+
+        -- Set background tint based on game color
+        local C = HopeAddon.Constants
+        local tint = C.GAME_BG_TINTS and C.GAME_BG_TINTS[data.color]
+        if tint then
+            self:SetBackdropColor(tint[1], tint[2], tint[3], tint[4])
+        end
+
+        -- Set border color to match game theme (darker shade)
+        local borderColor = Colors[data.color] or Colors.ARCANE_PURPLE
+        self:SetBackdropBorderColor(borderColor.r * 0.7, borderColor.g * 0.7, borderColor.b * 0.7, 1)
+        self.defaultBorderColor = { borderColor.r * 0.7, borderColor.g * 0.7, borderColor.b * 0.7, 1 }
 
         -- Set description
         self.desc:SetText(data.description)
@@ -2637,6 +2848,27 @@ function Components:CreateGameCard(parent, gameData, onPractice, onChallenge)
             self.stats:SetText(table.concat(parts, "  "))
         else
             self.stats:SetText("|cFF666666No games played|r")
+        end
+    end
+
+    -- Active games badge (top-right corner)
+    local badge = card:CreateFontString(nil, "OVERLAY")
+    badge:SetFont(AssetFonts.SMALL, 9, "OUTLINE")
+    badge:SetPoint("TOPRIGHT", card, "TOPRIGHT", -6, -6)
+    badge:SetTextColor(0, 1, 0, 1)  -- Green
+    badge:Hide()
+    card.activeBadge = badge
+
+    -- Method to show active games count
+    function card:SetActiveGames(count)
+        if count and count > 0 then
+            self.activeBadge:SetText("|cFF00FF00" .. count .. " active|r")
+            self.activeBadge:Show()
+            -- Change Practice button to "Continue" when games active
+            self.practiceBtn.text:SetText("Continue")
+        else
+            self.activeBadge:Hide()
+            self.practiceBtn.text:SetText("Practice")
         end
     end
 

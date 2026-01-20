@@ -26,33 +26,20 @@ Directory.searchFilter = ""
 --============================================================
 
 --[[
-    Get all directory entries (combined from known and fellows)
+    Get all directory entries (Fellow Travelers only - addon users)
     @return table - Array of player entries
 ]]
 function Directory:GetAllEntries()
     local entries = {}
-    local seen = {}
 
     if not HopeAddon.charDb or not HopeAddon.charDb.travelers then
         return entries
     end
 
-    -- Get from fellows (addon users with full communication)
+    -- Only show Fellow Travelers (addon users with RP profiles)
     local fellows = HopeAddon.charDb.travelers.fellows or {}
     for name, data in pairs(fellows) do
-        if not seen[name] then
-            seen[name] = true
-            table.insert(entries, self:BuildEntry(name, data, true))
-        end
-    end
-
-    -- Get from known travelers (party members, guild, etc.)
-    local known = HopeAddon.charDb.travelers.known or {}
-    for name, data in pairs(known) do
-        if not seen[name] then
-            seen[name] = true
-            table.insert(entries, self:BuildEntry(name, data, false))
-        end
+        table.insert(entries, self:BuildEntry(name, data, true))
     end
 
     return entries
@@ -172,6 +159,7 @@ end
 
 --[[
     Get entry count (optimized - doesn't build full entries)
+    Now only counts Fellow Travelers (addon users)
     @return number
 ]]
 function Directory:GetEntryCount()
@@ -180,20 +168,9 @@ function Directory:GetEntryCount()
         return 0
     end
 
-    local seen = {}
     local fellows = HopeAddon.charDb.travelers.fellows or {}
-    for name in pairs(fellows) do
-        if not seen[name] then
-            seen[name] = true
-            count = count + 1
-        end
-    end
-
-    local known = HopeAddon.charDb.travelers.known or {}
-    for name in pairs(known) do
-        if not seen[name] then
-            count = count + 1
-        end
+    for _ in pairs(fellows) do
+        count = count + 1
     end
 
     return count
@@ -261,14 +238,13 @@ end
 --============================================================
 
 --[[
-    Get directory statistics
-    @return table - { total, fellows, byClass, recentCount }
+    Get directory statistics (Fellow Travelers only)
+    @return table - { fellows, byClass, recentCount }
 ]]
 function Directory:GetStats()
     local entries = self:GetAllEntries()
     local stats = {
-        total = #entries,
-        fellows = 0,
+        fellows = #entries,  -- All entries are now Fellow Travelers
         byClass = {},
         recentCount = 0, -- Seen in last 7 days
     }
@@ -276,10 +252,6 @@ function Directory:GetStats()
     local sevenDaysAgo = time() - (7 * 24 * 60 * 60)
 
     for _, entry in ipairs(entries) do
-        if entry.isFellow then
-            stats.fellows = stats.fellows + 1
-        end
-
         if entry.class then
             stats.byClass[entry.class] = (stats.byClass[entry.class] or 0) + 1
         end

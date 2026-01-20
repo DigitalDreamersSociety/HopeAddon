@@ -35,14 +35,6 @@ Badges.DEFINITIONS = {
         unlock = { type = "level", value = 58 },
         reward = { colorHex = "32CD32", colorName = "Fel Green" },  -- Lime Green
     },
-    through_portal = {
-        id = "through_portal",
-        name = "Through the Portal",
-        description = "Enter Outland",
-        icon = "Spell_Arcane_PortalShattrath",
-        unlock = { type = "zone", value = "Hellfire Peninsula" },
-        reward = { colorHex = "00FF00", colorName = "Portal Green" },  -- Green
-    },
     hero_of_outland = {
         id = "hero_of_outland",
         name = "Hero of Outland",
@@ -167,7 +159,7 @@ Badges.DEFINITIONS = {
 
 -- Sorted order for display
 Badges.DISPLAY_ORDER = {
-    "first_steps", "adventurer", "veteran", "through_portal", "hero_of_outland",
+    "first_steps", "adventurer", "veteran", "hero_of_outland",
     "karazhan_attuned", "ssc_attuned", "tk_attuned",
     "prince_slayer", "gruul_slayer", "magtheridon_slayer", "vashj_slayer", "kael_slayer",
     "exalted_first", "aldor_exalted", "scryer_exalted",
@@ -278,11 +270,6 @@ function Badges:CheckUnlockCondition(condition)
 
     if condType == "level" then
         return UnitLevel("player") >= condValue
-
-    elseif condType == "zone" then
-        -- Check if zone has been discovered
-        local discoveries = HopeAddon.charDb.journal.zoneDiscoveries
-        return discoveries[condValue] ~= nil
 
     elseif condType == "attunement" then
         -- Check attunement completion
@@ -426,6 +413,38 @@ function Badges:GetSelectedTitle()
 end
 
 --[[
+    Get the color for a specific title
+    @param title string - The title to look up
+    @return string - Hex color code (without |cFF prefix), defaults to FFFFFF
+]]
+function Badges:GetTitleColor(title)
+    if not title or title == "" then
+        return "FFFFFF"
+    end
+
+    for badgeId, def in pairs(self.DEFINITIONS) do
+        if def.reward and def.reward.title == title then
+            return def.reward.colorHex or "FFFFFF"
+        end
+    end
+    return "FFFFFF" -- Default white
+end
+
+--[[
+    Format a name with title in the badge's color
+    @param name string - Player name
+    @param title string|nil - Optional title
+    @return string - Formatted name string with color codes
+]]
+function Badges:FormatNameWithTitle(name, title)
+    if title and title ~= "" then
+        local titleColor = self:GetTitleColor(title)
+        return string.format("%s |cFF%s<%s>|r", name, titleColor, title)
+    end
+    return name
+end
+
+--[[
     Get badge definition by ID
     @param badgeId string
     @return table|nil
@@ -468,14 +487,6 @@ end
     @param newLevel number
 ]]
 function Badges:OnPlayerLevelUp(newLevel)
-    self:CheckAllUnlocks()
-end
-
---[[
-    Called when player enters a new zone
-    @param zoneName string
-]]
-function Badges:OnZoneDiscovered(zoneName)
     self:CheckAllUnlocks()
 end
 

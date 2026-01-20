@@ -145,8 +145,9 @@ function Milestones:RecordMilestone(level)
         },
     }
 
-    -- Count zones
-    for _ in pairs(HopeAddon.charDb.journal.zoneDiscoveries) do
+    -- Count zones (guard for removed feature)
+    local zoneDiscoveries = HopeAddon.charDb.journal.zoneDiscoveries or {}
+    for _ in pairs(zoneDiscoveries) do
         entry.stats.zonesDiscovered = entry.stats.zonesDiscovered + 1
     end
 

@@ -1,6 +1,6 @@
 --[[
     HopeAddon Minigames Module
-    Dice Rolling and Rock-Paper-Scissors games between Fellow Travelers
+    Rock-Paper-Scissors game between Fellow Travelers
 ]]
 
 local Minigames = {}
@@ -10,7 +10,6 @@ local Minigames = {}
 --============================================================
 
 -- Game types
-Minigames.GAME_DICE = "dice"
 Minigames.GAME_RPS = "rps"
 
 -- Game states
@@ -18,7 +17,6 @@ local STATE_IDLE = "IDLE"
 local STATE_PENDING = "PENDING"           -- Waiting for accept/reject
 local STATE_COMMITTED = "COMMITTED"       -- RPS: sent hash, waiting for opponent
 local STATE_REVEALING = "REVEALING"       -- RPS: both hashes received, revealing
-local STATE_WAITING_ROLLS = "WAITING"     -- Dice: waiting for both rolls
 local STATE_COMPLETED = "COMPLETED"
 
 -- Message types (added to FellowTravelers protocol)
@@ -192,11 +190,6 @@ end
     @param msg string - System message text
 ]]
 function Minigames:OnSystemMessage(msg)
-    -- Only process if we're in an active dice game
-    if not self.activeGame or self.activeGame.gameType ~= Minigames.GAME_DICE then
-        return
-    end
-
     -- Quick substring check before expensive regex (60-70% reduction in regex calls)
     if not msg:find("rolls") then return end
 
@@ -207,62 +200,10 @@ function Minigames:OnSystemMessage(msg)
     rollResult = tonumber(rollResult)
     maxRoll = tonumber(maxRoll)
 
-    -- Only accept 1-100 rolls
-    if maxRoll ~= 100 then
-        local myName = UnitName("player")
-        if playerName == myName and self.activeGame.rollRequested then
-            HopeAddon:Print("|cFFFF0000Invalid roll!|r Use /roll (1-100)")
-        end
-        return
-    end
-
-    local game = self.activeGame
     local myName = UnitName("player")
 
-    if playerName == myName then
-        self:HandleLocalDiceRoll(rollResult)
-    elseif playerName == game.opponent then
-        self:HandleOpponentDiceRoll(rollResult)
-    end
-end
-
---[[
-    Handle local player's dice roll detected from chat
-    @param rollResult number - The roll value
-]]
-function Minigames:HandleLocalDiceRoll(rollResult)
-    local game = self.activeGame
-    if not game or game.myRoll then return end  -- Already rolled
-
-    game.myRoll = rollResult
-    game.rollRequested = false
-
-    -- Send to opponent
-    local timestamp = GetTime()
-    local data = string.format("%s|%d|%.3f", game.sessionId, rollResult, timestamp)
-    self:SendGameMessage(game.opponent, Minigames.MSG_GAME_MOVE, data)
-
-    HopeAddon:Print("You rolled: |cFFFFD700" .. rollResult .. "|r")
-
-    -- Update UI
-    if HopeAddon.MinigamesUI then
-        HopeAddon.MinigamesUI:OnDiceRolled(rollResult, true)
-    end
-
-    self:CheckDiceComplete()
-end
-
---[[
-    Handle opponent's dice roll detected from chat (for verification)
-    @param rollResult number - The roll value
-]]
-function Minigames:HandleOpponentDiceRoll(rollResult)
-    local game = self.activeGame
-    if not game then return end
-
-    -- Store for verification against addon message
-    game.opponentRollFromChat = rollResult
-    HopeAddon:Debug("Detected opponent roll from chat:", rollResult)
+    -- Roll detection is used by Death Roll module only now
+    -- This module no longer handles dice games
 end
 
 --============================================================
@@ -426,7 +367,7 @@ function Minigames:SendChallenge(targetName, gameType)
 
     -- Validate game type
     if gameType ~= Minigames.GAME_DICE and gameType ~= Minigames.GAME_RPS then
-        HopeAddon:Print("Invalid game type. Use 'dice' or 'rps'.")
+        HopeAddon:Print("Invalid game type. Use 'rps'.")
         return false
     end
 
@@ -484,8 +425,7 @@ function Minigames:SendChallenge(targetName, gameType)
         end
     end, "challenge")
 
-    local gameLabel = gameType == Minigames.GAME_DICE and "Dice Roll" or "Rock-Paper-Scissors"
-    HopeAddon:Print("Challenge sent to " .. targetName .. " (" .. gameLabel .. ")")
+    HopeAddon:Print("Challenge sent to " .. targetName .. " (Rock-Paper-Scissors)")
 
     -- Show waiting UI
     if HopeAddon.MinigamesUI then
@@ -529,8 +469,7 @@ function Minigames:HandleChallenge(sender, data)
         HopeAddon.MinigamesUI:ShowChallengePopup(challengerName, gameType, sessionId)
     else
         -- Fallback: print to chat
-        local gameLabel = gameType == Minigames.GAME_DICE and "Dice Roll" or "Rock-Paper-Scissors"
-        HopeAddon:Print(challengerName .. " challenges you to " .. gameLabel .. "! Type /hope accept or /hope decline")
+        HopeAddon:Print(challengerName .. " challenges you to Rock-Paper-Scissors! Type /hope accept or /hope decline")
     end
 
     -- Start timeout for auto-decline
@@ -570,8 +509,7 @@ function Minigames:AcceptChallenge()
     self:SendGameMessage(challenge.challenger, Minigames.MSG_GAME_ACCEPT,
         session.sessionId .. "|" .. playerName)
 
-    local gameLabel = challenge.gameType == Minigames.GAME_DICE and "Dice Roll" or "Rock-Paper-Scissors"
-    HopeAddon:Print("Challenge accepted! Starting " .. gameLabel .. " with " .. challenge.challenger)
+    HopeAddon:Print("Challenge accepted! Starting Rock-Paper-Scissors with " .. challenge.challenger)
 
     -- Hide challenge popup
     if HopeAddon.MinigamesUI then
@@ -635,8 +573,7 @@ function Minigames:HandleAccept(sender, data)
     -- Update state
     self.activeGame.state = STATE_WAITING_ROLLS
 
-    local gameLabel = self.activeGame.gameType == Minigames.GAME_DICE and "Dice Roll" or "Rock-Paper-Scissors"
-    HopeAddon:Print(accepterName .. " accepted your challenge! Starting " .. gameLabel)
+    HopeAddon:Print(accepterName .. " accepted your challenge! Starting Rock-Paper-Scissors")
 
     -- Start the game
     self:StartGame()
@@ -687,13 +624,9 @@ function Minigames:StartGame()
 
     local game = self.activeGame
 
-    -- Show game UI
+    -- Show game UI (RPS only now)
     if HopeAddon.MinigamesUI then
-        if game.gameType == Minigames.GAME_DICE then
-            HopeAddon.MinigamesUI:ShowDiceGame(game.opponent)
-        else
-            HopeAddon.MinigamesUI:ShowRPSGame(game.opponent)
-        end
+        HopeAddon.MinigamesUI:ShowRPSGame(game.opponent)
     end
 
     -- Start move timeout
@@ -706,10 +639,8 @@ function Minigames:StartGame()
 end
 
 --[[
-    Make a move in the current game
-    For dice: automatically rolls
-    For RPS: choice should be "rock", "paper", or "scissors"
-    @param choice string|nil - RPS choice (nil for dice = auto-roll)
+    Make a move in the current game (RPS only)
+    @param choice string - "rock", "paper", or "scissors"
 ]]
 function Minigames:MakeMove(choice)
     if not self.activeGame then
@@ -717,143 +648,7 @@ function Minigames:MakeMove(choice)
         return
     end
 
-    local game = self.activeGame
-
-    if game.gameType == Minigames.GAME_DICE then
-        self:MakeDiceMove()
-    else
-        self:MakeRPSMove(choice)
-    end
-end
-
---[[
-    Make a dice roll
-]]
-function Minigames:MakeDiceMove()
-    local game = self.activeGame
-    if not game or game.gameType ~= Minigames.GAME_DICE then return end
-    if game.myRoll then
-        HopeAddon:Print("You have already rolled!")
-        return
-    end
-
-    -- Mark that we've requested a roll (waiting for CHAT_MSG_SYSTEM)
-    game.rollRequested = true
-
-    -- Update UI to show "Rolling..."
-    if HopeAddon.MinigamesUI then
-        HopeAddon.MinigamesUI:OnRollRequested()
-    end
-
-    -- Trigger actual /roll via WoW API (result captured via CHAT_MSG_SYSTEM)
-    RandomRoll(1, 100)
-end
-
---[[
-    Handle received dice roll
-    @param sender string
-    @param data string - sessionId|roll|timestamp
-]]
-function Minigames:HandleDiceMove(sender, data)
-    local parsed = ParseMessage("GMOV", data)
-    if not parsed then return end
-
-    local sessionId = parsed.sessionId
-    local roll = tonumber(parsed.move)
-    if not roll then
-        HopeAddon:Debug("Invalid roll value from", sender)
-        return
-    end
-
-    if not self.activeGame or self.activeGame.sessionId ~= sessionId then
-        HopeAddon:Debug("Received move for unknown session:", sessionId)
-        return
-    end
-
-    local game = self.activeGame
-    if game.gameType ~= Minigames.GAME_DICE then return end
-
-    -- Guard against duplicate roll processing
-    if game.opponentRoll then
-        HopeAddon:Debug("Opponent already rolled, ignoring duplicate")
-        return
-    end
-
-    -- Verify against chat-detected roll if available (same zone players)
-    if game.opponentRollFromChat and game.opponentRollFromChat ~= roll then
-        HopeAddon:Print("|cFFFF0000Warning:|r " .. sender ..
-            "'s roll mismatch! Chat: " .. game.opponentRollFromChat .. ", Addon: " .. roll)
-        roll = game.opponentRollFromChat  -- Trust chat over addon message
-    end
-
-    game.opponentRoll = roll
-
-    HopeAddon:Print(game.opponent .. " rolled: " .. roll)
-
-    -- Update UI
-    if HopeAddon.MinigamesUI then
-        HopeAddon.MinigamesUI:OnDiceRolled(roll, false)
-    end
-
-    -- Check if both have rolled
-    self:CheckDiceComplete()
-end
-
---[[
-    Check if dice game is complete and determine winner
-]]
-function Minigames:CheckDiceComplete()
-    local game = self.activeGame
-    if not game or game.gameType ~= Minigames.GAME_DICE then return end
-    if not game.myRoll or not game.opponentRoll then return end
-
-    -- Cancel timeout
-    if self.timeoutTimer then
-        self.timeoutTimer:Cancel()
-        self.timeoutTimer = nil
-    end
-
-    -- Determine winner
-    local winner, myResult
-    if game.myRoll > game.opponentRoll then
-        winner = UnitName("player")
-        myResult = "win"
-    elseif game.myRoll < game.opponentRoll then
-        winner = game.opponent
-        myResult = "lose"
-    else
-        winner = nil
-        myResult = "tie"
-    end
-
-    -- Record stats
-    self:RecordGameResult(game.opponent, Minigames.GAME_DICE, myResult, game.myRoll, game.opponentRoll)
-
-    -- Mark complete
-    game.state = STATE_COMPLETED
-
-    -- Announce result
-    local resultText
-    if myResult == "win" then
-        resultText = "|cFF00FF00You win!|r (" .. game.myRoll .. " vs " .. game.opponentRoll .. ")"
-    elseif myResult == "lose" then
-        resultText = "|cFFFF0000You lose!|r (" .. game.myRoll .. " vs " .. game.opponentRoll .. ")"
-    else
-        resultText = "|cFFFFFF00Tie!|r (Both rolled " .. game.myRoll .. ")"
-    end
-    HopeAddon:Print("Dice Roll Result: " .. resultText)
-
-    -- Update UI
-    if HopeAddon.MinigamesUI then
-        HopeAddon.MinigamesUI:ShowDiceResult(game.myRoll, game.opponentRoll, myResult)
-    end
-
-    -- Challenger sends result confirmation
-    if game.isChallenger then
-        local data = string.format("%s|%s|%d|%d",
-            game.sessionId, winner or "tie", game.myRoll, game.opponentRoll)
-        self:SendGameMessage(game.opponent, Minigames.MSG_GAME_RESULT, data)
-    end
+    self:MakeRPSMove(choice)
 end
 
 --============================================================
@@ -1131,12 +926,12 @@ function Minigames:EnsureStatsStructure(playerName)
 
     if not known[playerName].stats.minigames then
         known[playerName].stats.minigames = {
-            dice = { wins = 0, losses = 0, ties = 0, highestRoll = 0, lastPlayed = nil },
             rps = { wins = 0, losses = 0, ties = 0, lastPlayed = nil },
             deathroll = { wins = 0, losses = 0, ties = 0, highestBet = 0, lastPlayed = nil },
             pong = { wins = 0, losses = 0, highestScore = 0, lastPlayed = nil },
             tetris = { wins = 0, losses = 0, highestScore = 0, lastPlayed = nil },
             words = { wins = 0, losses = 0, highestScore = 0, lastPlayed = nil },
+            battleship = { wins = 0, losses = 0, lastPlayed = nil },
         }
     end
 
@@ -1154,6 +949,9 @@ function Minigames:EnsureStatsStructure(playerName)
         end
         if not stats.minigames.words then
             stats.minigames.words = { wins = 0, losses = 0, highestScore = 0, lastPlayed = nil }
+        end
+        if not stats.minigames.battleship then
+            stats.minigames.battleship = { wins = 0, losses = 0, lastPlayed = nil }
         end
     end
 end
@@ -1188,12 +986,7 @@ function Minigames:RecordGameResult(opponent, gameType, result, myMove, theirMov
     stats.lastPlayed = HopeAddon:GetDate()
 
     -- Game-specific stats tracking
-    if gameType == Minigames.GAME_DICE and type(myMove) == "number" then
-        -- Track highest roll
-        if myMove > stats.highestRoll then
-            stats.highestRoll = myMove
-        end
-    elseif gameType == "deathroll" and type(myMove) == "number" then
+    if gameType == "deathroll" and type(myMove) == "number" then
         -- Track highest bet amount
         if myMove > (stats.highestBet or 0) then
             stats.highestBet = myMove
@@ -1231,14 +1024,6 @@ function Minigames:FormatStats(playerName)
     if not stats then return "No games played" end
 
     local lines = {}
-
-    -- Dice stats
-    local dice = stats.dice
-    if dice and (dice.wins + dice.losses + dice.ties) > 0 then
-        local total = dice.wins + dice.losses + dice.ties
-        table.insert(lines, string.format("Dice: %dW-%dL-%dT (Best: %d)",
-            dice.wins, dice.losses, dice.ties, dice.highestRoll))
-    end
 
     -- RPS stats
     local rps = stats.rps
@@ -1288,28 +1073,15 @@ function Minigames:HandleResult(sender, data)
     local game = self.activeGame
     local localWinner
 
-    if game.gameType == Minigames.GAME_DICE then
-        -- For dice: compare rolls
-        if game.myRoll and game.opponentRoll then
-            if game.myRoll > game.opponentRoll then
-                localWinner = UnitName("player")
-            elseif game.myRoll < game.opponentRoll then
-                localWinner = game.opponent
-            else
-                localWinner = "tie"
-            end
-        end
-    elseif game.gameType == Minigames.GAME_RPS then
-        -- For RPS: use outcome table
-        if game.myChoice and game.opponentChoice then
-            local myResult = RPS_OUTCOMES[game.myChoice][game.opponentChoice]
-            if myResult == "win" then
-                localWinner = UnitName("player")
-            elseif myResult == "lose" then
-                localWinner = game.opponent
-            else
-                localWinner = "tie"
-            end
+    -- For RPS: use outcome table
+    if game.myChoice and game.opponentChoice then
+        local myResult = RPS_OUTCOMES[game.myChoice][game.opponentChoice]
+        if myResult == "win" then
+            localWinner = UnitName("player")
+        elseif myResult == "lose" then
+            localWinner = game.opponent
+        else
+            localWinner = "tie"
         end
     end
 
@@ -1361,13 +1133,9 @@ function Minigames:HandleMessage(msgType, sender, data)
         return true
 
     elseif msgType == self.MSG_GAME_MOVE then
-        -- Route to dice or RPS handler based on active game
+        -- Route to RPS handler
         if self.activeGame then
-            if self.activeGame.gameType == Minigames.GAME_DICE then
-                self:HandleDiceMove(sender, data)
-            else
-                self:HandleRPSMove(sender, data)
-            end
+            self:HandleRPSMove(sender, data)
         end
         return true
 
@@ -1411,6 +1179,90 @@ function Minigames:IsMinigameMessage(msgType)
            msgType == self.MSG_GAME_REVEAL or
            msgType == self.MSG_GAME_RESULT or
            msgType == self.MSG_GAME_CANCEL
+end
+
+--============================================================
+-- LOCAL RPS GAME (vs AI)
+--============================================================
+
+-- AI opponent names for flavor
+local AI_OPPONENTS = {
+    "The Arcane Automaton",
+    "Chromie's Timebot",
+    "Illidan's Echo",
+    "Khadgar's Familiar",
+    "Medivh's Ghost",
+    "Kel'Thuzad's Shade",
+    "Vol'jin's Spirit",
+    "Mograine's Specter",
+}
+
+-- Local RPS game state
+Minigames.localRPSGame = nil
+
+--[[
+    Start a local RPS game against AI
+]]
+function Minigames:StartLocalRPSGame()
+    -- Random AI opponent name for fun
+    local aiName = AI_OPPONENTS[math.random(#AI_OPPONENTS)]
+
+    self.localRPSGame = {
+        isLocal = true,
+        aiName = aiName,
+        playerChoice = nil,
+        aiChoice = nil,
+        result = nil,
+        state = "choosing",  -- choosing, revealing, complete
+    }
+
+    -- Show UI
+    if HopeAddon.MinigamesUI then
+        HopeAddon.MinigamesUI:ShowLocalRPSGame(aiName)
+    end
+end
+
+--[[
+    Handle player making choice in local RPS
+    @param choice string - "rock", "paper", or "scissors"
+]]
+function Minigames:HandleLocalRPSChoice(choice)
+    local game = self.localRPSGame
+    if not game or game.state ~= "choosing" then return end
+
+    -- Validate choice
+    choice = string.lower(choice)
+    if choice ~= RPS_ROCK and choice ~= RPS_PAPER and choice ~= RPS_SCISSORS then
+        return
+    end
+
+    game.playerChoice = choice
+    game.state = "revealing"
+
+    -- AI makes random choice
+    local choices = {RPS_ROCK, RPS_PAPER, RPS_SCISSORS}
+    game.aiChoice = choices[math.random(3)]
+
+    -- Determine result
+    local result = RPS_OUTCOMES[choice][game.aiChoice]
+
+    -- Record stats (AI as opponent name)
+    self:RecordGameResult(game.aiName, Minigames.GAME_RPS, result, choice, game.aiChoice)
+
+    game.result = result
+    game.state = "complete"
+
+    -- Trigger gameshow reveal in UI
+    if HopeAddon.MinigamesUI then
+        HopeAddon.MinigamesUI:ShowLocalRPSReveal(game)
+    end
+end
+
+--[[
+    Clear local RPS game state
+]]
+function Minigames:ClearLocalRPSGame()
+    self.localRPSGame = nil
 end
 
 -- Register module

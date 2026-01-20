@@ -6,6 +6,72 @@
 local RaidData = {}
 HopeAddon.RaidData = RaidData
 
+-- Combat state tracking for kill time measurement
+local combatState = {
+    inCombat = false,
+    combatStartTime = nil,
+    recentDBMTime = nil,       -- Kill time captured from DBM/BigWigs
+    recentDBMBoss = nil,       -- Boss name from DBM announcement
+    recentDBMTimestamp = nil,  -- When the DBM time was captured
+}
+
+-- DBM/BigWigs kill message patterns
+-- Order matters: more specific patterns first, greedy patterns last
+-- Using (.+) for boss name capture (works because "down after" etc. is unique)
+local DBM_PATTERNS = {
+    -- With decimal (must be before standard): "Boss Name down after 3:45.2!"
+    { pattern = "(.+) down after (%d+):(%d+)%.(%d+)", hasMs = true },
+    -- New record format (must be before standard): "Boss down after 3:45! This is a new record"
+    { pattern = "(.+) down after (%d+):(%d+)[!.]? This is a new record", hasMs = false },
+    -- Standard DBM: "Boss Name down after 3:45!" or "Boss Name down after 3:45"
+    { pattern = "(.+) down after (%d+):(%d+)", hasMs = false },
+    -- BigWigs alternatives
+    { pattern = "(.+) killed in (%d+):(%d+)", hasMs = false },
+    { pattern = "(.+) defeated after (%d+):(%d+)", hasMs = false },
+}
+
+-- Seconds-only pattern (separate due to different capture groups)
+-- Handles: "Boss down after 45 seconds!" or "Boss down after 45 second!"
+local DBM_SECONDS_PATTERN = "(.+) down after (%d+) seconds?!?"
+
+--[[
+    Parse kill time from DBM/BigWigs chat message
+    @param msg string - Chat message text
+    @return string|nil, number|nil - Boss name, kill time in seconds
+]]
+local function ParseKillTimeMessage(msg)
+    if not msg or msg == "" then return nil, nil end
+
+    -- Try minutes:seconds patterns (ordered by specificity)
+    for _, patternData in ipairs(DBM_PATTERNS) do
+        local bossName, mins, secs, ms
+        if patternData.hasMs then
+            bossName, mins, secs, ms = msg:match(patternData.pattern)
+        else
+            bossName, mins, secs = msg:match(patternData.pattern)
+        end
+
+        if bossName and mins and secs then
+            local totalSeconds = tonumber(mins) * 60 + tonumber(secs)
+            if ms then
+                totalSeconds = totalSeconds + tonumber(ms) / 10
+            end
+            -- Trim whitespace from boss name
+            bossName = bossName:match("^%s*(.-)%s*$") or bossName
+            return bossName, totalSeconds
+        end
+    end
+
+    -- Try seconds-only pattern
+    local bossName, secsOnly = msg:match(DBM_SECONDS_PATTERN)
+    if bossName and secsOnly then
+        bossName = bossName:match("^%s*(.-)%s*$") or bossName
+        return bossName, tonumber(secsOnly)
+    end
+
+    return nil, nil
+end
+
 -- Raid tiers
 RaidData.TIERS = {
     T4 = {
@@ -201,11 +267,55 @@ function RaidData:RecordBossKill(raidKey, bossId)
             firstKillTimestamp = HopeAddon:GetTimestamp(),
             totalKills = 0,
             icon = "Interface\\Icons\\" .. (boss.icon or raid.icon),
+            -- Kill time tracking fields
+            bestTime = nil,
+            bestTimeDate = nil,
+            lastTime = nil,
+            killTimes = {},
         }
     end
 
     kills[key].totalKills = kills[key].totalKills + 1
     kills[key].lastKill = HopeAddon:GetDate()
+
+    -- Try to capture kill time from DBM/BigWigs or manual timer
+    local killTime = nil
+    local timeSource = nil
+
+    -- Check for DBM/BigWigs kill time (captured within last 30 seconds)
+    if combatState.recentDBMTime and combatState.recentDBMTimestamp
+       and (GetTime() - combatState.recentDBMTimestamp) < 30 then
+        -- Verify the boss name matches (fuzzy match)
+        local dbmBossLower = combatState.recentDBMBoss:lower()
+        local ourBossLower = boss.name:lower()
+
+        -- Try exact match first, then partial match
+        if dbmBossLower == ourBossLower
+           or dbmBossLower:find(ourBossLower, 1, true)
+           or ourBossLower:find(dbmBossLower, 1, true) then
+            killTime = combatState.recentDBMTime
+            timeSource = "DBM"
+            HopeAddon:Debug("Matched DBM time to boss:", boss.name, HopeAddon:FormatTime(killTime))
+        end
+    end
+
+    -- Fallback: Use manual combat timer if available and no DBM time
+    if not killTime and combatState.combatStartTime then
+        killTime = GetTime() - combatState.combatStartTime
+        timeSource = "Manual"
+        HopeAddon:Debug("Using manual timer for:", boss.name, HopeAddon:FormatTime(killTime))
+    end
+
+    -- Record kill time if we have one
+    if killTime and killTime > 0 then
+        self:RecordKillTime(key, killTime, timeSource)
+    end
+
+    -- Clear combat state after processing
+    combatState.recentDBMTime = nil
+    combatState.recentDBMBoss = nil
+    combatState.recentDBMTimestamp = nil
+    combatState.combatStartTime = nil
 
     -- Add to timeline on first kill
     if kills[key].totalKills == 1 then
@@ -343,6 +453,16 @@ function RaidData:RegisterEvents()
     -- Always register COMBAT_LOG as fallback (definitely exists in TBC Classic)
     eventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 
+    -- Chat events for DBM/BigWigs kill time capture
+    eventFrame:RegisterEvent("CHAT_MSG_RAID")
+    eventFrame:RegisterEvent("CHAT_MSG_RAID_WARNING")
+    eventFrame:RegisterEvent("CHAT_MSG_PARTY")
+    eventFrame:RegisterEvent("CHAT_MSG_SAY")
+
+    -- Combat state tracking (for manual timer fallback)
+    eventFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
+    eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+
     eventFrame:SetScript("OnEvent", function(_, event, ...)
         if event == "ENCOUNTER_END" then
             local success, err = pcall(RaidData.OnEncounterEnd, RaidData, ...)
@@ -354,6 +474,16 @@ function RaidData:RegisterEvents()
             if not success then
                 HopeAddon:Debug("Combat log handler error:", err)
             end
+        elseif event == "CHAT_MSG_RAID" or event == "CHAT_MSG_RAID_WARNING"
+               or event == "CHAT_MSG_PARTY" or event == "CHAT_MSG_SAY" then
+            local success, err = pcall(RaidData.OnChatMessage, RaidData, event, ...)
+            if not success then
+                HopeAddon:Debug("Chat message handler error:", err)
+            end
+        elseif event == "PLAYER_REGEN_DISABLED" then
+            RaidData:OnCombatStart()
+        elseif event == "PLAYER_REGEN_ENABLED" then
+            RaidData:OnCombatEnd()
         end
     end)
 end
@@ -362,25 +492,63 @@ end
     Extract NPC ID from GUID
     @param guid string - Unit GUID
     @return number|nil - NPC ID or nil
+
+    TBC Classic 2.4.3 GUID formats:
+    - Creature: "0xF130NNNNNN000000" where NNNNNN is NPC ID in hex (positions 5-10)
+    - Player: "0x0000000000XXXXXX"
+
+    Modern WoW (for compatibility):
+    - "Creature-0-XXXX-XXXX-XXXX-NPCID-INSTANCEID"
 ]]
 local function GetNpcIdFromGuid(guid)
     if not guid then return nil end
-    -- GUID format: "Creature-0-XXXX-XXXX-XXXX-NPCID-INSTANCEID"
-    -- or in TBC: "0xF130NPCID..." format
-    local npcId = select(6, strsplit("-", guid))
-    if npcId then
-        return tonumber(npcId)
+
+    -- Try modern format first (hyphen-separated)
+    if guid:find("-") then
+        local npcId = select(6, strsplit("-", guid))
+        if npcId then
+            return tonumber(npcId)
+        end
     end
-    -- Fallback for older GUID format (0xF130...)
-    local id = guid:match("Creature%-.-%-.-%-.-%-.-%-(%d+)")
-    return id and tonumber(id)
+
+    -- TBC Classic format: "0xF130NNNNNN000000" or "0xF1300000NNNNNN00"
+    -- The NPC ID is encoded in the hex GUID
+    -- Format: 0xF13 + type(0) + NPC_ID(6 hex) + spawn_ID(8 hex)
+    if guid:sub(1, 2) == "0x" then
+        -- Check if it's a creature (starts with 0xF13)
+        local typeFlag = guid:sub(3, 5)
+        if typeFlag == "F13" or typeFlag == "f13" then
+            -- Extract NPC ID from positions 6-11 (6 hex digits after type marker)
+            local npcHex = guid:sub(6, 11)
+            local npcId = tonumber(npcHex, 16)
+            if npcId and npcId > 0 then
+                return npcId
+            end
+        end
+    end
+
+    return nil
 end
 
 --[[
     Handle combat log event (UNIT_DIED fallback for boss detection)
+
+    TBC Classic 2.4.3 COMBAT_LOG_EVENT_UNFILTERED arguments:
+    1: timestamp
+    2: event/subEvent
+    3: srcGUID
+    4: srcName
+    5: srcFlags
+    6: dstGUID (destGuid)
+    7: dstName (destName)
+    8: dstFlags
+
+    Note: Modern WoW has hideCaster at position 3, shifting everything.
+    TBC 2.4.3 does NOT have hideCaster.
 ]]
 function RaidData:OnCombatLogEvent(...)
-    local _, subEvent, _, _, _, _, _, destGuid, destName = ...
+    -- TBC 2.4.3 format: timestamp, subEvent, srcGUID, srcName, srcFlags, destGuid, destName, destFlags
+    local timestamp, subEvent, srcGuid, srcName, srcFlags, destGuid, destName = ...
 
     -- Only care about deaths
     if subEvent ~= "UNIT_DIED" then return end
@@ -486,6 +654,101 @@ function RaidData:OnEncounterEnd(encounterID, encounterName, difficultyID, group
             HopeAddon.TravelerIcons:OnBossKill(mapping.raid, mapping.boss, party)
         end
     end
+end
+
+--[[
+    Handle chat messages for DBM/BigWigs kill time capture
+    @param event string - Event type
+    @param msg string - Message text
+    @param sender string - Who sent the message
+]]
+function RaidData:OnChatMessage(event, msg, sender)
+    local bossName, killTime = ParseKillTimeMessage(msg)
+    if bossName and killTime then
+        combatState.recentDBMTime = killTime
+        combatState.recentDBMBoss = bossName
+        combatState.recentDBMTimestamp = GetTime()
+        HopeAddon:Debug("Captured DBM kill time:", bossName, HopeAddon:FormatTime(killTime))
+    end
+end
+
+--[[
+    Handle entering combat (for manual timer fallback)
+]]
+function RaidData:OnCombatStart()
+    -- Only track if we're in a raid instance
+    local _, instanceType = IsInInstance()
+    if instanceType ~= "raid" then return end
+
+    combatState.inCombat = true
+    combatState.combatStartTime = GetTime()
+    HopeAddon:Debug("Combat started, manual timer active")
+end
+
+--[[
+    Handle leaving combat
+]]
+function RaidData:OnCombatEnd()
+    combatState.inCombat = false
+    -- Don't clear combatStartTime - let RecordBossKill use it if needed
+    HopeAddon:Debug("Combat ended")
+end
+
+--[[
+    Record a kill time for a boss
+    @param key string - Boss key (raidKey_bossId)
+    @param killTime number - Kill time in seconds
+    @param source string - "DBM", "BigWigs", or "Manual"
+    @return boolean - True if new personal best
+]]
+function RaidData:RecordKillTime(key, killTime, source)
+    local kills = HopeAddon.charDb.journal.bossKills
+    local killData = kills[key]
+    if not killData then return false end
+
+    -- Update last time
+    killData.lastTime = killTime
+
+    -- Check for new personal best
+    local isNewBest = false
+    if not killData.bestTime or killTime < killData.bestTime then
+        local previousBest = killData.bestTime
+        killData.bestTime = killTime
+        killData.bestTimeDate = HopeAddon:GetDate()
+        isNewBest = true
+
+        -- Announce personal best
+        if previousBest then
+            local improvement = previousBest - killTime
+            HopeAddon:Print(string.format(
+                "|cFF00FF00NEW PERSONAL BEST!|r %s in %s (%.1fs faster!)",
+                killData.bossName,
+                HopeAddon:FormatTime(killTime),
+                improvement
+            ))
+        else
+            HopeAddon:Print(string.format(
+                "|cFFFFD700First timed kill!|r %s in %s",
+                killData.bossName,
+                HopeAddon:FormatTime(killTime)
+            ))
+        end
+    end
+
+    -- Store in history (keep last 5 kills)
+    killData.killTimes = killData.killTimes or {}
+    table.insert(killData.killTimes, 1, {
+        time = killTime,
+        date = HopeAddon:GetDate(),
+        source = source,
+    })
+    while #killData.killTimes > 5 do
+        table.remove(killData.killTimes)
+    end
+
+    HopeAddon:Debug("Recorded kill time:", killData.bossName, HopeAddon:FormatTime(killTime), "source:", source, isNewBest and "(NEW PB!)" or "")
+
+    return isNewBest
 end
 
 --[[

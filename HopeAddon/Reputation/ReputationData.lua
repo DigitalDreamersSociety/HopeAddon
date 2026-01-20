@@ -99,6 +99,13 @@ Data.TBC_FACTIONS = {
             [7] = "The commanders consult you on matters of strategy. You've become a pillar of the expedition's strength.",
             [8] = "You stand as a legend of Honor Hold. Songs of your heroism echo through the fortress, inspiring all who hear.",
         },
+        quips = {
+            [0] = "Another hero who hasn't lifted a finger yet. Typical.",
+            [5] = "Congrats! The guards stopped asking for your papers.",
+            [6] = "You get to use the good outhouse now. Luxury!",
+            [7] = "General's got your portrait in his tent. Flattering, really.",
+            [8] = "You could run this place! But the paperwork... ugh.",
+        },
         rewards = {
             [6] = "Honored: Flamewrought Key (Heroic Hellfire Citadel)",
             [8] = "Exalted: Honor Hold Tabard",
@@ -115,6 +122,13 @@ Data.TBC_FACTIONS = {
             [6] = "Blood and thunder! Your deeds in Hellfire have not gone unnoticed. The Horde is proud.",
             [7] = "The commanders seek your counsel. You have become a champion of Thrallmar.",
             [8] = "Lok'tar ogar! You are a legend of Thrallmar. Your name will be remembered for generations.",
+        },
+        quips = {
+            [0] = "Lok'tar... who are you again? Never seen you at the pyre.",
+            [5] = "The peons have stopped running from you. Progress!",
+            [6] = "Blood and thunder! The grunts actually salute now.",
+            [7] = "Nazgrel wants you on speed dial. Is that even a thing here?",
+            [8] = "FOR THE HORDE! Also you get the comfy bunk.",
         },
         rewards = {
             [6] = "Honored: Flamewrought Key (Heroic Hellfire Citadel)",
@@ -135,6 +149,13 @@ Data.TBC_FACTIONS = {
             [7] = "Elders speak of your dedication. The spirits of nature whisper your name in the wind.",
             [8] = "You are one with the Cenarion Expedition. The dream of a restored Outland lives through your actions.",
         },
+        quips = {
+            [0] = "The trees are judging you. Yes, even the mushrooms.",
+            [5] = "PETA approves! The druids tolerate your presence.",
+            [6] = "You saved enough wildlife to get the 'not terrible' badge.",
+            [7] = "The hippogryphs let you pet them. THEY LET YOU PET THEM.",
+            [8] = "Cenarius himself probably knows your name. Probably.",
+        },
         rewards = {
             [6] = "Honored: Reservoir Key (Heroic Coilfang Reservoir)",
             [7] = "Revered: Cenarion War Hippogryph mount",
@@ -152,6 +173,13 @@ Data.TBC_FACTIONS = {
             [6] = "Msshi'fn speaks well of you. You are a friend of the mushroom folk!",
             [7] = "The village celebrates your return! The sporelings see you as their great protector.",
             [8] = "You are family now. The Sporeggar sing songs of you - strange, squeaky songs, but heartfelt.",
+        },
+        quips = {
+            [0] = "The mushroom people don't know you exist. Sad spore noises.",
+            [5] = "The sporelings wave at you! Such tiny hands!",
+            [6] = "Msshi'fn put your picture on their fridge. They have fridges!",
+            [7] = "You're invited to the sporeling talent show. It's... unique.",
+            [8] = "Honorary mushroom person! You get the tiny ceremonial cap!",
         },
         rewards = {
             [8] = "Exalted: Tiny Sporebat pet",
@@ -171,6 +199,13 @@ Data.TBC_FACTIONS = {
             [7] = "The village elders seek your wisdom. You've helped them remember who they once were.",
             [8] = "You are a beacon of light to the Kurenai. Through you, they have found the strength to heal.",
         },
+        quips = {
+            [0] = "The Broken watch you warily. You look like trouble.",
+            [5] = "Elder Kuruti no longer hides the good jerky from you.",
+            [6] = "The children want to hear your stories. Embellish freely.",
+            [7] = "They're teaching you their secret handshake. It's emotional.",
+            [8] = "You've helped them heal. The talbuks accept you too!",
+        },
         rewards = {
             [8] = "Exalted: Talbuk mounts",
         },
@@ -186,6 +221,13 @@ Data.TBC_FACTIONS = {
             [6] = "The elders tell stories of your deeds around the fire. You honor the ancestors.",
             [7] = "You are Mag'har in spirit. The blood of heroes flows through you.",
             [8] = "You are legend among the Mag'har. Greatmother Geyah herself speaks your name with reverence.",
+        },
+        quips = {
+            [0] = "Garrosh squints at you. 'Do I know you? No? Then go away.'",
+            [5] = "The elders let you sit near the fire. Not TOO near though.",
+            [6] = "Your deeds echo at the campfire. They're starting to rhyme.",
+            [7] = "Greatmother Geyah made you soup. THE soup.",
+            [8] = "You fight like the Mag'har of old. That's the highest praise.",
         },
         rewards = {
             [8] = "Exalted: Talbuk mounts",
@@ -205,6 +247,13 @@ Data.TBC_FACTIONS = {
             [7] = "You've become a guardian of the forgotten. The downtrodden look to you with hope.",
             [8] = "A champion of the people! The Lower City knows that in you, they have a true protector.",
         },
+        quips = {
+            [0] = "The refugees eye you suspiciously. Everyone's a con here.",
+            [5] = "They saved you a spot at the communal fire. Cozy!",
+            [6] = "The orphans call you 'the nice one.' Your heart grows.",
+            [7] = "You've become their unofficial problem solver. Congrats?",
+            [8] = "Champion of the forgotten! They pooled copper for your statue.",
+        },
         rewards = {
             [6] = "Honored: Auchenai Key (Heroic Auchindoun)",
         },
@@ -220,6 +269,13 @@ Data.TBC_FACTIONS = {
             [6] = "A'dal's voice resonates in your mind: 'You walk the path of light.'",
             [7] = "The Sha'tar entrust you with sacred duties. The light of the naaru flows through you.",
             [8] = "You have become one with the Sha'tar's holy mission. A'dal speaks your name in benediction.",
+        },
+        quips = {
+            [0] = "The naaru hum politely. You're just another soul to them.",
+            [5] = "A'dal's light seems warmer when you're around. Maybe.",
+            [6] = "The naaru literally sing your praises. It's overwhelming.",
+            [7] = "You can hear A'dal in your dreams now. That's... normal?",
+            [8] = "The Light itself knows your name. No pressure.",
         },
         rewards = {
             [6] = "Honored: Warpforged Key (Heroic Tempest Keep)",
@@ -238,6 +294,13 @@ Data.TBC_FACTIONS = {
             [6] = "High Priestess Ishanah speaks well of you. Your devotion to the Light is admirable.",
             [7] = "You have become a pillar of the Aldor faith. The priests seek your counsel in holy matters.",
             [8] = "You stand as a champion of the Aldor! The Light of the naaru shines brilliantly through you.",
+        },
+        quips = {
+            [0] = "The priests give you that 'we'll pray for you' look.",
+            [5] = "They've stopped checking if you're a secret blood elf.",
+            [6] = "Ishanah trusts you with the fancy incense. Big deal.",
+            [7] = "The priests only passive-aggressively judge you now.",
+            [8] = "Pillar of the faith! They want you in the brochure!",
         },
         choiceLore = "You kneel before the Aldor altar, pledging your service to the Light. The Scryers will never forgive this betrayal - but you have chosen your path.",
         rewards = {
@@ -258,6 +321,13 @@ Data.TBC_FACTIONS = {
             [7] = "The blood elves trust you as one of their own. You've proven your commitment to their cause.",
             [8] = "You are exalted among the Scryers! Even Voren'thal himself considers you a trusted ally.",
         },
+        quips = {
+            [0] = "Voren'thal raises an eyebrow. 'Who sent this one?'",
+            [5] = "The blood elves acknowledge your existence. Victory!",
+            [6] = "They've stopped making you use the service entrance.",
+            [7] = "Blood elves remember your name. That's genuinely rare.",
+            [8] = "Even Kael'thas would be jealous. If he weren't, y'know...",
+        },
         choiceLore = "You approach Voren'thal, offering Aldor relics as proof of your allegiance. The draenei will curse your name - but knowledge and power await.",
         rewards = {
             [8] = "Exalted: Scryer shoulder enchants",
@@ -277,6 +347,13 @@ Data.TBC_FACTIONS = {
             [7] = "You walk through history as a guardian. The Keepers trust you with their most sacred duties.",
             [8] = "Time itself knows your name. You are a legend across all the timeways, past, present, and future.",
         },
+        quips = {
+            [0] = "The bronze dragons yawn. They've seen you fail already.",
+            [5] = "They trust you not to mess up history. Small steps.",
+            [6] = "Soridormi lets you hold the hourglass. Carefully!",
+            [7] = "You've fixed so many timelines. The paperwork alone...",
+            [8] = "Time itself bends around your legend. Don't let it go to your head.",
+        },
         rewards = {
             [6] = "Honored: Key of Time (Heroic Caverns of Time)",
         },
@@ -294,6 +371,13 @@ Data.TBC_FACTIONS = {
             [6] = "Nexus-Prince Haramad is pleased with your contributions. Your reputation precedes you.",
             [7] = "You're practically one of the Consortium now. The ethereals share their most lucrative opportunities with you.",
             [8] = "A full partner in the Consortium! The ethereals shower you with their finest wares and secrets.",
+        },
+        quips = {
+            [0] = "The ethereals calculate your worth. Error: insufficient data.",
+            [5] = "You're worth 0.003% of their profit margins. Moving up!",
+            [6] = "Haramad gives you the 'valued customer' discount. 0.5% off!",
+            [7] = "They share trade secrets with you. Mostly legal ones.",
+            [8] = "Full partner! The profit-sharing is... generous-ish.",
         },
         rewards = {
             [8] = "Exalted: Premium gem bags",
@@ -313,6 +397,13 @@ Data.TBC_FACTIONS = {
             [7] = "The mages of Dalaran speak of your discoveries. You've unraveled many of Medivh's secrets.",
             [8] = "You are a legend of the Violet Eye! The mysteries of Karazhan are yours to command.",
         },
+        quips = {
+            [0] = "Archmage Alturus hasn't noticed you yet. Karazhan waits.",
+            [5] = "They let you read the footnotes. The SPOOKY footnotes.",
+            [6] = "Your research is 'adequate.' High praise from the Kirin Tor.",
+            [7] = "Medivh's secrets unfold before you. Try not to go mad!",
+            [8] = "Legend of Karazhan! The ghosts throw you a party!",
+        },
         rewards = {
             [8] = "Exalted: Upgraded Violet Signet",
         },
@@ -328,6 +419,13 @@ Data.TBC_FACTIONS = {
             [6] = "The Deathsworn share their secrets with you. Together, you plan the Betrayer's end.",
             [7] = "You have become central to Akama's plans. The liberation of the Broken draws near.",
             [8] = "You stand with Akama at the end. When Illidan falls, they will sing of your part in his defeat.",
+        },
+        quips = {
+            [0] = "Akama doesn't trust you. Illidan has eyes everywhere.",
+            [5] = "You're in the conspiracy now. Try to look casual.",
+            [6] = "Akama shares the plan. It involves a LOT of stabbing.",
+            [7] = "The Broken see you as their liberator. No pressure!",
+            [8] = "When Illidan falls, your name will be remembered. BETRAYER!",
         },
         rewards = {
             [8] = "Exalted: Access to Black Temple gear",
@@ -347,6 +445,13 @@ Data.TBC_FACTIONS = {
             [7] = "Neltharaku himself knows your name. You are a champion of the netherwing.",
             [8] = "You are forever bonded with the Netherwing! A drake chooses you as its eternal companion.",
         },
+        quips = {
+            [0] = "The drakes are still in chains. They wait for a hero...",
+            [5] = "A netherwing nudged you! Progress! Ow, but progress!",
+            [6] = "The flights whisper about the hero from Azeroth. That's you!",
+            [7] = "Neltharaku wants you at dinner. Dragon dinner is intense.",
+            [8] = "A LITERAL DRAGON chose you. Life goals: achieved.",
+        },
         rewards = {
             [8] = "Exalted: Netherwing Drake mounts",
         },
@@ -362,6 +467,13 @@ Data.TBC_FACTIONS = {
             [6] = "Chu'a'lor considers you a friend. The apexis crystals seem to glow brighter when you're near.",
             [7] = "You understand the ogres like few others. They share their sacred knowledge with you.",
             [8] = "You are an honorary ogre! The apexis themselves seem to respond to your presence.",
+        },
+        quips = {
+            [0] = "The ogres grunt at you. Could mean anything, really.",
+            [5] = "They think you're smart. For a non-ogre.",
+            [6] = "Chu'a'lor shared his apexis crystals. That's his lunch money.",
+            [7] = "The ogres teach you their philosophy. It's... something.",
+            [8] = "Honorary ogre! You even get an ogre name: 'Smarty Smallone.'",
         },
         rewards = {
             [8] = "Exalted: Ogri'la Tabard",
@@ -379,6 +491,13 @@ Data.TBC_FACTIONS = {
             [7] = "You've become an ace of the Skyguard. The most dangerous missions are entrusted to you.",
             [8] = "Sky Commander Adaris salutes you as an equal. The Skyguard's greatest hero takes flight!",
         },
+        quips = {
+            [0] = "The pilots do a flyby. You're just background scenery.",
+            [5] = "You can ride shotgun! In the back. With the cargo.",
+            [6] = "They let you touch the nether rays. Worth it.",
+            [7] = "The most dangerous missions are yours. Lucky you!",
+            [8] = "Adaris lets you pick patrol music. Maximum honor achieved.",
+        },
         rewards = {
             [8] = "Exalted: Nether Ray mounts",
         },
@@ -394,6 +513,13 @@ Data.TBC_FACTIONS = {
             [6] = "Your deeds on the Isle of Quel'Danas are well known. Victory draws closer.",
             [7] = "You lead crucial assaults against the Legion. The Offensive's greatest battles are yours.",
             [8] = "A hero of the Shattered Sun! When Kil'jaeden falls, your name will echo through history.",
+        },
+        quips = {
+            [0] = "The Offensive could use more blades. Hint hint.",
+            [5] = "You're helping save the world! One daily quest at a time.",
+            [6] = "The assault on the Sunwell needs you. Specifically you.",
+            [7] = "Kil'jaeden's gonna be real mad when you show up.",
+            [8] = "Hero of the Shattered Sun! The demons will remember you.",
         },
         rewards = {
             [8] = "Exalted: Shattered Sun Title and Tabard",

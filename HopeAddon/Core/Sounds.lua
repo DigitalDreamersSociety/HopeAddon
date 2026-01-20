@@ -61,6 +61,43 @@ Sounds.library = {
         revered = assets.ACHIEVEMENT,
         exalted = assets.LEVEL_UP,
     },
+
+    -- Progress bar feedback sounds (gaming-style)
+    progress = {
+        tick = assets.CHECKBOX,      -- Subtle tick for 10% segments
+        milestone = assets.BELL,     -- Bell chime at 25/50/75%
+        complete = assets.ACHIEVEMENT, -- Full completion fanfare
+    },
+
+    -- Death Roll gameshow sounds
+    deathroll = {
+        suspense = assets.BELL_TOLL,      -- Pre-reveal tension (dramatic gong)
+        reveal = assets.RAID_WARNING,     -- Number reveal whoosh
+        safe = assets.CHECKBOX,           -- Safe roll (subtle tick)
+        caution = assets.BELL,            -- Getting risky (bell)
+        danger = assets.ERROR,            -- Warning tone
+        critical = assets.ABILITIES_FINAL, -- Near death (dramatic)
+        death = assets.ABILITIES_FINAL,   -- Player eliminated
+        yourTurn = assets.BELL,           -- Turn notification
+    },
+
+    -- Death comedy sounds (WoW built-in sound IDs for Bumblebee-style sequence)
+    deathComedy = {
+        questFailed = 847,   -- igQuestFailed (sad failure sound)
+        bagClose = 863,      -- IG_BACKPACK_CLOSE (punctuation beat)
+        murlocAggro = 416,   -- MurlocAggro (comic punchline "Mrglglgl!")
+    },
+
+    -- Battleship gameshow sounds
+    battleship = {
+        shot = assets.CLICK,              -- Shot fired
+        hit = assets.ERROR,               -- Hit explosion
+        miss = assets.CHECKBOX,           -- Water splash (subtle)
+        sunk = assets.ABILITIES_FINAL,    -- Ship destroyed (dramatic)
+        yourTurn = assets.BELL,           -- Turn notification
+        victory = assets.ACHIEVEMENT,     -- Victory fanfare
+        defeat = assets.ERROR,            -- Defeat sound
+    },
 }
 
 -- Sound channel preferences
@@ -149,6 +186,10 @@ function Sounds:PlayHover()
     self:Play("ui", "hover")
 end
 
+function Sounds:PlayBell()
+    self:Play("ui", "milestone")  -- Uses BELL sound asset
+end
+
 function Sounds:PlayDeath()
     self:Play("combat", "death")
 end
@@ -159,6 +200,85 @@ end
 
 function Sounds:PlayBossKill()
     self:Play("combat", "bossKill")
+end
+
+-- Progress bar sounds (gaming-style feedback)
+function Sounds:PlayProgressTick()
+    self:Play("progress", "tick")
+end
+
+function Sounds:PlayProgressMilestone()
+    self:Play("progress", "milestone")
+end
+
+function Sounds:PlayProgressComplete()
+    self:Play("progress", "complete")
+end
+
+-- Death Roll gameshow sounds
+function Sounds:PlayDeathRoll(soundName)
+    self:Play("deathroll", soundName)
+end
+
+function Sounds:PlayDeathRollSuspense()
+    self:Play("deathroll", "suspense")
+end
+
+function Sounds:PlayDeathRollReveal()
+    self:Play("deathroll", "reveal")
+end
+
+function Sounds:PlayDeathRollYourTurn()
+    self:Play("deathroll", "yourTurn")
+end
+
+-- Battleship gameshow sounds
+function Sounds:PlayBattleship(soundName)
+    self:Play("battleship", soundName)
+end
+
+function Sounds:PlayBattleshipHit()
+    self:Play("battleship", "hit")
+end
+
+function Sounds:PlayBattleshipMiss()
+    self:Play("battleship", "miss")
+end
+
+function Sounds:PlayBattleshipSunk()
+    self:Play("battleship", "sunk")
+end
+
+function Sounds:PlayBattleshipYourTurn()
+    self:Play("battleship", "yourTurn")
+end
+
+--[[
+    Play funny "Sad Trombone" death comedy sequence
+    Uses WoW's built-in PlaySound API with numeric sound IDs
+    Sequence: Quest Failed → Bag Close → Murloc Aggro
+]]
+function Sounds:PlayDeathComedy()
+    if HopeAddon.db and not HopeAddon.db.settings.soundEnabled then
+        return
+    end
+
+    -- Cancel any existing sequence
+    self:CancelSequence()
+
+    -- Play using WoW's PlaySound API (numeric IDs)
+    local ids = self.library.deathComedy
+    PlaySound(ids.questFailed, "Master")  -- Quest Failed - immediate
+
+    local handle1 = HopeAddon.Timer:After(0.3, function()
+        PlaySound(ids.bagClose, "Master")  -- Bag Close
+    end)
+    table.insert(self.sequenceTimers, handle1)
+
+    local handle2 = HopeAddon.Timer:After(0.5, function()
+        PlaySound(ids.murlocAggro, "Master")  -- Murloc Aggro "Mrglglgl!"
+    end)
+    table.insert(self.sequenceTimers, handle2)
 end
 
 --[[
@@ -218,6 +338,9 @@ function Sounds:PlayAchievementFanfare()
         { "achievement", "milestone", 0.5 },
     })
 end
+
+-- Alias for backwards compatibility
+Sounds.PlayAchievement = Sounds.PlayAchievementFanfare
 
 --[[
     Play epic moment fanfare (for major milestones)

@@ -205,6 +205,9 @@ HopeAddon.assets = {
         -- Combat
         ABILITIES_FINAL = "Sound\\Interface\\iAbilitiesFinalB.ogg",
         RAID_WARNING = "Sound\\Interface\\RaidWarning.ogg",
+
+        -- Fellow Traveler discovery (comedy Murloc sound)
+        FELLOW_DISCOVERY = "Sound\\Creature\\Murloc\\mMurlocAggroOld.ogg",
     },
 
     fonts = {
@@ -556,6 +559,126 @@ function HopeAddon.ColorUtils:HexToRGB(hex)
 end
 
 --[[
+    SPEC / TALENT DETECTION UTILITIES
+    For determining player's primary specialization based on talent point distribution
+]]
+
+-- Role mapping: class token -> spec tab index -> role
+-- Roles: "tank", "healer", "melee_dps", "ranged_dps", "caster_dps"
+HopeAddon.SPEC_ROLE_MAP = {
+    ["WARRIOR"] = {
+        [1] = "melee_dps",  -- Arms
+        [2] = "melee_dps",  -- Fury
+        [3] = "tank",       -- Protection
+    },
+    ["PALADIN"] = {
+        [1] = "healer",     -- Holy
+        [2] = "tank",       -- Protection
+        [3] = "melee_dps",  -- Retribution
+    },
+    ["PRIEST"] = {
+        [1] = "healer",     -- Discipline
+        [2] = "healer",     -- Holy
+        [3] = "caster_dps", -- Shadow
+    },
+    ["DRUID"] = {
+        [1] = "caster_dps", -- Balance
+        [2] = "tank",       -- Feral (treat as tank since bears have stricter requirements)
+        [3] = "healer",     -- Restoration
+    },
+    ["SHAMAN"] = {
+        [1] = "caster_dps", -- Elemental
+        [2] = "melee_dps",  -- Enhancement
+        [3] = "healer",     -- Restoration
+    },
+    ["MAGE"] = {
+        [1] = "caster_dps", -- Arcane
+        [2] = "caster_dps", -- Fire
+        [3] = "caster_dps", -- Frost
+    },
+    ["WARLOCK"] = {
+        [1] = "caster_dps", -- Affliction
+        [2] = "caster_dps", -- Demonology
+        [3] = "caster_dps", -- Destruction
+    },
+    ["HUNTER"] = {
+        [1] = "ranged_dps", -- Beast Mastery
+        [2] = "ranged_dps", -- Marksmanship
+        [3] = "ranged_dps", -- Survival
+    },
+    ["ROGUE"] = {
+        [1] = "melee_dps",  -- Assassination
+        [2] = "melee_dps",  -- Combat
+        [3] = "melee_dps",  -- Subtlety
+    },
+}
+
+--[[
+    Get the player's primary specialization by reading talent point distribution
+    @return specName string - Name of the spec (e.g., "Protection", "Restoration")
+    @return specTab number - Tab index (1, 2, or 3)
+    @return pointsSpent number - Points invested in that tree
+]]
+function HopeAddon:GetPlayerSpec()
+    local maxPoints = 0
+    local specTab = 1
+    local specName = "Unknown"
+
+    -- TBC Classic supports GetNumTalentTabs() and GetTalentTabInfo()
+    local numTabs = GetNumTalentTabs() or 3
+
+    for tab = 1, numTabs do
+        local _, name, _, _, points = GetTalentTabInfo(tab)
+        if points and points > maxPoints then
+            maxPoints = points
+            specTab = tab
+            specName = name or "Unknown"
+        end
+    end
+
+    return specName, specTab, maxPoints
+end
+
+--[[
+    Get the role for a given class and spec tab
+    @param classToken string - e.g., "WARRIOR", "PRIEST"
+    @param specTab number - Tab index (1, 2, or 3)
+    @return role string - "tank", "healer", "melee_dps", "ranged_dps", or "caster_dps"
+]]
+function HopeAddon:GetSpecRole(classToken, specTab)
+    local classRoles = self.SPEC_ROLE_MAP[classToken]
+    if classRoles then
+        return classRoles[specTab] or "melee_dps"
+    end
+    return "melee_dps" -- Default fallback
+end
+
+--[[
+    Check if a role is a DPS role
+    @param role string - Role from GetSpecRole
+    @return boolean
+]]
+function HopeAddon:IsDPSRole(role)
+    return role == "melee_dps" or role == "ranged_dps" or role == "caster_dps"
+end
+
+--[[
+    TIME FORMATTING UTILITIES
+]]
+
+--[[
+    Format seconds into M:SS or MM:SS format
+    @param seconds number - Time in seconds
+    @return string - Formatted time (e.g., "3:45" or "--:--" if nil)
+]]
+function HopeAddon:FormatTime(seconds)
+    if not seconds or seconds < 0 then return "--:--" end
+    local mins = math.floor(seconds / 60)
+    local secs = math.floor(seconds % 60)
+    return string.format("%d:%02d", mins, secs)
+end
+
+--[[
     Module Registration System
 ]]
 function HopeAddon:RegisterModule(name, module)
@@ -628,6 +751,16 @@ function HopeAddon:MigrateCharacterData()
     db.reputation = db.reputation or {}
     db.reputation.milestones = db.reputation.milestones or {}
     db.reputation.currentStandings = db.reputation.currentStandings or {}
+
+    -- Migrate bossKills to include kill time tracking fields
+    if db.journal and db.journal.bossKills then
+        for key, killData in pairs(db.journal.bossKills) do
+            -- Ensure new time tracking fields exist (nil is fine for untracked)
+            if killData.killTimes == nil then
+                killData.killTimes = {}
+            end
+        end
+    end
 end
 
 function HopeAddon:OnAddonLoaded()
@@ -718,6 +851,12 @@ function HopeAddon:GetDefaultDB()
             animationsEnabled = true,
             notificationsEnabled = true,
         },
+
+        -- Minimap button settings
+        minimapButton = {
+            position = 225,  -- Angle in degrees (225 = lower-left)
+            enabled = true,
+        },
     }
 end
 
@@ -732,7 +871,6 @@ function HopeAddon:GetDefaultCharDB()
         journal = {
             entries = {},           -- Array of all entries
             levelMilestones = {},   -- [level] = entry data
-            zoneDiscoveries = {},   -- [zoneName] = entry data
             bossKills = {},         -- [bossName] = entry data
             customNotes = {},       -- User-added notes
         },
@@ -802,6 +940,18 @@ function HopeAddon:GetDefaultCharDB()
             aldorScryerChoice = nil, -- { chosen, opposing, date }
             currentStandings = {},   -- snapshot cache
         },
+
+        -- Saved games (for async multiplayer)
+        savedGames = {
+            words = {
+                games = {},             -- [opponentName] = serialized game state
+                pendingInvites = {},    -- [senderName] = { state, timestamp }
+                sentInvites = {},       -- [recipientName] = { state, timestamp }
+            },
+        },
+
+        -- Relationships/notes about players
+        relationships = {},             -- [playerName] = { note, addedDate }
     }
 end
 
@@ -849,16 +999,15 @@ SlashCmdList["HOPE"] = function(msg)
         HopeAddon.db.settings.soundEnabled = not HopeAddon.db.settings.soundEnabled
         HopeAddon:Print("Sounds:", HopeAddon.db.settings.soundEnabled and "ON" or "OFF")
     elseif cmd:find("^tetris") then
-        -- /hope tetris [player] - Start Tetris Battle game
+        -- /hope tetris [player] - Start Tetris game (local or score challenge)
         local _, _, targetName = cmd:find("^tetris%s*(%S*)")
         if targetName and targetName ~= "" then
-            -- Challenge player to Tetris
-            local GameComms = HopeAddon:GetModule("GameComms")
-            if GameComms then
-                GameComms:SendInvite(targetName, "TETRIS")
-                HopeAddon:Print("Challenging", targetName, "to Tetris Battle!")
+            -- Challenge player to Tetris Score Battle
+            local ScoreChallenge = HopeAddon:GetModule("ScoreChallenge")
+            if ScoreChallenge then
+                ScoreChallenge:StartChallenge(targetName, "TETRIS")
             else
-                HopeAddon:Print("GameComms module not loaded!")
+                HopeAddon:Print("ScoreChallenge module not loaded!")
             end
         else
             -- Start local Tetris game
@@ -871,16 +1020,15 @@ SlashCmdList["HOPE"] = function(msg)
             end
         end
     elseif cmd:find("^pong") then
-        -- /hope pong [player] - Start Pong game
+        -- /hope pong [player] - Start Pong game (local or score challenge)
         local _, _, targetName = cmd:find("^pong%s*(%S*)")
         if targetName and targetName ~= "" then
-            -- Challenge player to Pong
-            local GameComms = HopeAddon:GetModule("GameComms")
-            if GameComms then
-                GameComms:SendInvite(targetName, "PONG")
-                HopeAddon:Print("Challenging", targetName, "to Pong!")
+            -- Challenge player to Pong Score Battle
+            local ScoreChallenge = HopeAddon:GetModule("ScoreChallenge")
+            if ScoreChallenge then
+                ScoreChallenge:StartChallenge(targetName, "PONG")
             else
-                HopeAddon:Print("GameComms module not loaded!")
+                HopeAddon:Print("ScoreChallenge module not loaded!")
             end
         else
             -- Start local Pong game
@@ -915,8 +1063,111 @@ SlashCmdList["HOPE"] = function(msg)
             end
         end
     elseif cmd:find("^words") then
-        -- /hope words <player> (no local mode)
-        local _, _, targetName = cmd:find("^words%s*(%S*)")
+        -- /hope words <player|list|forfeit>
+        local _, _, subCmd = cmd:find("^words%s*(%S*)")
+        local WordGame = HopeAddon:GetModule("WordGame")
+
+        if not subCmd or subCmd == "" then
+            -- No argument - start local practice game
+            if WordGame then
+                WordGame:StartGame(nil)
+            else
+                HopeAddon:Print("WordGame module not loaded!")
+            end
+        elseif subCmd == "list" then
+            -- List saved games
+            if WordGame then
+                WordGame:ListSavedGames()
+            else
+                HopeAddon:Print("WordGame module not loaded!")
+            end
+        elseif subCmd:find("^forfeit%s*") then
+            -- Forfeit a game: /hope words forfeit <player>
+            local _, _, opponentName = cmd:find("^words%s+forfeit%s+(%S+)")
+            if opponentName and opponentName ~= "" then
+                local valid, err = ValidatePlayerName(opponentName)
+                if not valid then
+                    HopeAddon:Print("|cFFFF0000Error:|r " .. err)
+                    return
+                end
+                if WordGame then
+                    WordGame:ForfeitGame(opponentName)
+                else
+                    HopeAddon:Print("WordGame module not loaded!")
+                end
+            else
+                HopeAddon:Print("Usage: /hope words forfeit <player>")
+            end
+        elseif subCmd == "accept" then
+            -- Accept pending Words invite: /hope words accept [player]
+            local _, _, senderName = cmd:find("^words%s+accept%s*(%S*)")
+            local WordGameInvites = HopeAddon:GetModule("WordGameInvites")
+            if WordGameInvites then
+                if senderName and senderName ~= "" then
+                    WordGameInvites:AcceptInvite(senderName)
+                elseif WordGameInvites:HasPendingInvites() then
+                    -- Accept first pending
+                    for challenger, _ in pairs(WordGameInvites:GetPendingInvites()) do
+                        WordGameInvites:AcceptInvite(challenger)
+                        break
+                    end
+                else
+                    HopeAddon:Print("No pending Words invites.")
+                end
+            else
+                HopeAddon:Print("WordGameInvites module not loaded!")
+            end
+        elseif subCmd == "decline" then
+            -- Decline pending Words invite: /hope words decline [player]
+            local _, _, senderName = cmd:find("^words%s+decline%s*(%S*)")
+            local WordGameInvites = HopeAddon:GetModule("WordGameInvites")
+            if WordGameInvites then
+                if senderName and senderName ~= "" then
+                    WordGameInvites:DeclineInvite(senderName)
+                elseif WordGameInvites:HasPendingInvites() then
+                    for challenger, _ in pairs(WordGameInvites:GetPendingInvites()) do
+                        WordGameInvites:DeclineInvite(challenger)
+                        break
+                    end
+                else
+                    HopeAddon:Print("No pending Words invites.")
+                end
+            else
+                HopeAddon:Print("WordGameInvites module not loaded!")
+            end
+        else
+            -- Assume it's a player name - resume existing game or send invite
+            local targetName = subCmd
+            local valid, err = ValidatePlayerName(targetName)
+            if not valid then
+                HopeAddon:Print("|cFFFF0000Error:|r " .. err)
+                return
+            end
+
+            -- Try to resume existing game first
+            local Persistence = HopeAddon:GetModule("WordGamePersistence")
+            if Persistence and Persistence:HasGame(targetName) then
+                if WordGame then
+                    local gameId, resumeErr = WordGame:ResumeGame(targetName)
+                    if not gameId then
+                        HopeAddon:Print("|cFFFF0000Error:|r " .. (resumeErr or "Failed to resume game"))
+                    end
+                else
+                    HopeAddon:Print("WordGame module not loaded!")
+                end
+            else
+                -- No saved game - send invite
+                local WordGameInvites = HopeAddon:GetModule("WordGameInvites")
+                if WordGameInvites then
+                    WordGameInvites:SendInvite(targetName)
+                else
+                    HopeAddon:Print("WordGameInvites module not loaded!")
+                end
+            end
+        end
+    elseif cmd:find("^battleship") then
+        -- /hope battleship [player]
+        local _, _, targetName = cmd:find("^battleship%s*(%S*)")
         if targetName and targetName ~= "" then
             -- Validate player name
             local valid, err = ValidatePlayerName(targetName)
@@ -924,24 +1175,33 @@ SlashCmdList["HOPE"] = function(msg)
                 HopeAddon:Print("|cFFFF0000Error:|r " .. err)
                 return
             end
-            -- Challenge player to Words with WoW
+            -- Challenge player to Battleship
             local GameComms = HopeAddon:GetModule("GameComms")
             if GameComms then
-                GameComms:SendInvite(targetName, "WORDS")
-                HopeAddon:Print("Challenging", targetName, "to Words with WoW!")
+                GameComms:SendInvite(targetName, "BATTLESHIP")
+                HopeAddon:Print("Challenging", targetName, "to Battleship!")
             else
                 HopeAddon:Print("GameComms module not loaded!")
             end
         else
-            HopeAddon:Print("Words with WoW requires an opponent.")
-            HopeAddon:Print("Usage: /hope words <player>")
+            -- Start local Battleship game
+            local GameCore = HopeAddon:GetModule("GameCore")
+            if GameCore then
+                local gameId = GameCore:CreateGame("BATTLESHIP", GameCore.GAME_MODE.LOCAL, nil)
+                if gameId then
+                    GameCore:StartGame(gameId)
+                    HopeAddon:Print("Starting Battleship vs AI!")
+                end
+            else
+                HopeAddon:Print("GameCore module not loaded!")
+            end
         end
     elseif cmd:find("^challenge") then
-        -- /hope challenge <player> [dice|rps]
+        -- /hope challenge <player> [rps]
         local _, _, targetName, gameType = cmd:find("^challenge%s+(%S+)%s*(%S*)")
         if not targetName then
-            HopeAddon:Print("Usage: /hope challenge <player> [dice|rps]")
-            HopeAddon:Print("  Example: /hope challenge Thrall dice")
+            HopeAddon:Print("Usage: /hope challenge <player> [rps]")
+            HopeAddon:Print("  Example: /hope challenge Thrall rps")
         else
             -- Validate player name
             local valid, err = ValidatePlayerName(targetName)
@@ -951,26 +1211,114 @@ SlashCmdList["HOPE"] = function(msg)
             end
             local Minigames = HopeAddon:GetModule("Minigames")
             if Minigames then
-                gameType = gameType ~= "" and gameType or "dice"
+                gameType = gameType ~= "" and gameType or "rps"
                 Minigames:SendChallenge(targetName, gameType)
             else
                 HopeAddon:Print("Minigames module not loaded!")
             end
         end
-    elseif cmd == "accept" then
+    elseif cmd:find("^accept") then
+        -- Check for pending challenges in order: Words, ScoreChallenge, Minigames
+        local _, _, targetName = cmd:find("^accept%s*(%S*)")
+
+        -- Check Words invites first
+        local WordGameInvites = HopeAddon:GetModule("WordGameInvites")
+        if WordGameInvites and WordGameInvites:HasPendingInvites() then
+            if targetName and targetName ~= "" then
+                WordGameInvites:AcceptInvite(targetName)
+            else
+                -- Accept first pending Words invite
+                for challenger, _ in pairs(WordGameInvites:GetPendingInvites()) do
+                    WordGameInvites:AcceptInvite(challenger)
+                    break
+                end
+            end
+            return
+        end
+
+        -- Check ScoreChallenge
+        local ScoreChallenge = HopeAddon:GetModule("ScoreChallenge")
+        if ScoreChallenge and ScoreChallenge:HasPendingChallenges() then
+            if targetName and targetName ~= "" then
+                ScoreChallenge:AcceptChallenge(targetName)
+            else
+                for challenger, _ in pairs(ScoreChallenge.pendingChallenges) do
+                    ScoreChallenge:AcceptChallenge(challenger)
+                    break
+                end
+            end
+            return
+        end
+
+        -- Fall back to Minigames accept
         local Minigames = HopeAddon:GetModule("Minigames")
         if Minigames then
             Minigames:AcceptChallenge()
         end
-    elseif cmd == "decline" then
+
+    elseif cmd:find("^decline") then
+        -- Check for pending challenges in order: Words, ScoreChallenge, Minigames
+        local _, _, targetName = cmd:find("^decline%s*(%S*)")
+
+        -- Check Words invites first
+        local WordGameInvites = HopeAddon:GetModule("WordGameInvites")
+        if WordGameInvites and WordGameInvites:HasPendingInvites() then
+            if targetName and targetName ~= "" then
+                WordGameInvites:DeclineInvite(targetName)
+            else
+                for challenger, _ in pairs(WordGameInvites:GetPendingInvites()) do
+                    WordGameInvites:DeclineInvite(challenger)
+                    break
+                end
+            end
+            return
+        end
+
+        -- Check ScoreChallenge
+        local ScoreChallenge = HopeAddon:GetModule("ScoreChallenge")
+        if ScoreChallenge and ScoreChallenge:HasPendingChallenges() then
+            if targetName and targetName ~= "" then
+                ScoreChallenge:DeclineChallenge(targetName)
+            else
+                for challenger, _ in pairs(ScoreChallenge.pendingChallenges) do
+                    ScoreChallenge:DeclineChallenge(challenger)
+                    break
+                end
+            end
+            return
+        end
+
+        -- Fall back to Minigames decline
         local Minigames = HopeAddon:GetModule("Minigames")
         if Minigames then
             Minigames:DeclineChallenge()
         end
     elseif cmd == "cancel" then
-        local Minigames = HopeAddon:GetModule("Minigames")
-        if Minigames then
-            Minigames:CancelGame("user_cancelled")
+        -- Check for active score challenge first
+        local ScoreChallenge = HopeAddon:GetModule("ScoreChallenge")
+        if ScoreChallenge and ScoreChallenge:IsInChallenge() then
+            ScoreChallenge:CancelChallenge("USER_QUIT")
+        else
+            -- Fall back to Minigames cancel
+            local Minigames = HopeAddon:GetModule("Minigames")
+            if Minigames then
+                Minigames:CancelGame("user_cancelled")
+            end
+        end
+    elseif cmd == "demo" then
+        -- Populate sample data for testing the UI
+        HopeAddon:PopulateDemoData()
+    elseif cmd == "reset demo" then
+        -- Clear demo data and reset to defaults
+        HopeAddon:ClearDemoData()
+    elseif cmd == "testbar" then
+        -- Show a demo gaming-style reputation bar
+        HopeAddon:ShowTestBar()
+    elseif cmd == "minimap" then
+        -- Toggle minimap button visibility
+        local minimapBtn = HopeAddon:GetModule("MinimapButton")
+        if minimapBtn and minimapBtn.Toggle then
+            minimapBtn:Toggle()
         end
     else
         HopeAddon:Print("Commands:")
@@ -978,16 +1326,25 @@ SlashCmdList["HOPE"] = function(msg)
         HopeAddon:Print("  /hope debug - Toggle debug mode")
         HopeAddon:Print("  /hope stats - Show statistics")
         HopeAddon:Print("  /hope sound - Toggle sounds")
+        HopeAddon:Print("  /hope minimap - Toggle minimap button")
         HopeAddon:Print("  /hope tetris [player] - Start Tetris Battle (local or vs player)")
         HopeAddon:Print("  /hope pong [player] - Start Pong (local or vs player)")
         HopeAddon:Print("  /hope deathroll [player] - Start Death Roll (local or vs player)")
         HopeAddon:Print("  /hope words <player> - Challenge to Words with WoW")
         HopeAddon:Print("  /word <word> <H/V> <row> <col> - Place word in active Words game")
         HopeAddon:Print("  /pass - Pass your turn in active Words game")
-        HopeAddon:Print("  /hope challenge <player> [dice|rps] - Challenge a Fellow Traveler")
+        HopeAddon:Print("  /hope battleship [player] - Start Battleship (local or vs player)")
+        HopeAddon:Print("  /fire <coord> - Fire at coordinate in Battleship (e.g., /fire A5)")
+        HopeAddon:Print("  /ready - Signal ships placed in Battleship")
+        HopeAddon:Print("  /surrender - Forfeit current Battleship game")
+        HopeAddon:Print("  /gc <message> - Send chat to opponent during any game")
+        HopeAddon:Print("  /hope challenge <player> [rps] - Challenge to Rock-Paper-Scissors")
         HopeAddon:Print("  /hope accept/decline - Respond to challenge")
         HopeAddon:Print("  /hope cancel - Cancel current game")
+        HopeAddon:Print("  /hope demo - Populate sample data for UI testing")
+        HopeAddon:Print("  /hope reset demo - Clear demo data")
         HopeAddon:Print("  /hope reset confirm - Reset all data")
+        HopeAddon:Print("  /hope testbar - Show gaming-style reputation bar demo")
     end
 end
 
@@ -1069,6 +1426,120 @@ SlashCmdList["PASS"] = function(msg)
     end
 end
 
+-- /fire slash command for Battleship gameplay
+SLASH_FIRE1 = "/fire"
+SlashCmdList["FIRE"] = function(msg)
+    local BattleshipGame = HopeAddon:GetModule("BattleshipGame")
+    if not BattleshipGame then
+        HopeAddon:Print("BattleshipGame module not loaded!")
+        return
+    end
+
+    -- Find active Battleship game
+    local GameCore = HopeAddon:GetModule("GameCore")
+    if not GameCore then
+        HopeAddon:Print("GameCore module not loaded!")
+        return
+    end
+
+    local activeGameId = nil
+    for gameId, game in pairs(GameCore.activeGames) do
+        if game.gameType == "BATTLESHIP" and game.state == GameCore.STATE.PLAYING then
+            activeGameId = gameId
+            break
+        end
+    end
+
+    if not activeGameId then
+        HopeAddon:Print("You are not in an active Battleship game!")
+        HopeAddon:Print("Use /hope battleship to start a game")
+        return
+    end
+
+    -- Parse coordinate: "A5" -> row=5, col=1
+    local coord = msg:upper():gsub("%s+", "")
+    if not coord or coord == "" then
+        HopeAddon:Print("Usage: /fire <coord> (e.g., /fire A5, /fire B10)")
+        return
+    end
+
+    local Board = HopeAddon.BattleshipBoard
+    if not Board then
+        HopeAddon:Print("BattleshipBoard not loaded!")
+        return
+    end
+
+    local row, col = Board:ParseCoord(coord)
+
+    if not row or not col or row < 1 or row > 10 or col < 1 or col > 10 then
+        HopeAddon:Print("Invalid coordinate! Use A-J and 1-10 (e.g., A5, B10)")
+        return
+    end
+
+    BattleshipGame:PlayerShoot(activeGameId, row, col)
+end
+
+-- /ready slash command for Battleship
+SLASH_READY1 = "/ready"
+SlashCmdList["READY"] = function(msg)
+    local BattleshipGame = HopeAddon:GetModule("BattleshipGame")
+    if not BattleshipGame then
+        HopeAddon:Print("BattleshipGame module not loaded!")
+        return
+    end
+
+    local GameCore = HopeAddon:GetModule("GameCore")
+    if not GameCore then return end
+
+    for gameId, game in pairs(GameCore.activeGames) do
+        if game.gameType == "BATTLESHIP" and game.state ~= GameCore.STATE.ENDED then
+            BattleshipGame:SignalReady(gameId)
+            return
+        end
+    end
+
+    HopeAddon:Print("No active Battleship game found!")
+end
+
+-- /surrender slash command for Battleship
+SLASH_SURRENDER1 = "/surrender"
+SlashCmdList["SURRENDER"] = function(msg)
+    local BattleshipGame = HopeAddon:GetModule("BattleshipGame")
+    if not BattleshipGame then
+        HopeAddon:Print("BattleshipGame module not loaded!")
+        return
+    end
+
+    local GameCore = HopeAddon:GetModule("GameCore")
+    if not GameCore then return end
+
+    for gameId, game in pairs(GameCore.activeGames) do
+        if game.gameType == "BATTLESHIP" and game.state ~= GameCore.STATE.ENDED then
+            BattleshipGame:Surrender(gameId)
+            return
+        end
+    end
+
+    HopeAddon:Print("No active Battleship game found!")
+end
+
+-- /gc or /gamechat for in-game chat during multiplayer games
+SLASH_GAMECHAT1 = "/gc"
+SLASH_GAMECHAT2 = "/gamechat"
+SlashCmdList["GAMECHAT"] = function(msg)
+    if not msg or msg == "" then
+        HopeAddon:Print("Usage: /gc <message>")
+        return
+    end
+
+    local GameChat = HopeAddon:GetModule("GameChat")
+    if GameChat then
+        GameChat:SendMessage(msg)
+    else
+        HopeAddon:Print("GameChat module not loaded!")
+    end
+end
+
 -- Show stats in chat
 function HopeAddon:ShowStats()
     local stats = self.charDb.stats
@@ -1085,24 +1556,18 @@ function HopeAddon:ShowStats()
 
     -- Use Journal's cached counts if available
     local Journal = self:GetModule("Journal")
-    local zoneCount, milestoneCount
+    local milestoneCount
     if Journal and Journal.GetCachedCounts then
         local counts = Journal:GetCachedCounts()
-        zoneCount = counts.zones
         milestoneCount = counts.milestones
     else
         -- Fallback to iteration if Journal not loaded
-        zoneCount = 0
-        for _ in pairs(self.charDb.journal.zoneDiscoveries) do
-            zoneCount = zoneCount + 1
-        end
         milestoneCount = 0
         for _ in pairs(self.charDb.journal.levelMilestones) do
             milestoneCount = milestoneCount + 1
         end
     end
 
-    self:Print("Zones Discovered: " .. zoneCount)
     self:Print("Milestones Reached: " .. milestoneCount)
 end
 
@@ -1114,4 +1579,314 @@ function HopeAddon:ToggleJournal()
     else
         self:Print("Journal module not loaded yet!")
     end
+end
+
+--[[
+    Populate demo data for UI testing
+    Creates sample milestones, zone discoveries, journal entries, and travelers
+]]
+function HopeAddon:PopulateDemoData()
+    local charDb = self.charDb
+    local C = self.Constants
+    local playerName = UnitName("player")
+    local timestamp = date("%Y-%m-%d %H:%M")
+
+    -- Mark as having demo data
+    charDb._hasDemoData = true
+
+    -- Add level milestones (5, 10, 15, 20, 25, 30)
+    local demoLevels = { 5, 10, 15, 20, 25, 30 }
+    for _, level in ipairs(demoLevels) do
+        local milestoneData = C.LEVEL_MILESTONES[level]
+        if milestoneData and not charDb.journal.levelMilestones[level] then
+            local entry = {
+                type = "milestone",
+                title = milestoneData.title,
+                description = milestoneData.story,
+                icon = "Interface\\Icons\\" .. milestoneData.icon,
+                timestamp = timestamp,
+                level = level,
+            }
+            charDb.journal.levelMilestones[level] = entry
+            table.insert(charDb.journal.entries, entry)
+        end
+    end
+
+    -- Add some stats
+    charDb.stats.deaths.total = 5
+    charDb.stats.deaths.byZone["Hellfire Peninsula"] = 3
+    charDb.stats.deaths.byZone["Zangarmarsh"] = 2
+    charDb.stats.playtime = 72000  -- 20 hours
+    charDb.stats.questsCompleted = 150
+    charDb.stats.creaturesSlain = 2500
+    charDb.stats.largestHit = 1250
+
+    -- Add sample travelers
+    local demoTravelers = {
+        { name = "Thrall", class = "SHAMAN", level = 70, zone = "Nagrand" },
+        { name = "Jaina", class = "MAGE", level = 70, zone = "Shattrath City" },
+        { name = "Sylvanas", class = "HUNTER", level = 68, zone = "Shadowmoon Valley" },
+    }
+    for _, traveler in ipairs(demoTravelers) do
+        if not charDb.travelers.known[traveler.name] then
+            charDb.travelers.known[traveler.name] = {
+                class = traveler.class,
+                level = traveler.level,
+                lastSeen = timestamp,
+                lastSeenZone = traveler.zone,
+                lastSeenTime = time(),
+                firstSeen = timestamp,
+            }
+        end
+    end
+
+    -- Add a sample fellow traveler (addon user)
+    if not charDb.travelers.fellows["Arthas"] then
+        charDb.travelers.fellows["Arthas"] = {
+            class = "PALADIN",
+            level = 70,
+            lastSeen = timestamp,
+            lastSeenZone = "Hellfire Peninsula",
+            lastSeenTime = time(),
+            firstSeen = timestamp,
+            profile = {
+                backstory = "Once a noble prince, now seeking redemption.",
+                personality = { "Determined", "Brooding" },
+            },
+        }
+        charDb.travelers.known["Arthas"] = charDb.travelers.fellows["Arthas"]
+    end
+
+    -- Add sample relationship note
+    if not charDb.relationships["Thrall"] then
+        charDb.relationships["Thrall"] = {
+            note = "Great tank, helped me clear Ramparts. Good guy.",
+            addedDate = timestamp,
+        }
+    end
+
+    -- Add sample minigame stats for testing the Stats tab
+    -- Thrall: Good at RPS, plays death roll
+    charDb.travelers.known["Thrall"].stats = {
+        minigames = {
+            rps = { wins = 7, losses = 3, ties = 2, lastPlayed = timestamp },
+            deathroll = { wins = 1, losses = 2, ties = 0, highestBet = 50, lastPlayed = timestamp },
+        }
+    }
+
+    -- Jaina: Even record, plays pong
+    charDb.travelers.known["Jaina"].stats = {
+        minigames = {
+            pong = { wins = 3, losses = 2, highestScore = 5, lastPlayed = timestamp },
+            tetris = { wins = 1, losses = 3, highestScore = 2500, lastPlayed = timestamp },
+            battleship = { wins = 2, losses = 1, lastPlayed = timestamp },
+        }
+    }
+
+    -- Sylvanas: Tough opponent, great at words
+    charDb.travelers.known["Sylvanas"].stats = {
+        minigames = {
+            rps = { wins = 6, losses = 2, ties = 0, lastPlayed = timestamp },
+            words = { wins = 4, losses = 1, highestScore = 185, lastPlayed = timestamp },
+        }
+    }
+
+    -- Arthas: Fellow traveler, lots of games
+    charDb.travelers.known["Arthas"].stats = {
+        minigames = {
+            rps = { wins = 4, losses = 4, ties = 2, lastPlayed = timestamp },
+            pong = { wins = 2, losses = 1, highestScore = 5, lastPlayed = timestamp },
+            tetris = { wins = 3, losses = 2, highestScore = 4200, lastPlayed = timestamp },
+            deathroll = { wins = 2, losses = 3, ties = 0, highestBet = 100, lastPlayed = timestamp },
+            battleship = { wins = 1, losses = 2, lastPlayed = timestamp },
+        }
+    }
+
+    -- Add sample badges for testing title system
+    charDb.travelers.badges = charDb.travelers.badges or {}
+
+    -- Level badges (unlocked based on demo milestones)
+    charDb.travelers.badges["first_steps"] = { unlocked = true, date = timestamp }
+    charDb.travelers.badges["adventurer"] = { unlocked = true, date = timestamp }
+    charDb.travelers.badges["veteran"] = { unlocked = true, date = timestamp }
+    charDb.travelers.badges["hero_of_outland"] = { unlocked = true, date = timestamp }
+
+    -- Attunement badge
+    charDb.travelers.badges["karazhan_attuned"] = { unlocked = true, date = timestamp }
+
+    -- Boss badges
+    charDb.travelers.badges["prince_slayer"] = { unlocked = true, date = timestamp }
+
+    -- Flying badges
+    charDb.travelers.badges["flying_mount"] = { unlocked = true, date = timestamp }
+
+    -- Set demo title on Arthas (fellow traveler)
+    if charDb.travelers.fellows["Arthas"] then
+        charDb.travelers.fellows["Arthas"].selectedTitle = "Hero"
+        charDb.travelers.known["Arthas"].selectedTitle = "Hero"
+    end
+
+    -- Invalidate caches
+    local journal = self:GetModule("Journal")
+    if journal and journal.InvalidateCounts then
+        journal:InvalidateCounts()
+    end
+
+    self:Print("|cFF00FF00Demo data populated!|r")
+    self:Print("Open the journal with /hope to see the sample entries.")
+    self:Print("Use /hope reset demo to clear demo data.")
+end
+
+--[[
+    Clear demo data and reset to clean state
+]]
+function HopeAddon:ClearDemoData()
+    local charDb = self.charDb
+
+    if not charDb._hasDemoData then
+        self:Print("No demo data to clear.")
+        return
+    end
+
+    -- Reset journal entries
+    charDb.journal.entries = {}
+    charDb.journal.levelMilestones = {}
+    charDb.journal.bossKills = {}
+
+    -- Reset stats
+    charDb.stats.deaths = { total = 0, byZone = {}, byBoss = {} }
+    charDb.stats.playtime = 0
+    charDb.stats.questsCompleted = 0
+    charDb.stats.creaturesSlain = 0
+    charDb.stats.largestHit = 0
+
+    -- Clear demo travelers (keep any real ones that might exist)
+    local demoNames = { "Thrall", "Jaina", "Sylvanas", "Arthas" }
+    for _, name in ipairs(demoNames) do
+        charDb.travelers.known[name] = nil
+        charDb.travelers.fellows[name] = nil
+        charDb.relationships[name] = nil
+    end
+
+    -- Clear demo badges
+    local demoBadges = { "first_steps", "adventurer", "veteran", "hero_of_outland",
+                         "karazhan_attuned", "prince_slayer", "flying_mount" }
+    for _, badgeId in ipairs(demoBadges) do
+        if charDb.travelers.badges then
+            charDb.travelers.badges[badgeId] = nil
+        end
+    end
+
+    charDb._hasDemoData = nil
+
+    -- Invalidate caches
+    local journal = self:GetModule("Journal")
+    if journal and journal.InvalidateCounts then
+        journal:InvalidateCounts()
+    end
+
+    self:Print("|cFFFF0000Demo data cleared!|r")
+    self:Print("Use /hope demo to populate sample data again.")
+end
+
+--[[
+    Show a test gaming-style reputation bar to demonstrate the new visuals
+]]
+function HopeAddon:ShowTestBar()
+    local Components = self.Components
+
+    -- Close any existing test bar
+    if self._testBarFrame then
+        self._testBarFrame:Hide()
+        self._testBarFrame = nil
+    end
+
+    -- Create test frame
+    local frame = self:CreateBackdropFrame("Frame", "HopeTestBarFrame", UIParent)
+    frame:SetSize(450, 120)
+    frame:SetPoint("CENTER", UIParent, "CENTER", 0, 200)
+    frame:SetFrameStrata("DIALOG")
+    frame:SetMovable(true)
+    frame:EnableMouse(true)
+    frame:RegisterForDrag("LeftButton")
+    frame:SetScript("OnDragStart", frame.StartMoving)
+    frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
+
+    -- Apply backdrop
+    local C = self.Constants
+    frame:SetBackdrop(C.BACKDROPS.PARCHMENT_DARK)
+    frame:SetBackdropColor(0.1, 0.08, 0.12, 0.95)
+    frame:SetBackdropBorderColor(0.6, 0.5, 0.3, 1)
+
+    -- Title
+    local title = frame:CreateFontString(nil, "OVERLAY")
+    title:SetFont(self.assets.fonts.HEADER, 14)
+    title:SetPoint("TOP", frame, "TOP", 0, -10)
+    title:SetText("|cFFFFD700Gaming-Style Reputation Bar Demo|r")
+
+    -- Subtitle
+    local subtitle = frame:CreateFontString(nil, "OVERLAY")
+    subtitle:SetFont(self.assets.fonts.BODY, 10)
+    subtitle:SetPoint("TOP", title, "BOTTOM", 0, -2)
+    subtitle:SetText("Watch it fill up with segment sounds and effects!")
+    subtitle:SetTextColor(0.7, 0.7, 0.7)
+
+    -- Create the reputation bar
+    local bar = Components:CreateReputationBar(frame, 350, 16, {
+        compact = false,
+        showStandingBadge = true,
+        showTickMarks = true,
+        showAnimations = true,
+    })
+    bar:SetPoint("CENTER", frame, "CENTER", -20, -5)
+
+    -- Set initial state (Honored, 35%)
+    bar:SetReputation("Test Faction", 35, 100, 6) -- Honored standing
+
+    -- Instructions
+    local instructions = frame:CreateFontString(nil, "OVERLAY")
+    instructions:SetFont(self.assets.fonts.SMALL, 9)
+    instructions:SetPoint("BOTTOM", frame, "BOTTOM", 0, 25)
+    instructions:SetText("Click |cFF00FF00[Fill]|r to animate progress  |  |cFFFF0000[X]|r to close")
+    instructions:SetTextColor(0.8, 0.8, 0.8)
+
+    -- Fill button
+    local fillBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    fillBtn:SetSize(60, 22)
+    fillBtn:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 100, 8)
+    fillBtn:SetText("Fill")
+    fillBtn._targetValue = 75
+
+    fillBtn:SetScript("OnClick", function(self)
+        if bar then
+            -- Cycle through different fill amounts
+            local newTarget = self._targetValue
+            bar:AnimateProgress(newTarget, 1.5)
+
+            -- Cycle: 75 -> 100 -> 25 -> 50 -> 75
+            if newTarget >= 100 then
+                self._targetValue = 25
+            elseif newTarget >= 75 then
+                self._targetValue = 100
+            elseif newTarget >= 50 then
+                self._targetValue = 75
+            else
+                self._targetValue = 50
+            end
+        end
+    end)
+
+    -- Close button
+    local closeBtn = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
+    closeBtn:SetPoint("TOPRIGHT", frame, "TOPRIGHT", 2, 2)
+    closeBtn:SetScript("OnClick", function()
+        frame:Hide()
+        HopeAddon._testBarFrame = nil
+    end)
+
+    frame:Show()
+    self._testBarFrame = frame
+
+    self:Print("|cFF00FF00Test bar shown!|r Click [Fill] to see the gaming bar animation with segment sounds.")
+    self:Print("Type /hope testbar again to close it.")
 end

@@ -30,6 +30,18 @@ MapPins.updateTicker = nil
 local function PinOnEnter(self)
     if self.playerName then
         GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
+
+        -- Show highest quality icon if available
+        if HopeAddon.TravelerIcons then
+            local iconInfo = HopeAddon.TravelerIcons:GetHighestQualityIcon(self.playerName)
+            if iconInfo and iconInfo.data and iconInfo.data.icon then
+                GameTooltip:AddTexture(iconInfo.data.icon)
+            else
+                -- Default Fellow Traveler icon
+                GameTooltip:AddTexture("Interface\\Icons\\INV_Misc_GroupLooking")
+            end
+        end
+
         GameTooltip:AddLine(self.playerName, 1, 1, 1)
         if self.playerClass then
             local classColor = HopeAddon:GetClassColor(self.playerClass)

@@ -96,7 +96,9 @@ end
 
 function PongGame:OnCreate(gameId, game)
     local S = self.SETTINGS
-    local isRemote = game.mode == HopeAddon:GetModule("GameCore").GAME_MODE.REMOTE
+    local GameCore = HopeAddon:GetModule("GameCore")
+    local isRemote = game.mode == GameCore.GAME_MODE.REMOTE
+    local isScoreChallenge = game.mode == GameCore.GAME_MODE.SCORE_CHALLENGE
 
     -- Determine if this player is the host (game creator controls ball physics)
     -- Player1 is the host, player2 (opponent who accepted) is the client
@@ -112,6 +114,7 @@ function PongGame:OnCreate(gameId, game)
             paddles = { p1 = nil, p2 = nil },
             ball = nil,
             countdown = { text = nil, timer = nil },
+            opponentPanel = nil,  -- For SCORE_CHALLENGE mode
         },
         state = {
             -- Play area bounds
@@ -120,6 +123,7 @@ function PongGame:OnCreate(gameId, game)
 
             -- Mode tracking
             isRemote = isRemote,
+            isScoreChallenge = isScoreChallenge,
             isHost = isHost,  -- Host controls ball physics, client receives updates
             opponent = game.opponent,  -- Store opponent for network sync
 
@@ -136,7 +140,7 @@ function PongGame:OnCreate(gameId, game)
                 dy = 0,
             },
 
-            -- Paddle 2 (right - P2 in LOCAL, opponent in REMOTE)
+            -- Paddle 2 (right - P2 in LOCAL, AI in SCORE_CHALLENGE, opponent in REMOTE)
             paddle2 = {
                 x = S.PLAY_WIDTH - S.PADDLE_MARGIN - S.PADDLE_WIDTH,
                 y = S.PLAY_HEIGHT / 2 - S.PADDLE_HEIGHT / 2,
@@ -359,7 +363,11 @@ function PongGame:UpdatePaddles(gameId, dt)
 
     local state = game.data.state
 
-    if state.isRemote then
+    if state.isScoreChallenge then
+        -- SCORE_CHALLENGE mode: Player controls paddle1, AI controls paddle2
+        self:UpdateLocalPaddle(gameId, dt)
+        self:UpdateAIPaddle(gameId, dt)
+    elseif state.isRemote then
         -- REMOTE mode: Only control paddle1 (local player)
         self:UpdateLocalPaddle(gameId, dt)
         -- Paddle2 updated by network messages (OnOpponentMove)
@@ -370,6 +378,55 @@ function PongGame:UpdatePaddles(gameId, dt)
         -- LOCAL mode: Control both paddles
         self:UpdateLocalPaddles(gameId, dt)
     end
+end
+
+--[[
+    Update AI paddle for SCORE_CHALLENGE mode
+    AI follows ball with slight delay - beatable but challenging
+]]
+function PongGame:UpdateAIPaddle(gameId, dt)
+    local game = self.games[gameId]
+    if not game then return end
+
+    local state = game.data.state
+    local S = self.SETTINGS
+    local GameCore = HopeAddon:GetModule("GameCore")
+    if not GameCore then return end
+
+    local paddle2 = state.paddle2
+    local ball = state.ball
+
+    -- AI only reacts when ball is moving toward it
+    if ball.dx > 0 then
+        -- Calculate where ball will intersect paddle2's x position
+        local timeToReach = (paddle2.x - ball.x) / ball.dx
+        local predictedY = ball.y + ball.dy * timeToReach
+
+        -- Clamp prediction to play area
+        predictedY = GameCore:Clamp(predictedY, 0, S.PLAY_HEIGHT - paddle2.height)
+
+        -- Move toward predicted position with 85% tracking (slight lag)
+        local targetY = predictedY
+        local diff = targetY - paddle2.y
+
+        -- AI speed scales with ball speed for fairness
+        local aiSpeed = S.PADDLE_SPEED * 0.85
+        local maxMove = aiSpeed * dt
+
+        if math.abs(diff) > maxMove then
+            paddle2.y = paddle2.y + (diff > 0 and maxMove or -maxMove)
+        else
+            paddle2.y = paddle2.y + diff * 0.85
+        end
+    else
+        -- Ball moving away, slowly return to center
+        local centerY = S.PLAY_HEIGHT / 2 - paddle2.height / 2
+        local diff = centerY - paddle2.y
+        paddle2.y = paddle2.y + diff * 0.3 * dt
+    end
+
+    -- Clamp to play area
+    paddle2.y = GameCore:Clamp(paddle2.y, 0, S.PLAY_HEIGHT - paddle2.height)
 end
 
 function PongGame:UpdateLocalPaddle(gameId, dt)
@@ -541,6 +598,16 @@ function PongGame:Score(gameId, player)
     -- Update score
     GameCore:AddScore(gameId, player)
 
+    -- Notify ScoreChallenge of score update (if in that mode)
+    if state.isScoreChallenge then
+        local ScoreChallenge = HopeAddon:GetModule("ScoreChallenge")
+        if ScoreChallenge then
+            -- In Pong, player 1 is human, player 2 is AI
+            -- We only care about player 1's score for the challenge
+            ScoreChallenge:UpdateMyScore(game.score[1], game.score[2], 1)
+        end
+    end
+
     -- Play score sound
     if HopeAddon.Sounds then
         HopeAddon.Sounds:PlayAchievement()
@@ -548,6 +615,17 @@ function PongGame:Score(gameId, player)
 
     -- Check for win
     if game.score[player] >= S.WINNING_SCORE then
+        -- In SCORE_CHALLENGE mode, notify ScoreChallenge
+        if state.isScoreChallenge then
+            local ScoreChallenge = HopeAddon:GetModule("ScoreChallenge")
+            if ScoreChallenge then
+                -- Final score: player's score, AI score doesn't matter
+                ScoreChallenge:OnLocalGameEnded(game.score[1], game.score[2], 1)
+            end
+            -- Don't set winner here - ScoreChallenge handles it
+            return
+        end
+
         -- In REMOTE mode, send game over message
         if state.isRemote then
             -- Loser sends game over (player is the winner)
@@ -806,12 +884,20 @@ function PongGame:CreateUI(gameId)
     countdownText:Hide()
     ui.countdown.text = countdownText
 
+    -- Opponent panel for SCORE_CHALLENGE mode
+    local GameCore = HopeAddon:GetModule("GameCore")
+    if state.isScoreChallenge then
+        ui.opponentPanel = self:CreateOpponentPanel(content, state.opponent)
+        ui.opponentPanel:SetPoint("RIGHT", content, "RIGHT", -10, 0)
+    end
+
     -- Controls hint
     local controlsText = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     controlsText:SetPoint("BOTTOM", 0, 5)
 
-    local GameCore = HopeAddon:GetModule("GameCore")
-    if game.mode == GameCore.GAME_MODE.REMOTE then
+    if state.isScoreChallenge then
+        controlsText:SetText("W/S to move | Race to 5 vs AI | Opponent: " .. (state.opponent or "Unknown"))
+    elseif game.mode == GameCore.GAME_MODE.REMOTE then
         controlsText:SetText("W/S to move | vs " .. (state.opponent or "Opponent"))
     else
         controlsText:SetText("P1: W/S | P2: Up/Down")
@@ -833,6 +919,89 @@ function PongGame:CreateUI(gameId)
     self:UpdateUI(gameId)
 
     window:Show()
+end
+
+--[[
+    Create opponent status panel for SCORE_CHALLENGE mode
+    @param parent Frame
+    @param opponentName string
+    @return Frame
+]]
+function PongGame:CreateOpponentPanel(parent, opponentName)
+    local panel = CreateFrame("Frame", nil, parent)
+    panel:SetSize(100, 120)
+
+    -- Background
+    local bg = panel:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints()
+    bg:SetColorTexture(0.1, 0.1, 0.1, 0.8)
+
+    -- Border
+    local border = panel:CreateTexture(nil, "BORDER")
+    border:SetPoint("TOPLEFT", -1, 1)
+    border:SetPoint("BOTTOMRIGHT", 1, -1)
+    border:SetColorTexture(0.4, 0.4, 0.4, 1)
+
+    -- Inner bg
+    local innerBg = panel:CreateTexture(nil, "ARTWORK")
+    innerBg:SetPoint("TOPLEFT", 1, -1)
+    innerBg:SetPoint("BOTTOMRIGHT", -1, 1)
+    innerBg:SetColorTexture(0.15, 0.15, 0.15, 0.9)
+
+    -- Title
+    local title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    title:SetPoint("TOP", 0, -8)
+    title:SetText(opponentName or "Opponent")
+    title:SetTextColor(1, 0.84, 0)  -- Gold
+
+    -- Score
+    local scoreLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    scoreLabel:SetPoint("TOP", title, "BOTTOM", 0, -10)
+    scoreLabel:SetText("Score")
+    scoreLabel:SetTextColor(0.6, 0.6, 0.6)
+
+    local scoreValue = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    scoreValue:SetPoint("TOP", scoreLabel, "BOTTOM", 0, -2)
+    scoreValue:SetText("0")
+    scoreValue:SetTextColor(1, 1, 1)
+    panel.scoreValue = scoreValue
+
+    -- Status
+    local statusLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    statusLabel:SetPoint("TOP", scoreValue, "BOTTOM", 0, -10)
+    statusLabel:SetText("[PLAYING]")
+    statusLabel:SetTextColor(0.2, 0.8, 0.2)  -- Green
+    panel.statusLabel = statusLabel
+
+    return panel
+end
+
+--[[
+    Update opponent panel in SCORE_CHALLENGE mode
+]]
+function PongGame:UpdateOpponentPanel(gameId, score, lines, level, status)
+    local game = self.games[gameId]
+    if not game then return end
+
+    local ui = game.data.ui
+    if not ui.opponentPanel then return end
+
+    local panel = ui.opponentPanel
+    if panel.scoreValue then
+        panel.scoreValue:SetText(tostring(score))
+    end
+    if panel.statusLabel then
+        if status == "FINISHED" then
+            panel.statusLabel:SetText("[FINISHED]")
+            panel.statusLabel:SetTextColor(1, 0.5, 0)  -- Orange
+        elseif status == "WAITING" then
+            panel.statusLabel:SetText("[WAITING]")
+            panel.statusLabel:SetTextColor(0.8, 0.8, 0.2)  -- Yellow
+        else
+            panel.statusLabel:SetText("[PLAYING]")
+            panel.statusLabel:SetTextColor(0.2, 0.8, 0.2)  -- Green
+        end
+    end
 end
 
 function PongGame:UpdateUI(gameId)

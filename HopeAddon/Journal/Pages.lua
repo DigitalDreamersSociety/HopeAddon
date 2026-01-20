@@ -184,14 +184,10 @@ function Pages:CreateMilestonePage(parent, data)
 
     local deaths = HopeAddon.charDb.stats.deaths.total
     local quests = HopeAddon.charDb.stats.questsCompleted
-    local zones = 0
-    for _ in pairs(HopeAddon.charDb.journal.zoneDiscoveries) do
-        zones = zones + 1
-    end
 
     statsText:SetText(string.format(
-        "Deaths: %d (Battle Scars)\nQuests Completed: %d\nZones Discovered: %d",
-        deaths, quests, zones
+        "Deaths: %d (Battle Scars)\nQuests Completed: %d",
+        deaths, quests
     ))
     statsText:SetTextColor(HopeAddon:GetTextColor("SECONDARY"))
 

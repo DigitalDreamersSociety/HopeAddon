@@ -29,60 +29,6 @@ C.LEVEL_MILESTONES = {
 }
 
 --============================================================
--- ZONE DISCOVERIES (TBC Zones)
---============================================================
-C.ZONE_DISCOVERIES = {
-    ["Hellfire Peninsula"] = {
-        title = "Through the Portal",
-        flavor = "The sky burns red. This is not Azeroth anymore.",
-        icon = "Spell_Fire_FelFlameRing",
-        levelRange = "58-63",
-    },
-    ["Zangarmarsh"] = {
-        title = "The Mushroom Kingdom",
-        flavor = "Bioluminescent wonder stretches in every direction.",
-        icon = "INV_Mushroom_11",
-        levelRange = "60-64",
-    },
-    ["Terokkar Forest"] = {
-        title = "Among the Bones",
-        flavor = "Draenei spirits linger in the shadow of Auchindoun.",
-        icon = "Spell_Shadow_SoulGem",
-        levelRange = "62-65",
-    },
-    ["Nagrand"] = {
-        title = "Paradise Found",
-        flavor = "Floating islands and endless grasslands. Beauty exists even here.",
-        icon = "INV_Misc_Flower_01",
-        levelRange = "64-67",
-    },
-    ["Blade's Edge Mountains"] = {
-        title = "The Razor's Edge",
-        flavor = "Giant blades of stone pierce the sky. Ogres rule this land.",
-        icon = "INV_Sword_23",
-        levelRange = "65-68",
-    },
-    ["Netherstorm"] = {
-        title = "The Shattered Land",
-        flavor = "Reality itself fractures at the edge of existence.",
-        icon = "Spell_Arcane_Arcane02",
-        levelRange = "67-70",
-    },
-    ["Shadowmoon Valley"] = {
-        title = "Heart of Darkness",
-        flavor = "The Black Temple looms. Illidan watches.",
-        icon = "Spell_Shadow_Possession",
-        levelRange = "67-70",
-    },
-    ["Shattrath City"] = {
-        title = "City of Light",
-        flavor = "Neutral ground. Aldor and Scryer. Choose wisely.",
-        icon = "Spell_Arcane_PortalShattrath",
-        levelRange = "All",
-    },
-}
-
---============================================================
 -- TBC DUNGEONS (for stats tracking)
 --============================================================
 C.TBC_DUNGEONS = {
@@ -217,16 +163,15 @@ for dungeonName, data in pairs(C.TBC_DUNGEONS) do
     end
 end
 
--- Outland zones list (for counting Outland exploration)
-C.OUTLAND_ZONES = {
-    "Hellfire Peninsula",
-    "Zangarmarsh",
-    "Terokkar Forest",
-    "Nagrand",
-    "Blade's Edge Mountains",
-    "Netherstorm",
-    "Shadowmoon Valley",
-    "Shattrath City",
+--============================================================
+-- ATTUNEMENT DIFFICULTY LEVELS
+--============================================================
+C.ATTUNEMENT_DIFFICULTY = {
+    SOLO = { label = "Solo", color = "FEL_GREEN" },
+    GROUP_5 = { label = "5-Player", color = "SKY_BLUE" },
+    HEROIC_5 = { label = "Heroic 5-Player", color = "ARCANE_PURPLE" },
+    RAID_10 = { label = "10-Player Raid", color = "GOLD_BRIGHT" },
+    RAID_25 = { label = "25-Player Raid", color = "HELLFIRE_RED" },
 }
 
 --============================================================
@@ -238,12 +183,33 @@ C.KARAZHAN_ATTUNEMENT = {
     headerIcon = "INV_Misc_Key_10",
     raidName = "Karazhan",
     raidKey = "karazhan",
+    minLevel = 68,
+    recommendedLevel = 70,
 
     chapters = {
         {
             name = "The Call",
-            story = "Strange energies draw you to Deadwind Pass...",
+            story = "Strange energies emanate from the ancient tower of Karazhan. Archmage Alturus of the Violet Eye has sensed these disturbances and seeks adventurers brave enough to investigate.",
             locationIcon = "Spell_Arcane_PortalShattrath",
+            questGiver = "Archmage Alturus",
+            location = "Deadwind Pass (47.0, 75.6)",
+            difficulty = "SOLO",
+            minLevel = 68,
+            objectives = {
+                "Use the Violet Scrying Crystal at the Underground Well",
+                "Use the Violet Scrying Crystal at the Underground Pond",
+                "Collect 10 Ghostly Essences from spirits in the caves",
+            },
+            rewards = {
+                xp = 12650,
+                reputation = { name = "The Violet Eye", amount = 75 },
+            },
+            tips = {
+                "Archmage Alturus stands at the entrance path to Karazhan",
+                "Accept BOTH quests (Arcane Disturbances + Restless Activity) at once",
+                "The caves are just south of the tower entrance",
+                "Ghosts are level 68-70 - soloable but bring potions",
+            },
             quests = {
                 { id = 9824, name = "Arcane Disturbances" },
                 { id = 9825, name = "Restless Activity" },
@@ -251,52 +217,191 @@ C.KARAZHAN_ATTUNEMENT = {
         },
         {
             name = "Contact from Dalaran",
-            story = "Archmage Cedric in Alterac Mountains awaits...",
+            story = "Alturus's findings must be delivered to Archmage Cedric, who studies the magical barrier around the ruins of Dalaran in the Alterac Mountains.",
             locationIcon = "Spell_Holy_MindSooth",
+            questGiver = "Archmage Alturus",
+            location = "Deadwind Pass",
+            turnIn = "Archmage Cedric - Alterac Mountains (15.6, 54.4)",
+            difficulty = "SOLO",
+            minLevel = 68,
+            objectives = {
+                "Deliver Alturus's Report to Archmage Cedric in Alterac Mountains",
+            },
+            rewards = {
+                xp = 1150,
+            },
+            tips = {
+                "Long journey - fly to Southshore (Alliance) or Tarren Mill (Horde)",
+                "Cedric is at the Dalaran Crater bubble, not inside the ruins",
+                "The crater is in the center-north of Alterac Mountains",
+            },
             quests = {
                 { id = 9826, name = "Contact from Dalaran" },
             },
         },
         {
-            name = "Khadgar's Request",
-            story = "The Archmage needs your help to forge a new key...",
+            name = "Khadgar",
+            story = "Archmage Cedric recognizes the severity of the situation and directs you to seek the legendary Khadgar in Shattrath City - the only mage powerful enough to forge a new key to Karazhan.",
             locationIcon = "Spell_Arcane_PortalShattrath",
+            questGiver = "Archmage Cedric",
+            location = "Alterac Mountains (15.6, 54.4)",
+            turnIn = "Khadgar - Shattrath City (54.8, 44.6)",
+            difficulty = "SOLO",
+            minLevel = 68,
+            objectives = {
+                "Deliver Cedric's Report to Khadgar in Shattrath City",
+            },
+            rewards = {
+                xp = 1150,
+            },
+            tips = {
+                "Khadgar is in the center of Shattrath near A'dal",
+                "He stands on the upper terrace overlooking the Terrace of Light",
+                "Use the portal to Shattrath from any capital city",
+            },
             quests = {
                 { id = 9829, name = "Khadgar" },
             },
         },
         {
             name = "The First Fragment",
-            story = "Shadow Labyrinth holds the first piece...",
+            story = "Khadgar explains that the original key was shattered long ago. To forge a new Master's Key, you must recover three key fragments hidden in Outland's most dangerous dungeons. The first lies within Shadow Labyrinth.",
             locationIcon = "Spell_Shadow_ShadeTrueSight",
+            questGiver = "Khadgar",
+            location = "Shattrath City (54.8, 44.6)",
+            difficulty = "GROUP_5",
+            minLevel = 68,
+            dungeon = "Shadow Labyrinth",
+            dungeonLevel = "70-72",
+            prerequisite = "Shadow Labyrinth Key (drops from Talon King Ikiss in Sethekk Halls)",
+            objectives = {
+                "Enter Shadow Labyrinth in Auchindoun",
+                "Clear to the final boss room (Murmur)",
+                "Loot the Arcane Container on the ledge left of Murmur's pool",
+                "Defeat the First Fragment Guardian that spawns",
+                "Retrieve the First Key Fragment",
+            },
+            rewards = {
+                xp = 25300,
+                reputation = { name = "The Violet Eye", amount = 250 },
+            },
+            tips = {
+                "PREREQUISITE: Get Shadow Labyrinth Key from Sethekk Halls first!",
+                "Kill Murmur BEFORE looting the container - Guardian is tough",
+                "The container is on a ledge to the LEFT of Murmur's pool",
+                "Bring a balanced group - Shadow Lab is challenging at 70",
+                "Normal mode is sufficient - Heroic not required",
+            },
             quests = {
-                { id = 9831, name = "Entry Into Karazhan", dungeon = "Shadow Labyrinth" },
+                { id = 9831, name = "Entry Into Karazhan" },
             },
         },
         {
             name = "The Second and Third Fragments",
-            story = "The Steamvault and Arcatraz hold the remaining pieces...",
+            story = "With the first fragment secured, Khadgar sends you to retrieve the remaining two pieces. The second lies beneath the waters of the Steamvault, while the third is locked away in the Arcatraz prison.",
             locationIcon = "INV_Gizmo_02",
+            questGiver = "Khadgar",
+            location = "Shattrath City (54.8, 44.6)",
+            difficulty = "GROUP_5",
+            minLevel = 68,
+            dungeons = { "The Steamvault", "The Arcatraz" },
+            dungeonLevel = "70-72",
+            prerequisite = "Arcatraz Key (from Warden's Cage quest chain in Netherstorm) OR Rogue with 350 Lockpicking",
+            objectives = {
+                "STEAMVAULT: Dive into the water pool before Hydromancer Thespia",
+                "Locate the Arcane Container underwater at coords (53.0, 24.08)",
+                "Defeat the Second Fragment Guardian and loot the fragment",
+                "ARCATRAZ: Clear to the room after Zereketh the Unbound",
+                "Find the Arcane Container among the voidwalkers",
+                "Defeat the Third Fragment Guardian and loot the fragment",
+            },
+            rewards = {
+                xp = 25300,
+                reputation = { name = "The Violet Eye", amount = 250 },
+            },
+            tips = {
+                "Steamvault fragment does NOT require killing any bosses!",
+                "Stealth classes can potentially solo the Steamvault fragment",
+                "ARCATRAZ KEY: Complete 'Warden's Cage' quest chain in Netherstorm",
+                "Alternative: Rogue with 350 Lockpicking can open Arcatraz door",
+                "Flying mount required to reach Arcatraz (Tempest Keep)",
+                "Do these in any order - both must be completed",
+            },
             quests = {
-                { id = 9832, name = "The Second and Third Fragments", dungeons = {"The Steamvault", "The Arcatraz"} },
+                { id = 9832, name = "The Second and Third Fragments" },
             },
         },
         {
             name = "The Master's Touch",
-            story = "Travel through time to forge the key...",
+            story = "With all three fragments recovered, Khadgar can now forge the key - but it requires the touch of Medivh himself. You must travel through time to the Black Morass and protect Medivh during the Opening of the Dark Portal.",
             locationIcon = "Spell_Arcane_PortalOrgrimmar",
+            questGiver = "Khadgar",
+            location = "Shattrath City (54.8, 44.6)",
+            difficulty = "GROUP_5",
+            minLevel = 68,
+            dungeon = "The Black Morass",
+            dungeonLevel = "70",
+            prerequisite = "Keepers of Time - Friendly reputation (complete Old Hillsbrad Foothills first)",
+            objectives = {
+                "Travel to Caverns of Time in Tanaris",
+                "Enter the Black Morass instance",
+                "Protect Medivh while he opens the Dark Portal",
+                "Survive all 18 waves of Infinite Dragonflight attackers",
+                "Speak with Medivh after the portal opens",
+            },
+            rewards = {
+                xp = 25300,
+                reputation = { name = "The Violet Eye", amount = 250 },
+                reputation2 = { name = "Keepers of Time", amount = 8000 },
+            },
+            tips = {
+                "PREREQUISITE: Complete Old Hillsbrad Foothills dungeon first!",
+                "Old Hillsbrad unlocks at Keepers of Time - Friendly",
+                "If Medivh dies, the dungeon FAILS and must be restarted",
+                "18 waves of enemies - pace yourselves on cooldowns",
+                "Rift Lords spawn portals - kill them quickly to prevent adds",
+                "Final bosses: Chrono Lord Deja (wave 6), Temporus (wave 12), Aeonus (wave 18)",
+                "After Aeonus dies, speak with Medivh to complete the quest",
+            },
             quests = {
-                { id = 9836, name = "The Master's Touch", dungeon = "The Black Morass" },
+                { id = 9836, name = "The Master's Touch" },
             },
         },
         {
-            name = "The Key is Yours",
-            story = "Return to Khadgar with your completed key...",
+            name = "Return to Khadgar",
+            story = "Medivh has blessed your restored key with his power. Return to Khadgar in Shattrath to complete the attunement and claim your Master's Key - the artifact that will grant you entry to the haunted halls of Karazhan.",
             locationIcon = "INV_Misc_Key_10",
+            questGiver = "Medivh",
+            location = "The Black Morass (after completion)",
+            turnIn = "Khadgar - Shattrath City (54.8, 44.6)",
+            difficulty = "SOLO",
+            minLevel = 68,
+            objectives = {
+                "Return to Khadgar in Shattrath City",
+                "Receive The Master's Key",
+            },
+            rewards = {
+                xp = 19000,
+                reputation = { name = "The Violet Eye", amount = 500 },
+                item = "The Master's Key",
+            },
+            tips = {
+                "Congratulations! You are now attuned to Karazhan!",
+                "The Master's Key is used to open Karazhan's front door",
+                "Only ONE person in the raid needs the key to open the door",
+                "Key is NOT consumed - keep it for future raids",
+            },
             quests = {
-                { id = 9837, name = "Return to Khadgar", reward = "The Master's Key" },
+                { id = 9837, name = "Return to Khadgar" },
             },
         },
+    },
+
+    -- Summary of all prerequisites
+    prerequisites = {
+        { name = "Shadow Labyrinth Key", source = "Drops from Talon King Ikiss in Sethekk Halls", required = true },
+        { name = "Arcatraz Key", source = "Warden's Cage quest chain in Netherstorm (or Rogue 350 Lockpicking)", required = true },
+        { name = "Keepers of Time - Friendly", source = "Complete Old Hillsbrad Foothills dungeon", required = true },
     },
 }
 
@@ -857,6 +962,90 @@ C.ATTUNEMENT_MILESTONES = {
 }
 
 --============================================================
+-- HEROIC DUNGEON KEYS
+--============================================================
+C.HEROIC_KEYS = {
+    flamewrought = {
+        name = "Flamewrought Key",
+        icon = "INV_Misc_Key_13",
+        dungeons = { "Hellfire Ramparts", "The Blood Furnace", "The Shattered Halls" },
+        dungeonGroup = "Hellfire Citadel",
+        factionAlliance = "Honor Hold",
+        factionHorde = "Thrallmar",
+        factionId = { alliance = 946, horde = 947 },
+        requiredStanding = 7,  -- Revered
+        description = "Grants access to Heroic Hellfire Citadel dungeons.",
+        tips = {
+            "Farm Hellfire dungeons on normal for fastest reputation",
+            "Shattered Halls gives most rep per run",
+        },
+    },
+    reservoir = {
+        name = "Reservoir Key",
+        icon = "INV_Misc_Key_11",
+        dungeons = { "The Slave Pens", "The Underbog", "The Steamvault" },
+        dungeonGroup = "Coilfang Reservoir",
+        faction = "Cenarion Expedition",
+        factionId = 942,
+        requiredStanding = 7,  -- Revered
+        description = "Grants access to Heroic Coilfang Reservoir dungeons.",
+        tips = {
+            "Steamvault gives most rep at level 70",
+            "Unidentified Plant Parts turn-in until Honored",
+            "Coilfang Armaments for additional rep",
+        },
+    },
+    auchenai = {
+        name = "Auchenai Key",
+        icon = "INV_Misc_Key_12",
+        dungeons = { "Mana-Tombs", "Auchenai Crypts", "Sethekk Halls", "Shadow Labyrinth" },
+        dungeonGroup = "Auchindoun",
+        faction = "Lower City",
+        factionId = 1011,
+        requiredStanding = 7,  -- Revered
+        description = "Grants access to Heroic Auchindoun dungeons.",
+        tips = {
+            "Auchenai Crypts and Sethekk Halls give most rep",
+            "Arakkoa Feathers turn-in until Honored",
+            "Shadow Labyrinth gives rep through Revered",
+        },
+    },
+    warpforged = {
+        name = "Warpforged Key",
+        icon = "INV_Misc_Key_09",
+        dungeons = { "The Mechanar", "The Botanica", "The Arcatraz" },
+        dungeonGroup = "Tempest Keep",
+        faction = "The Sha'tar",
+        factionId = 935,
+        requiredStanding = 7,  -- Revered
+        description = "Grants access to Heroic Tempest Keep dungeons.",
+        tips = {
+            "Mechanar and Botanica give good rep",
+            "Aldor/Scryer rep spillover contributes to Sha'tar",
+            "Normal mode runs until Honored, then Heroics",
+        },
+    },
+    key_of_time = {
+        name = "Key of Time",
+        icon = "INV_Misc_PocketWatch_02",
+        dungeons = { "Old Hillsbrad Foothills", "The Black Morass" },
+        dungeonGroup = "Caverns of Time",
+        faction = "Keepers of Time",
+        factionId = 989,
+        requiredStanding = 7,  -- Revered
+        description = "Grants access to Heroic Caverns of Time dungeons.",
+        tips = {
+            "Complete both dungeons for rep",
+            "Black Morass gives more rep per run",
+            "Required for Karazhan attunement anyway",
+        },
+    },
+}
+
+-- Heroic key order for display
+C.HEROIC_KEY_ORDER = { "flamewrought", "reservoir", "auchenai", "warpforged", "key_of_time" }
+
+--============================================================
 -- RAID BOSS DEFEAT MILESTONES
 --============================================================
 C.BOSS_MILESTONES = {
@@ -1041,6 +1230,45 @@ C.BOSS_NPC_IDS = {
     [22952] = { raid = "bt", boss = "council" },         -- Veras Darkshadow
     [22917] = { raid = "bt", boss = "illidan" },         -- Illidan Stormrage
 }
+
+-- Reverse lookup: Boss display name -> { raid, boss }
+-- Built dynamically after boss definitions are loaded
+-- Used for correlating DBM/BigWigs kill announcements
+C.BOSS_NAME_LOOKUP = {}
+
+-- Function to build the name lookup (called after all boss data is defined)
+function C:BuildBossNameLookup()
+    local raidBossTables = {
+        { raidKey = "karazhan", bosses = C.KARAZHAN_BOSSES },
+        { raidKey = "gruul", bosses = C.GRUUL_BOSSES },
+        { raidKey = "magtheridon", bosses = C.MAGTHERIDON_BOSSES },
+        { raidKey = "ssc", bosses = C.SSC_BOSSES },
+        { raidKey = "tk", bosses = C.TK_BOSSES },
+        { raidKey = "hyjal", bosses = C.HYJAL_BOSSES },
+        { raidKey = "bt", bosses = C.BT_BOSSES },
+    }
+
+    for _, raidData in ipairs(raidBossTables) do
+        if raidData.bosses then
+            for _, boss in ipairs(raidData.bosses) do
+                -- Primary: Full name lowercase
+                C.BOSS_NAME_LOOKUP[boss.name:lower()] = {
+                    raid = raidData.raidKey,
+                    boss = boss.id
+                }
+
+                -- Also add without "the" prefix for fuzzy matching
+                local shortName = boss.name:lower():gsub("^the ", "")
+                if shortName ~= boss.name:lower() then
+                    C.BOSS_NAME_LOOKUP[shortName] = {
+                        raid = raidData.raidKey,
+                        boss = boss.id
+                    }
+                end
+            end
+        end
+    end
+end
 
 --============================================================
 -- T4 RAID BOSS DATA
@@ -3017,21 +3245,11 @@ end
 
 C.GAME_DEFINITIONS = {
     {
-        id = "dice",
-        name = "Dice Roll",
-        description = "Roll the dice and let fate decide the winner",
-        icon = "Interface\\Icons\\INV_Misc_Dice_02",
-        hasLocal = true,
-        hasRemote = true,
-        system = "legacy",
-        color = "GOLD_BRIGHT",
-    },
-    {
         id = "rps",
         name = "Rock Paper Scissors",
         description = "The classic game of wits and reflexes",
         icon = "Interface\\Icons\\Spell_Nature_EarthShock",
-        hasLocal = false,
+        hasLocal = true,
         hasRemote = true,
         system = "legacy",
         color = "NATURE_GREEN",
@@ -3049,20 +3267,20 @@ C.GAME_DEFINITIONS = {
     {
         id = "pong",
         name = "Pong",
-        description = "Classic arcade paddle action",
+        description = "Classic arcade paddle action - local 2P or challenge a friend!",
         icon = "Interface\\Icons\\INV_Misc_PunchCards_Yellow",
         hasLocal = true,
-        hasRemote = true,
+        hasRemote = true,  -- Score Challenge mode
         system = "gamecore",
         color = "SKY_BLUE",
     },
     {
         id = "tetris",
         name = "Tetris Battle",
-        description = "Clear lines and send garbage to your opponent!",
+        description = "Clear lines! Local 2P with garbage or Score Challenge vs friends",
         icon = "Interface\\Icons\\INV_Misc_Gem_Variety_01",
         hasLocal = true,
-        hasRemote = true,
+        hasRemote = true,  -- Score Challenge mode
         system = "gamecore",
         color = "ARCANE_PURPLE",
     },
@@ -3071,10 +3289,20 @@ C.GAME_DEFINITIONS = {
         name = "Words with WoW",
         description = "Scrabble-style word game with WoW vocabulary",
         icon = "Interface\\Icons\\INV_Misc_Book_07",
-        hasLocal = false,
+        hasLocal = true,
         hasRemote = true,
         system = "gamecore",
         color = "BRONZE",
+    },
+    {
+        id = "battleship",
+        name = "Battleship",
+        description = "Hunt and sink your opponent's fleet",
+        icon = "Interface\\Icons\\INV_Misc_Anchor",
+        hasLocal = true,
+        hasRemote = true,
+        system = "gamecore",
+        color = "SKY_BLUE",
     },
 }
 
@@ -3088,6 +3316,82 @@ end
 function C:GetGameDefinition(gameId)
     return self.GAME_BY_ID[gameId]
 end
+
+--============================================================
+-- WORDS WITH WOW UI CONSTANTS
+-- TBC-themed visual styling for the word game board
+--============================================================
+
+-- Bonus square colors (TBC themed: fel green, sky blue, arcane purple, hellfire red, gold)
+C.WORDS_BONUS_COLORS = {
+    [0] = { r = 0.95, g = 0.90, b = 0.75, a = 1.0 },   -- NONE: Parchment tan
+    [1] = { r = 0.3,  g = 0.8,  b = 0.6,  a = 0.7 },   -- DOUBLE_LETTER: Fel green
+    [2] = { r = 0.4,  g = 0.6,  b = 1.0,  a = 0.7 },   -- TRIPLE_LETTER: Sky blue
+    [3] = { r = 0.8,  g = 0.4,  b = 0.8,  a = 0.7 },   -- DOUBLE_WORD: Arcane purple
+    [4] = { r = 1.0,  g = 0.3,  b = 0.2,  a = 0.7 },   -- TRIPLE_WORD: Hellfire red
+    [5] = { r = 1.0,  g = 0.84, b = 0,    a = 0.9 },   -- CENTER: Gold star
+}
+
+-- Bonus square labels
+C.WORDS_BONUS_LABELS = {
+    [0] = "",      -- Empty
+    [1] = "DL",    -- Double Letter
+    [2] = "TL",    -- Triple Letter
+    [3] = "DW",    -- Double Word
+    [4] = "TW",    -- Triple Word
+    [5] = "★",     -- Center star
+}
+
+-- Bonus square tooltip text
+C.WORDS_BONUS_NAMES = {
+    [0] = "",
+    [1] = "Double Letter Score",
+    [2] = "Triple Letter Score",
+    [3] = "Double Word Score",
+    [4] = "Triple Word Score",
+    [5] = "Center - Start Here!",
+}
+
+-- Tile appearance
+C.WORDS_TILE_SIZE = 32  -- Pixels per tile
+C.WORDS_TILE_COLORS = {
+    PLACED = { r = 0.95, g = 0.90, b = 0.80, a = 1.0 },      -- Placed tile background
+    PLACED_BORDER = { r = 0.6, g = 0.5, b = 0.35, a = 1.0 }, -- Placed tile border
+    NEW_GLOW = { r = 1.0, g = 0.84, b = 0, a = 0.6 },        -- Recently placed glow
+    LETTER = { r = 0.15, g = 0.10, b = 0.05, a = 1.0 },      -- Letter text color
+    POINTS = { r = 0.4, g = 0.35, b = 0.25, a = 1.0 },       -- Point value color
+}
+
+-- Score thresholds for celebrations
+C.WORDS_SCORE_THRESHOLDS = {
+    GOOD = 20,      -- Play sound
+    GREAT = 30,     -- Sparkles
+    AMAZING = 50,   -- Full celebration
+}
+
+-- Drag and drop colors
+C.WORDS_DRAG_COLORS = {
+    VALID_DROP = { r = 0.3, g = 0.9, b = 0.3, a = 0.5 },      -- Green glow for valid squares
+    VALID_HOVER = { r = 0.4, g = 1.0, b = 0.4, a = 0.7 },     -- Brighter green on hover
+    INVALID_DROP = { r = 0.9, g = 0.3, b = 0.3, a = 0.3 },    -- Red tint for invalid
+    PENDING_TILE = { r = 0.9, g = 0.85, b = 0.6, a = 1.0 },   -- Slightly different for pending
+    PENDING_BORDER = { r = 0.8, g = 0.6, b = 0.2, a = 1.0 },  -- Gold border for pending
+    DRAG_SHADOW = { r = 0, g = 0, b = 0, a = 0.4 },           -- Shadow under drag tile
+    RACK_HIGHLIGHT = { r = 1.0, g = 0.84, b = 0, a = 0.3 },   -- Highlight available rack tiles
+}
+
+-- Words with Friends style bonuses
+C.WORDS_BINGO_BONUS = 35  -- Bonus for using all 7 tiles in one turn
+
+-- Button bar colors (Words with Friends style)
+C.WORDS_BUTTON_COLORS = {
+    SHUFFLE = { r = 0.3, g = 0.5, b = 0.8 },   -- Blue
+    SWAP = { r = 0.9, g = 0.6, b = 0.2 },      -- Orange
+    RECALL = { r = 0.9, g = 0.8, b = 0.3 },    -- Yellow
+    PASS = { r = 0.5, g = 0.5, b = 0.5 },      -- Gray
+    PLAY = { r = 0.3, g = 0.8, b = 0.3 },      -- Green
+    DISABLED = { r = 0.3, g = 0.3, b = 0.3 },  -- Disabled gray
+}
 
 --============================================================
 -- BACKDROP DEFINITIONS
@@ -3124,6 +3428,28 @@ C.BACKDROPS = {
         edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
         tile = false,
         tileSize = 0,
+        edgeSize = 32,
+        insets = { left = 11, right = 12, top = 12, bottom = 11 }
+    },
+
+    -- Border only (no background - use explicit texture layer for parchment)
+    -- Used by: CreateParchmentFrame when explicit texture control is needed
+    PARCHMENT_BORDER_ONLY = {
+        bgFile = nil,
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
+        tile = false,
+        edgeSize = 32,
+        insets = { left = 0, right = 0, top = 0, bottom = 0 }
+    },
+
+    -- Parchment-style tiled background with gold border (scales to any size)
+    -- Uses UI-DialogBox-Background which tiles properly unlike QuestBG
+    -- Used by: CreateParchmentFrame for main journal window
+    PARCHMENT_TILED = {
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
+        tile = true,
+        tileSize = 32,
         edgeSize = 32,
         insets = { left = 11, right = 12, top = 12, bottom = 11 }
     },
@@ -3262,3 +3588,927 @@ C.BACKDROP_COLORS = {
     RED = { 0.8, 0.2, 0.2, 1 },
     ARCANE = { 0.61, 0.19, 1, 1 },
 }
+
+-- Game card background tints (dark versions of game theme colors)
+C.GAME_BG_TINTS = {
+    GOLD_BRIGHT = { 0.2, 0.17, 0.05, 0.9 },
+    NATURE_GREEN = { 0.1, 0.2, 0.1, 0.9 },
+    HELLFIRE_RED = { 0.25, 0.1, 0.1, 0.9 },
+    SKY_BLUE = { 0.1, 0.15, 0.25, 0.9 },
+    ARCANE_PURPLE = { 0.18, 0.1, 0.25, 0.9 },
+    BRONZE = { 0.18, 0.12, 0.08, 0.9 },
+}
+
+--============================================================
+-- CLASS LOOT HOTLIST (Top 3 items per class from rep/dungeons)
+-- Focus on reputation rewards and normal dungeon drops
+-- No heroics, no raids
+--============================================================
+C.CLASS_LOOT_HOTLIST = {
+    -- Standing values: 4=Friendly, 5=Honored, 6=Revered, 7=Revered, 8=Exalted
+    ["DRUID"] = {
+        {
+            source = "Cenarion Expedition @ Exalted",
+            sourceType = "rep",
+            faction = "Cenarion Expedition",
+            standing = 8,
+            itemId = 29171,
+            name = "Earthwarden",
+            icon = "INV_Mace_52",
+            stats = "+43 Sta, +556 Feral AP, +24 Def",
+            quality = "epic",
+            slot = "Weapon",
+        },
+        {
+            source = "Cenarion Expedition @ Revered",
+            sourceType = "rep",
+            faction = "Cenarion Expedition",
+            standing = 6,
+            itemId = 25838,
+            name = "Warden's Hauberk",
+            icon = "INV_Chest_Leather_03",
+            stats = "+30 Agi, +27 Sta, +20 Int",
+            quality = "rare",
+            slot = "Chest",
+        },
+        {
+            source = "Lower City @ Revered",
+            sourceType = "rep",
+            faction = "Lower City",
+            standing = 6,
+            itemId = 30841,
+            name = "Lower City Prayerbook",
+            icon = "INV_Misc_Book_09",
+            stats = "+70 Healing, Reduce spell cost",
+            quality = "rare",
+            slot = "Trinket",
+        },
+    },
+    ["WARRIOR"] = {
+        {
+            source = "Keepers of Time @ Revered",
+            sourceType = "rep",
+            faction = "Keepers of Time",
+            standing = 6,
+            itemId = 29185,
+            name = "Continuum Blade",
+            icon = "INV_Sword_66",
+            stats = "+190 Spell Power, +8 Hit Rating",
+            quality = "rare",
+            slot = "One-Hand Sword",
+        },
+        {
+            source = "Honor Hold/Thrallmar @ Revered",
+            sourceType = "rep",
+            faction = "Honor Hold",
+            standing = 6,
+            itemId = 29152,
+            name = "Marksman's Bow",
+            icon = "INV_Weapon_Bow_18",
+            stats = "+14 Agi, +8 Sta, +16 Hit Rating",
+            quality = "epic",
+            slot = "Ranged",
+        },
+        {
+            source = "The Consortium @ Exalted",
+            sourceType = "rep",
+            faction = "The Consortium",
+            standing = 8,
+            itemId = 29119,
+            name = "Haramad's Bargain",
+            icon = "INV_Jewelry_Necklace_30naxxramas",
+            stats = "+20 Agi, +24 Sta, +22 Hit Rating",
+            quality = "epic",
+            slot = "Neck",
+        },
+    },
+    ["PALADIN"] = {
+        {
+            source = "The Sha'tar @ Exalted",
+            sourceType = "rep",
+            faction = "The Sha'tar",
+            standing = 8,
+            itemId = 29175,
+            name = "Gavel of Pure Light",
+            icon = "INV_Mace_53",
+            stats = "+225 Healing, +22 Int, +14 Sta",
+            quality = "epic",
+            slot = "Main Hand Mace",
+        },
+        {
+            source = "Keepers of Time @ Revered",
+            sourceType = "rep",
+            faction = "Keepers of Time",
+            standing = 6,
+            itemId = 29185,
+            name = "Continuum Blade",
+            icon = "INV_Sword_66",
+            stats = "+190 Spell Power, +8 Hit Rating",
+            quality = "rare",
+            slot = "One-Hand Sword",
+        },
+        {
+            source = "Lower City @ Revered",
+            sourceType = "rep",
+            faction = "Lower City",
+            standing = 6,
+            itemId = 30841,
+            name = "Lower City Prayerbook",
+            icon = "INV_Misc_Book_09",
+            stats = "+70 Healing, Reduce spell cost",
+            quality = "rare",
+            slot = "Trinket",
+        },
+    },
+    ["HUNTER"] = {
+        {
+            source = "Honor Hold/Thrallmar @ Revered",
+            sourceType = "rep",
+            faction = "Honor Hold",
+            standing = 6,
+            itemId = 29152,
+            name = "Marksman's Bow",
+            icon = "INV_Weapon_Bow_18",
+            stats = "+14 Agi, +8 Sta, +16 Hit Rating",
+            quality = "epic",
+            slot = "Ranged",
+        },
+        {
+            source = "Cenarion Expedition @ Revered",
+            sourceType = "rep",
+            faction = "Cenarion Expedition",
+            standing = 6,
+            itemId = 25838,
+            name = "Warden's Hauberk",
+            icon = "INV_Chest_Leather_03",
+            stats = "+30 Agi, +27 Sta, +20 Int",
+            quality = "rare",
+            slot = "Chest",
+        },
+        {
+            source = "The Consortium @ Exalted",
+            sourceType = "rep",
+            faction = "The Consortium",
+            standing = 8,
+            itemId = 29119,
+            name = "Haramad's Bargain",
+            icon = "INV_Jewelry_Necklace_30naxxramas",
+            stats = "+20 Agi, +24 Sta, +22 Hit Rating",
+            quality = "epic",
+            slot = "Neck",
+        },
+    },
+    ["MAGE"] = {
+        {
+            source = "Keepers of Time @ Revered",
+            sourceType = "rep",
+            faction = "Keepers of Time",
+            standing = 6,
+            itemId = 29185,
+            name = "Continuum Blade",
+            icon = "INV_Sword_66",
+            stats = "+190 Spell Power, +8 Hit Rating",
+            quality = "rare",
+            slot = "One-Hand Sword",
+        },
+        {
+            source = "The Sha'tar @ Exalted",
+            sourceType = "rep",
+            faction = "The Sha'tar",
+            standing = 8,
+            itemId = 29175,
+            name = "Gavel of Pure Light",
+            icon = "INV_Mace_53",
+            stats = "+225 Healing, +22 Int, +14 Sta",
+            quality = "epic",
+            slot = "Main Hand Mace",
+        },
+        {
+            source = "Lower City @ Revered",
+            sourceType = "rep",
+            faction = "Lower City",
+            standing = 6,
+            itemId = 30841,
+            name = "Lower City Prayerbook",
+            icon = "INV_Misc_Book_09",
+            stats = "+70 Healing, Reduce spell cost",
+            quality = "rare",
+            slot = "Trinket",
+        },
+    },
+    ["WARLOCK"] = {
+        {
+            source = "Keepers of Time @ Revered",
+            sourceType = "rep",
+            faction = "Keepers of Time",
+            standing = 6,
+            itemId = 29185,
+            name = "Continuum Blade",
+            icon = "INV_Sword_66",
+            stats = "+190 Spell Power, +8 Hit Rating",
+            quality = "rare",
+            slot = "One-Hand Sword",
+        },
+        {
+            source = "The Sha'tar @ Exalted",
+            sourceType = "rep",
+            faction = "The Sha'tar",
+            standing = 8,
+            itemId = 29175,
+            name = "Gavel of Pure Light",
+            icon = "INV_Mace_53",
+            stats = "+225 Healing, +22 Int, +14 Sta",
+            quality = "epic",
+            slot = "Main Hand Mace",
+        },
+        {
+            source = "Lower City @ Exalted",
+            sourceType = "rep",
+            faction = "Lower City",
+            standing = 8,
+            itemId = 30834,
+            name = "Shapeshifter's Signet",
+            icon = "INV_Jewelry_Ring_51naxxramas",
+            stats = "+24 Agi, +22 Sta, +23 Hit Rating",
+            quality = "epic",
+            slot = "Ring",
+        },
+    },
+    ["PRIEST"] = {
+        {
+            source = "Lower City @ Revered",
+            sourceType = "rep",
+            faction = "Lower City",
+            standing = 6,
+            itemId = 30841,
+            name = "Lower City Prayerbook",
+            icon = "INV_Misc_Book_09",
+            stats = "+70 Healing, Reduce spell cost",
+            quality = "rare",
+            slot = "Trinket",
+        },
+        {
+            source = "The Sha'tar @ Exalted",
+            sourceType = "rep",
+            faction = "The Sha'tar",
+            standing = 8,
+            itemId = 29175,
+            name = "Gavel of Pure Light",
+            icon = "INV_Mace_53",
+            stats = "+225 Healing, +22 Int, +14 Sta",
+            quality = "epic",
+            slot = "Main Hand Mace",
+        },
+        {
+            source = "Keepers of Time @ Revered",
+            sourceType = "rep",
+            faction = "Keepers of Time",
+            standing = 6,
+            itemId = 29185,
+            name = "Continuum Blade",
+            icon = "INV_Sword_66",
+            stats = "+190 Spell Power, +8 Hit Rating",
+            quality = "rare",
+            slot = "One-Hand Sword",
+        },
+    },
+    ["ROGUE"] = {
+        {
+            source = "Cenarion Expedition @ Revered",
+            sourceType = "rep",
+            faction = "Cenarion Expedition",
+            standing = 6,
+            itemId = 25838,
+            name = "Warden's Hauberk",
+            icon = "INV_Chest_Leather_03",
+            stats = "+30 Agi, +27 Sta, +20 Int",
+            quality = "rare",
+            slot = "Chest",
+        },
+        {
+            source = "Lower City @ Exalted",
+            sourceType = "rep",
+            faction = "Lower City",
+            standing = 8,
+            itemId = 30834,
+            name = "Shapeshifter's Signet",
+            icon = "INV_Jewelry_Ring_51naxxramas",
+            stats = "+24 Agi, +22 Sta, +23 Hit Rating",
+            quality = "epic",
+            slot = "Ring",
+        },
+        {
+            source = "The Consortium @ Exalted",
+            sourceType = "rep",
+            faction = "The Consortium",
+            standing = 8,
+            itemId = 29119,
+            name = "Haramad's Bargain",
+            icon = "INV_Jewelry_Necklace_30naxxramas",
+            stats = "+20 Agi, +24 Sta, +22 Hit Rating",
+            quality = "epic",
+            slot = "Neck",
+        },
+    },
+    ["SHAMAN"] = {
+        {
+            source = "Lower City @ Revered",
+            sourceType = "rep",
+            faction = "Lower City",
+            standing = 6,
+            itemId = 30841,
+            name = "Lower City Prayerbook",
+            icon = "INV_Misc_Book_09",
+            stats = "+70 Healing, Reduce spell cost",
+            quality = "rare",
+            slot = "Trinket",
+        },
+        {
+            source = "The Sha'tar @ Exalted",
+            sourceType = "rep",
+            faction = "The Sha'tar",
+            standing = 8,
+            itemId = 29175,
+            name = "Gavel of Pure Light",
+            icon = "INV_Mace_53",
+            stats = "+225 Healing, +22 Int, +14 Sta",
+            quality = "epic",
+            slot = "Main Hand Mace",
+        },
+        {
+            source = "The Consortium @ Exalted",
+            sourceType = "rep",
+            faction = "The Consortium",
+            standing = 8,
+            itemId = 29119,
+            name = "Haramad's Bargain",
+            icon = "INV_Jewelry_Necklace_30naxxramas",
+            stats = "+20 Agi, +24 Sta, +22 Hit Rating",
+            quality = "epic",
+            slot = "Neck",
+        },
+    },
+}
+
+-- Quality colors for item display
+C.ITEM_QUALITY_COLORS = {
+    epic = { r = 0.64, g = 0.21, b = 0.93 },     -- Purple
+    rare = { r = 0.0, g = 0.44, b = 0.87 },      -- Blue
+    uncommon = { r = 0.12, g = 0.75, b = 0.12 }, -- Green
+    common = { r = 1.0, g = 1.0, b = 1.0 },      -- White
+}
+
+-- Standing names for display
+C.STANDING_NAMES = {
+    [1] = "Hated",
+    [2] = "Hostile",
+    [3] = "Unfriendly",
+    [4] = "Neutral",
+    [5] = "Friendly",
+    [6] = "Honored",
+    [7] = "Revered",
+    [8] = "Exalted",
+}
+
+--[[
+    SPEC-BASED LOOT HOTLIST
+    Organized by class -> spec tab (1-3) -> source type (rep/drops/crafted)
+    Each category contains 3 recommended pre-raid items
+    Standing values: 5=Friendly, 6=Honored, 7=Revered, 8=Exalted
+]]
+C.CLASS_SPEC_LOOT_HOTLIST = {
+    --============================================================================
+    -- WARRIOR
+    --============================================================================
+    ["WARRIOR"] = {
+        -- Tab 1: Arms (Melee DPS)
+        [1] = {
+            rep = {
+                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8 },
+                { itemId = 29152, name = "Marksman's Bow", icon = "INV_Weapon_Bow_18", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Honor Hold @ Revered", sourceType = "rep", faction = "Honor Hold", standing = 7 },
+                { itemId = 29187, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "Thrallmar @ Exalted", sourceType = "rep", faction = "Thrallmar", standing = 8 },
+            },
+            drops = {
+                { itemId = 28776, name = "Liar's Tongue Gloves", icon = "INV_Gauntlets_25", quality = "epic", slot = "Hands", stats = "+32 Agi, +32 Sta, +24 Hit", source = "Magtheridon's Lair", sourceType = "drops" },
+                { itemId = 27994, name = "Spaulders of Dementia", icon = "INV_Shoulder_25", quality = "rare", slot = "Shoulder", stats = "+28 Str, +28 Sta, +22 Crit", source = "Heroic Sethekk Halls", sourceType = "drops" },
+                { itemId = 28401, name = "Hauberk of Desolation", icon = "INV_Chest_Chain_15", quality = "epic", slot = "Chest", stats = "+38 Str, +48 Sta, +26 Crit", source = "Heroic Blood Furnace", sourceType = "drops" },
+            },
+            crafted = {
+                { itemId = 23536, name = "Felsteel Gloves", icon = "INV_Gauntlets_29", quality = "rare", slot = "Hands", stats = "+26 Str, +25 Sta", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
+                { itemId = 23537, name = "Felsteel Leggings", icon = "INV_Pants_Plate_17", quality = "rare", slot = "Legs", stats = "+34 Str, +37 Sta", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
+                { itemId = 23538, name = "Felsteel Helm", icon = "INV_Helmet_24", quality = "rare", slot = "Head", stats = "+31 Str, +37 Sta", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
+            },
+        },
+        -- Tab 2: Fury (Melee DPS)
+        [2] = {
+            rep = {
+                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8 },
+                { itemId = 29152, name = "Marksman's Bow", icon = "INV_Weapon_Bow_18", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Honor Hold @ Revered", sourceType = "rep", faction = "Honor Hold", standing = 7 },
+                { itemId = 29187, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "Thrallmar @ Exalted", sourceType = "rep", faction = "Thrallmar", standing = 8 },
+            },
+            drops = {
+                { itemId = 27538, name = "Greaves of Desolation", icon = "INV_Pants_Plate_10", quality = "epic", slot = "Legs", stats = "+38 Str, +27 Agi, +37 Sta", source = "Heroic Black Morass", sourceType = "drops" },
+                { itemId = 28776, name = "Liar's Tongue Gloves", icon = "INV_Gauntlets_25", quality = "epic", slot = "Hands", stats = "+32 Agi, +32 Sta, +24 Hit", source = "Magtheridon's Lair", sourceType = "drops" },
+                { itemId = 27890, name = "Girdle of Ferocity", icon = "INV_Belt_13", quality = "epic", slot = "Waist", stats = "+31 Str, +16 Agi, +36 Sta", source = "Heroic Shattered Halls", sourceType = "drops" },
+            },
+            crafted = {
+                { itemId = 23536, name = "Felsteel Gloves", icon = "INV_Gauntlets_29", quality = "rare", slot = "Hands", stats = "+26 Str, +25 Sta", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
+                { itemId = 23537, name = "Felsteel Leggings", icon = "INV_Pants_Plate_17", quality = "rare", slot = "Legs", stats = "+34 Str, +37 Sta", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
+                { itemId = 28484, name = "Bulwark of Kings", icon = "INV_Shield_32", quality = "epic", slot = "Shield", stats = "+54 Sta, +24 Def, +22 Block", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
+            },
+        },
+        -- Tab 3: Protection (Tank)
+        [3] = {
+            rep = {
+                { itemId = 29167, name = "Bladespire Warbands", icon = "INV_Bracer_16", quality = "epic", slot = "Wrist", stats = "+33 Sta, +21 Def Rating", source = "Keepers of Time @ Exalted", sourceType = "rep", faction = "Keepers of Time", standing = 8 },
+                { itemId = 29151, name = "Veteran's Plate Belt", icon = "INV_Belt_03", quality = "epic", slot = "Waist", stats = "+40 Sta, +23 Def, +22 Block", source = "Honor Hold @ Exalted", sourceType = "rep", faction = "Honor Hold", standing = 8 },
+                { itemId = 29177, name = "Consortium Plated Legguards", icon = "INV_Pants_Plate_05", quality = "epic", slot = "Legs", stats = "+48 Sta, +27 Def", source = "The Consortium @ Revered", sourceType = "rep", faction = "The Consortium", standing = 7 },
+            },
+            drops = {
+                { itemId = 29362, name = "The Sun Eater", icon = "INV_Sword_76", quality = "epic", slot = "One-Hand Sword", stats = "+24 Sta, +17 Def, Dodge proc", source = "Heroic Mechanar", sourceType = "drops" },
+                { itemId = 27475, name = "Gauntlets of the Bold", icon = "INV_Gauntlets_30", quality = "rare", slot = "Hands", stats = "+27 Sta, +18 Def, +17 Hit", source = "Shattered Halls (Normal)", sourceType = "drops" },
+                { itemId = 28203, name = "Breastplate of the Bold", icon = "INV_Chest_Plate16", quality = "rare", slot = "Chest", stats = "+36 Sta, +24 Def", source = "Steamvault", sourceType = "drops" },
+            },
+            crafted = {
+                { itemId = 23535, name = "Felsteel Shield Spike", icon = "INV_Misc_ArmorKit_07", quality = "rare", slot = "Shield Enhancement", stats = "+26 Shield Block Value", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
+                { itemId = 28484, name = "Bulwark of Kings", icon = "INV_Shield_32", quality = "epic", slot = "Shield", stats = "+54 Sta, +24 Def, +22 Block", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
+                { itemId = 23538, name = "Felsteel Helm", icon = "INV_Helmet_24", quality = "rare", slot = "Head", stats = "+31 Str, +37 Sta", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
+            },
+        },
+    },
+    --============================================================================
+    -- PALADIN
+    --============================================================================
+    ["PALADIN"] = {
+        -- Tab 1: Holy (Healer)
+        [1] = {
+            rep = {
+                { itemId = 29175, name = "Gavel of Pure Light", icon = "INV_Mace_53", quality = "epic", slot = "Main Hand", stats = "+225 Healing, +22 Int, +14 Sta", source = "The Sha'tar @ Exalted", sourceType = "rep", faction = "The Sha'tar", standing = 8 },
+                { itemId = 30841, name = "Lower City Prayerbook", icon = "INV_Misc_Book_09", quality = "rare", slot = "Trinket", stats = "+70 Healing, Reduce cost", source = "Lower City @ Revered", sourceType = "rep", faction = "Lower City", standing = 7 },
+                { itemId = 29181, name = "Light's Justice", icon = "INV_Mace_37", quality = "epic", slot = "Main Hand", stats = "+264 Healing, +10 MP5", source = "The Aldor @ Exalted", sourceType = "rep", faction = "The Aldor", standing = 8 },
+            },
+            drops = {
+                { itemId = 27828, name = "Warp Infused Drape", icon = "INV_Misc_Cape_12", quality = "rare", slot = "Back", stats = "+24 Int, +21 Spi, +44 Healing", source = "Botanica (Normal)", sourceType = "drops" },
+                { itemId = 27775, name = "Hallowed Handwraps", icon = "INV_Gauntlets_17", quality = "rare", slot = "Hands", stats = "+26 Int, +17 Spi, +55 Healing", source = "Shattered Halls (Normal)", sourceType = "drops" },
+                { itemId = 28187, name = "Lamp of Peaceful Repose", icon = "INV_Offhand_1h_Draenei_C_01", quality = "epic", slot = "Off Hand", stats = "+22 Int, +15 Spi, +51 Healing", source = "Heroic Botanica", sourceType = "drops" },
+            },
+            crafted = {
+                { itemId = 21873, name = "Primal Mooncloth Robe", icon = "INV_Chest_Cloth_44", quality = "epic", slot = "Chest", stats = "+30 Sta, +24 Int, +92 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21874, name = "Primal Mooncloth Shoulders", icon = "INV_Shoulder_25", quality = "epic", slot = "Shoulder", stats = "+21 Sta, +18 Int, +68 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21875, name = "Primal Mooncloth Belt", icon = "INV_Belt_13", quality = "epic", slot = "Waist", stats = "+18 Sta, +17 Int, +55 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+            },
+        },
+        -- Tab 2: Protection (Tank)
+        [2] = {
+            rep = {
+                { itemId = 29167, name = "Bladespire Warbands", icon = "INV_Bracer_16", quality = "epic", slot = "Wrist", stats = "+33 Sta, +21 Def Rating", source = "Keepers of Time @ Exalted", sourceType = "rep", faction = "Keepers of Time", standing = 8 },
+                { itemId = 29151, name = "Veteran's Plate Belt", icon = "INV_Belt_03", quality = "epic", slot = "Waist", stats = "+40 Sta, +23 Def, +22 Block", source = "Honor Hold @ Exalted", sourceType = "rep", faction = "Honor Hold", standing = 8 },
+                { itemId = 29183, name = "Libram of Repentance", icon = "INV_Relics_LibramofHope", quality = "epic", slot = "Relic", stats = "Block Value +35", source = "The Sha'tar @ Exalted", sourceType = "rep", faction = "The Sha'tar", standing = 8 },
+            },
+            drops = {
+                { itemId = 27475, name = "Gauntlets of the Bold", icon = "INV_Gauntlets_30", quality = "rare", slot = "Hands", stats = "+27 Sta, +18 Def, +17 Hit", source = "Shattered Halls (Normal)", sourceType = "drops" },
+                { itemId = 28203, name = "Breastplate of the Bold", icon = "INV_Chest_Plate16", quality = "rare", slot = "Chest", stats = "+36 Sta, +24 Def", source = "Steamvault", sourceType = "drops" },
+                { itemId = 27804, name = "Devilshark Cape", icon = "INV_Misc_Cape_16", quality = "rare", slot = "Back", stats = "+27 Sta, +15 Def, +15 Dodge", source = "Steamvault", sourceType = "drops" },
+            },
+            crafted = {
+                { itemId = 28484, name = "Bulwark of Kings", icon = "INV_Shield_32", quality = "epic", slot = "Shield", stats = "+54 Sta, +24 Def, +22 Block", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
+                { itemId = 23536, name = "Felsteel Gloves", icon = "INV_Gauntlets_29", quality = "rare", slot = "Hands", stats = "+26 Str, +25 Sta", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
+                { itemId = 23538, name = "Felsteel Helm", icon = "INV_Helmet_24", quality = "rare", slot = "Head", stats = "+31 Str, +37 Sta", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
+            },
+        },
+        -- Tab 3: Retribution (Melee DPS)
+        [3] = {
+            rep = {
+                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8 },
+                { itemId = 29152, name = "Marksman's Bow", icon = "INV_Weapon_Bow_18", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Honor Hold @ Revered", sourceType = "rep", faction = "Honor Hold", standing = 7 },
+                { itemId = 29182, name = "Libram of Avengement", icon = "INV_Relics_LibramofGrace", quality = "rare", slot = "Relic", stats = "+Crusader Strike dmg", source = "The Scryers @ Revered", sourceType = "rep", faction = "The Scryers", standing = 7 },
+            },
+            drops = {
+                { itemId = 28776, name = "Liar's Tongue Gloves", icon = "INV_Gauntlets_25", quality = "epic", slot = "Hands", stats = "+32 Agi, +32 Sta, +24 Hit", source = "Magtheridon's Lair", sourceType = "drops" },
+                { itemId = 27994, name = "Spaulders of Dementia", icon = "INV_Shoulder_25", quality = "rare", slot = "Shoulder", stats = "+28 Str, +28 Sta, +22 Crit", source = "Heroic Sethekk Halls", sourceType = "drops" },
+                { itemId = 27538, name = "Greaves of Desolation", icon = "INV_Pants_Plate_10", quality = "epic", slot = "Legs", stats = "+38 Str, +27 Agi, +37 Sta", source = "Heroic Black Morass", sourceType = "drops" },
+            },
+            crafted = {
+                { itemId = 23536, name = "Felsteel Gloves", icon = "INV_Gauntlets_29", quality = "rare", slot = "Hands", stats = "+26 Str, +25 Sta", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
+                { itemId = 23537, name = "Felsteel Leggings", icon = "INV_Pants_Plate_17", quality = "rare", slot = "Legs", stats = "+34 Str, +37 Sta", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
+                { itemId = 23538, name = "Felsteel Helm", icon = "INV_Helmet_24", quality = "rare", slot = "Head", stats = "+31 Str, +37 Sta", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
+            },
+        },
+    },
+    --============================================================================
+    -- PRIEST
+    --============================================================================
+    ["PRIEST"] = {
+        -- Tab 1: Discipline (Healer)
+        [1] = {
+            rep = {
+                { itemId = 29175, name = "Gavel of Pure Light", icon = "INV_Mace_53", quality = "epic", slot = "Main Hand", stats = "+225 Healing, +22 Int, +14 Sta", source = "The Sha'tar @ Exalted", sourceType = "rep", faction = "The Sha'tar", standing = 8 },
+                { itemId = 30841, name = "Lower City Prayerbook", icon = "INV_Misc_Book_09", quality = "rare", slot = "Trinket", stats = "+70 Healing, Reduce cost", source = "Lower City @ Revered", sourceType = "rep", faction = "Lower City", standing = 7 },
+                { itemId = 29179, name = "Xi'ri's Gift", icon = "INV_Jewelry_Necklace_17", quality = "epic", slot = "Neck", stats = "+22 Sta, +20 Int, +35 Healing", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7 },
+            },
+            drops = {
+                { itemId = 27828, name = "Warp Infused Drape", icon = "INV_Misc_Cape_12", quality = "rare", slot = "Back", stats = "+24 Int, +21 Spi, +44 Healing", source = "Botanica (Normal)", sourceType = "drops" },
+                { itemId = 27775, name = "Hallowed Handwraps", icon = "INV_Gauntlets_17", quality = "rare", slot = "Hands", stats = "+26 Int, +17 Spi, +55 Healing", source = "Shattered Halls (Normal)", sourceType = "drops" },
+                { itemId = 27456, name = "Cord of Belief", icon = "INV_Belt_13", quality = "rare", slot = "Waist", stats = "+22 Int, +20 Spi, +51 Healing", source = "Arcatraz (Normal)", sourceType = "drops" },
+            },
+            crafted = {
+                { itemId = 21873, name = "Primal Mooncloth Robe", icon = "INV_Chest_Cloth_44", quality = "epic", slot = "Chest", stats = "+30 Sta, +24 Int, +92 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21874, name = "Primal Mooncloth Shoulders", icon = "INV_Shoulder_25", quality = "epic", slot = "Shoulder", stats = "+21 Sta, +18 Int, +68 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21875, name = "Primal Mooncloth Belt", icon = "INV_Belt_13", quality = "epic", slot = "Waist", stats = "+18 Sta, +17 Int, +55 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+            },
+        },
+        -- Tab 2: Holy (Healer)
+        [2] = {
+            rep = {
+                { itemId = 29175, name = "Gavel of Pure Light", icon = "INV_Mace_53", quality = "epic", slot = "Main Hand", stats = "+225 Healing, +22 Int, +14 Sta", source = "The Sha'tar @ Exalted", sourceType = "rep", faction = "The Sha'tar", standing = 8 },
+                { itemId = 30841, name = "Lower City Prayerbook", icon = "INV_Misc_Book_09", quality = "rare", slot = "Trinket", stats = "+70 Healing, Reduce cost", source = "Lower City @ Revered", sourceType = "rep", faction = "Lower City", standing = 7 },
+                { itemId = 29179, name = "Xi'ri's Gift", icon = "INV_Jewelry_Necklace_17", quality = "epic", slot = "Neck", stats = "+22 Sta, +20 Int, +35 Healing", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7 },
+            },
+            drops = {
+                { itemId = 27828, name = "Warp Infused Drape", icon = "INV_Misc_Cape_12", quality = "rare", slot = "Back", stats = "+24 Int, +21 Spi, +44 Healing", source = "Botanica (Normal)", sourceType = "drops" },
+                { itemId = 27775, name = "Hallowed Handwraps", icon = "INV_Gauntlets_17", quality = "rare", slot = "Hands", stats = "+26 Int, +17 Spi, +55 Healing", source = "Shattered Halls (Normal)", sourceType = "drops" },
+                { itemId = 28187, name = "Lamp of Peaceful Repose", icon = "INV_Offhand_1h_Draenei_C_01", quality = "epic", slot = "Off Hand", stats = "+22 Int, +15 Spi, +51 Healing", source = "Heroic Botanica", sourceType = "drops" },
+            },
+            crafted = {
+                { itemId = 21873, name = "Primal Mooncloth Robe", icon = "INV_Chest_Cloth_44", quality = "epic", slot = "Chest", stats = "+30 Sta, +24 Int, +92 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21874, name = "Primal Mooncloth Shoulders", icon = "INV_Shoulder_25", quality = "epic", slot = "Shoulder", stats = "+21 Sta, +18 Int, +68 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21875, name = "Primal Mooncloth Belt", icon = "INV_Belt_13", quality = "epic", slot = "Waist", stats = "+18 Sta, +17 Int, +55 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+            },
+        },
+        -- Tab 3: Shadow (Caster DPS)
+        [3] = {
+            rep = {
+                { itemId = 29185, name = "Continuum Blade", icon = "INV_Sword_66", quality = "rare", slot = "One-Hand Sword", stats = "+190 Spell Power, +8 Hit", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7 },
+                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8 },
+                { itemId = 29179, name = "Xi'ri's Gift", icon = "INV_Jewelry_Necklace_17", quality = "epic", slot = "Neck", stats = "+22 Sta, +20 Int, +35 SP", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7 },
+            },
+            drops = {
+                { itemId = 28230, name = "Hallowed Garments", icon = "INV_Chest_Cloth_52", quality = "epic", slot = "Chest", stats = "+30 Sta, +28 Int, +37 SP", source = "Heroic Slave Pens", sourceType = "drops" },
+                { itemId = 27796, name = "Mana-Etched Pantaloons", icon = "INV_Pants_Cloth_17", quality = "rare", slot = "Legs", stats = "+24 Sta, +25 Int, +29 SP, +18 Hit", source = "Arcatraz (Normal)", sourceType = "drops" },
+                { itemId = 28229, name = "Incanter's Trousers", icon = "INV_Pants_Cloth_14", quality = "rare", slot = "Legs", stats = "+27 Sta, +28 Int, +35 SP", source = "Botanica", sourceType = "drops" },
+            },
+            crafted = {
+                { itemId = 21869, name = "Frozen Shadoweave Robe", icon = "INV_Chest_Cloth_43", quality = "epic", slot = "Chest", stats = "+24 Sta, +18 Int, +73 Shadow SP", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21870, name = "Frozen Shadoweave Shoulders", icon = "INV_Shoulder_02", quality = "epic", slot = "Shoulder", stats = "+15 Sta, +12 Int, +54 Shadow SP", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21871, name = "Frozen Shadoweave Boots", icon = "INV_Boots_Cloth_05", quality = "epic", slot = "Feet", stats = "+18 Sta, +17 Int, +50 Shadow SP", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+            },
+        },
+    },
+    --============================================================================
+    -- DRUID
+    --============================================================================
+    ["DRUID"] = {
+        -- Tab 1: Balance (Caster DPS)
+        [1] = {
+            rep = {
+                { itemId = 29185, name = "Continuum Blade", icon = "INV_Sword_66", quality = "rare", slot = "One-Hand Sword", stats = "+190 Spell Power, +8 Hit", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7 },
+                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8 },
+                { itemId = 29172, name = "Idol of the Raven Goddess", icon = "INV_Relics_IdolofRejuvenation", quality = "epic", slot = "Relic", stats = "+Moonfire/Wrath dmg", source = "Cenarion Expedition @ Exalted", sourceType = "rep", faction = "Cenarion Expedition", standing = 8 },
+            },
+            drops = {
+                { itemId = 28230, name = "Hallowed Garments", icon = "INV_Chest_Cloth_52", quality = "epic", slot = "Chest", stats = "+30 Sta, +28 Int, +37 SP", source = "Heroic Slave Pens", sourceType = "drops" },
+                { itemId = 27796, name = "Mana-Etched Pantaloons", icon = "INV_Pants_Cloth_17", quality = "rare", slot = "Legs", stats = "+24 Sta, +25 Int, +29 SP, +18 Hit", source = "Arcatraz (Normal)", sourceType = "drops" },
+                { itemId = 27518, name = "Ivory Idol of the Moongoddess", icon = "INV_Relics_IdolofRejuvenation", quality = "rare", slot = "Relic", stats = "+Starfire bonus", source = "Slave Pens (Normal)", sourceType = "drops" },
+            },
+            crafted = {
+                { itemId = 21848, name = "Spellfire Robe", icon = "INV_Chest_Cloth_39", quality = "epic", slot = "Chest", stats = "+23 Sta, +20 Int, +75 Fire/Arcane SP", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21847, name = "Spellfire Gloves", icon = "INV_Gauntlets_19", quality = "epic", slot = "Hands", stats = "+15 Sta, +14 Int, +50 Fire/Arcane SP", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21846, name = "Spellfire Belt", icon = "INV_Belt_13", quality = "epic", slot = "Waist", stats = "+18 Sta, +16 Int, +46 Fire/Arcane SP", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+            },
+        },
+        -- Tab 2: Feral (Tank - Bear)
+        [2] = {
+            rep = {
+                { itemId = 29171, name = "Earthwarden", icon = "INV_Mace_52", quality = "epic", slot = "Two-Hand Mace", stats = "+43 Sta, +556 AP, +24 Def", source = "Cenarion Expedition @ Exalted", sourceType = "rep", faction = "Cenarion Expedition", standing = 8 },
+                { itemId = 29170, name = "Windcaller's Orb", icon = "INV_Misc_Orb_02", quality = "epic", slot = "Off Hand", stats = "+27 Sta, +18 Int, +18 Spi", source = "Cenarion Expedition @ Revered", sourceType = "rep", faction = "Cenarion Expedition", standing = 7 },
+                { itemId = 29173, name = "Idol of Ursoc", icon = "INV_Relics_IdolofFerocity", quality = "epic", slot = "Relic", stats = "+Maul damage +54", source = "Cenarion Expedition @ Revered", sourceType = "rep", faction = "Cenarion Expedition", standing = 7 },
+            },
+            drops = {
+                { itemId = 28139, name = "Heavy Clefthoof Boots", icon = "INV_Boots_Plate_04", quality = "rare", slot = "Feet", stats = "+45 Sta, +30 Agi, Armor", source = "Leatherworking/AH", sourceType = "drops" },
+                { itemId = 28140, name = "Heavy Clefthoof Leggings", icon = "INV_Pants_Leather_25", quality = "rare", slot = "Legs", stats = "+51 Sta, +36 Agi, Armor", source = "Leatherworking/AH", sourceType = "drops" },
+                { itemId = 28141, name = "Heavy Clefthoof Vest", icon = "INV_Chest_Leather_03", quality = "rare", slot = "Chest", stats = "+54 Sta, +42 Agi, Armor", source = "Leatherworking/AH", sourceType = "drops" },
+            },
+            crafted = {
+                { itemId = 28139, name = "Heavy Clefthoof Boots", icon = "INV_Boots_Plate_04", quality = "rare", slot = "Feet", stats = "+45 Sta, +30 Agi, Armor", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+                { itemId = 28140, name = "Heavy Clefthoof Leggings", icon = "INV_Pants_Leather_25", quality = "rare", slot = "Legs", stats = "+51 Sta, +36 Agi, Armor", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+                { itemId = 28141, name = "Heavy Clefthoof Vest", icon = "INV_Chest_Leather_03", quality = "rare", slot = "Chest", stats = "+54 Sta, +42 Agi, Armor", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+            },
+        },
+        -- Tab 3: Restoration (Healer)
+        [3] = {
+            rep = {
+                { itemId = 29175, name = "Gavel of Pure Light", icon = "INV_Mace_53", quality = "epic", slot = "Main Hand", stats = "+225 Healing, +22 Int, +14 Sta", source = "The Sha'tar @ Exalted", sourceType = "rep", faction = "The Sha'tar", standing = 8 },
+                { itemId = 30841, name = "Lower City Prayerbook", icon = "INV_Misc_Book_09", quality = "rare", slot = "Trinket", stats = "+70 Healing, Reduce cost", source = "Lower City @ Revered", sourceType = "rep", faction = "Lower City", standing = 7 },
+                { itemId = 29170, name = "Windcaller's Orb", icon = "INV_Misc_Orb_02", quality = "epic", slot = "Off Hand", stats = "+27 Sta, +18 Int, +18 Spi", source = "Cenarion Expedition @ Revered", sourceType = "rep", faction = "Cenarion Expedition", standing = 7 },
+            },
+            drops = {
+                { itemId = 27828, name = "Warp Infused Drape", icon = "INV_Misc_Cape_12", quality = "rare", slot = "Back", stats = "+24 Int, +21 Spi, +44 Healing", source = "Botanica (Normal)", sourceType = "drops" },
+                { itemId = 27775, name = "Hallowed Handwraps", icon = "INV_Gauntlets_17", quality = "rare", slot = "Hands", stats = "+26 Int, +17 Spi, +55 Healing", source = "Shattered Halls (Normal)", sourceType = "drops" },
+                { itemId = 28187, name = "Lamp of Peaceful Repose", icon = "INV_Offhand_1h_Draenei_C_01", quality = "epic", slot = "Off Hand", stats = "+22 Int, +15 Spi, +51 Healing", source = "Heroic Botanica", sourceType = "drops" },
+            },
+            crafted = {
+                { itemId = 21873, name = "Primal Mooncloth Robe", icon = "INV_Chest_Cloth_44", quality = "epic", slot = "Chest", stats = "+30 Sta, +24 Int, +92 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21874, name = "Primal Mooncloth Shoulders", icon = "INV_Shoulder_25", quality = "epic", slot = "Shoulder", stats = "+21 Sta, +18 Int, +68 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21875, name = "Primal Mooncloth Belt", icon = "INV_Belt_13", quality = "epic", slot = "Waist", stats = "+18 Sta, +17 Int, +55 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+            },
+        },
+    },
+    --============================================================================
+    -- SHAMAN
+    --============================================================================
+    ["SHAMAN"] = {
+        -- Tab 1: Elemental (Caster DPS)
+        [1] = {
+            rep = {
+                { itemId = 29185, name = "Continuum Blade", icon = "INV_Sword_66", quality = "rare", slot = "One-Hand Sword", stats = "+190 Spell Power, +8 Hit", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7 },
+                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8 },
+                { itemId = 29389, name = "Totem of the Void", icon = "Spell_Nature_Groundingtotem", quality = "rare", slot = "Relic", stats = "+55 Lightning Bolt dmg", source = "Lower City @ Revered", sourceType = "rep", faction = "Lower City", standing = 7 },
+            },
+            drops = {
+                { itemId = 28230, name = "Hallowed Garments", icon = "INV_Chest_Cloth_52", quality = "epic", slot = "Chest", stats = "+30 Sta, +28 Int, +37 SP", source = "Heroic Slave Pens", sourceType = "drops" },
+                { itemId = 27796, name = "Mana-Etched Pantaloons", icon = "INV_Pants_Cloth_17", quality = "rare", slot = "Legs", stats = "+24 Sta, +25 Int, +29 SP, +18 Hit", source = "Arcatraz (Normal)", sourceType = "drops" },
+                { itemId = 27905, name = "Greaves of the Iron Guardian", icon = "INV_Boots_Plate_01", quality = "rare", slot = "Legs", stats = "+21 Sta, +21 Int, +28 SP", source = "Mechanar (Normal)", sourceType = "drops" },
+            },
+            crafted = {
+                { itemId = 21848, name = "Spellfire Robe", icon = "INV_Chest_Cloth_39", quality = "epic", slot = "Chest", stats = "+23 Sta, +20 Int, +75 Fire/Arcane SP", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21847, name = "Spellfire Gloves", icon = "INV_Gauntlets_19", quality = "epic", slot = "Hands", stats = "+15 Sta, +14 Int, +50 Fire/Arcane SP", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21846, name = "Spellfire Belt", icon = "INV_Belt_13", quality = "epic", slot = "Waist", stats = "+18 Sta, +16 Int, +46 Fire/Arcane SP", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+            },
+        },
+        -- Tab 2: Enhancement (Melee DPS)
+        [2] = {
+            rep = {
+                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8 },
+                { itemId = 29187, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "Thrallmar @ Exalted", sourceType = "rep", faction = "Thrallmar", standing = 8 },
+                { itemId = 29390, name = "Totem of the Astral Winds", icon = "Spell_Nature_Windfury", quality = "rare", slot = "Relic", stats = "+80 Stormstrike AP", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7 },
+            },
+            drops = {
+                { itemId = 27846, name = "Claw of the Watcher", icon = "INV_Weapon_Hand_14", quality = "rare", slot = "Fist Weapon", stats = "+23 Agi, +15 Sta, +12 Hit", source = "Arcatraz (Normal)", sourceType = "drops" },
+                { itemId = 27994, name = "Spaulders of Dementia", icon = "INV_Shoulder_25", quality = "rare", slot = "Shoulder", stats = "+28 Str, +28 Sta, +22 Crit", source = "Heroic Sethekk Halls", sourceType = "drops" },
+                { itemId = 28401, name = "Hauberk of Desolation", icon = "INV_Chest_Chain_15", quality = "epic", slot = "Chest", stats = "+38 Str, +48 Sta, +26 Crit", source = "Heroic Blood Furnace", sourceType = "drops" },
+            },
+            crafted = {
+                { itemId = 25686, name = "Fel Iron Chain Coif", icon = "INV_Helmet_44", quality = "uncommon", slot = "Head", stats = "+24 Sta, +16 Int, +26 AP", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
+                { itemId = 25687, name = "Fel Iron Chain Gloves", icon = "INV_Gauntlets_26", quality = "uncommon", slot = "Hands", stats = "+18 Sta, +12 Int, +20 AP", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
+                { itemId = 25688, name = "Fel Iron Chain Bracers", icon = "INV_Bracer_07", quality = "uncommon", slot = "Wrist", stats = "+15 Sta, +10 Int, +16 AP", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
+            },
+        },
+        -- Tab 3: Restoration (Healer)
+        [3] = {
+            rep = {
+                { itemId = 29175, name = "Gavel of Pure Light", icon = "INV_Mace_53", quality = "epic", slot = "Main Hand", stats = "+225 Healing, +22 Int, +14 Sta", source = "The Sha'tar @ Exalted", sourceType = "rep", faction = "The Sha'tar", standing = 8 },
+                { itemId = 30841, name = "Lower City Prayerbook", icon = "INV_Misc_Book_09", quality = "rare", slot = "Trinket", stats = "+70 Healing, Reduce cost", source = "Lower City @ Revered", sourceType = "rep", faction = "Lower City", standing = 7 },
+                { itemId = 29388, name = "Totem of Healing Rains", icon = "Spell_Nature_HealingWaveGreater", quality = "rare", slot = "Relic", stats = "+79 Chain Heal heal", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7 },
+            },
+            drops = {
+                { itemId = 27828, name = "Warp Infused Drape", icon = "INV_Misc_Cape_12", quality = "rare", slot = "Back", stats = "+24 Int, +21 Spi, +44 Healing", source = "Botanica (Normal)", sourceType = "drops" },
+                { itemId = 27775, name = "Hallowed Handwraps", icon = "INV_Gauntlets_17", quality = "rare", slot = "Hands", stats = "+26 Int, +17 Spi, +55 Healing", source = "Shattered Halls (Normal)", sourceType = "drops" },
+                { itemId = 28187, name = "Lamp of Peaceful Repose", icon = "INV_Offhand_1h_Draenei_C_01", quality = "epic", slot = "Off Hand", stats = "+22 Int, +15 Spi, +51 Healing", source = "Heroic Botanica", sourceType = "drops" },
+            },
+            crafted = {
+                { itemId = 21873, name = "Primal Mooncloth Robe", icon = "INV_Chest_Cloth_44", quality = "epic", slot = "Chest", stats = "+30 Sta, +24 Int, +92 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21874, name = "Primal Mooncloth Shoulders", icon = "INV_Shoulder_25", quality = "epic", slot = "Shoulder", stats = "+21 Sta, +18 Int, +68 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21875, name = "Primal Mooncloth Belt", icon = "INV_Belt_13", quality = "epic", slot = "Waist", stats = "+18 Sta, +17 Int, +55 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+            },
+        },
+    },
+    --============================================================================
+    -- MAGE
+    --============================================================================
+    ["MAGE"] = {
+        -- Tab 1: Arcane (Caster DPS)
+        [1] = {
+            rep = {
+                { itemId = 29185, name = "Continuum Blade", icon = "INV_Sword_66", quality = "rare", slot = "One-Hand Sword", stats = "+190 Spell Power, +8 Hit", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7 },
+                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8 },
+                { itemId = 29179, name = "Xi'ri's Gift", icon = "INV_Jewelry_Necklace_17", quality = "epic", slot = "Neck", stats = "+22 Sta, +20 Int, +35 SP", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7 },
+            },
+            drops = {
+                { itemId = 28230, name = "Hallowed Garments", icon = "INV_Chest_Cloth_52", quality = "epic", slot = "Chest", stats = "+30 Sta, +28 Int, +37 SP", source = "Heroic Slave Pens", sourceType = "drops" },
+                { itemId = 27796, name = "Mana-Etched Pantaloons", icon = "INV_Pants_Cloth_17", quality = "rare", slot = "Legs", stats = "+24 Sta, +25 Int, +29 SP, +18 Hit", source = "Arcatraz (Normal)", sourceType = "drops" },
+                { itemId = 28180, name = "Incanter's Robe", icon = "INV_Chest_Cloth_04", quality = "rare", slot = "Chest", stats = "+24 Sta, +24 Int, +30 SP", source = "Botanica (Normal)", sourceType = "drops" },
+            },
+            crafted = {
+                { itemId = 21848, name = "Spellfire Robe", icon = "INV_Chest_Cloth_39", quality = "epic", slot = "Chest", stats = "+23 Sta, +20 Int, +75 Fire/Arcane SP", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21847, name = "Spellfire Gloves", icon = "INV_Gauntlets_19", quality = "epic", slot = "Hands", stats = "+15 Sta, +14 Int, +50 Fire/Arcane SP", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21846, name = "Spellfire Belt", icon = "INV_Belt_13", quality = "epic", slot = "Waist", stats = "+18 Sta, +16 Int, +46 Fire/Arcane SP", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+            },
+        },
+        -- Tab 2: Fire (Caster DPS)
+        [2] = {
+            rep = {
+                { itemId = 29185, name = "Continuum Blade", icon = "INV_Sword_66", quality = "rare", slot = "One-Hand Sword", stats = "+190 Spell Power, +8 Hit", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7 },
+                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8 },
+                { itemId = 29179, name = "Xi'ri's Gift", icon = "INV_Jewelry_Necklace_17", quality = "epic", slot = "Neck", stats = "+22 Sta, +20 Int, +35 SP", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7 },
+            },
+            drops = {
+                { itemId = 28230, name = "Hallowed Garments", icon = "INV_Chest_Cloth_52", quality = "epic", slot = "Chest", stats = "+30 Sta, +28 Int, +37 SP", source = "Heroic Slave Pens", sourceType = "drops" },
+                { itemId = 27796, name = "Mana-Etched Pantaloons", icon = "INV_Pants_Cloth_17", quality = "rare", slot = "Legs", stats = "+24 Sta, +25 Int, +29 SP, +18 Hit", source = "Arcatraz (Normal)", sourceType = "drops" },
+                { itemId = 28188, name = "Stitch Soul Cloak", icon = "INV_Misc_Cape_17", quality = "epic", slot = "Back", stats = "+22 Sta, +18 Int, +32 SP", source = "Heroic Old Hillsbrad", sourceType = "drops" },
+            },
+            crafted = {
+                { itemId = 21848, name = "Spellfire Robe", icon = "INV_Chest_Cloth_39", quality = "epic", slot = "Chest", stats = "+23 Sta, +20 Int, +75 Fire/Arcane SP", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21847, name = "Spellfire Gloves", icon = "INV_Gauntlets_19", quality = "epic", slot = "Hands", stats = "+15 Sta, +14 Int, +50 Fire/Arcane SP", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21846, name = "Spellfire Belt", icon = "INV_Belt_13", quality = "epic", slot = "Waist", stats = "+18 Sta, +16 Int, +46 Fire/Arcane SP", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+            },
+        },
+        -- Tab 3: Frost (Caster DPS)
+        [3] = {
+            rep = {
+                { itemId = 29185, name = "Continuum Blade", icon = "INV_Sword_66", quality = "rare", slot = "One-Hand Sword", stats = "+190 Spell Power, +8 Hit", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7 },
+                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8 },
+                { itemId = 29179, name = "Xi'ri's Gift", icon = "INV_Jewelry_Necklace_17", quality = "epic", slot = "Neck", stats = "+22 Sta, +20 Int, +35 SP", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7 },
+            },
+            drops = {
+                { itemId = 28230, name = "Hallowed Garments", icon = "INV_Chest_Cloth_52", quality = "epic", slot = "Chest", stats = "+30 Sta, +28 Int, +37 SP", source = "Heroic Slave Pens", sourceType = "drops" },
+                { itemId = 27796, name = "Mana-Etched Pantaloons", icon = "INV_Pants_Cloth_17", quality = "rare", slot = "Legs", stats = "+24 Sta, +25 Int, +29 SP, +18 Hit", source = "Arcatraz (Normal)", sourceType = "drops" },
+                { itemId = 27891, name = "Stillwater Boots", icon = "INV_Boots_Cloth_07", quality = "rare", slot = "Feet", stats = "+27 Sta, +26 Int, +28 SP", source = "Steamvault", sourceType = "drops" },
+            },
+            crafted = {
+                { itemId = 21869, name = "Frozen Shadoweave Robe", icon = "INV_Chest_Cloth_43", quality = "epic", slot = "Chest", stats = "+24 Sta, +18 Int, +73 Frost SP", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21870, name = "Frozen Shadoweave Shoulders", icon = "INV_Shoulder_02", quality = "epic", slot = "Shoulder", stats = "+15 Sta, +12 Int, +54 Frost SP", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21871, name = "Frozen Shadoweave Boots", icon = "INV_Boots_Cloth_05", quality = "epic", slot = "Feet", stats = "+18 Sta, +17 Int, +50 Frost SP", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+            },
+        },
+    },
+    --============================================================================
+    -- WARLOCK
+    --============================================================================
+    ["WARLOCK"] = {
+        -- Tab 1: Affliction (Caster DPS)
+        [1] = {
+            rep = {
+                { itemId = 29185, name = "Continuum Blade", icon = "INV_Sword_66", quality = "rare", slot = "One-Hand Sword", stats = "+190 Spell Power, +8 Hit", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7 },
+                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8 },
+                { itemId = 29179, name = "Xi'ri's Gift", icon = "INV_Jewelry_Necklace_17", quality = "epic", slot = "Neck", stats = "+22 Sta, +20 Int, +35 SP", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7 },
+            },
+            drops = {
+                { itemId = 28230, name = "Hallowed Garments", icon = "INV_Chest_Cloth_52", quality = "epic", slot = "Chest", stats = "+30 Sta, +28 Int, +37 SP", source = "Heroic Slave Pens", sourceType = "drops" },
+                { itemId = 27796, name = "Mana-Etched Pantaloons", icon = "INV_Pants_Cloth_17", quality = "rare", slot = "Legs", stats = "+24 Sta, +25 Int, +29 SP, +18 Hit", source = "Arcatraz (Normal)", sourceType = "drops" },
+                { itemId = 27891, name = "Stillwater Boots", icon = "INV_Boots_Cloth_07", quality = "rare", slot = "Feet", stats = "+27 Sta, +26 Int, +28 SP", source = "Steamvault", sourceType = "drops" },
+            },
+            crafted = {
+                { itemId = 21869, name = "Frozen Shadoweave Robe", icon = "INV_Chest_Cloth_43", quality = "epic", slot = "Chest", stats = "+24 Sta, +18 Int, +73 Shadow SP", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21870, name = "Frozen Shadoweave Shoulders", icon = "INV_Shoulder_02", quality = "epic", slot = "Shoulder", stats = "+15 Sta, +12 Int, +54 Shadow SP", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21871, name = "Frozen Shadoweave Boots", icon = "INV_Boots_Cloth_05", quality = "epic", slot = "Feet", stats = "+18 Sta, +17 Int, +50 Shadow SP", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+            },
+        },
+        -- Tab 2: Demonology (Caster DPS)
+        [2] = {
+            rep = {
+                { itemId = 29185, name = "Continuum Blade", icon = "INV_Sword_66", quality = "rare", slot = "One-Hand Sword", stats = "+190 Spell Power, +8 Hit", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7 },
+                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8 },
+                { itemId = 29179, name = "Xi'ri's Gift", icon = "INV_Jewelry_Necklace_17", quality = "epic", slot = "Neck", stats = "+22 Sta, +20 Int, +35 SP", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7 },
+            },
+            drops = {
+                { itemId = 28230, name = "Hallowed Garments", icon = "INV_Chest_Cloth_52", quality = "epic", slot = "Chest", stats = "+30 Sta, +28 Int, +37 SP", source = "Heroic Slave Pens", sourceType = "drops" },
+                { itemId = 27796, name = "Mana-Etched Pantaloons", icon = "INV_Pants_Cloth_17", quality = "rare", slot = "Legs", stats = "+24 Sta, +25 Int, +29 SP, +18 Hit", source = "Arcatraz (Normal)", sourceType = "drops" },
+                { itemId = 28180, name = "Incanter's Robe", icon = "INV_Chest_Cloth_04", quality = "rare", slot = "Chest", stats = "+24 Sta, +24 Int, +30 SP", source = "Botanica (Normal)", sourceType = "drops" },
+            },
+            crafted = {
+                { itemId = 21869, name = "Frozen Shadoweave Robe", icon = "INV_Chest_Cloth_43", quality = "epic", slot = "Chest", stats = "+24 Sta, +18 Int, +73 Shadow SP", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21870, name = "Frozen Shadoweave Shoulders", icon = "INV_Shoulder_02", quality = "epic", slot = "Shoulder", stats = "+15 Sta, +12 Int, +54 Shadow SP", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21871, name = "Frozen Shadoweave Boots", icon = "INV_Boots_Cloth_05", quality = "epic", slot = "Feet", stats = "+18 Sta, +17 Int, +50 Shadow SP", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+            },
+        },
+        -- Tab 3: Destruction (Caster DPS)
+        [3] = {
+            rep = {
+                { itemId = 29185, name = "Continuum Blade", icon = "INV_Sword_66", quality = "rare", slot = "One-Hand Sword", stats = "+190 Spell Power, +8 Hit", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7 },
+                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8 },
+                { itemId = 29179, name = "Xi'ri's Gift", icon = "INV_Jewelry_Necklace_17", quality = "epic", slot = "Neck", stats = "+22 Sta, +20 Int, +35 SP", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7 },
+            },
+            drops = {
+                { itemId = 28230, name = "Hallowed Garments", icon = "INV_Chest_Cloth_52", quality = "epic", slot = "Chest", stats = "+30 Sta, +28 Int, +37 SP", source = "Heroic Slave Pens", sourceType = "drops" },
+                { itemId = 27796, name = "Mana-Etched Pantaloons", icon = "INV_Pants_Cloth_17", quality = "rare", slot = "Legs", stats = "+24 Sta, +25 Int, +29 SP, +18 Hit", source = "Arcatraz (Normal)", sourceType = "drops" },
+                { itemId = 28188, name = "Stitch Soul Cloak", icon = "INV_Misc_Cape_17", quality = "epic", slot = "Back", stats = "+22 Sta, +18 Int, +32 SP", source = "Heroic Old Hillsbrad", sourceType = "drops" },
+            },
+            crafted = {
+                { itemId = 21848, name = "Spellfire Robe", icon = "INV_Chest_Cloth_39", quality = "epic", slot = "Chest", stats = "+23 Sta, +20 Int, +75 Fire/Arcane SP", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21847, name = "Spellfire Gloves", icon = "INV_Gauntlets_19", quality = "epic", slot = "Hands", stats = "+15 Sta, +14 Int, +50 Fire/Arcane SP", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21846, name = "Spellfire Belt", icon = "INV_Belt_13", quality = "epic", slot = "Waist", stats = "+18 Sta, +16 Int, +46 Fire/Arcane SP", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+            },
+        },
+    },
+    --============================================================================
+    -- HUNTER
+    --============================================================================
+    ["HUNTER"] = {
+        -- Tab 1: Beast Mastery (Ranged DPS)
+        [1] = {
+            rep = {
+                { itemId = 29152, name = "Marksman's Bow", icon = "INV_Weapon_Bow_18", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Honor Hold @ Revered", sourceType = "rep", faction = "Honor Hold", standing = 7 },
+                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8 },
+                { itemId = 29187, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "Thrallmar @ Exalted", sourceType = "rep", faction = "Thrallmar", standing = 8 },
+            },
+            drops = {
+                { itemId = 28275, name = "Beast Lord Cuirass", icon = "INV_Chest_Chain_12", quality = "rare", slot = "Chest", stats = "+32 Agi, +32 Sta, +25 Int", source = "Mana-Tombs (Normal)", sourceType = "drops" },
+                { itemId = 28034, name = "Hourglass of the Unraveller", icon = "INV_Misc_PocketWatch_01", quality = "rare", slot = "Trinket", stats = "+32 Hit, Haste proc", source = "Black Morass (Normal)", sourceType = "drops" },
+                { itemId = 27815, name = "Stealthbinder's Chestguard", icon = "INV_Chest_Leather_04", quality = "rare", slot = "Chest", stats = "+26 Agi, +22 Sta, +44 AP", source = "Shadow Labyrinth", sourceType = "drops" },
+            },
+            crafted = {
+                { itemId = 25695, name = "Fel Leather Gloves", icon = "INV_Gauntlets_25", quality = "rare", slot = "Hands", stats = "+27 Agi, +26 Sta, +15 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+                { itemId = 25696, name = "Fel Leather Leggings", icon = "INV_Pants_Leather_09", quality = "rare", slot = "Legs", stats = "+30 Agi, +29 Sta, +17 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+                { itemId = 25697, name = "Fel Leather Boots", icon = "INV_Boots_Chain_08", quality = "rare", slot = "Feet", stats = "+24 Agi, +23 Sta, +14 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+            },
+        },
+        -- Tab 2: Marksmanship (Ranged DPS)
+        [2] = {
+            rep = {
+                { itemId = 29152, name = "Marksman's Bow", icon = "INV_Weapon_Bow_18", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Honor Hold @ Revered", sourceType = "rep", faction = "Honor Hold", standing = 7 },
+                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8 },
+                { itemId = 29187, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "Thrallmar @ Exalted", sourceType = "rep", faction = "Thrallmar", standing = 8 },
+            },
+            drops = {
+                { itemId = 28034, name = "Hourglass of the Unraveller", icon = "INV_Misc_PocketWatch_01", quality = "rare", slot = "Trinket", stats = "+32 Hit, Haste proc", source = "Black Morass (Normal)", sourceType = "drops" },
+                { itemId = 28275, name = "Beast Lord Cuirass", icon = "INV_Chest_Chain_12", quality = "rare", slot = "Chest", stats = "+32 Agi, +32 Sta, +25 Int", source = "Mana-Tombs (Normal)", sourceType = "drops" },
+                { itemId = 27994, name = "Spaulders of Dementia", icon = "INV_Shoulder_25", quality = "rare", slot = "Shoulder", stats = "+28 Str, +28 Sta, +22 Crit", source = "Heroic Sethekk Halls", sourceType = "drops" },
+            },
+            crafted = {
+                { itemId = 25695, name = "Fel Leather Gloves", icon = "INV_Gauntlets_25", quality = "rare", slot = "Hands", stats = "+27 Agi, +26 Sta, +15 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+                { itemId = 25696, name = "Fel Leather Leggings", icon = "INV_Pants_Leather_09", quality = "rare", slot = "Legs", stats = "+30 Agi, +29 Sta, +17 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+                { itemId = 25697, name = "Fel Leather Boots", icon = "INV_Boots_Chain_08", quality = "rare", slot = "Feet", stats = "+24 Agi, +23 Sta, +14 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+            },
+        },
+        -- Tab 3: Survival (Ranged DPS)
+        [3] = {
+            rep = {
+                { itemId = 29152, name = "Marksman's Bow", icon = "INV_Weapon_Bow_18", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Honor Hold @ Revered", sourceType = "rep", faction = "Honor Hold", standing = 7 },
+                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8 },
+                { itemId = 25838, name = "Warden's Hauberk", icon = "INV_Chest_Leather_03", quality = "rare", slot = "Chest", stats = "+30 Agi, +27 Sta, +20 Int", source = "Cenarion Expedition @ Revered", sourceType = "rep", faction = "Cenarion Expedition", standing = 7 },
+            },
+            drops = {
+                { itemId = 28034, name = "Hourglass of the Unraveller", icon = "INV_Misc_PocketWatch_01", quality = "rare", slot = "Trinket", stats = "+32 Hit, Haste proc", source = "Black Morass (Normal)", sourceType = "drops" },
+                { itemId = 28275, name = "Beast Lord Cuirass", icon = "INV_Chest_Chain_12", quality = "rare", slot = "Chest", stats = "+32 Agi, +32 Sta, +25 Int", source = "Mana-Tombs (Normal)", sourceType = "drops" },
+                { itemId = 27815, name = "Stealthbinder's Chestguard", icon = "INV_Chest_Leather_04", quality = "rare", slot = "Chest", stats = "+26 Agi, +22 Sta, +44 AP", source = "Shadow Labyrinth", sourceType = "drops" },
+            },
+            crafted = {
+                { itemId = 25695, name = "Fel Leather Gloves", icon = "INV_Gauntlets_25", quality = "rare", slot = "Hands", stats = "+27 Agi, +26 Sta, +15 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+                { itemId = 25696, name = "Fel Leather Leggings", icon = "INV_Pants_Leather_09", quality = "rare", slot = "Legs", stats = "+30 Agi, +29 Sta, +17 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+                { itemId = 25697, name = "Fel Leather Boots", icon = "INV_Boots_Chain_08", quality = "rare", slot = "Feet", stats = "+24 Agi, +23 Sta, +14 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+            },
+        },
+    },
+    --============================================================================
+    -- ROGUE
+    --============================================================================
+    ["ROGUE"] = {
+        -- Tab 1: Assassination (Melee DPS)
+        [1] = {
+            rep = {
+                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8 },
+                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Agi, +22 Sta, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8 },
+                { itemId = 25838, name = "Warden's Hauberk", icon = "INV_Chest_Leather_03", quality = "rare", slot = "Chest", stats = "+30 Agi, +27 Sta, +20 Int", source = "Cenarion Expedition @ Revered", sourceType = "rep", faction = "Cenarion Expedition", standing = 7 },
+            },
+            drops = {
+                { itemId = 28189, name = "Liar's Tongue Gloves", icon = "INV_Gauntlets_25", quality = "epic", slot = "Hands", stats = "+32 Agi, +32 Sta, +24 Hit", source = "Heroic Mechanar", sourceType = "drops" },
+                { itemId = 28034, name = "Hourglass of the Unraveller", icon = "INV_Misc_PocketWatch_01", quality = "rare", slot = "Trinket", stats = "+32 Hit, Haste proc", source = "Black Morass (Normal)", sourceType = "drops" },
+                { itemId = 27815, name = "Stealthbinder's Chestguard", icon = "INV_Chest_Leather_04", quality = "rare", slot = "Chest", stats = "+26 Agi, +22 Sta, +44 AP", source = "Shadow Labyrinth", sourceType = "drops" },
+            },
+            crafted = {
+                { itemId = 25695, name = "Fel Leather Gloves", icon = "INV_Gauntlets_25", quality = "rare", slot = "Hands", stats = "+27 Agi, +26 Sta, +15 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+                { itemId = 25696, name = "Fel Leather Leggings", icon = "INV_Pants_Leather_09", quality = "rare", slot = "Legs", stats = "+30 Agi, +29 Sta, +17 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+                { itemId = 25697, name = "Fel Leather Boots", icon = "INV_Boots_Chain_08", quality = "rare", slot = "Feet", stats = "+24 Agi, +23 Sta, +14 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+            },
+        },
+        -- Tab 2: Combat (Melee DPS)
+        [2] = {
+            rep = {
+                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8 },
+                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Agi, +22 Sta, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8 },
+                { itemId = 29187, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "Thrallmar @ Exalted", sourceType = "rep", faction = "Thrallmar", standing = 8 },
+            },
+            drops = {
+                { itemId = 28189, name = "Liar's Tongue Gloves", icon = "INV_Gauntlets_25", quality = "epic", slot = "Hands", stats = "+32 Agi, +32 Sta, +24 Hit", source = "Heroic Mechanar", sourceType = "drops" },
+                { itemId = 28034, name = "Hourglass of the Unraveller", icon = "INV_Misc_PocketWatch_01", quality = "rare", slot = "Trinket", stats = "+32 Hit, Haste proc", source = "Black Morass (Normal)", sourceType = "drops" },
+                { itemId = 27890, name = "Girdle of Ferocity", icon = "INV_Belt_13", quality = "epic", slot = "Waist", stats = "+31 Str, +16 Agi, +36 Sta", source = "Heroic Shattered Halls", sourceType = "drops" },
+            },
+            crafted = {
+                { itemId = 25695, name = "Fel Leather Gloves", icon = "INV_Gauntlets_25", quality = "rare", slot = "Hands", stats = "+27 Agi, +26 Sta, +15 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+                { itemId = 25696, name = "Fel Leather Leggings", icon = "INV_Pants_Leather_09", quality = "rare", slot = "Legs", stats = "+30 Agi, +29 Sta, +17 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+                { itemId = 25697, name = "Fel Leather Boots", icon = "INV_Boots_Chain_08", quality = "rare", slot = "Feet", stats = "+24 Agi, +23 Sta, +14 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+            },
+        },
+        -- Tab 3: Subtlety (Melee DPS)
+        [3] = {
+            rep = {
+                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8 },
+                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Agi, +22 Sta, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8 },
+                { itemId = 25838, name = "Warden's Hauberk", icon = "INV_Chest_Leather_03", quality = "rare", slot = "Chest", stats = "+30 Agi, +27 Sta, +20 Int", source = "Cenarion Expedition @ Revered", sourceType = "rep", faction = "Cenarion Expedition", standing = 7 },
+            },
+            drops = {
+                { itemId = 28189, name = "Liar's Tongue Gloves", icon = "INV_Gauntlets_25", quality = "epic", slot = "Hands", stats = "+32 Agi, +32 Sta, +24 Hit", source = "Heroic Mechanar", sourceType = "drops" },
+                { itemId = 28034, name = "Hourglass of the Unraveller", icon = "INV_Misc_PocketWatch_01", quality = "rare", slot = "Trinket", stats = "+32 Hit, Haste proc", source = "Black Morass (Normal)", sourceType = "drops" },
+                { itemId = 27815, name = "Stealthbinder's Chestguard", icon = "INV_Chest_Leather_04", quality = "rare", slot = "Chest", stats = "+26 Agi, +22 Sta, +44 AP", source = "Shadow Labyrinth", sourceType = "drops" },
+            },
+            crafted = {
+                { itemId = 25695, name = "Fel Leather Gloves", icon = "INV_Gauntlets_25", quality = "rare", slot = "Hands", stats = "+27 Agi, +26 Sta, +15 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+                { itemId = 25696, name = "Fel Leather Leggings", icon = "INV_Pants_Leather_09", quality = "rare", slot = "Legs", stats = "+30 Agi, +29 Sta, +17 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+                { itemId = 25697, name = "Fel Leather Boots", icon = "INV_Boots_Chain_08", quality = "rare", slot = "Feet", stats = "+24 Agi, +23 Sta, +14 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+            },
+        },
+    },
+}
+
+-- Build the boss name lookup table now that all boss data is defined
+C:BuildBossNameLookup()

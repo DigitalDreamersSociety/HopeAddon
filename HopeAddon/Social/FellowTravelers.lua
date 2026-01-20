@@ -19,9 +19,10 @@ local MSG_PROFILE = "PROF"      -- Profile data
 local MSG_LOCATION = "LOC"      -- Location update
 
 -- Throttling
-local BROADCAST_INTERVAL = 30   -- Seconds between broadcasts
+local BROADCAST_INTERVAL = 15   -- Seconds between broadcasts (faster detection)
 local PROFILE_CACHE_TIME = 3600 -- 1 hour cache for profiles
 local PING_COOLDOWN = 5         -- Minimum seconds between pings to same player
+local DISCOVERY_SOUND_COOLDOWN = 30  -- Cooldown for Murloc sound to prevent spam in crowded areas
 
 -- RP Status options
 FellowTravelers.STATUS_OPTIONS = {
@@ -47,8 +48,11 @@ FellowTravelers.eventFrame = nil
 FellowTravelers.originalAddMessage = nil  -- For chat hook
 FellowTravelers.pendingBroadcast = nil  -- Timer deduplication
 FellowTravelers.profileRequestCooldowns = {}  -- [playerName] = lastRequestTime
+FellowTravelers.lastDiscoverySoundTime = 0  -- Cooldown tracking for Murloc sound
 FellowTravelers.cleanupTicker = nil  -- Periodic cleanup timer handle
+FellowTravelers.broadcastTicker = nil  -- Periodic broadcast timer handle for continuous discovery
 FellowTravelers.messageCallbacks = {}  -- Registered message handlers for extensibility
+FellowTravelers.yellCounter = 0  -- Counter for throttle-aware YELL broadcasting
 
 -- Cleanup constants
 local MAX_PING_COOLDOWNS = 100
@@ -149,6 +153,11 @@ function FellowTravelers:OnDisable()
         self.cleanupTicker:Cancel()
         self.cleanupTicker = nil
     end
+    -- Cancel periodic broadcast ticker
+    if self.broadcastTicker then
+        self.broadcastTicker:Cancel()
+        self.broadcastTicker = nil
+    end
 end
 
 function FellowTravelers:Initialize()
@@ -156,7 +165,6 @@ function FellowTravelers:Initialize()
 
     -- Register events
     self.eventFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
-    self.eventFrame:RegisterEvent("GUILD_ROSTER_UPDATE")
     self.eventFrame:RegisterEvent("CHAT_MSG_ADDON")
     self.eventFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
     self.eventFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
@@ -164,8 +172,6 @@ function FellowTravelers:Initialize()
     self.eventFrame:SetScript("OnEvent", function(_, event, ...)
         if event == "GROUP_ROSTER_UPDATE" then
             self:OnPartyChanged()
-        elseif event == "GUILD_ROSTER_UPDATE" then
-            self:OnGuildRosterUpdate()
         elseif event == "CHAT_MSG_ADDON" then
             self:OnAddonMessage(...)
         elseif event == "ZONE_CHANGED_NEW_AREA" then
@@ -190,6 +196,12 @@ function FellowTravelers:Initialize()
     -- Run periodic cleanup every 5 minutes to prevent table growth during long sessions
     self.cleanupTicker = HopeAddon.Timer:NewTicker(300, function()
         FellowTravelers:CleanupTables()
+    end)
+
+    -- Periodic broadcast for continuous discovery of nearby addon users
+    -- This is the key fix - without this, players only discover each other on login/zone change
+    self.broadcastTicker = HopeAddon.Timer:NewTicker(BROADCAST_INTERVAL, function()
+        FellowTravelers:BroadcastPresence()
     end)
 
     HopeAddon:Debug("FellowTravelers module initialized with addon communication")
@@ -248,8 +260,12 @@ function FellowTravelers:BroadcastPresence()
     end
 
     -- Yell for nearby non-grouped players (skip when in raid - redundant and reduces spam)
+    -- Only YELL every other broadcast (every 30s) to reduce throttle risk in busy areas
     if not inRaid then
-        SafeSendAddonMessage(ADDON_PREFIX, msg, "YELL")
+        self.yellCounter = (self.yellCounter or 0) + 1
+        if self.yellCounter % 2 == 0 then
+            SafeSendAddonMessage(ADDON_PREFIX, msg, "YELL")
+        end
     end
 
     HopeAddon:Debug("Broadcast presence:", msg)
@@ -585,7 +601,13 @@ function FellowTravelers:RegisterFellow(name, info)
         fellows[name] = {
             firstSeen = HopeAddon:GetDate(),
         }
-        HopeAddon:Print("Fellow traveler detected: |cFF00FF00" .. name .. "|r")
+        -- Play Murloc sound with cooldown to prevent spam in crowded areas (Shattrath, raids)
+        local now = GetTime()
+        if now - self.lastDiscoverySoundTime >= DISCOVERY_SOUND_COOLDOWN then
+            HopeAddon:PlaySound("FELLOW_DISCOVERY")
+            self.lastDiscoverySoundTime = now
+        end
+        HopeAddon:Print("|cFF9B30FF[Fellow Traveler]|r |cFF00FF00" .. name .. "|r discovered nearby! Mrglglgl!")
     end
 
     -- Update info
@@ -998,10 +1020,6 @@ function FellowTravelers:OnPartyChanged()
     ScheduleBroadcast(1)
 end
 
-function FellowTravelers:OnGuildRosterUpdate()
-    -- Could trigger presence broadcast
-end
-
 function FellowTravelers:OnZoneChanged()
     -- Broadcast presence in new zone (uses deduplication)
     ScheduleBroadcast(2)
@@ -1054,41 +1072,7 @@ function FellowTravelers:GetPartyMembers()
                     level = level,
                     unit = unit,
                 })
-
-                -- Update info but don't increment group count (handled in OnPartyChanged)
-                self:UpdateKnownTraveler(name, class, level, false)
-            end
-        end
-    end
-
-    return members
-end
-
---[[
-    Get nearby guild members
-    @return table - Array of online guild members in zone
-]]
-function FellowTravelers:GetNearbyGuildMembers()
-    local members = {}
-    local currentZone = GetZoneText()
-
-    if IsInGuild() then
-        local numTotal = GetNumGuildMembers()
-
-        for i = 1, numTotal do
-            local name, _, _, level, _, zone, _, _, online, _, class = GetGuildRosterInfo(i)
-            if online and zone == currentZone and name ~= UnitName("player") then
-                name = strsplit("-", name)
-
-                table.insert(members, {
-                    name = name,
-                    class = class,
-                    level = level,
-                    zone = zone,
-                })
-
-                -- Update info only, don't track as group
-                self:UpdateKnownTraveler(name, class, level, false)
+                -- Note: Known traveler tracking is handled by OnPartyChanged event
             end
         end
     end

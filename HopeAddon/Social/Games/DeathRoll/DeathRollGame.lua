@@ -131,6 +131,7 @@ function DeathRollGame:OnCreate(gameId, game)
             escrowEnabled = false,
             escrowHouse = nil,
             proximityVerified = false,
+            animating = false,  -- Block rolls during gameshow animation
         },
     }
 
@@ -248,6 +249,12 @@ function DeathRollGame:CleanupGame(gameId)
         end
     end
 
+    -- Cleanup gameshow UI frames
+    local DeathRollUI = HopeAddon:GetModule("DeathRollUI")
+    if DeathRollUI then
+        DeathRollUI:CleanupGameshowFrames(gameId)
+    end
+
     -- Release UI frame references
     if game.data and game.data.ui then
         local ui = game.data.ui
@@ -311,6 +318,11 @@ function DeathRollGame:IsValidRoll(game, playerName, maxRoll)
         return false
     end
 
+    -- Block rolls during animation sequence
+    if state.animating then
+        return false
+    end
+
     -- Check if player is in this game
     local isPlayer1 = playerName == game.player1
     local isPlayer2 = playerName == game.player2
@@ -336,13 +348,18 @@ function DeathRollGame:IsValidRoll(game, playerName, maxRoll)
 end
 
 --[[
-    Process a valid roll
+    Process a valid roll with gameshow animation sequence
 ]]
 function DeathRollGame:ProcessRoll(gameId, playerName, rollResult, maxRoll)
     local game = self.games[gameId]
     if not game then return end
 
     local state = game.data.state
+    local localPlayerName = UnitName("player")
+    local isLocalPlayer = (playerName == localPlayerName)
+
+    -- Block further rolls during animation
+    state.animating = true
 
     -- Record roll
     table.insert(state.rollHistory, {
@@ -352,37 +369,72 @@ function DeathRollGame:ProcessRoll(gameId, playerName, rollResult, maxRoll)
         timestamp = GetTime(),
     })
 
-    -- Update UI
+    -- Trigger gameshow animation sequence
+    local DeathRollUI = HopeAddon:GetModule("DeathRollUI")
+    if DeathRollUI then
+        DeathRollUI:ShowRollResult(gameId, rollResult, maxRoll, playerName, isLocalPlayer)
+    end
+
+    -- Update basic UI (history, etc.)
     self:UpdateUI(gameId)
 
-    -- Check for loss (rolled 1)
-    if rollResult == 1 then
-        -- This player loses
-        local winner = playerName == game.player1 and game.player2 or game.player1
-        if self.GameCore then
-            self.GameCore:SetWinner(gameId, winner)
+    -- Delay game state update for animation (1.2 seconds)
+    local ANIMATION_DELAY = 1.2
+
+    HopeAddon.Timer:After(ANIMATION_DELAY, function()
+        -- Re-fetch game in case it was destroyed
+        local currentGame = self.games[gameId]
+        if not currentGame or not currentGame.data then return end
+
+        local currentState = currentGame.data.state
+
+        -- Check for loss (rolled 1)
+        if rollResult == 1 then
+            -- This player loses
+            local winner = playerName == currentGame.player1 and currentGame.player2 or currentGame.player1
+            currentState.animating = false
+            if self.GameCore then
+                self.GameCore:SetWinner(gameId, winner)
+            end
+            return
         end
-        return
-    end
 
-    -- Update current max and switch turns
-    state.currentMax = rollResult
+        -- Update current max and switch turns
+        currentState.currentMax = rollResult
 
-    if state.rollState == self.ROLL_STATE.PLAYER1_TURN then
-        state.rollState = self.ROLL_STATE.PLAYER2_TURN
-        HopeAddon:Print(game.player2 .. "'s turn. /roll " .. rollResult)
-    else
-        state.rollState = self.ROLL_STATE.PLAYER1_TURN
-        HopeAddon:Print(game.player1 .. "'s turn. /roll " .. rollResult)
-    end
+        local nextPlayerName
+        local isYourTurn = false
 
-    -- Send update to remote player if networked
-    if self.GameCore and game.mode == self.GameCore.GAME_MODE.REMOTE then
-        if self.GameComms then
-            local stateData = string.format("%d|%s", rollResult, playerName)
-            self.GameComms:SendState(game.opponent, "DEATH_ROLL", gameId, stateData)
+        if currentState.rollState == self.ROLL_STATE.PLAYER1_TURN then
+            currentState.rollState = self.ROLL_STATE.PLAYER2_TURN
+            nextPlayerName = currentGame.player2
+            isYourTurn = (nextPlayerName == localPlayerName)
+        else
+            currentState.rollState = self.ROLL_STATE.PLAYER1_TURN
+            nextPlayerName = currentGame.player1
+            isYourTurn = (nextPlayerName == localPlayerName)
         end
-    end
+
+        -- Show turn prompt with gameshow style
+        if DeathRollUI then
+            local opponentName = isYourTurn and nil or nextPlayerName
+            DeathRollUI:ShowTurnPrompt(gameId, rollResult, isYourTurn, opponentName)
+        end
+
+        -- Print turn message to chat (backup for non-gameshow clients)
+        HopeAddon:Print(nextPlayerName .. "'s turn. /roll " .. rollResult)
+
+        -- Unblock rolls
+        currentState.animating = false
+
+        -- Send update to remote player if networked
+        if self.GameCore and currentGame.mode == self.GameCore.GAME_MODE.REMOTE then
+            if self.GameComms then
+                local stateData = string.format("%d|%s", rollResult, playerName)
+                self.GameComms:SendState(currentGame.opponent, "DEATH_ROLL", gameId, stateData)
+            end
+        end
+    end)
 end
 
 --============================================================
@@ -464,7 +516,7 @@ end
 --============================================================
 
 --[[
-    Show Death Roll UI
+    Show Death Roll UI with gameshow-style layout
 ]]
 function DeathRollGame:ShowUI(gameId)
     local game = self.games[gameId]
@@ -474,9 +526,10 @@ function DeathRollGame:ShowUI(gameId)
 
     local ui = game.data.ui
     local state = game.data.state
+    local localPlayerName = UnitName("player")
 
-    -- Create game window
-    local window = self.GameUI:CreateGameWindow(gameId, "Death Roll", "SMALL")
+    -- Create larger game window for gameshow display
+    local window = self.GameUI:CreateGameWindow(gameId, "DEATH ROLL", "MEDIUM")
     if not window then return end
 
     -- Store window reference for cleanup
@@ -484,56 +537,46 @@ function DeathRollGame:ShowUI(gameId)
 
     local content = window.content
 
-    -- Player names
-    local p1Label = self.GameUI:CreateLabel(content, game.player1, "GameFontNormal")
-    p1Label:SetPoint("TOPLEFT", 10, -10)
-    p1Label:SetTextColor(0.2, 0.8, 0.2)
+    -- Player names header
+    local p1Label = self.GameUI:CreateLabel(content, game.player1, "GameFontNormalLarge")
+    p1Label:SetPoint("TOPLEFT", 15, -10)
+    p1Label:SetTextColor(0.2, 0.9, 0.2)
 
-    local vsLabel = self.GameUI:CreateLabel(content, "vs", "GameFontNormalSmall")
-    vsLabel:SetPoint("TOP", 0, -10)
-    vsLabel:SetTextColor(0.6, 0.6, 0.6)
+    local vsLabel = self.GameUI:CreateLabel(content, "VS", "GameFontNormal")
+    vsLabel:SetPoint("TOP", 0, -12)
+    vsLabel:SetTextColor(0.7, 0.7, 0.7)
 
-    local p2Label = self.GameUI:CreateLabel(content, game.player2, "GameFontNormal")
-    p2Label:SetPoint("TOPRIGHT", -10, -10)
-    p2Label:SetTextColor(0.8, 0.2, 0.2)
+    local p2Label = self.GameUI:CreateLabel(content, game.player2, "GameFontNormalLarge")
+    p2Label:SetPoint("TOPRIGHT", -15, -10)
+    p2Label:SetTextColor(0.9, 0.2, 0.2)
 
-    -- Current max roll display
-    local maxLabel = self.GameUI:CreateLabel(content, "Current Max", "GameFontNormalSmall")
-    maxLabel:SetPoint("TOP", 0, -40)
-    maxLabel:SetTextColor(0.6, 0.6, 0.6)
+    -- Initialize gameshow UI frames (big number, turn prompt)
+    local DeathRollUI = HopeAddon:GetModule("DeathRollUI")
+    if DeathRollUI then
+        DeathRollUI:InitializeGameshowFrames(gameId, content)
+        -- Show initial max as the big number
+        DeathRollUI:UpdateBigNumber(gameId, state.currentMax)
+    end
 
-    local maxValue = content:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
-    maxValue:SetPoint("TOP", maxLabel, "BOTTOM", 0, -5)
-    maxValue:SetText(tostring(state.currentMax))
-    maxValue:SetTextColor(1, 0.84, 0)
-    ui.maxValueText = maxValue
+    -- Roll history at bottom
+    local historyLabel = self.GameUI:CreateLabel(content, "History", "GameFontNormalSmall")
+    historyLabel:SetPoint("BOTTOMLEFT", 15, 35)
+    historyLabel:SetTextColor(0.5, 0.5, 0.5)
 
-    -- Turn indicator
-    local turnLabel = content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    turnLabel:SetPoint("TOP", maxValue, "BOTTOM", 0, -15)
-    turnLabel:SetText("Waiting to start...")
-    turnLabel:SetTextColor(0.8, 0.8, 0.8)
-    ui.turnText = turnLabel
-
-    -- Roll history scroll
-    local historyLabel = self.GameUI:CreateLabel(content, "Roll History", "GameFontNormalSmall")
-    historyLabel:SetPoint("BOTTOMLEFT", 10, 55)
-    historyLabel:SetTextColor(0.6, 0.6, 0.6)
-
-    local historyText = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    historyText:SetPoint("BOTTOMLEFT", 10, 10)
-    historyText:SetPoint("BOTTOMRIGHT", -10, 10)
-    historyText:SetHeight(40)
+    local historyText = content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    historyText:SetPoint("BOTTOMLEFT", 15, 10)
+    historyText:SetPoint("BOTTOMRIGHT", -15, 10)
+    historyText:SetHeight(20)
     historyText:SetJustifyH("LEFT")
     historyText:SetJustifyV("BOTTOM")
     historyText:SetText("")
-    historyText:SetTextColor(0.7, 0.7, 0.7)
+    historyText:SetTextColor(0.6, 0.6, 0.6)
     ui.historyText = historyText
 
     -- Bet display (if betting)
     if state.betAmount > 0 then
-        local betLabel = self.GameUI:CreateLabel(content, "Bet: " .. HopeAddon:FormatGold(state.betAmount * 10000), "GameFontNormalSmall")
-        betLabel:SetPoint("BOTTOM", 0, 60)
+        local betLabel = self.GameUI:CreateLabel(content, "Pot: " .. HopeAddon:FormatGold(state.betAmount * 2 * 10000), "GameFontNormal")
+        betLabel:SetPoint("TOP", content, "TOP", 0, -35)
         betLabel:SetTextColor(1, 0.84, 0)
     end
 
@@ -542,16 +585,25 @@ function DeathRollGame:ShowUI(gameId)
         local proximityText = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         proximityText:SetPoint("BOTTOM", content, "BOTTOM", 0, 3)
         if state.proximityVerified then
-            proximityText:SetText("|cFF00FF00Opponent nearby - rolls verified|r")
+            proximityText:SetText("|cFF00FF00Rolls verified|r")
         else
-            proximityText:SetText("|cFFFFFF00Proximity not verified|r")
+            proximityText:SetText("|cFFFFFF00Unverified|r")
         end
         ui.proximityText = proximityText
     end
 
     window:Show()
 
-    -- Update turn display
+    -- Show initial turn prompt
+    local isYourTurn = (state.rollState == self.ROLL_STATE.PLAYER1_TURN and game.player1 == localPlayerName)
+        or (state.rollState == self.ROLL_STATE.PLAYER2_TURN and game.player2 == localPlayerName)
+    local opponentName = isYourTurn and nil or (state.rollState == self.ROLL_STATE.PLAYER1_TURN and game.player1 or game.player2)
+
+    if DeathRollUI then
+        DeathRollUI:ShowTurnPrompt(gameId, state.currentMax, isYourTurn, opponentName)
+    end
+
+    -- Update basic UI
     self:UpdateUI(gameId)
 end
 

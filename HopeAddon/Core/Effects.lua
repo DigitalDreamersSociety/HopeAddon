@@ -58,6 +58,12 @@ function Effects:CreatePulsingGlow(parent, colorName, intensity)
         return nil
     end
 
+    -- Validate parent can create textures (Frames can, FontStrings cannot)
+    if not parent or not parent.CreateTexture then
+        HopeAddon:Debug("CreatePulsingGlow: parent cannot create textures")
+        return nil
+    end
+
     -- Stop any existing glows on this parent to prevent stacking (O(1) lookup)
     self:StopGlowsOnParent(parent)
 
@@ -497,6 +503,7 @@ function Effects:SlideIn(frame, direction, distance, duration)
 end
 
 -- Scale pop effect (for achievements/milestones)
+-- TBC Compatible: Uses Timer instead of Scale animations (SetFromScale doesn't exist in 2.4.3)
 function Effects:PopIn(frame, duration)
     if HopeAddon.db and not HopeAddon.db.settings.animationsEnabled then
         frame:SetAlpha(1)
@@ -508,35 +515,47 @@ function Effects:PopIn(frame, duration)
     frame:SetAlpha(0)
     frame:Show()
 
-    local ag = frame:CreateAnimationGroup()
+    local elapsed = 0
+    local phase1Duration = duration * 0.6  -- Scale up phase
+    local phase2Duration = duration * 0.4  -- Scale down phase
+    local totalDuration = duration
 
-    -- Scale from small to big then settle
-    local scaleUp = ag:CreateAnimation("Scale")
-    scaleUp:SetFromScale(0.5, 0.5)
-    scaleUp:SetToScale(1.1, 1.1)
-    scaleUp:SetDuration(duration * 0.6)
-    scaleUp:SetSmoothing("OUT")
-    scaleUp:SetOrder(1)
+    -- Start small
+    frame:SetScale(0.5)
 
-    local scaleDown = ag:CreateAnimation("Scale")
-    scaleDown:SetFromScale(1.1, 1.1)
-    scaleDown:SetToScale(1.0, 1.0)
-    scaleDown:SetDuration(duration * 0.4)
-    scaleDown:SetSmoothing("IN_OUT")
-    scaleDown:SetOrder(2)
+    local ticker
+    ticker = HopeAddon.Timer:NewTicker(0.016, function()  -- ~60fps
+        elapsed = elapsed + 0.016
 
-    local fade = ag:CreateAnimation("Alpha")
-    fade:SetFromAlpha(0)
-    fade:SetToAlpha(1)
-    fade:SetDuration(duration * 0.3)
-    fade:SetOrder(1)
+        if elapsed >= totalDuration then
+            -- Finished - set final state
+            frame:SetScale(1.0)
+            frame:SetAlpha(1)
+            ticker:Cancel()
+            return
+        end
 
-    ag:SetScript("OnFinished", function()
-        frame:SetAlpha(1)
+        -- Calculate alpha (fade in during first 30% of duration)
+        local fadeProgress = math_min(1, elapsed / (duration * 0.3))
+        frame:SetAlpha(fadeProgress)
+
+        -- Calculate scale
+        if elapsed < phase1Duration then
+            -- Phase 1: Scale from 0.5 to 1.1
+            local progress = elapsed / phase1Duration
+            local eased = 1 - (1 - progress) * (1 - progress)  -- easeOutQuad
+            local scale = 0.5 + (1.1 - 0.5) * eased
+            frame:SetScale(scale)
+        else
+            -- Phase 2: Scale from 1.1 to 1.0
+            local progress = (elapsed - phase1Duration) / phase2Duration
+            local eased = progress * (2 - progress)  -- easeInOutQuad approximation
+            local scale = 1.1 - (1.1 - 1.0) * eased
+            frame:SetScale(scale)
+        end
     end)
 
-    ag:Play()
-    return ag
+    return ticker
 end
 
 -- Shake effect (for errors or dramatic moments)
@@ -657,6 +676,13 @@ end
 ]]
 function Effects:Celebrate(frame, duration, options)
     if not frame then return end
+
+    -- If passed a FontString or Texture, use its parent frame instead
+    -- (FontStrings/Textures don't have CreateTexture method needed for glow effects)
+    if frame.GetObjectType and (frame:GetObjectType() == "FontString" or frame:GetObjectType() == "Texture") then
+        frame = frame:GetParent()
+        if not frame then return end
+    end
 
     duration = duration or 2.0
     options = options or {}

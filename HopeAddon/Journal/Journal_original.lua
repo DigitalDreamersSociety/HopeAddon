@@ -13,7 +13,7 @@ end
 
 -- Journal state
 Journal.isOpen = false
-Journal.currentTab = nil
+Journal.currentTab = "journey"
 Journal.mainFrame = nil
 Journal.notificationPool = nil  -- Frame pool for notifications
 Journal.pendingNotifications = {}  -- Track pending notifications to prevent stacking
@@ -48,55 +48,54 @@ local TRACKED_DAMAGE_EVENTS = {
     ["RANGE_DAMAGE"] = true,
 }
 
--- Heroic key icons by faction ID
+-- Heroic dungeon key icons by faction ID
 local HEROIC_KEY_ICONS = {
-    [942] = "INV_Misc_Key_13", [935] = "INV_Misc_Key_12", [989] = "INV_Misc_Key_11",
-    [1011] = "INV_Misc_Key_14", [946] = "INV_Misc_Key_15", [947] = "INV_Misc_Key_15",
+    [942] = "INV_Misc_Key_13",    -- Cenarion Expedition - Reservoir Key
+    [935] = "INV_Misc_Key_12",    -- The Sha'tar - Warpforged Key
+    [989] = "INV_Misc_Key_11",    -- Keepers of Time - Key of Time
+    [1011] = "INV_Misc_Key_14",   -- Lower City - Auchenai Key
+    [946] = "INV_Misc_Key_15",    -- Honor Hold - Flamewrought Key (Alliance)
+    [947] = "INV_Misc_Key_15",    -- Thrallmar - Flamewrought Key (Horde)
 }
 
+-- Heroic key names by faction ID
 local HEROIC_KEY_NAMES = {
-    [942] = "Reservoir Key", [935] = "Warpforged Key", [989] = "Key of Time",
-    [1011] = "Auchenai Key", [946] = "Flamewrought Key", [947] = "Flamewrought Key",
+    [942] = "Reservoir Key",      -- Cenarion - Heroic Coilfang
+    [935] = "Warpforged Key",     -- Sha'tar - Heroic Tempest Keep
+    [989] = "Key of Time",        -- KoT - Heroic Caverns of Time
+    [1011] = "Auchenai Key",      -- Lower City - Heroic Auchindoun
+    [946] = "Flamewrought Key",   -- Honor Hold - Heroic Hellfire
+    [947] = "Flamewrought Key",   -- Thrallmar - Heroic Hellfire
 }
 
--- Requirement type icons for Next Step box
+-- Icons for requirement types in Next Step box
 local REQUIREMENT_TYPE_ICONS = {
-    dungeon = "INV_Misc_Key_04", raid = "Ability_Creature_Cursed_04",
-    boss = "Ability_DualWield", quest = "INV_Letter_15",
-    item = "INV_Misc_Bag_10", level = "Interface\\Icons\\Spell_Holy_MagicalSentry",
+    dungeon = "INV_Misc_Key_04",
+    raid = "Ability_Creature_Cursed_04",
+    boss = "Ability_DualWield",
+    quest = "INV_Letter_15",
+    item = "INV_Misc_Bag_10",
+    level = "Achievement_Level_60",
 }
 
--- Progression phase colors and names
+-- Phase colors for Next Step box border
 local PHASE_COLORS = {
-    PRE_OUTLAND = "GOLD_BRIGHT", T4_ATTUNEMENT = "FEL_GREEN", T5_ATTUNEMENT = "ARCANE_PURPLE",
-    T6_ATTUNEMENT = "HELLFIRE_RED", RAID_PROGRESSION = "SKY_BLUE", ENDGAME = "GOLD_BRIGHT",
+    PRE_OUTLAND = "GOLD_BRIGHT",
+    T4_ATTUNEMENT = "FEL_GREEN",
+    T5_ATTUNEMENT = "ARCANE_PURPLE",
+    T6_ATTUNEMENT = "HELLFIRE_RED",
+    RAID_PROGRESSION = "SKY_BLUE",
+    ENDGAME = "GOLD_BRIGHT",
 }
 
+-- Phase display names
 local PHASE_NAMES = {
-    PRE_OUTLAND = "The Journey Begins", T4_ATTUNEMENT = "Tier 4 Attunement",
-    T5_ATTUNEMENT = "Tier 5 Attunement", T6_ATTUNEMENT = "Tier 6 Attunement",
-    RAID_PROGRESSION = "Raid Progression", ENDGAME = "Legend of Outland",
-}
-
--- Standing thresholds for reputation progress
-local STANDING_THRESHOLDS = {
-    [1] = 36000, [2] = 3000, [3] = 3000, [4] = 3000, [5] = 6000, [6] = 12000, [7] = 21000, [8] = 999,
-}
-
-local STANDING_NAMES = {
-    [1] = "Hated", [2] = "Hostile", [3] = "Unfriendly", [4] = "Neutral",
-    [5] = "Friendly", [6] = "Honored", [7] = "Revered", [8] = "Exalted",
-}
-
--- Game stats display order and info (used by PopulateStats)
-local GAME_STATS_ORDER = { "rps", "deathroll", "pong", "tetris", "words", "battleship" }
-local GAME_STATS_INFO = {
-    rps = { name = "Rock Paper Scissors", icon = "Interface\\Icons\\Spell_Nature_EarthShock", color = "NATURE_GREEN", hasTies = true, specialStat = nil, specialLabel = nil },
-    deathroll = { name = "Death Roll", icon = "Interface\\Icons\\INV_Misc_Bone_HumanSkull_01", color = "HELLFIRE_RED", hasTies = true, specialStat = "highestBet", specialLabel = "High Bet" },
-    pong = { name = "Pong", icon = "Interface\\Icons\\INV_Misc_PunchCards_Yellow", color = "SKY_BLUE", hasTies = false, specialStat = "highestScore", specialLabel = "High Score" },
-    tetris = { name = "Tetris Battle", icon = "Interface\\Icons\\INV_Misc_Gem_Variety_01", color = "ARCANE_PURPLE", hasTies = false, specialStat = "highestScore", specialLabel = "High Score" },
-    words = { name = "Words with WoW", icon = "Interface\\Icons\\INV_Misc_Book_07", color = "BRONZE", hasTies = false, specialStat = "highestScore", specialLabel = "High Score" },
-    battleship = { name = "Battleship", icon = "Interface\\Icons\\INV_Misc_Anchor", color = "SKY_BLUE", hasTies = false, specialStat = nil, specialLabel = nil },
+    PRE_OUTLAND = "The Journey Begins",
+    T4_ATTUNEMENT = "Tier 4 Attunement",
+    T5_ATTUNEMENT = "Tier 5 Attunement",
+    T6_ATTUNEMENT = "Tier 6 Attunement",
+    RAID_PROGRESSION = "Raid Progression",
+    ENDGAME = "Legend of Outland",
 }
 
 --[[
@@ -338,18 +337,6 @@ function Journal:CreateCardPool()
         card.defaultBorderColor = nil
         -- Clear OnCardClick callback to prevent stale closure references
         card.OnCardClick = nil
-        -- Clean up reputation bar (created in CreateReputationCard)
-        if card.reputationBar then
-            card.reputationBar:Hide()
-            card.reputationBar:SetParent(nil)
-            card.reputationBar = nil
-        end
-        -- Clean up milestone frame (created in CreateReputationCard)
-        if card.milestoneFrame then
-            card.milestoneFrame:Hide()
-            card.milestoneFrame:SetParent(nil)
-            card.milestoneFrame = nil
-        end
         card._pooled = true
     end
 
@@ -781,10 +768,11 @@ function Journal:CreateMainFrame()
     local tabs = {}
     local tabData = {
         { id = "journey", label = "Journey", tooltip = "Your TBC progression and timeline" },
+        { id = "zones", label = "Zones", tooltip = "Outland zone discoveries" },
         { id = "reputation", label = "Reputation", tooltip = "Faction standings by category" },
         { id = "raids", label = "Raids", tooltip = "Boss kill tracking by tier (T4/T5/T6)" },
         { id = "attunements", label = "Attunements", tooltip = "Raid attunement quest chains" },
-        { id = "games", label = "Games", tooltip = "Minigames and challenges", color = "ARCANE_PURPLE" },
+        { id = "games", label = "Games", tooltip = "Practice minigames or challenge friends", color = "ARCANE_PURPLE" },
         { id = "social", label = "Social", tooltip = "Fellow travelers directory", color = "FEL_GREEN" },
         { id = "stats", label = "Stats", tooltip = "Journey statistics summary" },
     }
@@ -825,8 +813,8 @@ function Journal:CreateMainFrame()
     -- Store reference
     self.mainFrame = frame
 
-    -- NOTE: Do NOT call SelectTab here - frame is hidden and content will have width=0
-    -- Toggle() calls SelectTab after showing the frame, which is the correct time
+    -- Select default tab
+    self:SelectTab("journey")
 
     return frame
 end
@@ -869,12 +857,14 @@ function Journal:SelectTab(tabId)
 
     -- Migration: old "directory" tab now split into "games" and "social"
     if tabId == "directory" then
-        tabId = "games"
+        tabId = "social"
         self.currentTab = tabId
     end
 
     if tabId == "journey" then
         self:PopulateJourney()
+    elseif tabId == "zones" then
+        self:PopulateZones()
     elseif tabId == "reputation" then
         self:PopulateReputation()
     elseif tabId == "raids" then
@@ -1628,447 +1618,68 @@ function Journal:CreateAttunementSummary()
 end
 
 --[[
-    Create loot hotlist showing top 3 recommended items for the player's class
-    Items come from reputation rewards and normal dungeon drops
+    Create key reputation summary
 ]]
-function Journal:CreateLootHotlist()
-    local C = HopeAddon.Constants
+function Journal:CreateReputationSummary()
     local Components = HopeAddon.Components
-    local _, classToken = UnitClass("player")
+    local reps = self:GetKeyReputationSummary()
 
-    -- Get player's spec using the new spec detection
-    local specName, specTab, specPoints = HopeAddon:GetPlayerSpec()
+    local container = self:AcquireContainer(self.mainFrame.scrollContainer.content, 100)
 
-    -- Get spec-specific items from new data structure
-    local classData = C.CLASS_SPEC_LOOT_HOTLIST[classToken]
-    local specData = classData and classData[specTab]
-
-    -- Fallback to old data structure if spec data not found
-    if not specData then
-        specData = {
-            rep = C.CLASS_LOOT_HOTLIST[classToken] or {},
-            drops = {},
-            crafted = {},
-        }
-    end
-
-    -- Get class color
-    local classColor = RAID_CLASS_COLORS[classToken] or { r = 1, g = 0.84, b = 0 }
-    local hexColor = string.format("%02x%02x%02x", classColor.r * 255, classColor.g * 255, classColor.b * 255)
-    local className = UnitClass("player")
-
-    -- Calculate total height for container
-    -- Header (35) + 3 collapsible sections * (header 32 + 3 items * 75 + spacing)
-    local repCount = specData.rep and #specData.rep or 0
-    local dropCount = specData.drops and #specData.drops or 0
-    local craftCount = specData.crafted and #specData.crafted or 0
-    local sectionHeight = 32 + (3 * 78)  -- header + 3 items
-    local totalHeight = 45 + (sectionHeight * 3) + 30  -- main header + 3 sections + bottom padding
-
-    local container = self:AcquireContainer(self.mainFrame.scrollContainer.content, totalHeight)
-
-    -- Main section title with class name and spec
-    local sectionTitle = container.lootSectionTitle
+    -- Section title
+    local sectionTitle = container.repSectionTitle
     if not sectionTitle then
         sectionTitle = container:CreateFontString(nil, "OVERLAY")
-        container.lootSectionTitle = sectionTitle
+        container.repSectionTitle = sectionTitle
     end
-    sectionTitle:SetFont(HopeAddon.assets.fonts.HEADER, 13)
+    sectionTitle:SetFont(HopeAddon.assets.fonts.HEADER, 12)
     sectionTitle:ClearAllPoints()
-    sectionTitle:SetPoint("TOPLEFT", container, "TOPLEFT", 10, -8)
-    sectionTitle:SetText("|cFF" .. hexColor .. string.upper(className) .. " - " .. specName .. "|r |cFFAAAAAA(" .. specPoints .. " pts)|r")
-    sectionTitle:Show()
+    sectionTitle:SetPoint("TOPLEFT", container, "TOPLEFT", 10, -5)
+    sectionTitle:SetText(HopeAddon:ColorText("KEY REPUTATIONS", "GOLD_BRIGHT"))
 
-    local yOffset = -38
+    -- Reputation items (2 columns)
+    local leftY = -25
+    local rightY = -25
+    local leftCount = 0
+    local rightCount = 0
 
-    -- Category definitions with colors
-    local categories = {
-        { key = "rep", title = "Reputation Rewards", color = "ARCANE_PURPLE", icon = "Achievement_Reputation_01" },
-        { key = "drops", title = "Dungeon Drops", color = "FEL_GREEN", icon = "INV_Misc_Bone_HumanSkull_01" },
-        { key = "crafted", title = "Crafted Gear", color = "GOLD_BRIGHT", icon = "Trade_BlackSmithing" },
-    }
+    for i, rep in ipairs(reps) do
+        -- Skip choice factions if player hasn't chosen
+        if not rep.isChoice or (rep.standingId and rep.standingId >= 5) then
+            local itemKey = "repItem" .. i
+            local itemText = container[itemKey]
+            if not itemText then
+                itemText = container:CreateFontString(nil, "OVERLAY")
+                container[itemKey] = itemText
+            end
+            itemText:SetFont(HopeAddon.assets.fonts.SMALL, 9)
+            itemText:ClearAllPoints()
 
-    -- Create collapsible section for each category
-    for catIdx, category in ipairs(categories) do
-        local items = specData[category.key] or {}
-        if #items > 0 then
-            -- Create collapsible section header
-            local sectionFrame = self:CreateLootCategorySection(container, category.title, category.color, catIdx, yOffset)
-
-            -- Add item cards to section
-            local itemYOffset = -30
-            for i, item in ipairs(items) do
-                local cardKey = "lootCard_" .. category.key .. "_" .. i
-                local card = self:CreateLootCard(sectionFrame, item, cardKey)
-                card:ClearAllPoints()
-                card:SetPoint("TOPLEFT", sectionFrame, "TOPLEFT", 5, itemYOffset)
-                card:SetPoint("RIGHT", sectionFrame, "RIGHT", -5, 0)
-                card:Show()
-                itemYOffset = itemYOffset - 78
+            -- Alternate columns
+            if leftCount <= rightCount then
+                itemText:SetPoint("TOPLEFT", container, "TOPLEFT", 20, leftY)
+                leftY = leftY - 14
+                leftCount = leftCount + 1
+            else
+                itemText:SetPoint("TOPLEFT", container, "TOP", 10, rightY)
+                rightY = rightY - 14
+                rightCount = rightCount + 1
             end
 
-            yOffset = yOffset - (32 + (#items * 78) + 8)  -- section header + items + padding
+            -- Color based on standing
+            local standingColors = {
+                [1] = "CC0000", [2] = "FF3333", [3] = "FF8000", [4] = "FFFF00",
+                [5] = "00CC00", [6] = "0099CC", [7] = "0066CC", [8] = "9933FF",
+            }
+            local standingColor = standingColors[rep.standingId] or "FFFFFF"
+            local keyIcon = rep.hasHeroicKey and "|cFF44CC44*|r" or ""
+
+            itemText:SetText(rep.name .. ": |cFF" .. standingColor .. rep.standing .. "|r" .. keyIcon)
+            itemText:Show()
         end
     end
 
     return container
-end
-
---[[
-    Create a collapsible category section for loot items
-]]
-function Journal:CreateLootCategorySection(parent, title, colorName, index, yOffset)
-    local sectionKey = "lootSection_" .. index
-    local section = parent[sectionKey]
-
-    if not section then
-        section = CreateFrame("Frame", nil, parent, "BackdropTemplate")
-        section:SetBackdrop({
-            bgFile = "Interface\\Buttons\\WHITE8X8",
-            edgeFile = "Interface\\Buttons\\WHITE8X8",
-            edgeSize = 1,
-            insets = { left = 1, right = 1, top = 1, bottom = 1 }
-        })
-        section:SetBackdropColor(0.05, 0.05, 0.08, 0.6)
-
-        -- Header bar
-        section.header = CreateFrame("Button", nil, section)
-        section.header:SetHeight(26)
-        section.header:SetPoint("TOPLEFT", section, "TOPLEFT", 0, 0)
-        section.header:SetPoint("TOPRIGHT", section, "TOPRIGHT", 0, 0)
-
-        -- Header background
-        section.headerBg = section.header:CreateTexture(nil, "BACKGROUND")
-        section.headerBg:SetAllPoints(section.header)
-        section.headerBg:SetColorTexture(0.12, 0.12, 0.15, 0.9)
-
-        -- Expand/collapse indicator
-        section.indicator = section.header:CreateFontString(nil, "OVERLAY")
-        section.indicator:SetFont(HopeAddon.assets.fonts.HEADER, 12)
-        section.indicator:SetPoint("LEFT", section.header, "LEFT", 8, 0)
-
-        -- Title
-        section.titleText = section.header:CreateFontString(nil, "OVERLAY")
-        section.titleText:SetFont(HopeAddon.assets.fonts.HEADER, 11)
-        section.titleText:SetPoint("LEFT", section.indicator, "RIGHT", 6, 0)
-
-        -- Hover highlight
-        section.highlight = section.header:CreateTexture(nil, "HIGHLIGHT")
-        section.highlight:SetAllPoints(section.header)
-        section.highlight:SetColorTexture(1, 0.84, 0, 0.15)
-
-        section.isExpanded = true
-        section.contentHeight = 0
-
-        parent[sectionKey] = section
-    end
-
-    -- Get color from palette
-    local color = HopeAddon.colors[colorName] or HopeAddon.colors.GOLD_BRIGHT
-    section:SetBackdropBorderColor(color.r, color.g, color.b, 0.6)
-
-    -- Set title and indicator
-    section.indicator:SetText(section.isExpanded and "[-]" or "[+]")
-    section.indicator:SetTextColor(0.7, 0.7, 0.7)
-    section.titleText:SetText("|cFF" .. string.format("%02x%02x%02x", color.r * 255, color.g * 255, color.b * 255) .. title .. "|r")
-
-    -- Position section
-    section:ClearAllPoints()
-    section:SetPoint("TOPLEFT", parent, "TOPLEFT", 5, yOffset)
-    section:SetPoint("RIGHT", parent, "RIGHT", -5, 0)
-    section:SetHeight(32 + (3 * 78))  -- header + 3 items
-    section:Show()
-
-    return section
-end
-
---[[
-    Create a single loot item card showing:
-    - Source (faction @ standing, dungeon, or profession)
-    - Item icon with quality border
-    - Item name in quality color
-    - Stats summary
-    - Progress bar (for rep items) or source tag (for drops/crafted)
-]]
-function Journal:CreateLootCard(parent, item, cardKey)
-    local card = parent[cardKey]
-    local cardWidth = parent:GetWidth() - 10
-
-    if not card then
-        card = CreateFrame("Frame", nil, parent, "BackdropTemplate")
-        card:SetHeight(72)
-        card:SetBackdrop({
-            bgFile = "Interface\\Buttons\\WHITE8X8",
-            edgeFile = "Interface\\Buttons\\WHITE8X8",
-            edgeSize = 1,
-            insets = { left = 1, right = 1, top = 1, bottom = 1 }
-        })
-        card:SetBackdropColor(0.06, 0.06, 0.08, 0.95)
-
-        -- Source text (faction/dungeon/profession)
-        card.sourceText = card:CreateFontString(nil, "OVERLAY")
-        card.sourceText:SetFont(HopeAddon.assets.fonts.SMALL, 9)
-        card.sourceText:SetPoint("TOPLEFT", card, "TOPLEFT", 8, -6)
-
-        -- Item icon
-        card.itemIcon = card:CreateTexture(nil, "ARTWORK")
-        card.itemIcon:SetSize(32, 32)
-        card.itemIcon:SetPoint("TOPLEFT", card, "TOPLEFT", 8, -20)
-
-        -- Icon border (quality colored)
-        card.iconBorder = card:CreateTexture(nil, "OVERLAY")
-        card.iconBorder:SetSize(36, 36)
-        card.iconBorder:SetPoint("CENTER", card.itemIcon, "CENTER", 0, 0)
-        card.iconBorder:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
-        card.iconBorder:SetBlendMode("ADD")
-
-        -- Item name
-        card.itemName = card:CreateFontString(nil, "OVERLAY")
-        card.itemName:SetFont(HopeAddon.assets.fonts.BODY, 10)
-        card.itemName:SetPoint("TOPLEFT", card.itemIcon, "TOPRIGHT", 8, 0)
-
-        -- Slot text
-        card.slotText = card:CreateFontString(nil, "OVERLAY")
-        card.slotText:SetFont(HopeAddon.assets.fonts.SMALL, 8)
-        card.slotText:SetPoint("TOPLEFT", card.itemName, "BOTTOMLEFT", 0, -1)
-        card.slotText:SetTextColor(0.7, 0.7, 0.7)
-
-        -- Stats text
-        card.statsText = card:CreateFontString(nil, "OVERLAY")
-        card.statsText:SetFont(HopeAddon.assets.fonts.SMALL, 8)
-        card.statsText:SetPoint("TOPLEFT", card.slotText, "BOTTOMLEFT", 0, -1)
-        card.statsText:SetTextColor(0.5, 0.75, 0.5)
-        card.statsText:SetWidth(cardWidth - 60)
-        card.statsText:SetJustifyH("LEFT")
-
-        -- Progress bar background (for rep items)
-        card.progressBg = card:CreateTexture(nil, "BACKGROUND")
-        card.progressBg:SetColorTexture(0.08, 0.08, 0.1, 0.9)
-        card.progressBg:SetHeight(6)
-        card.progressBg:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 8, 6)
-        card.progressBg:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -8, 6)
-
-        -- Progress bar fill
-        card.progressFill = card:CreateTexture(nil, "ARTWORK")
-        card.progressFill:SetPoint("TOPLEFT", card.progressBg, "TOPLEFT", 1, -1)
-
-        -- Progress/source text
-        card.progressText = card:CreateFontString(nil, "OVERLAY")
-        card.progressText:SetFont(HopeAddon.assets.fonts.SMALL, 8)
-        card.progressText:SetPoint("BOTTOM", card.progressBg, "TOP", 0, 2)
-        card.progressText:SetTextColor(0.8, 0.8, 0.8)
-
-        parent[cardKey] = card
-    end
-
-    -- Get quality color
-    local qualityColors = HopeAddon.Constants.ITEM_QUALITY_COLORS
-    local qc = qualityColors[item.quality] or qualityColors.common
-
-    -- Set border color based on quality
-    card:SetBackdropBorderColor(qc.r * 0.7, qc.g * 0.7, qc.b * 0.7, 0.8)
-    card.iconBorder:SetVertexColor(qc.r, qc.g, qc.b, 0.7)
-
-    -- Source text with color based on type
-    local sourceColor = "AAAA88"
-    if item.sourceType == "rep" then
-        sourceColor = "9B59B6"  -- Purple for rep
-    elseif item.sourceType == "drops" then
-        sourceColor = "3498DB"  -- Blue for dungeons
-    elseif item.sourceType == "crafted" then
-        sourceColor = "E67E22"  -- Orange for crafted
-    end
-    card.sourceText:SetText("|cFF" .. sourceColor .. item.source .. "|r")
-    card.sourceText:Show()
-
-    -- Item icon
-    local iconPath = "Interface\\Icons\\" .. (item.icon or "INV_Misc_QuestionMark")
-    card.itemIcon:SetTexture(iconPath)
-    card.itemIcon:Show()
-    card.iconBorder:Show()
-
-    -- Item name in quality color
-    local hexColor = string.format("%02x%02x%02x", qc.r * 255, qc.g * 255, qc.b * 255)
-    card.itemName:SetText("|cFF" .. hexColor .. item.name .. "|r")
-    card.itemName:Show()
-
-    -- Slot text
-    card.slotText:SetText(item.slot or "")
-    card.slotText:Show()
-
-    -- Stats text
-    card.statsText:SetText(item.stats or "")
-    card.statsText:Show()
-
-    -- Progress bar for reputation items
-    if item.sourceType == "rep" and item.faction then
-        -- Get current standing with faction
-        local standingId, currentRep, maxRep = self:GetFactionProgress(item.faction)
-        local standingNames = HopeAddon.Constants.STANDING_NAMES
-        local currentStanding = standingNames[standingId] or "Unknown"
-        local requiredStanding = standingNames[item.standing] or "Exalted"
-
-        -- Calculate progress
-        local isComplete = standingId >= item.standing
-        local pct = 0
-        if isComplete then
-            pct = 100
-        elseif maxRep > 0 then
-            pct = (currentRep / maxRep) * 100
-        end
-
-        -- Standing colors
-        local standingColors = {
-            [1] = {0.8,0,0}, [2] = {1,0.2,0.2}, [3] = {1,0.5,0}, [4] = {1,1,0},
-            [5] = {0,0.8,0}, [6] = {0,0.6,0.8}, [7] = {0,0.4,0.8}, [8] = {0.6,0.2,1}
-        }
-        local sc = standingColors[standingId] or {0.5, 0.5, 0.5}
-
-        card.progressBg:Show()
-        card.progressFill:SetColorTexture(sc[1], sc[2], sc[3], 0.8)
-        local barWidth = card.progressBg:GetWidth() - 2
-        if barWidth < 1 then barWidth = 200 end  -- Default if not yet measured
-        card.progressFill:SetSize(math.max(1, barWidth * (pct / 100)), 4)
-        card.progressFill:Show()
-
-        card.progressText:ClearAllPoints()
-        card.progressText:SetPoint("BOTTOM", card.progressBg, "TOP", 0, 2)
-        if isComplete then
-            card.progressText:SetText("|cFF44CC44" .. string.char(226, 156, 147) .. " " .. currentStanding .. "|r")
-        else
-            card.progressText:SetText("|cFFCCCCCC" .. currentStanding .. " - Need " .. requiredStanding .. "|r")
-        end
-        card.progressText:Show()
-    elseif item.sourceType == "drops" then
-        -- Dungeon drop - show dungeon name
-        card.progressBg:Hide()
-        card.progressFill:Hide()
-        card.progressText:ClearAllPoints()
-        card.progressText:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 8, 8)
-        card.progressText:SetText("|cFF3498DB" .. string.char(226, 154, 148) .. " Dungeon Drop|r")
-        card.progressText:Show()
-    elseif item.sourceType == "crafted" then
-        -- Crafted item - show profession
-        card.progressBg:Hide()
-        card.progressFill:Hide()
-        card.progressText:ClearAllPoints()
-        card.progressText:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 8, 8)
-        local profession = item.profession or "Crafted"
-        card.progressText:SetText("|cFFE67E22" .. string.char(226, 154, 153) .. " " .. profession .. "|r")
-        card.progressText:Show()
-    else
-        -- Unknown type
-        card.progressBg:Hide()
-        card.progressFill:Hide()
-        card.progressText:ClearAllPoints()
-        card.progressText:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 8, 8)
-        card.progressText:SetText("|cFFAAAAAA[Obtainable]|r")
-        card.progressText:Show()
-    end
-
-    -- Enable mouse for tooltip
-    card:EnableMouse(true)
-    card:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        if item.itemId then
-            GameTooltip:SetHyperlink("item:" .. item.itemId)
-        else
-            GameTooltip:SetText(item.name)
-            GameTooltip:AddLine(item.stats, 0.6, 0.8, 0.6)
-            GameTooltip:AddLine(item.source, 0.7, 0.7, 0.7)
-        end
-        GameTooltip:Show()
-    end)
-    card:SetScript("OnLeave", function()
-        GameTooltip:Hide()
-    end)
-
-    return card
-end
-
---[[
-    Get faction progress for a given faction name
-    Returns: standingId, currentRep, maxRep
-]]
-function Journal:GetFactionProgress(factionName)
-    -- Map faction names to faction IDs
-    local factionIds = {
-        ["Cenarion Expedition"] = 942,
-        ["Honor Hold"] = 946,
-        ["Thrallmar"] = 947,
-        ["Lower City"] = 1011,
-        ["The Sha'tar"] = 935,
-        ["Keepers of Time"] = 989,
-        ["The Consortium"] = 933,
-        ["Sporeggar"] = 970,
-        ["The Aldor"] = 932,
-        ["The Scryers"] = 934,
-    }
-
-    local factionId = factionIds[factionName]
-    if not factionId then
-        return 4, 0, 3000 -- Default to Neutral if unknown
-    end
-
-    local name, description, standingId, barMin, barMax, barValue = GetFactionInfoByID(factionId)
-    if not name then
-        return 4, 0, 3000
-    end
-
-    local currentRep = barValue - barMin
-    local maxRep = barMax - barMin
-
-    return standingId, currentRep, maxRep
-end
-
-function Journal:GetNextStep()
-    local Attunements = HopeAddon.Attunements
-    local playerLevel = UnitLevel("player")
-    local result = { phase = "ENDGAME", title = "Legend of Outland", subtitle = "All attunements complete!", story = "You have conquered all of Outland's challenges.", icon = "Interface\\Icons\\Achievement_Boss_Illidan", progress = { current = 100, total = 100, percentage = 100, label = "Complete" } }
-    if playerLevel < 58 then result.phase = "PRE_OUTLAND" result.title = "Reach the Dark Portal" result.subtitle = "Level " .. playerLevel .. " of 58" result.story = "Journey to Hellfire Peninsula awaits." result.icon = "Interface\\Icons\\Spell_Arcane_PortalOrgrimmar" result.progress = { current = playerLevel, total = 58, percentage = math.floor((playerLevel / 58) * 100), label = playerLevel .. " / 58" } return result end
-    local karaProgress = Attunements and Attunements:GetProgress("karazhan")
-    if karaProgress and not karaProgress.completed then local chapters = Attunements:GetTotalChapters("karazhan") or 7 local completed = 0 if karaProgress.chapters then for _ in pairs(karaProgress.chapters) do completed = completed + 1 end end result.phase = "T4_ATTUNEMENT" result.title = "Karazhan Attunement" result.subtitle = "Chapter " .. (completed + 1) .. " of " .. chapters result.story = "Complete the Karazhan attunement chain." result.icon = "Interface\\Icons\\INV_Misc_Key_07" result.progress = { current = completed, total = chapters, percentage = math.floor((completed / chapters) * 100), label = completed .. " / " .. chapters } return result end
-    local sscProgress = Attunements and Attunements:GetProgress("ssc") local tkProgress = Attunements and Attunements:GetProgress("tk")
-    if (sscProgress and not sscProgress.completed) or (tkProgress and not tkProgress.completed) then local targetRaid = (sscProgress and not sscProgress.completed) and "ssc" or "tk" local progress = targetRaid == "ssc" and sscProgress or tkProgress local chapters = Attunements:GetTotalChapters(targetRaid) or 5 local completed = 0 if progress and progress.chapters then for _ in pairs(progress.chapters) do completed = completed + 1 end end local raidName = targetRaid == "ssc" and "Serpentshrine Cavern" or "Tempest Keep" result.phase = "T5_ATTUNEMENT" result.title = raidName .. " Attunement" result.subtitle = "Chapter " .. (completed + 1) .. " of " .. chapters result.story = "Complete the attunement to access " .. raidName result.icon = targetRaid == "ssc" and "Interface\\Icons\\INV_Misc_MonsterScales_15" or "Interface\\Icons\\INV_Misc_Key_13" result.progress = { current = completed, total = chapters, percentage = math.floor((completed / chapters) * 100), label = completed .. " / " .. chapters } return result end
-    local hyjalProgress = Attunements and Attunements:GetProgress("hyjal") local btProgress = Attunements and Attunements:GetProgress("bt")
-    if (hyjalProgress and not hyjalProgress.completed) or (btProgress and not btProgress.completed) then local targetRaid = (hyjalProgress and not hyjalProgress.completed) and "hyjal" or "bt" local progress = targetRaid == "hyjal" and hyjalProgress or btProgress local chapters = Attunements:GetTotalChapters(targetRaid) or 4 local completed = 0 if progress and progress.chapters then for _ in pairs(progress.chapters) do completed = completed + 1 end end local raidName = targetRaid == "hyjal" and "Mount Hyjal" or "Black Temple" result.phase = "T6_ATTUNEMENT" result.title = raidName .. " Attunement" result.subtitle = "Chapter " .. (completed + 1) .. " of " .. chapters result.story = "Complete the attunement to access " .. raidName result.icon = targetRaid == "hyjal" and "Interface\\Icons\\INV_Misc_Gem_Variety_01" or "Interface\\Icons\\INV_Weapon_Glaive_01" result.progress = { current = completed, total = chapters, percentage = math.floor((completed / chapters) * 100), label = completed .. " / " .. chapters } return result end
-    local tierStatus = self:GetTierStatus("T6")
-    if tierStatus and tierStatus.status ~= "CLEARED" then result.phase = "RAID_PROGRESSION" result.title = "Clear " .. (tierStatus.currentRaid or "Black Temple") result.subtitle = "Raid Progression" result.story = "Defeat the final bosses of Outland." result.icon = "Interface\\Icons\\INV_Sword_01" local bossesKilled = tierStatus.bossesKilled or 0 local totalBosses = tierStatus.totalBosses or 9 result.progress = { current = bossesKilled, total = totalBosses, percentage = math.floor((bossesKilled / totalBosses) * 100), label = bossesKilled .. " / " .. totalBosses } return result end
-    return result
-end
-
-function Journal:CreateNextStepBox()
-    local stepData = self:GetNextStep()
-    local phaseColor = PHASE_COLORS[stepData.phase] or "GOLD_BRIGHT"
-    local c = HopeAddon.colors[phaseColor] or HopeAddon.colors.GOLD_BRIGHT
-    local scrollContent = self.mainFrame.scrollContainer.content
-
-    -- Use persistent frame with BackdropTemplate for border color support
-    local container = self._nextStepFrame
-    if not container then
-        container = HopeAddon:CreateBackdropFrame("Frame", nil, scrollContent)
-        container:SetBackdrop({
-            bgFile = "Interface\\Buttons\\WHITE8X8",
-            edgeFile = "Interface\\Buttons\\WHITE8X8",
-            edgeSize = 2,
-            insets = { left = 2, right = 2, top = 2, bottom = 2 }
-        })
-        container:SetBackdropColor(0.08, 0.08, 0.08, 0.95)
-        self._nextStepFrame = container
-    end
-    container:SetParent(scrollContent)
-    container:SetSize(CONTAINER_WIDTH, 180)
-    container:Show()
-    local phaseBadge = container.phaseBadge or container:CreateFontString(nil, "OVERLAY") container.phaseBadge = phaseBadge phaseBadge:SetFont(HopeAddon.assets.fonts.SMALL, 9) phaseBadge:ClearAllPoints() phaseBadge:SetPoint("TOPRIGHT", container, "TOPRIGHT", -10, -8) phaseBadge:SetText(HopeAddon:ColorText(PHASE_NAMES[stepData.phase] or stepData.phase, phaseColor)) phaseBadge:Show()
-    local header = container.stepHeader or container:CreateFontString(nil, "OVERLAY") container.stepHeader = header header:SetFont(HopeAddon.assets.fonts.HEADER, 11) header:ClearAllPoints() header:SetPoint("TOPLEFT", container, "TOPLEFT", 10, -5) header:SetText(HopeAddon:ColorText("YOUR NEXT STEP", phaseColor)) header:Show()
-    local icon = container.stepIcon or container:CreateTexture(nil, "ARTWORK") container.stepIcon = icon icon:SetSize(48, 48) icon:ClearAllPoints() icon:SetPoint("TOPLEFT", container, "TOPLEFT", 15, -25) icon:SetTexture(stepData.icon or "Interface\\Icons\\INV_Misc_QuestionMark") icon:Show()
-    local title = container.stepTitle or container:CreateFontString(nil, "OVERLAY") container.stepTitle = title title:SetFont(HopeAddon.assets.fonts.HEADER, 14) title:ClearAllPoints() title:SetPoint("TOPLEFT", icon, "TOPRIGHT", 12, 2) title:SetText(HopeAddon:ColorText(stepData.title, "BRIGHT_WHITE")) title:Show()
-    local subtitle = container.stepSubtitle or container:CreateFontString(nil, "OVERLAY") container.stepSubtitle = subtitle subtitle:SetFont(HopeAddon.assets.fonts.BODY, 11) subtitle:ClearAllPoints() subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -2) subtitle:SetText(HopeAddon:ColorText(stepData.subtitle, "SUBTLE")) subtitle:Show()
-    local story = container.stepStory or container:CreateFontString(nil, "OVERLAY") container.stepStory = story story:SetFont(HopeAddon.assets.fonts.BODY, 10) story:ClearAllPoints() story:SetPoint("TOPLEFT", container, "TOPLEFT", 15, -80) story:SetPoint("RIGHT", container, "RIGHT", -15, 0) story:SetJustifyH("LEFT") story:SetText("|cFFCCCCCC\"" .. (stepData.story or "") .. "\"|r") story:Show()
-    local progressBar = container.stepProgressBar if not progressBar then progressBar = CreateFrame("Frame", nil, container, "BackdropTemplate") progressBar:SetSize(CONTAINER_WIDTH - 40, 16) progressBar:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 }) progressBar:SetBackdropColor(0.1, 0.1, 0.1, 0.8) progressBar:SetBackdropBorderColor(0.3, 0.3, 0.3, 1) progressBar.fill = progressBar:CreateTexture(nil, "ARTWORK") progressBar.fill:SetPoint("TOPLEFT", 2, -2) progressBar.fill:SetPoint("BOTTOMLEFT", 2, 2) progressBar.label = progressBar:CreateFontString(nil, "OVERLAY") progressBar.label:SetFont(HopeAddon.assets.fonts.SMALL, 9) progressBar.label:SetPoint("CENTER", progressBar, "CENTER", 0, 0) container.stepProgressBar = progressBar end
-    progressBar:ClearAllPoints() progressBar:SetPoint("BOTTOMLEFT", container, "BOTTOMLEFT", 20, 35) local pct = stepData.progress.percentage or 0 progressBar.fill:SetWidth(math.max(1, (CONTAINER_WIDTH - 44) * (pct / 100))) progressBar.fill:SetColorTexture(c.r, c.g, c.b, 0.8) progressBar.label:SetText(stepData.progress.label or (pct .. "%")) progressBar:Show()
-    local nextPreview = container.stepNextPreview or container:CreateFontString(nil, "OVERLAY") container.stepNextPreview = nextPreview nextPreview:SetFont(HopeAddon.assets.fonts.SMALL, 9) nextPreview:ClearAllPoints() nextPreview:SetPoint("BOTTOMLEFT", container, "BOTTOMLEFT", 20, 12) nextPreview:SetText("") nextPreview:Show()
-    container:SetBackdropBorderColor(c.r, c.g, c.b, 1) return container
 end
 
 --[[
@@ -2113,40 +1724,80 @@ function Journal:PopulateJourney()
     local Components = HopeAddon.Components
     local scrollContainer = self.mainFrame.scrollContainer
 
-    -- === YOUR NEXT STEP - PROMINENT GUIDANCE BOX ===
-    local nextStepBox = self:CreateNextStepBox()
-    scrollContainer:AddEntry(nextStepBox)
-
     -- === YOU ARE PREPARED SUMMARY SECTION ===
 
-    -- Header with title
+    -- 1. Header with title
     local header = self:CreateJourneySummaryHeader()
     scrollContainer:AddEntry(header)
 
-    -- 3. Tier Progress Cards (T4/T5/T6)
+    -- 2. Tier Progress Cards (T4/T5/T6)
     local tierSection = self:CreateTierProgressSection()
     scrollContainer:AddEntry(tierSection)
+
+    -- 3. Current Focus Panel
+    local focusPanel = self:CreateFocusPanel()
+    scrollContainer:AddEntry(focusPanel)
 
     -- 4. Attunement Summary (compact)
     local attuneSection = self:CreateAttunementSummary()
     scrollContainer:AddEntry(attuneSection)
 
-    -- === LOOT HOTLIST SECTION ===
-    -- Shows top 3 recommended items for the player's class
-    local lootSection = self:CreateLootHotlist()
-    scrollContainer:AddEntry(lootSection)
+    -- 5. Key Reputations (compact)
+    local repSection = self:CreateReputationSummary()
+    scrollContainer:AddEntry(repSection)
+
+    -- === TIMELINE SECTION ===
+
+    -- Separator
+    local separator = self:CreateTimelineSeparator()
+    scrollContainer:AddEntry(separator)
+
+    -- Use cached sorted entries if available (performance optimization)
+    -- Cache is invalidated when new entries are added via InvalidateCounts()
+    if not self.timelineCacheValid or not self.cachedSortedTimeline then
+        self.cachedSortedTimeline = {}
+        for _, entry in ipairs(entries) do
+            table.insert(self.cachedSortedTimeline, entry)
+        end
+        table.sort(self.cachedSortedTimeline, function(a, b)
+            return (a.timestamp or "") > (b.timestamp or "")
+        end)
+        self.timelineCacheValid = true
+    end
+
+    for _, entry in ipairs(self.cachedSortedTimeline) do
+        local card = self:AcquireCard(scrollContainer.content, {
+            icon = entry.icon,
+            title = entry.title,
+            description = entry.description or entry.story,
+            timestamp = entry.timestamp,
+        })
+        scrollContainer:AddEntry(card)
+    end
+
+    -- If no entries, show placeholder
+    if #entries == 0 then
+        local placeholderFrame = self:AcquireContainer(scrollContainer.content, 100)
+
+        local placeholder = placeholderFrame.headerText
+        if not placeholder then
+            placeholder = placeholderFrame:CreateFontString(nil, "OVERLAY")
+            placeholderFrame.headerText = placeholder
+        end
+        placeholder:SetFont(HopeAddon.assets.fonts.BODY, 12)
+        placeholder:ClearAllPoints()
+        placeholder:SetPoint("CENTER", placeholderFrame, "CENTER", 0, 0)
+        placeholder:SetText("Your journey awaits...\n\nLevel up to record your first milestone!")
+        placeholder:SetTextColor(HopeAddon:GetTextColor("SUBTLE"))
+        placeholder:SetJustifyH("CENTER")
+
+        scrollContainer:AddEntry(placeholderFrame)
+    end
 end
 
 --[[
-    CHRONICLE MILESTONES HELPERS
-    Three-act structure for the Hero's Journey milestones page
-]]
-
--- Major milestones that get enhanced visual treatment
-local MAJOR_MILESTONES = { [40] = true, [58] = true, [60] = true, [70] = true }
-
---[[
     Create the chronicle header with title, subtitle, and progress bar
+    Used by Journey tab to show milestone progress
     @return Frame - Header container
 ]]
 function Journal:CreateChronicleHeader()
@@ -2335,32 +1986,30 @@ function Journal:CreateReputationCard(info)
         icon = icon .. (info.data.icon or "INV_Misc_QuestionMark")
     end
 
-    -- Build description using quips (humorous remarks) instead of lore
+    -- Build description
     local description = ""
     if info.isSpecial then
         description = info.description or ""
     elseif info.data then
-        -- Determine quip key: use 0 for "not started" (neutral or below with no progress)
-        local quipKey = standingId
-        if standingId <= 4 and current == 0 and max == 0 then
-            quipKey = 0 -- Not started yet
+        description = info.data.description or ""
+
+        -- Add lore if we have milestones
+        local milestones = HopeAddon.charDb.reputation and HopeAddon.charDb.reputation.milestones
+        if milestones and milestones[info.name] and milestones[info.name][standingId] then
+            local milestone = milestones[info.name][standingId]
+            description = milestone.story or description
         end
 
-        -- Get the quip for current standing
-        if info.data.quips and info.data.quips[quipKey] then
-            description = "|cFFFFD700\"|r" .. info.data.quips[quipKey] .. "|cFFFFD700\"|r"
-        elseif info.data.quips and info.data.quips[standingId] then
-            description = "|cFFFFD700\"|r" .. info.data.quips[standingId] .. "|cFFFFD700\"|r"
-        else
-            -- Fallback to faction description
-            description = info.data.description or ""
+        -- Add progress info
+        if max > 0 then
+            description = description .. string.format("\n\nProgress: %d / %d", current, max)
         end
     end
 
-    -- Always show progress bar for regular factions (not special cards)
-    local needsProgressBar = not info.isSpecial and info.data
+    -- Determine if we need progress bar (affects card height)
+    local needsProgressBar = not info.isSpecial and info.data and standingId < 8 and max > 0
 
-    -- Create card with larger height to accommodate bar + milestones
+    -- Create card
     local card = self:AcquireCard(self.mainFrame.scrollContainer.content, {
         icon = icon,
         title = info.name,
@@ -2368,90 +2017,33 @@ function Journal:CreateReputationCard(info)
         timestamp = standingName,
     })
 
-    -- Increase card height to fit progress bar and milestone labels
+    -- Increase card height if progress bar needed to prevent overlap
     if needsProgressBar then
-        card:SetHeight(110)
+        card:SetHeight(95)
     end
 
     -- Set border color based on standing
     card:SetBackdropBorderColor(r, g, b, 1)
     card.defaultBorderColor = {r, g, b, 1}  -- Store for hover restore
 
-    -- Grey out border for "not started" factions
-    if not info.isSpecial and standingId <= 4 and current == 0 and (max == 0 or max == nil) then
-        card:SetBackdropBorderColor(0.4, 0.4, 0.4, 0.8)
-        card.defaultBorderColor = {0.4, 0.4, 0.4, 0.8}
-    end
-
-    -- Add progress bar for all factions (not just non-exalted)
+    -- Add RPG-themed progress bar for non-exalted factions
     if needsProgressBar then
         -- Calculate bar width: card width - icon - margins
         local barWidth = card:GetWidth() - Components.ICON_SIZE_STANDARD - 3 * Components.MARGIN_NORMAL - 60 -- 60 for badge
-
-        -- For "not started" or exalted, we still show a bar
-        local displayCurrent = current
-        local displayMax = max
-        if max == 0 or max == nil then
-            displayMax = 3000 -- Use Friendly threshold as default max
-            displayCurrent = 0
-        end
-
         local reputationBar = Components:CreateReputationBar(card, barWidth, 12, {
             compact = true,
             showStandingBadge = true,
-            showTickMarks = standingId >= 5, -- Only show tick marks for Friendly+
+            showTickMarks = true,
             showAnimations = true,
         })
         reputationBar:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT",
-            Components.ICON_SIZE_STANDARD + 2 * Components.MARGIN_NORMAL, 28)
-        reputationBar:SetReputation(info.name, displayCurrent, displayMax, standingId)
+            Components.ICON_SIZE_STANDARD + 2 * Components.MARGIN_NORMAL, 10)
+        reputationBar:SetReputation(info.name, current, max, standingId)
         card.reputationBar = reputationBar
-
-        -- Add standing milestone labels below the bar
-        local milestoneFrame = CreateFrame("Frame", nil, card)
-        milestoneFrame:SetHeight(14)
-        milestoneFrame:SetPoint("TOPLEFT", reputationBar, "BOTTOMLEFT", 0, -2)
-        milestoneFrame:SetPoint("TOPRIGHT", reputationBar, "BOTTOMRIGHT", 60, -2) -- Include badge area
-
-        -- Standing milestones: Friendly -> Honored -> Revered -> Exalted
-        local milestones = {
-            { id = 5, name = "Friendly", pos = 0 },
-            { id = 6, name = "Honored", pos = 0.33 },
-            { id = 7, name = "Revered", pos = 0.66 },
-            { id = 8, name = "Exalted", pos = 1.0 },
-        }
-
-        for _, milestone in ipairs(milestones) do
-            local label = milestoneFrame:CreateFontString(nil, "OVERLAY")
-            label:SetFont(HopeAddon.assets.fonts.BODY, 9)
-
-            -- Determine color: bright if achieved, faded if not
-            local milestoneColor
-            if standingId >= milestone.id then
-                -- Achieved - use standing color
-                local mr, mg, mb = Data:GetStandingColor(milestone.id)
-                milestoneColor = string.format("|cFF%02X%02X%02X", mr * 255, mg * 255, mb * 255)
-            else
-                -- Not achieved - faded grey
-                milestoneColor = "|cFF666666"
-            end
-
-            label:SetText(milestoneColor .. milestone.name .. "|r")
-
-            -- Position labels across the bar width
-            if milestone.pos == 0 then
-                label:SetPoint("LEFT", milestoneFrame, "LEFT", 0, 0)
-            elseif milestone.pos == 1.0 then
-                label:SetPoint("RIGHT", milestoneFrame, "RIGHT", -60, 0) -- Account for badge
-            else
-                label:SetPoint("LEFT", milestoneFrame, "LEFT", barWidth * milestone.pos - 15, 0)
-            end
-        end
-
-        card.milestoneFrame = milestoneFrame
     end
 
-    -- Add golden glow for Exalted
+    -- Add golden glow for Exalted (the reputation bar handles its own effects,
+    -- but we keep the card glow for consistency with other completed cards)
     if standingId == 8 then
         Effects:CreatePulsingGlow(card, "GOLD_BRIGHT", 0.3)
     end
@@ -2518,71 +2110,8 @@ function Journal:PopulateAttunements()
             chainName:SetTextColor(HopeAddon:GetTextColor("SECONDARY"))
             self.mainFrame.scrollContainer:AddEntry(chainContainer)
 
-            -- Show level requirements
-            if attunementData.minLevel or attunementData.recommendedLevel then
-                local levelContainer = self:AcquireContainer(self.mainFrame.scrollContainer.content, 15)
-                local levelText = levelContainer.headerText
-                if not levelText then
-                    levelText = levelContainer:CreateFontString(nil, "OVERLAY")
-                    levelContainer.headerText = levelText
-                end
-                levelText:ClearAllPoints()
-                levelText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
-                levelText:SetPoint("TOPLEFT", levelContainer, "TOPLEFT", Components.MARGIN_NORMAL, -2)
-
-                local levelStr = ""
-                if attunementData.minLevel then
-                    levelStr = "Minimum Level: " .. attunementData.minLevel
-                end
-                if attunementData.recommendedLevel then
-                    if levelStr ~= "" then
-                        levelStr = levelStr .. " | "
-                    end
-                    levelStr = levelStr .. "Recommended: " .. attunementData.recommendedLevel
-                end
-                levelText:SetText(HopeAddon:ColorText(levelStr, "GOLD_BRIGHT"))
-                self.mainFrame.scrollContainer:AddEntry(levelContainer)
-            end
-
-            -- Show detailed prerequisites (keys, reputation, etc.)
-            if attunementData.prerequisites and #attunementData.prerequisites > 0 then
-                local prereqHeader = self:AcquireContainer(self.mainFrame.scrollContainer.content, 16)
-                local prereqHeaderText = prereqHeader.headerText
-                if not prereqHeaderText then
-                    prereqHeaderText = prereqHeader:CreateFontString(nil, "OVERLAY")
-                    prereqHeader.headerText = prereqHeaderText
-                end
-                prereqHeaderText:ClearAllPoints()
-                prereqHeaderText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
-                prereqHeaderText:SetPoint("TOPLEFT", prereqHeader, "TOPLEFT", Components.MARGIN_NORMAL, -2)
-                prereqHeaderText:SetText(HopeAddon:ColorText("Prerequisites:", "HELLFIRE_ORANGE"))
-                self.mainFrame.scrollContainer:AddEntry(prereqHeader)
-
-                for _, prereq in ipairs(attunementData.prerequisites) do
-                    local prereqItem = self:AcquireContainer(self.mainFrame.scrollContainer.content, 14)
-                    local prereqItemText = prereqItem.headerText
-                    if not prereqItemText then
-                        prereqItemText = prereqItem:CreateFontString(nil, "OVERLAY")
-                        prereqItem.headerText = prereqItemText
-                    end
-                    prereqItemText:ClearAllPoints()
-                    prereqItemText:SetFont(HopeAddon.assets.fonts.SMALL, 9)
-                    prereqItemText:SetPoint("TOPLEFT", prereqItem, "TOPLEFT", Components.MARGIN_NORMAL + 10, -1)
-
-                    local prereqStr = "  \226\128\162 " .. prereq.name
-                    if prereq.source then
-                        prereqStr = prereqStr .. " - " .. prereq.source
-                    end
-                    prereqItemText:SetText(prereqStr)
-                    prereqItemText:SetTextColor(0.9, 0.7, 0.5, 1)
-                    prereqItemText:SetWidth(self.mainFrame.scrollContainer.content:GetWidth() - 50)
-                    prereqItemText:SetWordWrap(true)
-                    self.mainFrame.scrollContainer:AddEntry(prereqItem)
-                end
-            end
-
-            -- Show prerequisite if any (legacy single prerequisite)
-            if summary.prerequisite and not (attunementData.prerequisites and #attunementData.prerequisites > 0) then
+            -- Show prerequisite if any
+            if summary.prerequisite then
                 local prereqContainer = self:AcquireContainer(self.mainFrame.scrollContainer.content, 15)
                 local prereqText = prereqContainer.headerText
                 if not prereqText then
@@ -2614,7 +2143,7 @@ function Journal:PopulateAttunements()
                 summary.completedChapters, summary.totalChapters, summary.percentage))
             progressText:SetTextColor(1, 1, 1, 1)
 
-            local progressContainer = self:CreateSpacer(30)
+            local progressContainer = self:CreateSpacer(Components.MARGIN_LARGE)
             self.mainFrame.scrollContainer:AddEntry(progressContainer)
 
             -- Add glow if complete
@@ -2644,17 +2173,12 @@ function Journal:PopulateAttunements()
                 local chapterDetails = Attunements:GetChapterDetails(raidKey, i)
                 local isComplete = chapterDetails and chapterDetails.complete
 
-                local statusIcon = isComplete and "|cFF44CC44[X]|r " or "|cFF666666[ ]|r "
+                local statusIcon = isComplete and "|cFF00FF00[+]|r " or "|cFF666666[ ]|r "
 
                 -- Build description using table.concat for efficiency
                 local descParts = { chapter.story or "" }
 
-                -- Add level requirement
-                if chapter.minLevel then
-                    descParts[#descParts + 1] = HopeAddon:ColorText("Requires Level " .. chapter.minLevel, "GOLD_BRIGHT")
-                end
-
-                -- Add quest giver and location
+                -- NEW: Add quest giver and location
                 if chapter.questGiver then
                     local locText = chapter.questGiver
                     if chapter.location then
@@ -2663,12 +2187,7 @@ function Journal:PopulateAttunements()
                     descParts[#descParts + 1] = HopeAddon:ColorText("Quest Giver: " .. locText, "GOLD_BRIGHT")
                 end
 
-                -- Add turn-in location if different from quest giver
-                if chapter.turnIn then
-                    descParts[#descParts + 1] = HopeAddon:ColorText("Turn In: " .. chapter.turnIn, "GOLD_BRIGHT")
-                end
-
-                -- Add difficulty badge
+                -- NEW: Add difficulty badge
                 if chapter.difficulty then
                     local diffData = C.ATTUNEMENT_DIFFICULTY[chapter.difficulty]
                     if diffData then
@@ -2676,13 +2195,9 @@ function Journal:PopulateAttunements()
                     end
                 end
 
-                -- Add dungeon/raid requirements with level
+                -- Add dungeon/raid requirements
                 if chapter.dungeon then
-                    local dungeonText = chapter.dungeon
-                    if chapter.dungeonLevel then
-                        dungeonText = dungeonText .. " (Level " .. chapter.dungeonLevel .. ")"
-                    end
-                    descParts[#descParts + 1] = HopeAddon:ColorText("Dungeon: " .. dungeonText, "SKY_BLUE")
+                    descParts[#descParts + 1] = HopeAddon:ColorText("Dungeon: " .. chapter.dungeon, "SKY_BLUE")
                 end
                 if chapter.dungeons then
                     descParts[#descParts + 1] = HopeAddon:ColorText("Dungeons: " .. table.concat(chapter.dungeons, ", "), "SKY_BLUE")
@@ -2693,12 +2208,6 @@ function Journal:PopulateAttunements()
                 if chapter.boss then
                     descParts[#descParts + 1] = HopeAddon:ColorText("Boss: " .. chapter.boss, "HELLFIRE_ORANGE")
                 end
-
-                -- Add prerequisite (key/rep requirements)
-                if chapter.prerequisite then
-                    descParts[#descParts + 1] = HopeAddon:ColorText("Prerequisite: " .. chapter.prerequisite, "HELLFIRE_ORANGE")
-                end
-
                 if chapter.requires and type(chapter.requires) == "string" then
                     descParts[#descParts + 1] = HopeAddon:ColorText("Requires: " .. chapter.requires, "BRONZE")
                 elseif chapter.requires and type(chapter.requires) == "table" then
@@ -2713,12 +2222,11 @@ function Journal:PopulateAttunements()
                     timestamp = isComplete and (chapterDetails.completedDate or "Complete") or "",
                 })
 
-                -- Store detailed info for enhanced tooltip
-                card.chapterName = chapter.name
-                card.tips = chapter.tips
-                card.objectives = chapter.objectives
-                card.rewards = chapter.rewards
-                card.quests = chapter.quests
+                -- Store tips for tooltip
+                if chapter.tips and #chapter.tips > 0 then
+                    card.tips = chapter.tips
+                    card.chapterName = chapter.name
+                end
 
                 if isComplete then
                     card:SetBackdropBorderColor(0.2, 0.8, 0.2, 1)
@@ -2728,60 +2236,16 @@ function Journal:PopulateAttunements()
                     card:SetAlpha(0.7)
                 end
 
-                -- Enhanced tooltip with objectives, rewards, tips on hover
+                -- Enhanced tooltip with tips on hover
                 local oldOnEnter = card:GetScript("OnEnter")
                 card:SetScript("OnEnter", function(self)
                     if oldOnEnter then oldOnEnter(self) end
-
-                    local hasContent = (self.objectives and #self.objectives > 0) or
-                                      (self.rewards) or
-                                      (self.quests and #self.quests > 0) or
-                                      (self.tips and #self.tips > 0)
-
-                    if hasContent then
+                    if self.tips and #self.tips > 0 then
                         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                        GameTooltip:SetText(self.chapterName, 1, 0.84, 0)
-
-                        -- Show objectives
-                        if self.objectives and #self.objectives > 0 then
-                            GameTooltip:AddLine(" ")
-                            GameTooltip:AddLine("Objectives:", 0.2, 0.8, 1)
-                            for _, obj in ipairs(self.objectives) do
-                                GameTooltip:AddLine("  \226\128\162 " .. obj, 0.9, 0.9, 0.9, true)
-                            end
+                        GameTooltip:SetText(self.chapterName .. " - Tips", 1, 0.84, 0)
+                        for _, tip in ipairs(self.tips) do
+                            GameTooltip:AddLine("- " .. tip, 0.8, 0.8, 0.8, true)
                         end
-
-                        -- Show quests
-                        if self.quests and #self.quests > 0 then
-                            GameTooltip:AddLine(" ")
-                            GameTooltip:AddLine("Quests:", 1, 0.84, 0)
-                            for _, quest in ipairs(self.quests) do
-                                GameTooltip:AddLine("  \226\128\162 " .. quest.name, 0.9, 0.9, 0.7, true)
-                            end
-                        end
-
-                        -- Show rewards
-                        if self.rewards then
-                            GameTooltip:AddLine(" ")
-                            GameTooltip:AddLine("Rewards:", 0.1, 0.9, 0.1)
-                            if self.rewards.xp then
-                                GameTooltip:AddLine("  XP: " .. self.rewards.xp, 0.8, 0.6, 1)
-                            end
-                            if self.rewards.reputation then
-                                local rep = self.rewards.reputation
-                                GameTooltip:AddLine("  " .. rep.name .. ": +" .. rep.amount, 0.4, 0.8, 0.4)
-                            end
-                        end
-
-                        -- Show tips
-                        if self.tips and #self.tips > 0 then
-                            GameTooltip:AddLine(" ")
-                            GameTooltip:AddLine("Tips:", 1, 0.5, 0)
-                            for _, tip in ipairs(self.tips) do
-                                GameTooltip:AddLine("  \226\128\162 " .. tip, 0.8, 0.8, 0.8, true)
-                            end
-                        end
-
                         GameTooltip:Show()
                     end
                 end)
@@ -2795,13 +2259,13 @@ function Journal:PopulateAttunements()
             end
 
             -- Spacer between attunements
-            local attuneSpacer = self:CreateSpacer(20)
+            local attuneSpacer = self:CreateSpacer(Components.SECTION_SPACER)
             self.mainFrame.scrollContainer:AddEntry(attuneSpacer)
         end
     end
 
     -- Cipher of Damnation section (TK prerequisite)
-    local cipherSpacer = self:CreateSpacer(10)
+    local cipherSpacer = self:CreateSpacer(Components.SECTION_SPACER)
     self.mainFrame.scrollContainer:AddEntry(cipherSpacer)
 
     -- Cipher header - FontStrings properly parented to container
@@ -2844,7 +2308,7 @@ function Journal:PopulateAttunements()
         cipherSummary.completedChapters, cipherSummary.totalChapters, cipherSummary.percentage))
     cipherProgressText:SetTextColor(1, 1, 1, 1)
 
-    local cipherProgressContainer = self:CreateSpacer(25)
+    local cipherProgressContainer = self:CreateSpacer(Components.MARGIN_LARGE)
     self.mainFrame.scrollContainer:AddEntry(cipherProgressContainer)
 
     -- Add Heroic Keys section
@@ -2925,7 +2389,7 @@ function Journal:PopulateHeroicKeys()
             local requiredName = standingNames[keyData.requiredStanding] or "Revered"
 
             -- Status icon
-            local statusIcon = hasKey and "|cFF44CC44[X]|r " or "|cFF666666[ ]|r "
+            local statusIcon = hasKey and "|cFF00FF00[+]|r " or "|cFF666666[ ]|r "
 
             -- Build description
             local descParts = {
@@ -3104,32 +2568,32 @@ function Journal:PopulateRaids()
                     local statusIcon = isKilled and "|cFF00FF00[X]|r " or "|cFF666666[ ]|r "
                     local description
                     if isKilled then
-                        -- Build description with kill count, date, and speed times
-                        local descLines = {}
-                        table.insert(descLines, string.format("Kills: %d | First: %s", killData.totalKills, killData.firstKill))
+                        -- Build description with kill count, date, and times
+                        local lines = {}
+                        table.insert(lines, string.format("Kills: %d | First: %s", killData.totalKills, killData.firstKill))
 
-                        -- Show best time if available (speed tracking)
+                        -- Show best time if available
                         if killData.bestTime then
                             local bestTimeStr = HopeAddon:FormatTime(killData.bestTime)
-                            table.insert(descLines, HopeAddon:ColorText("Best: " .. bestTimeStr, "GOLD_BRIGHT"))
+                            table.insert(lines, HopeAddon:ColorText("Best: " .. bestTimeStr, "GOLD_BRIGHT"))
 
                             -- Show last time with delta if different from best
                             if killData.lastTime and math.abs(killData.lastTime - killData.bestTime) > 0.5 then
                                 local lastTimeStr = HopeAddon:FormatTime(killData.lastTime)
                                 local delta = killData.lastTime - killData.bestTime
                                 local deltaStr = string.format("+%.0fs", delta)
-                                table.insert(descLines, string.format("Last: %s (%s)",
+                                table.insert(lines, string.format("Last: %s (%s)",
                                     lastTimeStr, HopeAddon:ColorText(deltaStr, "HELLFIRE_RED")))
                             end
                         end
 
                         -- Add boss quote if available
                         if boss.quote then
-                            table.insert(descLines, "")
-                            table.insert(descLines, HopeAddon:ColorText('"' .. boss.quote .. '"', "GOLD_BRIGHT"))
+                            table.insert(lines, "")
+                            table.insert(lines, HopeAddon:ColorText('"' .. boss.quote .. '"', "GOLD_BRIGHT"))
                         end
 
-                        description = table.concat(descLines, "\n")
+                        description = table.concat(lines, "\n")
                     else
                         description = boss.lore or boss.location
                     end
@@ -3169,41 +2633,31 @@ function Journal:PopulateRaids()
 end
 
 --============================================================
--- GAMES TAB - Minigames and Challenges
+-- DIRECTORY TAB - Games Hall + Fellow Travelers List
 --============================================================
-function Journal:PopulateGames()
+function Journal:PopulateDirectory()
     local Components = HopeAddon.Components
     local Constants = HopeAddon.Constants
+    local Directory = HopeAddon.Directory
+    local Relationships = HopeAddon.Relationships
     local scrollContainer = self.mainFrame.scrollContainer
 
-    -- Header
-    local header = self:CreateSectionHeader("GAMES HALL", "ARCANE_PURPLE", "Challenge fellow travelers to minigames")
-    scrollContainer:AddEntry(header)
+    --============================================================
+    -- SECTION 1: GAMES HALL (Collapsible)
+    --============================================================
+    local gamesSection = self:AcquireCollapsibleSection(
+        scrollContainer.content,
+        "GAMES HALL",
+        "ARCANE_PURPLE",
+        true  -- Start expanded
+    )
+    scrollContainer:AddEntry(gamesSection)
 
-    -- Instructions text
-    local instructionsContainer = self:AcquireContainer(scrollContainer.content, 40)
-    local instructionsText = instructionsContainer.headerText
-    if not instructionsText then
-        instructionsText = instructionsContainer:CreateFontString(nil, "OVERLAY")
-        instructionsContainer.headerText = instructionsText
-    end
-    instructionsText:SetFont(HopeAddon.assets.fonts.BODY, 11)
-    instructionsText:ClearAllPoints()
-    instructionsText:SetPoint("TOPLEFT", instructionsContainer, "TOPLEFT", Components.MARGIN_NORMAL, -8)
-    instructionsText:SetText("|cFF9B30FFPractice|r solo or |cFF00FF00Challenge|r a Fellow Traveler to compete!")
-    instructionsText:SetTextColor(HopeAddon:GetTextColor("SECONDARY"))
-    scrollContainer:AddEntry(instructionsContainer)
-
-    -- Create game cards container (not collapsible - full tab content)
-    local gamesContainer = self:AcquireContainer(scrollContainer.content, 250)
-    scrollContainer:AddEntry(gamesContainer)
-
-    -- Create game cards in a 2-column grid (vertical stack)
-    local CARD_WIDTH = 230
-    local CARD_SPACING = 12
-    local CARDS_PER_ROW = 2
-    local ROW_HEIGHT = 120  -- Card height + spacing
-    local GRID_LEFT_MARGIN = 7  -- Center the grid in container
+    -- Create game cards in a 3-column grid
+    local CARD_WIDTH = 200
+    local CARD_SPACING = 10
+    local CARDS_PER_ROW = 3
+    local ROW_HEIGHT = 115  -- Card height + spacing
 
     -- Get game definitions from Constants
     local games = Constants.GAME_DEFINITIONS or {}
@@ -3220,26 +2674,19 @@ function Journal:PopulateGames()
         end
     end
 
-    -- Get active Words games count
-    local wordsActiveCount = 0
-    local WordsPersistence = HopeAddon:GetModule("WordGamePersistence")
-    if WordsPersistence then
-        wordsActiveCount = WordsPersistence:GetGameCount()
-    end
-
     -- Create cards for each game
     for i, gameData in ipairs(games) do
         local card = self:AcquireGameCard(
-            gamesContainer,
+            gamesSection.contentContainer,
             gameData,
             onPracticeClick,
             onChallengeClick
         )
 
-        -- Position in grid (2 columns)
+        -- Position in grid (3 columns)
         card:ClearAllPoints()
-        card:SetPoint("TOPLEFT", gamesContainer, "TOPLEFT",
-            GRID_LEFT_MARGIN + col * (CARD_WIDTH + CARD_SPACING),
+        card:SetPoint("TOPLEFT", gamesSection.contentContainer, "TOPLEFT",
+            col * (CARD_WIDTH + CARD_SPACING),
             -row * ROW_HEIGHT)
         card:Show()
 
@@ -3254,231 +2701,31 @@ function Journal:PopulateGames()
         local gameStats = self:GetGameStats(gameData.id)
         card:SetStats(gameStats.wins, gameStats.losses, gameStats.ties)
 
-        -- Show active games badge for Words
-        if gameData.id == "words" and card.SetActiveGames then
-            card:SetActiveGames(wordsActiveCount)
-        end
+        -- Track card as child of section (for collapse/expand)
+        table.insert(gamesSection.childEntries, card)
     end
 
-    -- Update container height based on grid
+    -- Update section content height based on grid
     local totalRows = math.ceil(#games / CARDS_PER_ROW)
-    gamesContainer:SetHeight(totalRows * ROW_HEIGHT + 10)
-end
+    gamesSection.contentHeight = totalRows * ROW_HEIGHT
+    gamesSection.contentContainer:SetHeight(gamesSection.contentHeight)
+    gamesSection:UpdateHeight()
 
---============================================================
--- SOCIAL TAB - Fellow Travelers Directory
---============================================================
-
---[[
-    Create "Your Profile" section with golden glow container
-    Contains: player name/title, title dropdown, RP status dropdown, edit profile button
-]]
-function Journal:CreateMyProfileSection(parent)
-    local Components = HopeAddon.Components
-    local Badges = HopeAddon.Badges
-    local FellowTravelers = HopeAddon:GetModule("FellowTravelers")
-    local Effects = HopeAddon.Effects
-
-    local profile = HopeAddon.charDb.travelers.myProfile or {}
-    local playerName = UnitName("player")
-    local _, playerClass = UnitClass("player")
-    local classColor = HopeAddon:GetClassColor(playerClass)
-
-    -- Container frame with backdrop
-    local container = CreateFrame("Frame", nil, parent, "BackdropTemplate")
-    container:SetSize(parent:GetWidth() - 20, 160)
-    container._componentType = "profile"
-
-    -- Apply dark parchment backdrop with golden border
-    container:SetBackdrop(HopeAddon.Constants.BACKDROPS.TOOLTIP)
-    local gold = HopeAddon.colors.GOLD_BRIGHT
-    container:SetBackdropBorderColor(gold.r, gold.g, gold.b, 1)
-
-    -- Add static golden glow effect around the container
-    if Effects and Effects.CreateBorderGlow then
-        container._glowEffect = Effects:CreateBorderGlow(container, "GOLD_BRIGHT")
+    -- Set toggle callback to recalculate scroll positions
+    gamesSection.onToggle = function(section, isExpanded)
+        scrollContainer:RecalculatePositions()
     end
 
-    -- Header row: "YOUR PROFILE" title + Edit Profile button
-    local headerText = container:CreateFontString(nil, "OVERLAY")
-    headerText:SetFont(HopeAddon.assets.fonts.HEADER, 14)
-    headerText:SetPoint("TOPLEFT", container, "TOPLEFT", 12, -10)
-    headerText:SetText("|cFFFFD700YOUR PROFILE|r")
-
-    -- Edit Profile button (top right)
-    local editBtn = CreateFrame("Button", nil, container)
-    editBtn:SetSize(90, 22)
-    editBtn:SetPoint("TOPRIGHT", container, "TOPRIGHT", -10, -8)
-
-    local editBtnBg = editBtn:CreateTexture(nil, "BACKGROUND")
-    editBtnBg:SetAllPoints()
-    editBtnBg:SetColorTexture(0.2, 0.2, 0.2, 0.8)
-
-    local editBtnText = editBtn:CreateFontString(nil, "OVERLAY")
-    editBtnText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
-    editBtnText:SetPoint("CENTER")
-    editBtnText:SetText("Edit Profile")
-    editBtnText:SetTextColor(1, 0.82, 0, 1)
-
-    editBtn:SetScript("OnClick", function()
-        HopeAddon.Sounds:PlayClick()
-        local ProfileEditor = HopeAddon:GetModule("ProfileEditor")
-        if ProfileEditor then
-            ProfileEditor:Show()
-        end
-    end)
-    editBtn:SetScript("OnEnter", function(self)
-        editBtnBg:SetColorTexture(0.3, 0.3, 0.3, 0.9)
-    end)
-    editBtn:SetScript("OnLeave", function(self)
-        editBtnBg:SetColorTexture(0.2, 0.2, 0.2, 0.8)
-    end)
-
-    -- Divider line
-    local divider = container:CreateTexture(nil, "ARTWORK")
-    divider:SetSize(container:GetWidth() - 24, 1)
-    divider:SetPoint("TOPLEFT", container, "TOPLEFT", 12, -30)
-    divider:SetColorTexture(0.6, 0.5, 0.3, 0.5)
-
-    -- Class icon
-    local classIcon = container:CreateTexture(nil, "ARTWORK")
-    classIcon:SetSize(40, 40)
-    classIcon:SetPoint("TOPLEFT", container, "TOPLEFT", 15, -40)
-    local iconPath = HopeAddon.Directory and HopeAddon.Directory:GetClassIcon(playerClass) or "Interface\\Icons\\INV_Misc_QuestionMark"
-    classIcon:SetTexture(iconPath)
-
-    -- Player name + title
-    local selectedTitle = Badges and Badges:GetSelectedTitle() or nil
-    local displayName = playerName
-    if selectedTitle and selectedTitle ~= "" then
-        local titleColor = Badges:GetTitleColor(selectedTitle)
-        displayName = string.format("%s |cFF%s<%s>|r", playerName, titleColor, selectedTitle)
-    end
-
-    local nameText = container:CreateFontString(nil, "OVERLAY")
-    nameText:SetFont(HopeAddon.assets.fonts.TITLE, 16)
-    nameText:SetPoint("TOPLEFT", classIcon, "TOPRIGHT", 10, -2)
-    nameText:SetText(displayName)
-    container.nameText = nameText  -- Store reference for updates
-
-    -- Class/Level info
-    local levelText = container:CreateFontString(nil, "OVERLAY")
-    levelText:SetFont(HopeAddon.assets.fonts.BODY, 11)
-    levelText:SetPoint("TOPLEFT", nameText, "BOTTOMLEFT", 0, -2)
-    local colorHex = classColor and string.format("%02x%02x%02x", classColor.r * 255, classColor.g * 255, classColor.b * 255) or "FFFFFF"
-    levelText:SetText(string.format("Level %d |cFF%s%s|r", UnitLevel("player"), colorHex, playerClass or "Unknown"))
-    levelText:SetTextColor(0.8, 0.8, 0.8, 1)
-
-    -- Title dropdown label
-    local titleLabel = container:CreateFontString(nil, "OVERLAY")
-    titleLabel:SetFont(HopeAddon.assets.fonts.SMALL, 10)
-    titleLabel:SetPoint("TOPLEFT", container, "TOPLEFT", 15, -95)
-    titleLabel:SetText("Title:")
-    titleLabel:SetTextColor(0.7, 0.7, 0.7, 1)
-
-    -- Title dropdown
-    local titleDropdown = CreateFrame("Frame", "HopeAddonSocialTitleDropdown" .. GetTime(), container, "UIDropDownMenuTemplate")
-    titleDropdown:SetPoint("LEFT", titleLabel, "RIGHT", -10, -2)
-    UIDropDownMenu_SetWidth(titleDropdown, 140)
-
-    local function InitializeTitleDropdown()
-        local titles = Badges and Badges:GetUnlockedTitles() or {}
-        local currentTitle = profile.selectedTitle
-
-        UIDropDownMenu_Initialize(titleDropdown, function(self, level)
-            -- "None" option
-            local noneInfo = UIDropDownMenu_CreateInfo()
-            noneInfo.text = "|cFF808080(None)|r"
-            noneInfo.value = ""
-            noneInfo.func = function()
-                profile.selectedTitle = nil
-                UIDropDownMenu_SetText(titleDropdown, "|cFF808080(None)|r")
-                -- Update name display
-                nameText:SetText(playerName)
-            end
-            UIDropDownMenu_AddButton(noneInfo, level)
-
-            -- Unlocked titles
-            for _, titleData in ipairs(titles) do
-                local info = UIDropDownMenu_CreateInfo()
-                info.text = "|cFF" .. titleData.colorHex .. titleData.title .. "|r"
-                info.value = titleData.title
-                info.func = function()
-                    profile.selectedTitle = titleData.title
-                    UIDropDownMenu_SetText(titleDropdown, "|cFF" .. titleData.colorHex .. titleData.title .. "|r")
-                    -- Update name display
-                    nameText:SetText(string.format("%s |cFF%s<%s>|r", playerName, titleData.colorHex, titleData.title))
-                end
-                UIDropDownMenu_AddButton(info, level)
-            end
-        end)
-
-        -- Set current value
-        if currentTitle and currentTitle ~= "" then
-            local titleColor = Badges and Badges:GetTitleColor(currentTitle) or "FFFFFF"
-            UIDropDownMenu_SetText(titleDropdown, "|cFF" .. titleColor .. currentTitle .. "|r")
-        else
-            UIDropDownMenu_SetText(titleDropdown, "|cFF808080(None)|r")
-        end
-    end
-    InitializeTitleDropdown()
-
-    -- RP Status dropdown label
-    local statusLabel = container:CreateFontString(nil, "OVERLAY")
-    statusLabel:SetFont(HopeAddon.assets.fonts.SMALL, 10)
-    statusLabel:SetPoint("TOPLEFT", container, "TOPLEFT", 15, -125)
-    statusLabel:SetText("RP Status:")
-    statusLabel:SetTextColor(0.7, 0.7, 0.7, 1)
-
-    -- RP Status dropdown
-    local statusDropdown = CreateFrame("Frame", "HopeAddonSocialStatusDropdown" .. GetTime(), container, "UIDropDownMenuTemplate")
-    statusDropdown:SetPoint("LEFT", statusLabel, "RIGHT", -10, -2)
-    UIDropDownMenu_SetWidth(statusDropdown, 140)
-
-    local function InitializeStatusDropdown()
-        local options = FellowTravelers and FellowTravelers.STATUS_OPTIONS or {}
-        local currentStatus = profile.status or "OOC"
-
-        UIDropDownMenu_Initialize(statusDropdown, function(self, level)
-            for _, opt in ipairs(options) do
-                local info = UIDropDownMenu_CreateInfo()
-                info.text = "|cFF" .. opt.color .. opt.label .. "|r"
-                info.value = opt.id
-                info.func = function()
-                    profile.status = opt.id
-                    UIDropDownMenu_SetText(statusDropdown, "|cFF" .. opt.color .. opt.label .. "|r")
-                end
-                UIDropDownMenu_AddButton(info, level)
-            end
-        end)
-
-        -- Set current value
-        for _, opt in ipairs(options) do
-            if opt.id == currentStatus then
-                UIDropDownMenu_SetText(statusDropdown, "|cFF" .. opt.color .. opt.label .. "|r")
-                break
-            end
-        end
-    end
-    InitializeStatusDropdown()
-
-    return container
-end
-
-function Journal:PopulateSocial()
-    local Components = HopeAddon.Components
-    local Directory = HopeAddon.Directory
-    local scrollContainer = self.mainFrame.scrollContainer
-
-    -- Your Profile section (lit-up container at top)
-    local profileSection = self:CreateMyProfileSection(scrollContainer.content)
-    scrollContainer:AddEntry(profileSection)
-
-    -- Spacer
+    --============================================================
+    -- SPACER between sections
+    --============================================================
     local spacer = Components:CreateSpacer(scrollContainer.content, 15)
+    spacer._pooled = false  -- Not from pool, simple frame
     scrollContainer:AddEntry(spacer)
 
-    -- Fellow Travelers Header
+    --============================================================
+    -- SECTION 2: FELLOW TRAVELERS
+    --============================================================
     local header = self:CreateSectionHeader("FELLOW TRAVELERS", "FEL_GREEN", "Addon users you have encountered")
     scrollContainer:AddEntry(header)
 
@@ -3529,7 +2776,7 @@ end
 
 --[[
     Get game statistics for a specific game ID
-    @param gameId string - Game identifier (rps, pong, battleship, etc.)
+    @param gameId string - Game identifier (dice, rps, pong, etc.)
     @return table - { wins, losses, ties }
 ]]
 function Journal:GetGameStats(gameId)
@@ -3562,109 +2809,30 @@ end
 function Journal:StartLocalGame(gameId)
     HopeAddon:Debug("Starting local game:", gameId)
 
-    if gameId == "deathroll" then
-        -- Death roll local practice via DeathRollUI
-        local DeathRollUI = HopeAddon:GetModule("DeathRollUI")
-        if DeathRollUI then
-            DeathRollUI:QuickStartLocal()
-        else
-            HopeAddon:Print("DeathRollUI module not loaded")
+    if gameId == "dice" then
+        -- Dice has local mode via Minigames
+        if HopeAddon.Minigames then
+            HopeAddon.Minigames:StartLocalDiceGame()
         end
-    elseif gameId == "pong" or gameId == "tetris" then
-        -- Pong and Tetris: Show practice mode selection (AI vs 2-Player Local)
-        local MinigamesUI = HopeAddon.MinigamesUI
-        if MinigamesUI then
-            MinigamesUI:ShowPracticeModePopup(gameId, function(mode)
-                self:StartPracticeWithMode(gameId, mode)
-            end)
-        else
-            HopeAddon:Print("MinigamesUI module not loaded")
+    elseif gameId == "deathroll" then
+        -- Death roll local practice
+        if HopeAddon.Minigames then
+            HopeAddon.Minigames:StartLocalDeathRoll()
         end
-    elseif gameId == "words" then
-        -- Words with WoW local practice (vs yourself)
-        local WordGame = HopeAddon:GetModule("WordGame")
-        if WordGame then
-            WordGame:StartGame(nil)  -- nil opponent = local mode
-        else
-            HopeAddon:Print("WordGame module not loaded")
-        end
-    elseif gameId == "rps" then
-        -- RPS vs AI with gameshow reveal
-        local Minigames = HopeAddon:GetModule("Minigames")
-        if Minigames then
-            Minigames:StartLocalRPSGame()
-        else
-            HopeAddon:Print("Minigames module not loaded")
-        end
-    elseif gameId == "battleship" then
-        -- Battleship via GameCore
+    elseif gameId == "pong" then
+        -- Pong via GameCore
         local GameCore = HopeAddon:GetModule("GameCore")
         if GameCore then
-            local newGameId = GameCore:CreateGame("BATTLESHIP", GameCore.GAME_MODE.LOCAL, nil)
-            if newGameId then
-                GameCore:StartGame(newGameId)
-            end
-        else
-            HopeAddon:Print("GameCore module not loaded")
+            GameCore:CreateGame("PONG", "LOCAL", nil)
+        end
+    elseif gameId == "tetris" then
+        -- Tetris via GameCore
+        local GameCore = HopeAddon:GetModule("GameCore")
+        if GameCore then
+            GameCore:CreateGame("TETRIS", "LOCAL", nil)
         end
     else
         HopeAddon:Print("Local mode not available for " .. (gameId or "unknown"))
-    end
-end
-
---[[
-    Start a practice game with the selected mode (AI or 2-Player Local)
-    Called by the practice mode selection popup callback
-    @param gameId string - Game identifier ("tetris" or "pong")
-    @param mode string - Practice mode ("ai" or "local")
-]]
-function Journal:StartPracticeWithMode(gameId, mode)
-    HopeAddon:Debug("Starting practice game:", gameId, "mode:", mode)
-
-    local GameCore = HopeAddon:GetModule("GameCore")
-    if not GameCore then
-        HopeAddon:Print("GameCore module not loaded")
-        return
-    end
-
-    if gameId == "pong" then
-        if mode == "ai" then
-            -- Pong vs AI: Use SCORE_CHALLENGE mode (AI paddle enabled)
-            local newGameId = GameCore:CreateGame("PONG", GameCore.GAME_MODE.SCORE_CHALLENGE, nil)
-            if newGameId then
-                GameCore:StartGame(newGameId)
-            end
-        else
-            -- Pong 2-Player Local: Use LOCAL mode (both paddles human-controlled)
-            local newGameId = GameCore:CreateGame("PONG", GameCore.GAME_MODE.LOCAL, nil)
-            if newGameId then
-                GameCore:StartGame(newGameId)
-            end
-        end
-    elseif gameId == "tetris" then
-        if mode == "ai" then
-            -- Tetris vs AI: Use LOCAL mode with AI flag
-            local newGameId = GameCore:CreateGame("TETRIS", GameCore.GAME_MODE.LOCAL, nil)
-            if newGameId then
-                -- Set AI opponent flag before starting
-                local game = GameCore.games and GameCore.games[newGameId]
-                if game and game.data and game.data.state then
-                    game.data.state.isAIOpponent = true
-                end
-                GameCore:StartGame(newGameId)
-            end
-        else
-            -- Tetris 2-Player Local: Use LOCAL mode without AI
-            local newGameId = GameCore:CreateGame("TETRIS", GameCore.GAME_MODE.LOCAL, nil)
-            if newGameId then
-                -- Ensure AI is disabled
-                local game = GameCore.games and GameCore.games[newGameId]
-                if game and game.data and game.data.state then
-                    game.data.state.isAIOpponent = false
-                end
-                GameCore:StartGame(newGameId)
-            end
-        end
     end
 end
 
@@ -3677,23 +2845,12 @@ function Journal:CreateDirectoryCard(entry)
     local Components = HopeAddon.Components
     local Directory = HopeAddon.Directory
     local Relationships = HopeAddon.Relationships
-    local Badges = HopeAddon.Badges
 
     -- Get formatted display data
     local display = Directory and Directory:FormatEntryForDisplay(entry) or {}
 
     -- Get class color once for reuse (description + border)
     local classColor = entry.class and HopeAddon:GetClassColor(entry.class) or nil
-
-    -- Build the display name with title if available
-    local displayTitle = entry.name
-    if entry.selectedTitle and entry.selectedTitle ~= "" then
-        -- Get the title's color from the badge system
-        local titleColor = Badges and Badges:GetTitleColor(entry.selectedTitle) or "FFD700"
-        displayTitle = string.format("%s |cFF%s<%s>|r", display.coloredName or entry.name, titleColor, entry.selectedTitle)
-    else
-        displayTitle = display.coloredName or entry.name
-    end
 
     -- Build description
     local descParts = {}
@@ -3726,10 +2883,10 @@ function Journal:CreateDirectoryCard(entry)
     -- Get class icon
     local icon = Directory and Directory:GetClassIcon(entry.class) or "Interface\\Icons\\INV_Misc_QuestionMark"
 
-    -- Create card with title-enhanced display name
+    -- Create card
     local card = self:AcquireCard(self.mainFrame.scrollContainer.content, {
         icon = icon,
-        title = displayTitle,
+        title = display.coloredName or entry.name,
         description = description,
         timestamp = entry.lastSeen or "",
     })
@@ -3789,7 +2946,7 @@ function Journal:CreateDirectoryCard(entry)
             challengeBtn:SetScript("OnEnter", function(self)
                 GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
                 GameTooltip:SetText("Challenge to Minigame", 1, 0.84, 0)
-                GameTooltip:AddLine("RPS, Death Roll, Pong, Tetris, etc.", 0.8, 0.8, 0.8)
+                GameTooltip:AddLine("Dice Roll or Rock-Paper-Scissors", 0.8, 0.8, 0.8)
                 GameTooltip:Show()
             end)
             challengeBtn:SetScript("OnLeave", function()
@@ -3839,290 +2996,236 @@ function Journal:CreateDirectoryCard(entry)
 end
 
 function Journal:PopulateStats()
+    local Components = HopeAddon.Components
+    local stats = HopeAddon.charDb.stats
     local scrollContainer = self.mainFrame.scrollContainer
-    local aggregate = self:GetAggregateGameStats()
-
-    -- Check for empty state (no games played)
-    if aggregate.totalGames == 0 then
-        local header = self:CreateSectionHeader("GAME STATISTICS", "ARCANE_PURPLE")
-        scrollContainer:AddEntry(header)
-
-        local emptyCard = self:AcquireCard(scrollContainer.content, {
-            icon = "Interface\\Icons\\INV_Misc_PunchCards_Yellow",
-            title = "No Games Played Yet",
-            description = "Challenge Fellow Travelers to games from the Directory tab!\n\nGames available: Rock Paper Scissors, Death Roll, Pong, Tetris Battle, Words with WoW, and Battleship.",
-            timestamp = "",
-        })
-        scrollContainer:AddEntry(emptyCard)
-        return
-    end
 
     --============================================================
-    -- SECTION 1: GAME CHAMPION STATISTICS
+    -- SECTION 1: JOURNEY STATISTICS
     --============================================================
-    local header1 = self:CreateSectionHeader("GAME CHAMPION STATISTICS", "ARCANE_PURPLE")
+    local header1 = self:CreateSectionHeader("JOURNEY STATISTICS", "GOLD_BRIGHT")
     scrollContainer:AddEntry(header1)
 
-    -- Total Games Played
-    local totalGamesCard = self:AcquireCard(scrollContainer.content, {
-        icon = "Interface\\Icons\\Achievement_BG_winAB_underXminutes",
-        title = "Total Games Played",
-        description = aggregate.totalGames .. " games across all opponents",
-        timestamp = "",
-    })
-    scrollContainer:AddEntry(totalGamesCard)
-
-    -- Overall Win Rate
-    local winRateColor = self:GetRecordColor(aggregate.wins, aggregate.losses)
-    local winRateColorData = HopeAddon.colors[winRateColor]
-    local winRateCard = self:AcquireCard(scrollContainer.content, {
-        icon = "Interface\\Icons\\Achievement_PVP_G_01",
-        title = "Overall Win Rate",
-        description = string.format("%.1f%% (%s)", aggregate.winRate, self:FormatRecord(aggregate.wins, aggregate.losses, aggregate.ties, true)),
-        timestamp = "",
-    })
-    if winRateColorData then
-        winRateCard:SetBackdropBorderColor(winRateColorData.r, winRateColorData.g, winRateColorData.b, 1)
-    end
-    scrollContainer:AddEntry(winRateCard)
-
-    -- Best Game (if qualified)
-    if aggregate.bestGame then
-        local gameInfo = GAME_STATS_INFO[aggregate.bestGame]
-        local bestGameCard = self:AcquireCard(scrollContainer.content, {
-            icon = gameInfo and gameInfo.icon or "Interface\\Icons\\INV_Misc_QirajiCrystal_01",
-            title = "Best Game",
-            description = string.format("%s (%.0f%% win rate)", gameInfo and gameInfo.name or aggregate.bestGame, aggregate.bestGameWinRate),
+    -- Journey Began
+    if HopeAddon.charDb.characterCreated then
+        local card = self:AcquireCard(scrollContainer.content, {
+            icon = "Interface\\Icons\\INV_Misc_Book_09",
+            title = "Journey Began",
+            description = "Your journey started on " .. HopeAddon.charDb.characterCreated,
             timestamp = "",
         })
-        bestGameCard:SetBackdropBorderColor(0.2, 0.8, 0.2, 1) -- Green for best
-        scrollContainer:AddEntry(bestGameCard)
+        scrollContainer:AddEntry(card)
     end
 
-    -- Favorite Opponent
-    if aggregate.favoriteOpponent then
-        local favoriteCard = self:AcquireCard(scrollContainer.content, {
-            icon = "Interface\\Icons\\INV_Misc_GroupLooking",
-            title = "Favorite Opponent",
-            description = string.format("%s (%d games)", aggregate.favoriteOpponent, aggregate.favoriteOpponentGames),
-            timestamp = "",
-        })
-        scrollContainer:AddEntry(favoriteCard)
-    end
-
-    -- Total Rivals
-    local rivalsCard = self:AcquireCard(scrollContainer.content, {
-        icon = "Interface\\Icons\\Ability_DualWield",
-        title = "Total Rivals",
-        description = aggregate.totalRivals .. " unique opponents faced",
+    -- Total Playtime
+    local playtime = stats.playtime or 0
+    local playtimeStr = self:FormatPlaytime(playtime)
+    local playtimeCard = self:AcquireCard(scrollContainer.content, {
+        icon = "Interface\\Icons\\INV_Misc_PocketWatch_01",
+        title = "Total Playtime",
+        description = playtimeStr,
         timestamp = "",
     })
-    scrollContainer:AddEntry(rivalsCard)
+    scrollContainer:AddEntry(playtimeCard)
+
+    -- Quests Completed
+    local questCard = self:AcquireCard(scrollContainer.content, {
+        icon = "Interface\\Icons\\INV_Misc_Note_01",
+        title = "Quests Completed",
+        description = "Total quests turned in: " .. (stats.questsCompleted or 0),
+        timestamp = "",
+    })
+    scrollContainer:AddEntry(questCard)
 
     local spacer1 = self:CreateSpacer(15)
     scrollContainer:AddEntry(spacer1)
 
     --============================================================
-    -- SECTION 2: PER-GAME BREAKDOWN
+    -- SECTION 2: DUNGEON & RAID PROGRESS
     --============================================================
-    local header2 = self:CreateSectionHeader("GAME BREAKDOWN", "GOLD_BRIGHT")
+    local header2 = self:CreateSectionHeader("DUNGEON & RAID PROGRESS", "SKY_BLUE")
     scrollContainer:AddEntry(header2)
 
-    for _, gameId in ipairs(GAME_STATS_ORDER) do
-        local gameInfo = GAME_STATS_INFO[gameId]
-        local gameStats = self:GetPerGameStats(gameId)
+    -- Count dungeon runs
+    local normalRuns, heroicRuns = self:CountDungeonRuns()
 
-        if gameStats.total > 0 then
-            -- Build description
-            local desc = self:FormatRecord(gameStats.wins, gameStats.losses, gameStats.ties, gameInfo.hasTies)
-            desc = desc .. string.format(" (%.0f%%)", gameStats.winRate)
-            desc = desc .. "\nOpponents: " .. gameStats.opponents
+    -- Dungeon Runs (Normal)
+    local dungeonCard = self:AcquireCard(scrollContainer.content, {
+        icon = "Interface\\Icons\\INV_Misc_Key_10",
+        title = "Dungeon Runs",
+        description = normalRuns .. " normal dungeons completed",
+        timestamp = "",
+    })
+    scrollContainer:AddEntry(dungeonCard)
 
-            -- Add special stat if applicable
-            if gameInfo.specialStat and gameInfo.specialLabel then
-                local specialValue = gameStats[gameInfo.specialStat] or 0
-                if specialValue > 0 then
-                    desc = desc .. " | " .. gameInfo.specialLabel .. ": " .. self:FormatLargeNumber(specialValue)
-                end
-            end
-
-            -- Add last played
-            if gameStats.lastPlayed then
-                desc = desc .. "\nLast played: " .. gameStats.lastPlayed
-            end
-
-            local gameCard = self:AcquireCard(scrollContainer.content, {
-                icon = gameInfo.icon,
-                title = gameInfo.name,
-                description = desc,
-                timestamp = "",
-            })
-
-            -- Color border based on record
-            local recordColor = self:GetRecordColor(gameStats.wins, gameStats.losses)
-            local colorData = HopeAddon.colors[recordColor]
-            if colorData then
-                gameCard:SetBackdropBorderColor(colorData.r, colorData.g, colorData.b, 1)
-            end
-
-            scrollContainer:AddEntry(gameCard)
-        end
+    -- Heroic Dungeons Cleared
+    local heroicCard = self:AcquireCard(scrollContainer.content, {
+        icon = "Interface\\Icons\\INV_Misc_Key_13",
+        title = "Heroic Dungeons Cleared",
+        description = heroicRuns .. " heroic dungeons completed",
+        timestamp = "",
+    })
+    if heroicRuns > 0 then
+        heroicCard:SetBackdropBorderColor(0, 0.75, 1, 1) -- Sky blue for heroic
     end
+    scrollContainer:AddEntry(heroicCard)
+
+    -- Raid Bosses Slain
+    local raidBossKills = self:CountRaidBossKills()
+    local bossCard = self:AcquireCard(scrollContainer.content, {
+        icon = "Interface\\Icons\\Spell_Shadow_SummonInfernal",
+        title = "Raid Bosses Slain",
+        description = raidBossKills .. " raid bosses defeated",
+        timestamp = "",
+    })
+    if raidBossKills > 0 then
+        bossCard:SetBackdropBorderColor(1, 0.27, 0.27, 1) -- Hellfire red
+    end
+    scrollContainer:AddEntry(bossCard)
+
+    -- Raids Cleared (full clears)
+    local raidsCleared = self:CountRaidsCleared()
+    local raidClearCard = self:AcquireCard(scrollContainer.content, {
+        icon = "Interface\\Icons\\INV_Helmet_06",
+        title = "Raids Cleared",
+        description = raidsCleared .. " full raid clears",
+        timestamp = "",
+    })
+    if raidsCleared > 0 then
+        raidClearCard._glowEffect = HopeAddon.Effects:CreatePulsingGlow(raidClearCard, "GOLD_BRIGHT", 0.3)
+    end
+    scrollContainer:AddEntry(raidClearCard)
 
     local spacer2 = self:CreateSpacer(15)
     scrollContainer:AddEntry(spacer2)
 
     --============================================================
-    -- SECTION 3: RIVALS & NEMESES
+    -- SECTION 3: COMBAT RECORD
     --============================================================
-    local rivals = self:GetRivalData(10)
+    local header3 = self:CreateSectionHeader("COMBAT RECORD", "HELLFIRE_RED")
+    scrollContainer:AddEntry(header3)
 
-    if #rivals > 0 then
-        local header3 = self:CreateSectionHeader("RIVALS & NEMESES", "HELLFIRE_RED")
-        scrollContainer:AddEntry(header3)
-
-        for _, rival in ipairs(rivals) do
-            -- Get class color for name
-            local classColor = HopeAddon:GetClassColor(rival.class)
-            local nameColor = classColor and string.format("|cFF%02x%02x%02x", classColor.r * 255, classColor.g * 255, classColor.b * 255) or "|cFFFFFFFF"
-
-            -- Build description
-            local desc = "Record: " .. self:FormatRecord(rival.wins, rival.losses, rival.ties, true)
-            desc = desc .. " (" .. rival.totalGames .. " games)"
-
-            -- Add dominant game if they have wins
-            if rival.dominantGame and rival.dominantGameWins > 0 then
-                local domGameInfo = GAME_STATS_INFO[rival.dominantGame]
-                if domGameInfo then
-                    desc = desc .. "\nBest at: " .. domGameInfo.name
-                end
-            end
-
-            -- Add last played
-            if rival.lastPlayed then
-                desc = desc .. "\nLast played: " .. rival.lastPlayed
-            end
-
-            local rivalCard = self:AcquireCard(scrollContainer.content, {
-                icon = "Interface\\Icons\\INV_Misc_GroupLooking",
-                title = nameColor .. rival.name .. "|r",
-                description = desc,
-                timestamp = "",
-            })
-
-            -- Color border based on your record vs them
-            local recordColor = self:GetRecordColor(rival.wins, rival.losses)
-            local colorData = HopeAddon.colors[recordColor]
-            if colorData then
-                rivalCard:SetBackdropBorderColor(colorData.r, colorData.g, colorData.b, 1)
-            end
-
-            scrollContainer:AddEntry(rivalCard)
-        end
+    -- Battle Scars (Deaths)
+    local deathTitle, deathColor = HopeAddon.Constants:GetDeathTitle(stats.deaths.total)
+    local deathCard = self:AcquireCard(scrollContainer.content, {
+        icon = "Interface\\Icons\\Ability_Creature_Cursed_02",
+        title = "Battle Scars: " .. deathTitle,
+        description = "Total Deaths: " .. stats.deaths.total .. "\n\nEach death is a lesson learned.",
+        timestamp = "",
+    })
+    local deathColorData = HopeAddon.colors[deathColor]
+    if deathColorData then
+        deathCard:SetBackdropBorderColor(deathColorData.r, deathColorData.g, deathColorData.b, 1)
     end
+    scrollContainer:AddEntry(deathCard)
 
-    --============================================================
-    -- SECTION 4: BADGES
-    --============================================================
+    -- Creatures Slain
+    local creaturesSlain = stats.creaturesSlain or 0
+    local creatureCard = self:AcquireCard(scrollContainer.content, {
+        icon = "Interface\\Icons\\Ability_DualWield",
+        title = "Creatures Slain",
+        description = self:FormatLargeNumber(creaturesSlain) .. " foes vanquished",
+        timestamp = "",
+    })
+    scrollContainer:AddEntry(creatureCard)
+
+    -- Largest Hit Dealt
+    local largestHit = stats.largestHit or 0
+    local hitCard = self:AcquireCard(scrollContainer.content, {
+        icon = "Interface\\Icons\\Ability_Warrior_Rampage",
+        title = "Largest Hit Dealt",
+        description = self:FormatLargeNumber(largestHit) .. " damage in a single strike",
+        timestamp = "",
+    })
+    if largestHit >= 10000 then
+        hitCard:SetBackdropBorderColor(1, 0.84, 0, 1) -- Gold for big hits
+    end
+    scrollContainer:AddEntry(hitCard)
+
     local spacer3 = self:CreateSpacer(15)
     scrollContainer:AddEntry(spacer3)
 
-    self:PopulateBadgesSection(scrollContainer)
-end
+    --============================================================
+    -- SECTION 4: EXPLORATION & DISCOVERY
+    --============================================================
+    local header4 = self:CreateSectionHeader("EXPLORATION & DISCOVERY", "FEL_GREEN")
+    scrollContainer:AddEntry(header4)
 
---[[
-    Populate the Badges section in the Stats tab
-    Shows all badges with earned/unearned status
-]]
-function Journal:PopulateBadgesSection(scrollContainer)
-    local Badges = HopeAddon.Badges
-    if not Badges then return end
+    -- Milestones Reached
+    local counts = self:GetCachedCounts()
+    local milestoneCard = self:AcquireCard(scrollContainer.content, {
+        icon = "Interface\\Icons\\INV_Misc_QirajiCrystal_01",
+        title = "Milestones Reached",
+        description = counts.milestones .. " major achievements recorded",
+        timestamp = "",
+    })
+    scrollContainer:AddEntry(milestoneCard)
 
-    local allBadges = Badges:GetAllBadgesWithStatus()
-    local earnedCount = 0
-    local totalCount = #allBadges
+    local spacer4 = self:CreateSpacer(15)
+    scrollContainer:AddEntry(spacer4)
 
-    for _, badge in ipairs(allBadges) do
-        if badge.unlocked then
-            earnedCount = earnedCount + 1
-        end
+    --============================================================
+    -- SECTION 5: TBC PROGRESSION
+    --============================================================
+    local header5 = self:CreateSectionHeader("TBC PROGRESSION", "ARCANE_PURPLE")
+    scrollContainer:AddEntry(header5)
+
+    -- Attunements Completed
+    local attunementCount = self:CountAttunementsCompleted()
+    local attunementCard = self:AcquireCard(scrollContainer.content, {
+        icon = "Interface\\Icons\\INV_Misc_Key_14",
+        title = "Attunements Completed",
+        description = attunementCount .. " of 5 raid attunements completed",
+        timestamp = "",
+    })
+    if attunementCount > 0 then
+        attunementCard:SetBackdropBorderColor(0.61, 0.19, 1, 1) -- Arcane purple
     end
+    scrollContainer:AddEntry(attunementCard)
 
-    -- Header with earned count
-    local header = self:CreateSectionHeader(
-        string.format("BADGES (%d / %d)", earnedCount, totalCount),
-        "GOLD_BRIGHT",
-        "Achievements unlocked through your journey"
-    )
-    scrollContainer:AddEntry(header)
-
-    -- Create badge cards (3 per row visually, but we use a single container approach)
-    for _, badgeInfo in ipairs(allBadges) do
-        local def = badgeInfo.definition
-        local isUnlocked = badgeInfo.unlocked
-
-        -- Build description
-        local descParts = {}
-        table.insert(descParts, def.description)
-
-        -- Add reward info
-        if def.reward then
-            if def.reward.title then
-                local titleColorHex = def.reward.colorHex or "FFD700"
-                table.insert(descParts, string.format("Title: |cFF%s%s|r", titleColorHex, def.reward.title))
-            end
-            if def.reward.colorName then
-                local colorHex = def.reward.colorHex or "FFFFFF"
-                table.insert(descParts, string.format("Color: |cFF%s%s|r", colorHex, def.reward.colorName))
-            end
-        end
-
-        -- Add unlock date if earned
-        if isUnlocked and badgeInfo.unlockDate then
-            table.insert(descParts, "|cFF00FF00Earned: " .. badgeInfo.unlockDate .. "|r")
-        elseif not isUnlocked then
-            table.insert(descParts, "|cFF808080Not yet earned|r")
-        end
-
-        local description = table.concat(descParts, "\n")
-
-        -- Create card
-        local card = self:AcquireCard(scrollContainer.content, {
-            icon = "Interface\\Icons\\" .. def.icon,
-            title = (isUnlocked and "|cFFFFFFFF" or "|cFF606060") .. def.name .. "|r",
-            description = description,
-            timestamp = "",
-        })
-
-        -- Style based on unlock status
-        if isUnlocked then
-            -- Earned: Use badge color for border
-            local colorHex = def.reward and def.reward.colorHex or "FFD700"
-            local r = tonumber(colorHex:sub(1, 2), 16) / 255
-            local g = tonumber(colorHex:sub(3, 4), 16) / 255
-            local b = tonumber(colorHex:sub(5, 6), 16) / 255
-            card:SetBackdropBorderColor(r, g, b, 1)
-            card.defaultBorderColor = { r, g, b, 1 }
-
-            -- Make icon fully visible
-            if card.iconTexture then
-                card.iconTexture:SetDesaturated(false)
-                card.iconTexture:SetVertexColor(1, 1, 1, 1)
-            end
-        else
-            -- Not earned: Greyed out
-            card:SetBackdropBorderColor(0.3, 0.3, 0.3, 0.6)
-            card.defaultBorderColor = { 0.3, 0.3, 0.3, 0.6 }
-
-            -- Desaturate icon
-            if card.iconTexture then
-                card.iconTexture:SetDesaturated(true)
-                card.iconTexture:SetVertexColor(0.5, 0.5, 0.5, 0.7)
-            end
-        end
-
-        scrollContainer:AddEntry(card)
+    -- Reputations at Exalted
+    local exaltedCount = self:CountExaltedReputations()
+    local repCard = self:AcquireCard(scrollContainer.content, {
+        icon = "Interface\\Icons\\INV_Misc_Token_ArgentDawn",
+        title = "Reputations at Exalted",
+        description = exaltedCount .. " factions at Exalted standing",
+        timestamp = "",
+    })
+    if exaltedCount > 0 then
+        repCard:SetBackdropBorderColor(1, 0.84, 0, 1) -- Gold
     end
+    scrollContainer:AddEntry(repCard)
+
+    -- Flying Unlocked
+    local flyingStatus, flyingDate = self:GetFlyingStatus()
+    local flyingCard = self:AcquireCard(scrollContainer.content, {
+        icon = "Interface\\Icons\\Ability_Mount_GryphonRiding",
+        title = "Flying Unlocked",
+        description = flyingStatus,
+        timestamp = flyingDate or "",
+    })
+    if flyingDate then
+        flyingCard:SetBackdropBorderColor(0.2, 0.8, 0.2, 1)
+    else
+        flyingCard:SetAlpha(0.6)
+    end
+    scrollContainer:AddEntry(flyingCard)
+
+    -- Epic Flying Unlocked
+    local epicFlyingStatus, epicFlyingDate = self:GetEpicFlyingStatus()
+    local epicFlyingCard = self:AcquireCard(scrollContainer.content, {
+        icon = "Interface\\Icons\\Ability_Mount_NetherDrakeElite",
+        title = "Epic Flying Unlocked",
+        description = epicFlyingStatus,
+        timestamp = epicFlyingDate or "",
+    })
+    if epicFlyingDate then
+        epicFlyingCard:SetBackdropBorderColor(0.61, 0.19, 1, 1)
+        HopeAddon.Effects:CreatePulsingGlow(epicFlyingCard, "ARCANE_PURPLE", 0.3)
+    else
+        epicFlyingCard:SetAlpha(0.6)
+    end
+    scrollContainer:AddEntry(epicFlyingCard)
 end
 
 --[[
@@ -4198,15 +3301,6 @@ function Journal:GetCachedStatsData()
         end
     end
 
-    local outlandZones = 0
-    local discoveries = HopeAddon.charDb.journal.zoneDiscoveries or {}
-    local outlandZoneList = HopeAddon.Constants.OUTLAND_ZONES or {}
-    for _, zoneName in ipairs(outlandZoneList) do
-        if discoveries[zoneName] then
-            outlandZones = outlandZones + 1
-        end
-    end
-
     local attunementsComplete = 0
     local Attunements = HopeAddon.Attunements
     if Attunements then
@@ -4233,7 +3327,6 @@ function Journal:GetCachedStatsData()
         heroicDungeonRuns = heroicRuns,
         raidBossKills = bossKills,
         raidsCleared = raidsCleared,
-        outlandZonesExplored = outlandZones,
         attunementsCompleted = attunementsComplete,
         exaltedReputations = exaltedReps,
         ridingSkill = self:GetRidingSkill(),
@@ -4242,206 +3335,171 @@ function Journal:GetCachedStatsData()
     return self.cachedStatsData
 end
 
---[[
-    GAME STATS HELPER FUNCTIONS
-    These aggregate minigame statistics across all opponents for the Stats tab
-    Note: GAME_STATS_ORDER and GAME_STATS_INFO are defined at top of file (line ~91)
-]]
-
-function Journal:GetAggregateGameStats()
-    local charDb = HopeAddon.charDb
-    if not charDb or not charDb.travelers or not charDb.travelers.known then
-        return { totalGames = 0, wins = 0, losses = 0, ties = 0, winRate = 0, totalRivals = 0 }
+-- Count normal and heroic dungeon runs
+function Journal:CountDungeonRuns()
+    -- Use cached data if available
+    local cached = self.cachedStatsData
+    if cached then
+        return cached.normalDungeonRuns, cached.heroicDungeonRuns
     end
 
-    local totals = {
-        totalGames = 0,
-        wins = 0,
-        losses = 0,
-        ties = 0,
-        gamesPerType = {},
-        opponentGames = {},
-        totalRivals = 0,
-    }
+    local normal, heroic = 0, 0
+    local dungeonRuns = HopeAddon.charDb.stats.dungeonRuns or {}
 
-    for opponentName, traveler in pairs(charDb.travelers.known) do
-        if traveler.stats and traveler.stats.minigames then
-            local hasGames = false
-            for gameType, stats in pairs(traveler.stats.minigames) do
-                local gameTotal = (stats.wins or 0) + (stats.losses or 0) + (stats.ties or 0)
-                if gameTotal > 0 then
-                    hasGames = true
-                    totals.totalGames = totals.totalGames + gameTotal
-                    totals.wins = totals.wins + (stats.wins or 0)
-                    totals.losses = totals.losses + (stats.losses or 0)
-                    totals.ties = totals.ties + (stats.ties or 0)
-
-                    if not totals.gamesPerType[gameType] then
-                        totals.gamesPerType[gameType] = { wins = 0, losses = 0, ties = 0, total = 0 }
-                    end
-                    local gt = totals.gamesPerType[gameType]
-                    gt.wins = gt.wins + (stats.wins or 0)
-                    gt.losses = gt.losses + (stats.losses or 0)
-                    gt.ties = gt.ties + (stats.ties or 0)
-                    gt.total = gt.total + gameTotal
-
-                    totals.opponentGames[opponentName] = (totals.opponentGames[opponentName] or 0) + gameTotal
-                end
-            end
-            if hasGames then
-                totals.totalRivals = totals.totalRivals + 1
-            end
-        end
+    for _, runs in pairs(dungeonRuns) do
+        normal = normal + (runs.normal or 0)
+        heroic = heroic + (runs.heroic or 0)
     end
 
-    totals.winRate = totals.totalGames > 0 and (totals.wins / totals.totalGames * 100) or 0
-
-    local bestGame, bestWinRate = nil, 0
-    for gameType, stats in pairs(totals.gamesPerType) do
-        if stats.total >= 3 then
-            local winRate = stats.wins / stats.total
-            if winRate > bestWinRate then
-                bestWinRate = winRate
-                bestGame = gameType
-            end
-        end
-    end
-    totals.bestGame = bestGame
-    totals.bestGameWinRate = bestWinRate * 100
-
-    local favoriteOpponent, maxGames = nil, 0
-    for name, count in pairs(totals.opponentGames) do
-        if count > maxGames then
-            maxGames = count
-            favoriteOpponent = name
-        end
-    end
-    totals.favoriteOpponent = favoriteOpponent
-    totals.favoriteOpponentGames = maxGames
-
-    return totals
+    return normal, heroic
 end
 
-function Journal:GetPerGameStats(gameId)
-    local charDb = HopeAddon.charDb
-    if not charDb or not charDb.travelers or not charDb.travelers.known then
-        return { wins = 0, losses = 0, ties = 0, total = 0, winRate = 0, opponents = 0 }
+-- Count raid boss kills from bossKills data
+function Journal:CountRaidBossKills()
+    -- Use cached data if available
+    local cached = self.cachedStatsData
+    if cached then
+        return cached.raidBossKills
     end
 
-    local stats = {
-        wins = 0, losses = 0, ties = 0, total = 0, opponents = 0,
-        highestScore = 0, highestRoll = 0, highestBet = 0, lastPlayed = nil,
-    }
+    local count = 0
+    local bossKills = HopeAddon.charDb.journal.bossKills or {}
 
-    for _, traveler in pairs(charDb.travelers.known) do
-        if traveler.stats and traveler.stats.minigames then
-            local gameStats = traveler.stats.minigames[gameId]
-            if gameStats then
-                local gameTotal = (gameStats.wins or 0) + (gameStats.losses or 0) + (gameStats.ties or 0)
-                if gameTotal > 0 then
-                    stats.wins = stats.wins + (gameStats.wins or 0)
-                    stats.losses = stats.losses + (gameStats.losses or 0)
-                    stats.ties = stats.ties + (gameStats.ties or 0)
-                    stats.total = stats.total + gameTotal
-                    stats.opponents = stats.opponents + 1
+    for _ in pairs(bossKills) do
+        count = count + 1
+    end
 
-                    if gameStats.highestScore and gameStats.highestScore > stats.highestScore then
-                        stats.highestScore = gameStats.highestScore
-                    end
-                    if gameStats.highestRoll and gameStats.highestRoll > stats.highestRoll then
-                        stats.highestRoll = gameStats.highestRoll
-                    end
-                    if gameStats.highestBet and gameStats.highestBet > stats.highestBet then
-                        stats.highestBet = gameStats.highestBet
-                    end
-                    if gameStats.lastPlayed and (not stats.lastPlayed or gameStats.lastPlayed > stats.lastPlayed) then
-                        stats.lastPlayed = gameStats.lastPlayed
-                    end
-                end
+    return count
+end
+
+-- Count fully cleared raids
+function Journal:CountRaidsCleared()
+    -- Use cached data if available
+    local cached = self.cachedStatsData
+    if cached then
+        return cached.raidsCleared
+    end
+
+    local cleared = 0
+    local RaidData = HopeAddon.RaidData
+
+    if RaidData then
+        for _, raidKey in ipairs(HopeAddon.Constants.ALL_RAID_KEYS) do
+            local killed, total = RaidData:GetRaidProgress(raidKey)
+            if killed >= total and total > 0 then
+                cleared = cleared + 1
             end
         end
     end
 
-    stats.winRate = stats.total > 0 and (stats.wins / stats.total * 100) or 0
-    return stats
+    return cleared
 end
 
-function Journal:GetRivalData(limit)
-    limit = limit or 10
-    local charDb = HopeAddon.charDb
-    if not charDb or not charDb.travelers or not charDb.travelers.known then
-        return {}
+-- Count completed attunements
+function Journal:CountAttunementsCompleted()
+    -- Use cached data if available
+    local cached = self.cachedStatsData
+    if cached then
+        return cached.attunementsCompleted
     end
 
-    local rivals = {}
+    local count = 0
+    local Attunements = HopeAddon.Attunements
 
-    for name, traveler in pairs(charDb.travelers.known) do
-        if traveler.stats and traveler.stats.minigames then
-            local rival = {
-                name = name, class = traveler.class, totalGames = 0,
-                wins = 0, losses = 0, ties = 0, lastPlayed = nil,
-                games = {}, dominantGame = nil, dominantGameWins = 0,
-            }
-
-            for gameType, stats in pairs(traveler.stats.minigames) do
-                local gameTotal = (stats.wins or 0) + (stats.losses or 0) + (stats.ties or 0)
-                if gameTotal > 0 then
-                    rival.totalGames = rival.totalGames + gameTotal
-                    rival.wins = rival.wins + (stats.wins or 0)
-                    rival.losses = rival.losses + (stats.losses or 0)
-                    rival.ties = rival.ties + (stats.ties or 0)
-
-                    rival.games[gameType] = {
-                        wins = stats.wins or 0, losses = stats.losses or 0, ties = stats.ties or 0,
-                        highestScore = stats.highestScore, highestRoll = stats.highestRoll, highestBet = stats.highestBet,
-                    }
-
-                    if (stats.wins or 0) > rival.dominantGameWins then
-                        rival.dominantGameWins = stats.wins or 0
-                        rival.dominantGame = gameType
-                    end
-
-                    if stats.lastPlayed and (not rival.lastPlayed or stats.lastPlayed > rival.lastPlayed) then
-                        rival.lastPlayed = stats.lastPlayed
-                    end
-                end
-            end
-
-            if rival.totalGames > 0 then
-                table.insert(rivals, rival)
+    if Attunements then
+        for _, raidKey in ipairs(HopeAddon.Constants.ATTUNEMENT_RAID_KEYS) do
+            local summary = Attunements:GetSummary(raidKey)
+            if summary and summary.isAttuned then
+                count = count + 1
             end
         end
     end
 
-    table.sort(rivals, function(a, b) return a.totalGames > b.totalGames end)
+    return count
+end
 
-    if #rivals > limit then
-        local limited = {}
-        for i = 1, limit do
-            limited[i] = rivals[i]
+-- Count exalted reputations
+function Journal:CountExaltedReputations()
+    -- Use cached data if available
+    local cached = self.cachedStatsData
+    if cached then
+        return cached.exaltedReputations
+    end
+
+    local count = 0
+    local Reputation = HopeAddon:GetModule("Reputation")
+
+    if Reputation and Reputation.cachedStandings then
+        for _, standing in pairs(Reputation.cachedStandings) do
+            if standing.standingId == 8 then -- 8 = Exalted
+                count = count + 1
+            end
         end
-        return limited
     end
 
-    return rivals
+    return count
 end
 
-function Journal:GetRecordColor(wins, losses)
-    if wins > losses then
-        return "FEL_GREEN"
-    elseif losses > wins then
-        return "HELLFIRE_RED"
-    else
-        return "GOLD_BRIGHT"
+-- Get riding skill with caching (invalidated on SKILL_LINES_CHANGED)
+-- Avoids O(n) linear search through 30-50 skills on every stats view
+function Journal:GetRidingSkill()
+    if self.cachedRidingSkill then
+        return self.cachedRidingSkill
     end
+
+    local numSkills = GetNumSkillLines()
+    for i = 1, numSkills do
+        local skillName, _, _, skillRank = GetSkillLineInfo(i)
+        if skillName == "Riding" then
+            self.cachedRidingSkill = skillRank
+            return skillRank
+        end
+    end
+
+    self.cachedRidingSkill = 0
+    return 0
 end
 
-function Journal:FormatRecord(wins, losses, ties, hasTies)
-    if hasTies and ties and ties > 0 then
-        return string.format("%dW-%dL-%dT", wins, losses, ties)
-    else
-        return string.format("%dW-%dL", wins, losses)
+-- Get flying status
+function Journal:GetFlyingStatus()
+    local stats = HopeAddon.charDb.stats
+
+    -- Check if we've recorded flying unlocked
+    if stats.flyingUnlocked then
+        return "Soaring through Outland!", stats.flyingUnlocked
     end
+
+    -- Use cached riding skill lookup
+    local ridingSkill = self:GetRidingSkill()
+
+    if ridingSkill >= 225 then
+        -- Record the date if not already recorded
+        stats.flyingUnlocked = HopeAddon:GetDate()
+        return "Soaring through Outland!", stats.flyingUnlocked
+    end
+
+    return "Requires Expert Riding (225)\nCost: 800g training + mount", nil
+end
+
+-- Get epic flying status
+function Journal:GetEpicFlyingStatus()
+    local stats = HopeAddon.charDb.stats
+
+    -- Check if we've recorded epic flying unlocked
+    if stats.epicFlyingUnlocked then
+        return "Swift as the wind!", stats.epicFlyingUnlocked
+    end
+
+    -- Use cached riding skill lookup
+    local ridingSkill = self:GetRidingSkill()
+
+    if ridingSkill >= 300 then
+        -- Record the date if not already recorded
+        stats.epicFlyingUnlocked = HopeAddon:GetDate()
+        return "Swift as the wind!", stats.epicFlyingUnlocked
+    end
+
+    return "Requires Artisan Riding (300)\nCost: 5000g training + mount", nil
 end
 
 --[[
@@ -4513,9 +3571,6 @@ function Journal:OnPlayerDeath()
 
     local zone = GetZoneText()
     HopeAddon.charDb.stats.deaths.byZone[zone] = (HopeAddon.charDb.stats.deaths.byZone[zone] or 0) + 1
-
-    -- Play funny death sound sequence (Bumblebee style)
-    HopeAddon.Sounds:PlayDeathComedy()
 end
 
 function Journal:OnTimePlayed(totalTime, levelTime)
@@ -4817,12 +3872,8 @@ function Journal:Toggle()
         HopeAddon.Sounds:PlayJournalOpen()
         self.isOpen = true
 
-        -- Restore last selected tab or default to journey
+        -- Restore last selected tab or default to timeline
         local lastTab = HopeAddon.charDb.journal.lastTab or "journey"
-        -- Migrate removed tab selections to journey
-        if lastTab == "zones" or lastTab == "milestones" or lastTab == "directory" then
-            lastTab = "journey"
-        end
         self:SelectTab(lastTab)
     end
 end

@@ -46,6 +46,23 @@ TetrisGame.SETTINGS = {
     SPEED_MULTIPLIER = 0.85,        -- Drop interval *= this per level
 }
 
+-- AI Opponent settings (tuned for ~60-70% player win rate)
+TetrisGame.AI_SETTINGS = {
+    -- Decision timing (humanlike delays)
+    THINK_TIME_MIN = 0.3,           -- Minimum "thinking" time before deciding
+    THINK_TIME_MAX = 0.8,           -- Maximum "thinking" time
+    MOVE_INTERVAL = 0.05,           -- Time between AI moves (simulates key presses)
+
+    -- Evaluation weights
+    WEIGHT_HOLES = -4.0,            -- Penalty per hole
+    WEIGHT_HEIGHT = -0.5,           -- Penalty for aggregate height
+    WEIGHT_BUMPINESS = -0.3,        -- Penalty for surface unevenness
+    WEIGHT_LINES = 1.5,             -- Reward for lines cleared
+
+    -- Intentional mistakes (makes AI beatable)
+    MISTAKE_CHANCE = 0.15,          -- 15% chance to pick suboptimal placement
+}
+
 --============================================================
 -- MODULE STATE
 --============================================================
@@ -109,13 +126,15 @@ function TetrisGame:OnCreate(gameId, game)
     local TetrisBlocks = HopeAddon.TetrisBlocks
     local GameCore = HopeAddon:GetModule("GameCore")
 
-    -- Determine how many boards to create based on mode
+    -- Determine mode type
     local isRemote = (game.mode == GameCore.GAME_MODE.REMOTE)
+    local isScoreChallenge = (game.mode == GameCore.GAME_MODE.SCORE_CHALLENGE)
 
     game.data = {
         ui = {
             window = nil,
             countdownText = nil,
+            opponentPanel = nil,  -- For SCORE_CHALLENGE mode
             boards = {
                 [1] = {
                     container = nil,
@@ -128,10 +147,12 @@ function TetrisGame:OnCreate(gameId, game)
             },
         },
         state = {
-            -- Board setup: LOCAL has 2 boards, REMOTE has 1 board (local player only)
+            -- Board setup: LOCAL has 2 boards, REMOTE/SCORE_CHALLENGE has 1 board
             boards = {
                 [1] = self:CreateBoard(1),
             },
+            -- Mode tracking
+            isScoreChallenge = isScoreChallenge,
             -- Game state
             paused = false,
             countdown = 3,
@@ -142,7 +163,8 @@ function TetrisGame:OnCreate(gameId, game)
     }
 
     -- In LOCAL mode, create second board for player 2
-    if not isRemote then
+    -- REMOTE and SCORE_CHALLENGE modes only have 1 board
+    if not isRemote and not isScoreChallenge then
         game.data.state.boards[2] = self:CreateBoard(2)
         game.data.ui.boards[2] = {
             container = nil,
@@ -219,6 +241,17 @@ function TetrisGame:CreateBoard(playerNum)
 
         -- Player number (for input mapping)
         playerNum = playerNum,
+
+        -- AI state (only used for board 2 when isAIOpponent is true)
+        ai = {
+            enabled = false,            -- Set true for AI-controlled board
+            phase = "THINKING",         -- THINKING | MOVING | DROPPING
+            decisionTimer = 0,
+            decisionDelay = 0,          -- Random delay before decision
+            targetCol = nil,
+            targetRotation = nil,
+            moveTimer = 0,
+        },
     }
 end
 
@@ -233,6 +266,13 @@ function TetrisGame:OnStart(gameId)
         self:RefillBag(board)
         for i = 1, 3 do
             table.insert(board.nextPieces, self:GetNextFromBag(board))
+        end
+
+        -- Enable AI for board 2 if isAIOpponent flag is set
+        if playerNum == 2 and state.isAIOpponent then
+            board.ai.enabled = true
+            self:ResetAIState(board)
+            HopeAddon:Debug("Tetris AI enabled for board 2")
         end
     end
 
@@ -333,8 +373,13 @@ function TetrisGame:UpdateBoard(gameId, playerNum, dt)
         return
     end
 
-    -- Process DAS/ARR input
-    self:UpdateDASInput(gameId, playerNum, dt)
+    -- AI control for board 2 (if enabled)
+    if board.ai and board.ai.enabled then
+        self:UpdateAIBoard(gameId, playerNum, dt)
+    else
+        -- Process DAS/ARR input for human players only
+        self:UpdateDASInput(gameId, playerNum, dt)
+    end
 
     -- Handle locking
     if board.isLocking then
@@ -392,6 +437,238 @@ function TetrisGame:UpdateDASInput(gameId, playerNum, dt)
 end
 
 --============================================================
+-- AI OPPONENT
+--============================================================
+
+--[[
+    Reset AI state for a new piece
+    @param board table - Board state
+]]
+function TetrisGame:ResetAIState(board)
+    local AI = self.AI_SETTINGS
+    local ai = board.ai
+
+    ai.phase = "THINKING"
+    ai.decisionTimer = 0
+    ai.decisionDelay = AI.THINK_TIME_MIN + math.random() * (AI.THINK_TIME_MAX - AI.THINK_TIME_MIN)
+    ai.targetCol = nil
+    ai.targetRotation = nil
+    ai.moveTimer = 0
+end
+
+--[[
+    Update AI-controlled board
+    @param gameId string
+    @param playerNum number
+    @param dt number - Delta time
+]]
+function TetrisGame:UpdateAIBoard(gameId, playerNum, dt)
+    local game = self.games[gameId]
+    if not game then return end
+
+    local board = game.data.state.boards[playerNum]
+    if not board or not board.currentPiece then return end
+
+    local ai = board.ai
+    local AI = self.AI_SETTINGS
+
+    -- Phase: THINKING - Wait and decide where to place piece
+    if ai.phase == "THINKING" then
+        ai.decisionTimer = ai.decisionTimer + dt
+
+        if ai.decisionTimer >= ai.decisionDelay then
+            -- Make decision
+            local col, rotation = self:EvaluateBestPlacement(board)
+
+            -- Intentional mistake chance (makes AI beatable)
+            if math.random() < AI.MISTAKE_CHANCE then
+                col = col + math.random(-2, 2)
+                col = math.max(1, math.min(10, col))
+            end
+
+            ai.targetCol = col
+            ai.targetRotation = rotation
+            ai.phase = "MOVING"
+            ai.moveTimer = 0
+        end
+        return
+    end
+
+    -- Phase: MOVING - Move piece to target position
+    if ai.phase == "MOVING" then
+        ai.moveTimer = ai.moveTimer + dt
+
+        if ai.moveTimer >= AI.MOVE_INTERVAL then
+            ai.moveTimer = 0
+
+            -- Rotate if needed
+            if board.pieceRotation ~= ai.targetRotation then
+                self:RotatePiece(gameId, playerNum, 1)  -- Clockwise
+                return
+            end
+
+            -- Move horizontally if needed
+            local currentCol = board.pieceCol
+            if currentCol < ai.targetCol then
+                self:MovePiece(gameId, playerNum, 0, 1)  -- Move right
+                return
+            elseif currentCol > ai.targetCol then
+                self:MovePiece(gameId, playerNum, 0, -1)  -- Move left
+                return
+            end
+
+            -- At target position - drop
+            ai.phase = "DROPPING"
+        end
+        return
+    end
+
+    -- Phase: DROPPING - Hard drop the piece
+    if ai.phase == "DROPPING" then
+        self:HardDrop(gameId, playerNum)
+        self:ResetAIState(board)
+    end
+end
+
+--[[
+    Evaluate best placement for current piece
+    @param board table - Board state
+    @return number, number - Best column and rotation
+]]
+function TetrisGame:EvaluateBestPlacement(board)
+    local TetrisBlocks = HopeAddon.TetrisBlocks
+    local TetrisGrid = HopeAddon.TetrisGrid
+    local pieceType = board.currentPiece
+
+    if not pieceType then
+        return 5, 1  -- Default to center
+    end
+
+    local bestScore = -math.huge
+    local bestCol = 5
+    local bestRotation = 1
+
+    -- Try all rotations (1-4, but O piece only needs 1)
+    local maxRotations = (pieceType == "O") and 1 or 4
+
+    for rotation = 1, maxRotations do
+        local blocks = TetrisBlocks:GetBlocks(pieceType, rotation)
+        if not blocks then break end
+
+        -- Try all columns
+        for col = 1, TetrisGrid.WIDTH do
+            -- Find where piece would land
+            local landingRow = self:FindLandingRow(board.grid, blocks, col)
+
+            if landingRow then
+                -- Clone grid and simulate placement
+                local testGrid = board.grid:Clone()
+                local color = TetrisBlocks:GetColor(pieceType)
+                testGrid:PlaceBlocks(blocks, landingRow, col, color)
+
+                -- Check for line clears
+                local clearedRows = testGrid:FindCompleteRows()
+                local linesCleared = #clearedRows
+
+                -- Evaluate the resulting grid state
+                local score = self:EvaluateGrid(testGrid, linesCleared)
+
+                if score > bestScore then
+                    bestScore = score
+                    bestCol = col
+                    bestRotation = rotation
+                end
+            end
+        end
+    end
+
+    return bestCol, bestRotation
+end
+
+--[[
+    Find where a piece would land at given column
+    @param grid TetrisGrid
+    @param blocks table - Piece blocks
+    @param col number
+    @return number|nil - Landing row or nil if can't place
+]]
+function TetrisGame:FindLandingRow(grid, blocks, col)
+    local TetrisGrid = HopeAddon.TetrisGrid
+
+    -- Start from top and move down until we can't place
+    for row = 1, TetrisGrid.HEIGHT do
+        if not grid:CanPlace(blocks, row, col) then
+            -- Return row above (where piece can be placed)
+            if row == 1 then
+                return nil  -- Cannot place at all
+            end
+            return row - 1
+        end
+    end
+
+    -- Piece lands at bottom
+    return TetrisGrid.HEIGHT
+end
+
+--[[
+    Evaluate a grid state for AI decision making
+    @param grid TetrisGrid
+    @param linesCleared number
+    @return number - Score (higher is better)
+]]
+function TetrisGame:EvaluateGrid(grid, linesCleared)
+    local AI = self.AI_SETTINGS
+    local TetrisGrid = HopeAddon.TetrisGrid
+
+    local score = 0
+
+    -- Lines cleared bonus
+    score = score + linesCleared * AI.WEIGHT_LINES
+
+    -- Calculate column heights
+    local heights = {}
+    for col = 1, TetrisGrid.WIDTH do
+        heights[col] = 0
+        for row = 1, TetrisGrid.HEIGHT do
+            if not grid:IsEmpty(row, col) then
+                heights[col] = TetrisGrid.HEIGHT - row + 1
+                break
+            end
+        end
+    end
+
+    -- Aggregate height penalty
+    local totalHeight = 0
+    for col = 1, TetrisGrid.WIDTH do
+        totalHeight = totalHeight + heights[col]
+    end
+    score = score + totalHeight * AI.WEIGHT_HEIGHT
+
+    -- Holes penalty (empty cells with filled cells above)
+    local holes = 0
+    for col = 1, TetrisGrid.WIDTH do
+        local foundFilled = false
+        for row = 1, TetrisGrid.HEIGHT do
+            if not grid:IsEmpty(row, col) then
+                foundFilled = true
+            elseif foundFilled then
+                holes = holes + 1
+            end
+        end
+    end
+    score = score + holes * AI.WEIGHT_HOLES
+
+    -- Bumpiness penalty (height differences between adjacent columns)
+    local bumpiness = 0
+    for col = 1, TetrisGrid.WIDTH - 1 do
+        bumpiness = bumpiness + math.abs(heights[col] - heights[col + 1])
+    end
+    score = score + bumpiness * AI.WEIGHT_BUMPINESS
+
+    return score
+end
+
+--============================================================
 -- PIECE OPERATIONS
 --============================================================
 
@@ -437,6 +714,11 @@ function TetrisGame:SpawnPiece(gameId, playerNum)
     board.lockMoveCount = 0
     board.softDropDistance = 0
     board.isLocking = false
+
+    -- Reset AI state for new piece
+    if board.ai and board.ai.enabled then
+        self:ResetAIState(board)
+    end
 end
 
 function TetrisGame:MovePiece(gameId, playerNum, dRow, dCol)
@@ -773,8 +1055,18 @@ function TetrisGame:CheckLineClears(gameId, playerNum, isTSpin, isMini)
 
     board.score = board.score + points * board.level
 
+    -- Notify ScoreChallenge of score update (if in that mode)
+    local state = game.data.state
+    if state.isScoreChallenge then
+        local ScoreChallenge = HopeAddon:GetModule("ScoreChallenge")
+        if ScoreChallenge then
+            ScoreChallenge:UpdateMyScore(board.score, board.lines, board.level)
+        end
+    end
+
     -- Queue garbage (will be sent after canceling in ProcessGarbage)
-    if garbage > 0 then
+    -- Skip garbage in SCORE_CHALLENGE mode (no opponent board)
+    if garbage > 0 and not state.isScoreChallenge then
         board.outgoingGarbage = board.outgoingGarbage + garbage
     end
 
@@ -799,6 +1091,11 @@ end
 function TetrisGame:SendGarbage(gameId, targetPlayer, amount)
     local game = self.games[gameId]
     local GameCore = HopeAddon:GetModule("GameCore")
+
+    -- Skip garbage in SCORE_CHALLENGE mode (no opponent board, no sync)
+    if game.mode == GameCore.GAME_MODE.SCORE_CHALLENGE then
+        return
+    end
 
     if game.mode == GameCore.GAME_MODE.LOCAL then
         -- Local mode: directly add to opponent's board
@@ -884,6 +1181,21 @@ function TetrisGame:OnBoardGameOver(gameId, losingPlayer)
     state.loser = losingPlayer
 
     local GameCore = HopeAddon:GetModule("GameCore")
+
+    -- In SCORE_CHALLENGE mode, notify ScoreChallenge module
+    if game.mode == GameCore.GAME_MODE.SCORE_CHALLENGE then
+        local ScoreChallenge = HopeAddon:GetModule("ScoreChallenge")
+        if ScoreChallenge then
+            local board = state.boards[1]
+            ScoreChallenge:OnLocalGameEnded(
+                board and board.score or 0,
+                board and board.lines or 0,
+                board and board.level or 1
+            )
+        end
+        -- Don't set winner here - ScoreChallenge will handle it after comparing
+        return
+    end
 
     -- In REMOTE mode, notify opponent that we lost
     if game.mode == GameCore.GAME_MODE.REMOTE then
@@ -975,9 +1287,11 @@ function TetrisGame:OnKeyDown(gameId, key)
     if not GameCore then return end
 
     local isRemote = (game.mode == GameCore.GAME_MODE.REMOTE)
+    local isScoreChallenge = (game.mode == GameCore.GAME_MODE.SCORE_CHALLENGE)
+    local isSingleBoard = isRemote or isScoreChallenge
 
-    if isRemote then
-        -- REMOTE MODE: All keys control board 1 (local player)
+    if isSingleBoard then
+        -- REMOTE/SCORE_CHALLENGE MODE: All keys control board 1 (local player)
         -- Accept both WASD and arrow keys for convenience
         if key == "A" or key == "LEFT" then
             local input = state.boards[1].inputState.left
@@ -1035,7 +1349,7 @@ function TetrisGame:OnKeyDown(gameId, key)
 
         -- Player 2 controls (Arrows/Enter)
         if key == "LEFT" then
-            local input = game.data.boards[2].inputState.left
+            local input = state.boards[2].inputState.left
             if not input.pressed then
                 input.pressed = true
                 input.timer = 0
@@ -1043,7 +1357,7 @@ function TetrisGame:OnKeyDown(gameId, key)
                 self:MovePiece(gameId, 2, 0, -1)  -- Immediate first move
             end
         elseif key == "RIGHT" then
-            local input = game.data.boards[2].inputState.right
+            local input = state.boards[2].inputState.right
             if not input.pressed then
                 input.pressed = true
                 input.timer = 0
@@ -1078,13 +1392,15 @@ function TetrisGame:OnKeyUp(gameId, key)
     if not GameCore then return end
 
     local isRemote = (game.mode == GameCore.GAME_MODE.REMOTE)
+    local isScoreChallenge = (game.mode == GameCore.GAME_MODE.SCORE_CHALLENGE)
+    local isSingleBoard = isRemote or isScoreChallenge
 
-    if isRemote then
-        -- REMOTE MODE: Release keys for board 1 only
+    if isSingleBoard then
+        -- REMOTE/SCORE_CHALLENGE MODE: Release keys for board 1 only
         if key == "A" or key == "LEFT" then
-            game.data.boards[1].inputState.left.pressed = false
+            state.boards[1].inputState.left.pressed = false
         elseif key == "D" or key == "RIGHT" then
-            game.data.boards[1].inputState.right.pressed = false
+            state.boards[1].inputState.right.pressed = false
         elseif key == "S" or key == "DOWN" then
             state.boards[1].softDropping = false
         end
@@ -1092,9 +1408,9 @@ function TetrisGame:OnKeyUp(gameId, key)
         -- LOCAL MODE: Release keys for respective players
         -- Player 1
         if key == "A" then
-            game.data.boards[1].inputState.left.pressed = false
+            state.boards[1].inputState.left.pressed = false
         elseif key == "D" then
-            game.data.boards[1].inputState.right.pressed = false
+            state.boards[1].inputState.right.pressed = false
         elseif key == "S" then
             state.boards[1].softDropping = false
         end
@@ -1126,11 +1442,15 @@ function TetrisGame:CreateUI(gameId)
 
     local ui = game.data.ui
 
-    -- Determine if this is remote mode
+    -- Determine mode
     local isRemote = (game.mode == GameCore.GAME_MODE.REMOTE)
+    local isScoreChallenge = (game.mode == GameCore.GAME_MODE.SCORE_CHALLENGE)
+    local isSingleBoard = isRemote or isScoreChallenge
 
     -- Create window
-    local window = GameUI:CreateGameWindow(gameId, "Tetris Battle", isRemote and "TETRIS_REMOTE" or "TETRIS")
+    local windowType = isSingleBoard and "TETRIS_REMOTE" or "TETRIS"
+    local title = isScoreChallenge and "Tetris Score Battle" or "Tetris Battle"
+    local window = GameUI:CreateGameWindow(gameId, title, windowType)
     if not window then return end
 
     ui.window = window  -- Store reference for cleanup
@@ -1141,20 +1461,26 @@ function TetrisGame:CreateUI(gameId)
     local gridWidth = TetrisGrid.WIDTH * cellSize
     local gridHeight = TetrisGrid.HEIGHT * cellSize
 
-    if isRemote then
-        -- REMOTE MODE: Single board (center)
+    if isSingleBoard then
+        -- REMOTE/SCORE_CHALLENGE MODE: Single board with opponent info
         local boardContainer = CreateFrame("Frame", nil, content)
         boardContainer:SetSize(gridWidth + 100, gridHeight + 60)
-        boardContainer:SetPoint("CENTER", 0, 0)
+        boardContainer:SetPoint("CENTER", -60, 0)  -- Offset left for opponent panel
 
         self:CreateBoardUI(boardContainer, gameId, 1, cellSize, true)
         ui.boards[1].container = boardContainer
 
-        -- Opponent name label
-        local opponentLabel = content:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-        opponentLabel:SetPoint("TOP", boardContainer, "BOTTOM", 0, -10)
-        opponentLabel:SetText("VS: " .. (game.opponent or "Unknown"))
-        opponentLabel:SetTextColor(1, 0.84, 0)
+        -- Opponent status panel (right side)
+        if isScoreChallenge then
+            ui.opponentPanel = self:CreateOpponentPanel(content, game.opponent)
+            ui.opponentPanel:SetPoint("LEFT", boardContainer, "RIGHT", 20, 0)
+        else
+            -- Simple opponent name label for REMOTE
+            local opponentLabel = content:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+            opponentLabel:SetPoint("TOP", boardContainer, "BOTTOM", 0, -10)
+            opponentLabel:SetText("VS: " .. (game.opponent or "Unknown"))
+            opponentLabel:SetTextColor(1, 0.84, 0)
+        end
 
         -- Controls hint
         local controlsText = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -1229,6 +1555,10 @@ function TetrisGame:CreateBoardUI(container, gameId, playerNum, cellSize, isRemo
     if isRemote then
         playerLabel:SetText("You")
         playerLabel:SetTextColor(0.2, 0.8, 0.2)  -- Green for player
+    elseif board.ai and board.ai.enabled then
+        -- AI opponent
+        playerLabel:SetText("AI")
+        playerLabel:SetTextColor(1.0, 0.5, 0.0)  -- Orange for AI
     else
         playerLabel:SetText(playerNum == 1 and "Player 1" or "Player 2")
         playerLabel:SetTextColor(playerNum == 1 and 0.2 or 0.8, playerNum == 1 and 0.8 or 0.2, 0.2)
@@ -1272,6 +1602,105 @@ function TetrisGame:CreateBoardUI(container, gameId, playerNum, cellSize, isRemo
     linesLabel:SetText("Lines: 0")
     linesLabel:SetTextColor(0.8, 0.8, 0.8)
     ui.linesLabel = linesLabel
+end
+
+--[[
+    Create opponent status panel for SCORE_CHALLENGE mode
+    @param parent Frame
+    @param opponentName string
+    @return Frame
+]]
+function TetrisGame:CreateOpponentPanel(parent, opponentName)
+    local panel = CreateFrame("Frame", nil, parent)
+    panel:SetSize(120, 150)
+
+    -- Background
+    local bg = panel:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints()
+    bg:SetColorTexture(0.1, 0.1, 0.1, 0.8)
+
+    -- Border
+    local border = panel:CreateTexture(nil, "BORDER")
+    border:SetPoint("TOPLEFT", -1, 1)
+    border:SetPoint("BOTTOMRIGHT", 1, -1)
+    border:SetColorTexture(0.4, 0.4, 0.4, 1)
+
+    -- Inner bg
+    local innerBg = panel:CreateTexture(nil, "ARTWORK")
+    innerBg:SetPoint("TOPLEFT", 1, -1)
+    innerBg:SetPoint("BOTTOMRIGHT", -1, 1)
+    innerBg:SetColorTexture(0.15, 0.15, 0.15, 0.9)
+
+    -- Title
+    local title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    title:SetPoint("TOP", 0, -10)
+    title:SetText("VS: " .. (opponentName or "Opponent"))
+    title:SetTextColor(1, 0.84, 0)  -- Gold
+
+    -- Score
+    local scoreLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    scoreLabel:SetPoint("TOP", title, "BOTTOM", 0, -15)
+    scoreLabel:SetText("Score")
+    scoreLabel:SetTextColor(0.6, 0.6, 0.6)
+
+    local scoreValue = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    scoreValue:SetPoint("TOP", scoreLabel, "BOTTOM", 0, -2)
+    scoreValue:SetText("0")
+    scoreValue:SetTextColor(1, 1, 1)
+    panel.scoreValue = scoreValue
+
+    -- Lines
+    local linesLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    linesLabel:SetPoint("TOP", scoreValue, "BOTTOM", 0, -10)
+    linesLabel:SetText("Lines")
+    linesLabel:SetTextColor(0.6, 0.6, 0.6)
+
+    local linesValue = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    linesValue:SetPoint("TOP", linesLabel, "BOTTOM", 0, -2)
+    linesValue:SetText("0")
+    linesValue:SetTextColor(1, 1, 1)
+    panel.linesValue = linesValue
+
+    -- Status
+    local statusLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    statusLabel:SetPoint("TOP", linesValue, "BOTTOM", 0, -10)
+    statusLabel:SetText("[PLAYING]")
+    statusLabel:SetTextColor(0.2, 0.8, 0.2)  -- Green
+    panel.statusLabel = statusLabel
+
+    return panel
+end
+
+--[[
+    Update opponent panel in SCORE_CHALLENGE mode
+    Called by ScoreChallenge module when receiving status pings
+]]
+function TetrisGame:UpdateOpponentPanel(gameId, score, lines, level, status)
+    local game = self.games[gameId]
+    if not game then return end
+
+    local ui = game.data.ui
+    if not ui.opponentPanel then return end
+
+    local panel = ui.opponentPanel
+    if panel.scoreValue then
+        panel.scoreValue:SetText(tostring(score))
+    end
+    if panel.linesValue then
+        panel.linesValue:SetText(tostring(lines))
+    end
+    if panel.statusLabel then
+        if status == "FINISHED" then
+            panel.statusLabel:SetText("[FINISHED]")
+            panel.statusLabel:SetTextColor(1, 0.5, 0)  -- Orange
+        elseif status == "WAITING" then
+            panel.statusLabel:SetText("[WAITING]")
+            panel.statusLabel:SetTextColor(0.8, 0.8, 0.2)  -- Yellow
+        else
+            panel.statusLabel:SetText("[PLAYING]")
+            panel.statusLabel:SetTextColor(0.2, 0.8, 0.2)  -- Green
+        end
+    end
 end
 
 function TetrisGame:UpdateUI(gameId)

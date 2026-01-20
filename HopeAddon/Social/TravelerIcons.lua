@@ -230,34 +230,6 @@ function TravelerIcons:OnBossKill(raidKey, bossId, partyMembers)
 end
 
 --[[
-    Handle zone discovery event - award relevant icons
-    @param zoneName string - Zone name
-    @param partyMembers table - Array of party member data
-]]
-function TravelerIcons:OnZoneDiscovery(zoneName, partyMembers)
-    if not partyMembers or #partyMembers == 0 then return end
-
-    HopeAddon:Debug("TravelerIcons:OnZoneDiscovery", zoneName, "#party:", #partyMembers)
-
-    local context = {
-        zone = zoneName,
-    }
-
-    for _, member in ipairs(partyMembers) do
-        local name = member.name
-
-        -- Record zone visited together
-        self:RecordZoneVisitedTogether(name, zoneName)
-
-        -- Check for zone-specific icons
-        self:CheckZoneIcons(name, zoneName, context)
-
-        -- Check for all-zones icon
-        self:CheckAllZonesIcon(name, context)
-    end
-end
-
---[[
     Handle group formed/joined - award first group icon
     @param partyMembers table
 ]]
@@ -281,7 +253,6 @@ function TravelerIcons:OnGroupFormed(partyMembers)
                 traveler.stats = {
                     groupCount = 0,
                     bossKillsTogether = 0,
-                    zonesVisitedTogether = {},
                 }
             end
 
@@ -335,43 +306,6 @@ function TravelerIcons:CheckTierIcons(travelerName, tier, context)
                 end
             end
         end
-    end
-end
-
---[[
-    Check and award zone exploration icons
-]]
-function TravelerIcons:CheckZoneIcons(travelerName, zoneName, context)
-    local zoneIcons = HopeAddon.Constants:GetIconsByTrigger("zone")
-
-    for _, iconData in ipairs(zoneIcons) do
-        if iconData.trigger.zone == zoneName then
-            self:AwardIcon(travelerName, iconData.id, context)
-        end
-    end
-end
-
---[[
-    Check if all Outland zones have been visited together
-]]
-function TravelerIcons:CheckAllZonesIcon(travelerName, context)
-    local travelers = HopeAddon.charDb.travelers.known
-    local traveler = travelers[travelerName]
-
-    if not traveler or not traveler.stats or not traveler.stats.zonesVisitedTogether then
-        return
-    end
-
-    local allVisited = true
-    for _, zone in ipairs(OUTLAND_ZONES) do
-        if not traveler.stats.zonesVisitedTogether[zone] then
-            allVisited = false
-            break
-        end
-    end
-
-    if allVisited then
-        self:AwardIcon(travelerName, "outland_explorers", context)
     end
 end
 
@@ -438,7 +372,6 @@ function TravelerIcons:IncrementBossKillsTogether(travelerName)
         traveler.stats = {
             groupCount = 0,
             bossKillsTogether = 0,
-            zonesVisitedTogether = {},
         }
     end
 
@@ -462,39 +395,11 @@ function TravelerIcons:IncrementTierKills(travelerName, tier)
         traveler.stats = {
             groupCount = 0,
             bossKillsTogether = 0,
-            zonesVisitedTogether = {},
         }
     end
 
     local key = "tierKills_" .. tier
     traveler.stats[key] = (traveler.stats[key] or 0) + 1
-end
-
---[[
-    Record a zone visited together
-]]
-function TravelerIcons:RecordZoneVisitedTogether(travelerName, zoneName)
-    local travelers = HopeAddon.charDb.travelers.known
-    local traveler = travelers[travelerName]
-
-    if not traveler then return end
-
-    if not traveler.stats then
-        traveler.stats = {
-            groupCount = 0,
-            bossKillsTogether = 0,
-            zonesVisitedTogether = {},
-        }
-    end
-
-    if not traveler.stats.zonesVisitedTogether then
-        traveler.stats.zonesVisitedTogether = {}
-    end
-
-    if not traveler.stats.zonesVisitedTogether[zoneName] then
-        traveler.stats.zonesVisitedTogether[zoneName] = HopeAddon:GetDate()
-        HopeAddon:Debug("Recorded zone visit together:", zoneName, "with", travelerName)
-    end
 end
 
 --[[
@@ -510,7 +415,6 @@ function TravelerIcons:GetTravelerStats(travelerName)
         return {
             groupCount = 0,
             bossKillsTogether = 0,
-            zonesVisitedTogether = {},
         }
     end
 

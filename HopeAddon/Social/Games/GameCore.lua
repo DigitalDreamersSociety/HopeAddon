@@ -24,13 +24,15 @@ GameCore.GAME_TYPE = {
     PONG = "PONG",
     TETRIS = "TETRIS",
     WORDS = "WORDS",
+    BATTLESHIP = "BATTLESHIP",
 }
 
 -- Game modes
 GameCore.GAME_MODE = {
-    LOCAL = "LOCAL",         -- Both players same keyboard
-    NEARBY = "NEARBY",       -- Using YELL channel (in-person)
-    REMOTE = "REMOTE",       -- Using WHISPER channel (any distance)
+    LOCAL = "LOCAL",                   -- Both players same keyboard
+    NEARBY = "NEARBY",                 -- Using YELL channel (in-person)
+    REMOTE = "REMOTE",                 -- Using WHISPER channel (any distance)
+    SCORE_CHALLENGE = "SCORE_CHALLENGE", -- Play locally, compare scores at end
 }
 
 -- Frame rate target (60fps for smooth modern gameplay)

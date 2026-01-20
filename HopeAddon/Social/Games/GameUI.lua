@@ -21,7 +21,18 @@ GameUI.WINDOW_SIZES = {
     LARGE = { width = 600, height = 500 },
     PONG = { width = 500, height = 400 },
     TETRIS = { width = 700, height = 550 },
-    WORDS = { width = 650, height = 600 },  -- H2 fix: dedicated size for Words with WoW board
+    WORDS = { width = 700, height = 720 },  -- Larger for graphical tiles + tile rack
+    BATTLESHIP = { width = 700, height = 580 },  -- Two 10x10 grids with instructions panel
+}
+
+-- Centralized font constants for game UIs (L3 fix)
+GameUI.GAME_FONTS = {
+    TITLE = "GameFontNormalHuge",       -- ~20pt - Game titles, winner announcements
+    SCORE = "GameFontNormalLarge",      -- ~16pt - Score displays, timers
+    LABEL = "GameFontNormal",           -- ~12pt - Labels, player names
+    STATUS = "GameFontNormalSmall",     -- ~10pt - Status messages, instructions
+    HINT = "GameFontHighlightSmall",    -- ~10pt white - Hints, tips
+    MONOSPACE = "NumberFontNormal",     -- Monospaced for grids (Words board)
 }
 
 -- Colors
@@ -516,7 +527,7 @@ function GameUI:ShowGameOver(gameId, winner, stats)
 
         -- Celebration effect for victory
         if HopeAddon.Effects then
-            HopeAddon.Effects:Celebrate(resultText, 2.5, { colorName = "FEL_GREEN" })
+            HopeAddon.Effects:Celebrate(overlay, 2.5, { colorName = "FEL_GREEN" })
         end
     else
         resultText:SetText("DEFEAT")
@@ -613,6 +624,36 @@ function GameUI:CreatePlayArea(parent, width, height)
     area:SetBackdropBorderColor(0.3, 0.3, 0.4, 1)
 
     return area
+end
+
+--[[
+    Update opponent status panel in SCORE_CHALLENGE games
+    Called by ScoreChallenge when receiving status pings
+    @param gameId string
+    @param score number
+    @param lines number (Tetris) or opponent score (Pong)
+    @param level number
+    @param status string - "PLAYING", "FINISHED", "WAITING"
+]]
+function GameUI:UpdateOpponentStatus(gameId, score, lines, level, status)
+    -- Route to the appropriate game module's UpdateOpponentPanel
+    local GameCore = HopeAddon:GetModule("GameCore")
+    if not GameCore then return end
+
+    local game = GameCore:GetGame(gameId)
+    if not game then return end
+
+    -- Try TetrisGame
+    local TetrisGame = HopeAddon:GetModule("TetrisGame")
+    if TetrisGame and TetrisGame.UpdateOpponentPanel then
+        TetrisGame:UpdateOpponentPanel(gameId, score, lines, level, status)
+    end
+
+    -- Try PongGame
+    local PongGame = HopeAddon:GetModule("PongGame")
+    if PongGame and PongGame.UpdateOpponentPanel then
+        PongGame:UpdateOpponentPanel(gameId, score, lines, level, status)
+    end
 end
 
 -- Register with addon

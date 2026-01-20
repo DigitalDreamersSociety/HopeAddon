@@ -60,20 +60,14 @@ function GameComms:OnEnable()
     if FellowTravelers then
         FellowTravelers:RegisterMessageCallback("GameComms",
             function(msgType)
-                -- Match game message types
-                return msgType == MSG_GAME_INVITE or
-                       msgType == MSG_GAME_ACCEPT or
-                       msgType == MSG_GAME_DECLINE or
-                       msgType == MSG_GAME_STATE or
-                       msgType == MSG_GAME_MOVE or
-                       msgType == MSG_GAME_END or
-                       msgType == MSG_GAME_CHAT or
-                       msgType == MSG_GAME_SYNC
+                -- Match "GAME" message type (SendDirectMessage uses "GAME" as msgType)
+                -- The actual game message types (GINV, GACC, etc) are in the data portion
+                return msgType == "GAME"
             end,
             function(msgType, senderName, data)
-                -- Reconstruct message format for HandleGameMessage
-                local message = msgType .. ":1:" .. (data or "")
-                GameComms:HandleGameMessage(nil, message, nil, senderName)
+                -- data contains the full game message: "GINV:1:SCORE_TETRIS:gameId:payload"
+                -- Pass it directly to HandleGameMessage
+                GameComms:HandleGameMessage(nil, data or "", nil, senderName)
             end
         )
     end
@@ -200,6 +194,27 @@ function GameComms:SendInvite(playerName, gameType, betAmount)
         return nil
     end
 
+    -- Verify opponent is a Fellow Traveler with detailed feedback
+    local FellowTravelers = HopeAddon:GetModule("FellowTravelers")
+    local fellow = FellowTravelers and FellowTravelers:GetFellow(playerName)
+
+    if not fellow then
+        HopeAddon:Print("|cFFFF6666" .. playerName .. "|r has not been discovered yet.")
+        HopeAddon:Print("Fellow Travelers are discovered automatically within ~300 yards.")
+        HopeAddon:Print("Wait a moment or group up with them to discover faster.")
+        return nil
+    end
+
+    -- Check if recently seen (within 5 minutes)
+    local now = time()
+    local lastSeen = fellow.lastSeenTime or 0
+    local timeSinceLastSeen = now - lastSeen
+    if timeSinceLastSeen > 300 then
+        local minsAgo = math.floor(timeSinceLastSeen / 60)
+        HopeAddon:Print("|cFFFFFF66Warning:|r " .. playerName .. " was last seen " .. minsAgo .. " minutes ago.")
+        HopeAddon:Print("They may be offline or out of range. Sending invite anyway...")
+    end
+
     local GameCore = HopeAddon:GetModule("GameCore")
     local gameId = GameCore:GenerateGameId()
 
@@ -276,6 +291,17 @@ end
     Handle incoming invite
 ]]
 function GameComms:HandleInvite(sender, gameType, gameId, data)
+    -- Check if this is a score challenge (SCORE_TETRIS, SCORE_PONG)
+    if string.find(gameType, "^SCORE_") then
+        local ScoreChallenge = HopeAddon:GetModule("ScoreChallenge")
+        if ScoreChallenge then
+            -- Extract actual game type (TETRIS, PONG)
+            local actualGameType = string.gsub(gameType, "^SCORE_", "")
+            ScoreChallenge:OnChallengeReceived(sender, gameId, actualGameType)
+        end
+        return
+    end
+
     local betAmount = tonumber(data)
 
     -- Store received invite
@@ -308,6 +334,15 @@ end
     Handle invite accepted
 ]]
 function GameComms:HandleAccept(sender, gameType, gameId, data)
+    -- Check if this is a score challenge accept
+    if string.find(gameType, "^SCORE_") then
+        local ScoreChallenge = HopeAddon:GetModule("ScoreChallenge")
+        if ScoreChallenge then
+            ScoreChallenge:OnChallengeAccepted(sender, gameId, data)
+        end
+        return
+    end
+
     local invite = self.pendingInvites[sender]
     if not invite or invite.gameId ~= gameId then
         HopeAddon:Debug("Received accept for unknown invite")
@@ -336,6 +371,15 @@ end
     Handle invite declined
 ]]
 function GameComms:HandleDecline(sender, gameType, gameId)
+    -- Check if this is a score challenge decline
+    if string.find(gameType, "^SCORE_") then
+        local ScoreChallenge = HopeAddon:GetModule("ScoreChallenge")
+        if ScoreChallenge then
+            ScoreChallenge:OnChallengeDeclined(sender, gameId)
+        end
+        return
+    end
+
     local invite = self.pendingInvites[sender]
     if invite and invite.gameId == gameId then
         self.pendingInvites[sender] = nil
