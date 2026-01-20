@@ -255,13 +255,13 @@ function GameComms:AcceptInvite(playerName)
         return
     end
 
-    -- Create local game instance
+    -- Create local game instance using the CHALLENGER'S gameId for synchronization
     local GameCore = HopeAddon:GetModule("GameCore")
     local mode = GameCore.GAME_MODE.REMOTE
-    local gameId = GameCore:CreateGame(invite.gameType, mode, playerName)
-    GameCore:StartGame(gameId)  -- Start game immediately (fix asymmetric start bug)
+    local gameId = GameCore:CreateGame(invite.gameType, mode, playerName, invite.gameId)
+    GameCore:StartGame(gameId)
 
-    -- Send accept message
+    -- Send accept message with the shared gameId
     self:SendGameMessage(playerName, MSG_GAME_ACCEPT, invite.gameType, invite.gameId, "")
 
     -- Clear invite
@@ -352,16 +352,16 @@ function GameComms:HandleAccept(sender, gameType, gameId, data)
     -- Clear pending invite
     self.pendingInvites[sender] = nil
 
-    -- Create game instance and start
+    -- Create game instance using the SHARED gameId for synchronization
     local GameCore = HopeAddon:GetModule("GameCore")
     local mode = GameCore.GAME_MODE.REMOTE
-    local newGameId = GameCore:CreateGame(gameType, mode, sender)
-    GameCore:StartGame(newGameId)
+    local sharedGameId = GameCore:CreateGame(gameType, mode, sender, gameId)
+    GameCore:StartGame(sharedGameId)
 
     -- Notify game module
     local gameModule = GameCore:GetGameModule(gameType)
     if gameModule and gameModule.OnMatchFound then
-        gameModule:OnMatchFound(newGameId, sender)
+        gameModule:OnMatchFound(sharedGameId, sender)
     end
 
     HopeAddon:Print(sender .. " accepted your " .. gameType .. " challenge!")

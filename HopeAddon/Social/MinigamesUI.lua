@@ -136,7 +136,7 @@ local function OnPracticeModeCancel(self)
     if HopeAddon.Sounds then
         HopeAddon.Sounds:PlayClick()
     end
-    self:GetParent():Hide()
+    MinigamesUI:HidePracticeModePopup()
 end
 
 local function OnPracticeModeKeyDown(self, key)
@@ -286,20 +286,8 @@ local function OnGameButtonClick(self)
         return
     end
 
-    -- Route based on game system
-    if gameDef.system == "legacy" then
-        -- Use legacy challenge system
-        if popup.Minigames then
-            popup.Minigames:SendChallenge(popup.targetName, gameDef.id)
-        end
-    else
-        -- Use GameCore challenge system
-        local GameComms = HopeAddon:GetModule("GameComms")
-        if GameComms then
-            GameComms:SendInvite(popup.targetName, gameDef.id:upper(), 0)
-        end
-    end
-
+    -- Use centralized challenge routing
+    HopeAddon:SendChallenge(popup.targetName, gameDef.id)
     popup:Hide()
 end
 
@@ -319,7 +307,7 @@ local function OnGameSelectionCancel(self)
     if HopeAddon.Sounds then
         HopeAddon.Sounds:PlayClick()
     end
-    self:GetParent():Hide()
+    MinigamesUI:HideGameSelectionPopup()
 end
 
 local function OnGameSelectionKeyDown(self, key)
@@ -461,6 +449,9 @@ function MinigamesUI:GetChallengePopup()
     acceptBtn:SetPoint("BOTTOMLEFT", popup, "BOTTOMLEFT", 40, 35)
     acceptBtn:SetText("Accept")
     acceptBtn:SetScript("OnClick", OnChallengeAccept)
+    acceptBtn:SetScript("OnEnter", function(self)
+        if HopeAddon.Sounds then HopeAddon.Sounds:PlayHover() end
+    end)
     popup.acceptBtn = acceptBtn
 
     -- Decline button
@@ -469,6 +460,9 @@ function MinigamesUI:GetChallengePopup()
     declineBtn:SetPoint("BOTTOMRIGHT", popup, "BOTTOMRIGHT", -40, 35)
     declineBtn:SetText("Decline")
     declineBtn:SetScript("OnClick", OnChallengeDecline)
+    declineBtn:SetScript("OnEnter", function(self)
+        if HopeAddon.Sounds then HopeAddon.Sounds:PlayHover() end
+    end)
     popup.declineBtn = declineBtn
 
     -- Close (X) button
@@ -1037,28 +1031,11 @@ end
 
 -- Game selection popup constants
 local GAME_SELECTION_WIDTH = 400
-local GAME_SELECTION_HEIGHT = 280
+local GAME_SELECTION_HEIGHT = 340  -- Increased from 280 to fit 3 rows of games (6 games total)
 local GAME_ICON_SIZE = 48
 
--- Game icons
-local GAME_ICONS = {
-    rps = "Interface\\Icons\\Spell_Nature_EarthShock",
-    deathroll = "Interface\\Icons\\INV_Misc_Bone_HumanSkull_01",
-    pong = "Interface\\Icons\\INV_Misc_PunchCards_Yellow",
-    tetris = "Interface\\Icons\\INV_Misc_Gem_Variety_01",
-    words = "Interface\\Icons\\INV_Misc_Book_07",
-    battleship = "Interface\\Icons\\INV_Misc_Anchor",
-}
-
--- Game definitions for selection popup
-local GAME_DEFINITIONS = {
-    {id = "rps", name = "Rock Paper Scissors", system = "legacy"},
-    {id = "deathroll", name = "Death Roll", system = "legacy"},
-    {id = "pong", name = "Pong", system = "gamecore"},
-    {id = "tetris", name = "Tetris Battle", system = "gamecore"},
-    {id = "words", name = "Words with Wow", system = "gamecore"},
-    {id = "battleship", name = "Battleship", system = "gamecore"},
-}
+-- Use centralized game definitions from Constants.lua (C.GAME_DEFINITIONS)
+-- This avoids duplication and ensures consistency across the addon
 
 --[[
     Create or return the game selection popup
@@ -1106,16 +1083,17 @@ function MinigamesUI:GetGameSelectionPopup()
 
     -- Game buttons container (3 rows x 2 columns grid)
     local buttonContainer = CreateFrame("Frame", nil, popup)
-    buttonContainer:SetSize(GAME_SELECTION_WIDTH - 40, 200)
+    buttonContainer:SetSize(GAME_SELECTION_WIDTH - 40, 250)  -- Increased from 200 to fit 3 rows
     buttonContainer:SetPoint("TOP", instructions, "BOTTOM", 0, -15)
 
-    -- Create buttons dynamically from GAME_DEFINITIONS
+    -- Create buttons dynamically from centralized C.GAME_DEFINITIONS
     local BUTTON_SPACING_X = 20
     local BUTTON_SPACING_Y = 15
     local LABEL_OFFSET_Y = 5
     local COLS = 2
+    local C = HopeAddon.Constants
 
-    for i, gameDef in ipairs(GAME_DEFINITIONS) do
+    for i, gameDef in ipairs(C.GAME_DEFINITIONS) do
         local row = math.floor((i - 1) / COLS)
         local col = (i - 1) % COLS
 
@@ -1133,11 +1111,11 @@ function MinigamesUI:GetGameSelectionPopup()
         -- Store game definition reference
         btn.gameDef = gameDef
 
-        -- Icon
+        -- Icon (use icon from Constants)
         local icon = btn:CreateTexture(nil, "ARTWORK")
         icon:SetPoint("TOPLEFT", 3, -3)
         icon:SetPoint("BOTTOMRIGHT", -3, 3)
-        icon:SetTexture(GAME_ICONS[gameDef.id])
+        icon:SetTexture(gameDef.icon)
 
         -- Highlight
         local highlight = btn:CreateTexture(nil, "HIGHLIGHT")
@@ -1237,46 +1215,19 @@ local function OnTravelerButtonClick(self)
         HopeAddon.Sounds:PlayClick()
     end
 
-    local popup = self:GetParent():GetParent()
-    local gameId = popup.selectedGameId
+    -- Use stored popup reference (button -> scrollContent -> scrollFrame -> popup)
+    local popup = self.popup
+    local gameId = popup and popup.selectedGameId
     local travelerName = self.travelerName
 
     if not gameId or not travelerName then
         HopeAddon:Debug("Invalid traveler picker state")
-        popup:Hide()
+        if popup then popup:Hide() end
         return
     end
 
-    -- Get game definition
-    local Constants = HopeAddon.Constants
-    local gameDef = Constants and Constants:GetGameDefinition(gameId)
-
-    if not gameDef then
-        HopeAddon:Debug("Unknown game:", gameId)
-        popup:Hide()
-        return
-    end
-
-    -- Route based on game system
-    if gameDef.system == "legacy" then
-        local Minigames = HopeAddon:GetModule("Minigames")
-        if Minigames then
-            Minigames:SendChallenge(travelerName, gameId)
-        end
-    elseif gameId == "tetris" or gameId == "pong" then
-        -- Tetris and Pong use Score Challenge system for remote play
-        local ScoreChallenge = HopeAddon:GetModule("ScoreChallenge")
-        if ScoreChallenge then
-            ScoreChallenge:StartChallenge(travelerName, gameId:upper())
-        end
-    else
-        -- Other gamecore games (Words, etc)
-        local GameComms = HopeAddon:GetModule("GameComms")
-        if GameComms then
-            GameComms:SendInvite(travelerName, gameId:upper(), 0)
-        end
-    end
-
+    -- Use centralized challenge routing
+    HopeAddon:SendChallenge(travelerName, gameId)
     popup:Hide()
 end
 
@@ -1292,7 +1243,7 @@ local function OnTravelerPickerCancel(self)
     if HopeAddon.Sounds then
         HopeAddon.Sounds:PlayClick()
     end
-    self:GetParent():Hide()
+    MinigamesUI:HideTravelerPickerPopup()
 end
 
 local function OnTravelerPickerKeyDown(self, key)
@@ -1454,6 +1405,9 @@ function MinigamesUI:GetTravelerButton(index, parent)
     btn:SetScript("OnClick", OnTravelerButtonClick)
     btn:SetScript("OnEnter", OnTravelerButtonEnter)
     btn:SetScript("OnLeave", OnTravelerButtonLeave)
+
+    -- Store reference to popup for click handler (avoids parent traversal issues)
+    btn.popup = popup
 
     popup.travelerButtons[index] = btn
     return btn

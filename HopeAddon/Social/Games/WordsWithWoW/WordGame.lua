@@ -149,6 +149,9 @@ function WordGame:OnCreate(gameId, game)
             p2ScoreText = nil,
             p1ActiveGlow = nil,
             p2ActiveGlow = nil,
+            -- Online status (player 2 only, for remote games)
+            p2StatusDot = nil,
+            p2StatusText = nil,
             -- Turn banner
             turnBanner = nil,
             turnText = nil,
@@ -184,6 +187,14 @@ function WordGame:OnCreate(gameId, game)
             -- Recently placed tiles for animation/glow
             recentlyPlaced = {},      -- {row, col} array
             recentlyPlacedTime = 0,   -- GetTime() when placed
+            -- AI opponent state (for practice mode)
+            ai = {
+                enabled = false,       -- Set true for AI-controlled player
+                playerNum = 2,         -- Which player is AI (usually 2)
+                phase = "IDLE",        -- IDLE | THINKING
+            },
+            -- Online status ticker (for remote games)
+            statusTicker = nil,
         },
     }
 
@@ -224,6 +235,20 @@ function WordGame:OnStart(gameId)
     -- Show UI
     self:ShowUI(gameId)
 
+    -- Enable AI for practice mode (LOCAL games)
+    if self.GameCore and game.mode == self.GameCore.GAME_MODE.LOCAL then
+        state.ai.enabled = true
+        state.ai.playerNum = 2  -- AI plays as player 2
+        HopeAddon:Debug("Words Practice Mode: AI opponent enabled")
+    end
+
+    -- Start online status ticker for remote games
+    if self.GameCore and game.mode == self.GameCore.GAME_MODE.REMOTE then
+        state.statusTicker = HopeAddon.Timer:NewTicker(15, function()
+            self:UpdateOnlineStatus(gameId)
+        end)
+    end
+
     local currentPlayer = self:GetCurrentPlayer(gameId)
     HopeAddon:Print("Words with WoW started! " .. currentPlayer .. " goes first.")
     HopeAddon:Print("Drag tiles from your rack to the board, then click 'Play Word' to submit.")
@@ -240,6 +265,12 @@ function WordGame:OnEnd(gameId, reason)
     local state = game.data.state
 
     state.gameState = self.GAME_STATE.FINISHED
+
+    -- Cancel status ticker if running
+    if state.statusTicker then
+        state.statusTicker:Cancel()
+        state.statusTicker = nil
+    end
 
     -- Clear drag state
     if self.dragState.gameId == gameId then
@@ -359,6 +390,23 @@ function WordGame:CleanupGame(gameId)
         ui.gameOverOverlay:SetParent(nil)
         ui.gameOverOverlay = nil
     end
+
+    -- Clear chat panel
+    if ui.chatPanel then
+        ui.chatPanel:Hide()
+        ui.chatPanel:SetParent(nil)
+        ui.chatPanel = nil
+    end
+    if ui.chatMessages then
+        for _, msg in ipairs(ui.chatMessages) do
+            msg:Hide()
+            msg:SetParent(nil)
+        end
+        ui.chatMessages = nil
+    end
+    ui.chatScrollFrame = nil
+    ui.chatScrollContent = nil
+    ui.chatInputBox = nil
 
     -- Clear window reference
     if ui.window then
@@ -658,6 +706,9 @@ function WordGame:NextTurn(gameId)
     HopeAddon:Print(currentPlayer .. "'s turn.")
 
     self:UpdateUI(gameId)
+
+    -- Check if AI should play next
+    self:CheckAITurn(gameId)
 end
 
 --============================================================
@@ -693,10 +744,23 @@ function WordGame:HandleRemoteMove(sender, gameId, data)
     local success, message = self:PlaceWord(gameId, word, horizontal, startRow, startCol, sender)
 
     if success then
+        -- Play notification sound
+        if HopeAddon.Sounds then
+            HopeAddon.Sounds:PlayBell()
+        end
+
+        -- Show chat notification
+        local lastMove = state.moveHistory[#state.moveHistory]
+        if lastMove then
+            HopeAddon:Print(string.format(
+                "|cFF9B30FF[Words]|r %s played '%s' for |cFFFFD700%d|r points!",
+                sender, word, lastMove.score
+            ))
+        end
+
         -- Score validation: Compare remote claimed score vs locally calculated score
         -- This prevents score manipulation by validating all word placements independently
         if remoteScore then
-            local lastMove = state.moveHistory[#state.moveHistory]
             if lastMove and lastMove.score ~= remoteScore then
                 -- Score mismatch detected - using local calculation (anti-cheat)
                 HopeAddon:Print(string.format(
@@ -707,6 +771,13 @@ function WordGame:HandleRemoteMove(sender, gameId, data)
                 -- Note: PlaceWord already used the locally calculated score in state.scores
                 -- so we don't need to override it - we're just alerting the user
             end
+        end
+
+        -- Check if it's now local player's turn
+        local playerName = UnitName("player")
+        if self:IsPlayerTurn(gameId, playerName) then
+            HopeAddon:Print("|cFF00FF00It's your turn!|r Use /word or drag tiles to play.")
+            self:FlashTurnBanner(gameId)
         end
     else
         HopeAddon:Print("|cFFFF0000Remote move failed:|r " .. message)
@@ -720,7 +791,404 @@ function WordGame:HandleRemotePass(sender, gameId)
     local game = self.games[gameId]
     if not game then return end
 
+    -- Notification
+    HopeAddon:Print(string.format("|cFF9B30FF[Words]|r %s passed their turn.", sender))
+
     self:PassTurn(gameId, sender)
+
+    -- Check if it's now local player's turn
+    local playerName = UnitName("player")
+    if self:IsPlayerTurn(gameId, playerName) then
+        HopeAddon:Print("|cFF00FF00It's your turn!|r")
+        self:FlashTurnBanner(gameId)
+
+        if HopeAddon.Sounds then
+            HopeAddon.Sounds:PlayBell()
+        end
+    end
+end
+
+--============================================================
+-- AI OPPONENT (Practice Mode)
+--============================================================
+
+--[[
+    Check if AI should take a turn
+]]
+function WordGame:CheckAITurn(gameId)
+    local game = self.games[gameId]
+    if not game then return end
+
+    local state = game.data.state
+    if not state.ai or not state.ai.enabled then return end
+
+    -- Check if it's AI's turn
+    local currentPlayer = self:GetCurrentPlayer(gameId)
+    local aiPlayer = state.ai.playerNum == 1 and game.player1 or game.player2
+
+    if currentPlayer == aiPlayer and state.ai.phase == "IDLE" then
+        self:StartAIThinking(gameId)
+    end
+end
+
+--[[
+    Start AI thinking phase (delay before deciding)
+]]
+function WordGame:StartAIThinking(gameId)
+    local game = self.games[gameId]
+    if not game then return end
+
+    local state = game.data.state
+    local C = HopeAddon.Constants.WORDS_AI_SETTINGS
+
+    state.ai.phase = "THINKING"
+
+    -- Update UI to show "AI is thinking..." immediately
+    self:UpdateUI(gameId)
+
+    -- Random thinking delay (1-3 seconds)
+    local thinkDelay = C.THINK_TIME_MIN + math.random() * (C.THINK_TIME_MAX - C.THINK_TIME_MIN)
+
+    HopeAddon:Debug("AI thinking for", string.format("%.1f", thinkDelay), "seconds...")
+
+    -- Schedule AI decision after delay
+    HopeAddon.Timer:After(thinkDelay, function()
+        -- Make sure game still exists and it's still AI's turn
+        local currentGame = self.games[gameId]
+        if currentGame and currentGame.data.state.ai.phase == "THINKING" then
+            self:ProcessAIDecision(gameId)
+        end
+    end)
+end
+
+--[[
+    Process AI decision - find and play best word
+]]
+function WordGame:ProcessAIDecision(gameId)
+    local game = self.games[gameId]
+    if not game then return end
+
+    local state = game.data.state
+    local C = HopeAddon.Constants.WORDS_AI_SETTINGS
+
+    -- Get AI player info
+    local aiPlayer = state.ai.playerNum == 1 and game.player1 or game.player2
+    local hand = state.playerHands[aiPlayer]
+
+    if not hand or #hand == 0 then
+        HopeAddon:Debug("AI has no tiles, passing")
+        self:AIPass(gameId)
+        return
+    end
+
+    -- Find all valid placements
+    local validMoves = self:FindAllValidPlacements(gameId, hand)
+
+    if #validMoves == 0 then
+        HopeAddon:Debug("AI found no valid moves, passing")
+        self:AIPass(gameId)
+        return
+    end
+
+    -- Sort by score descending
+    table.sort(validMoves, function(a, b) return a.score > b.score end)
+
+    HopeAddon:Debug("AI found", #validMoves, "valid moves, best score:", validMoves[1].score)
+
+    -- Apply difficulty - sometimes pick suboptimal moves
+    local selectedIndex = 1
+    if math.random() < C.MISTAKE_CHANCE and #validMoves > 1 then
+        -- Pick a random move from top 5
+        selectedIndex = math.random(1, math.min(5, #validMoves))
+        HopeAddon:Debug("AI making 'mistake', picking move #" .. selectedIndex)
+    end
+
+    -- Apply length preference - AI prefers shorter words (easier to beat)
+    if #validMoves[selectedIndex].word > C.MAX_WORD_LENGTH then
+        for i, move in ipairs(validMoves) do
+            if #move.word <= C.MAX_WORD_LENGTH then
+                if math.random() < (1 - C.SKIP_LONG_WORD_CHANCE) then
+                    selectedIndex = i
+                    HopeAddon:Debug("AI preferring shorter word:", move.word)
+                    break
+                end
+            end
+        end
+    end
+
+    local selectedMove = validMoves[selectedIndex]
+
+    -- Execute the move
+    self:AIPlayWord(gameId, selectedMove)
+end
+
+--[[
+    Find all valid word placements for AI
+]]
+function WordGame:FindAllValidPlacements(gameId, hand)
+    local game = self.games[gameId]
+    local state = game.data.state
+    local board = state.board
+    local validMoves = {}
+
+    local isFirstWord = board:IsBoardEmpty()
+
+    -- Generate all possible words from hand letters
+    local possibleWords = self:GenerateWordsFromHand(hand)
+
+    HopeAddon:Debug("AI checking", #possibleWords, "possible words from hand")
+
+    for _, word in ipairs(possibleWords) do
+        -- Try placing at each valid position
+        for row = 1, self.BOARD_SIZE do
+            for col = 1, self.BOARD_SIZE do
+                -- Try horizontal
+                local canPlace, _ = board:CanPlaceWord(word, row, col, true, isFirstWord)
+                if canPlace and self:HasRequiredLetters(hand, word, board, row, col, true) then
+                    -- Temporarily place to calculate score
+                    local score = self:CalculatePlacementScore(gameId, word, row, col, true)
+                    if score > 0 then
+                        table.insert(validMoves, {
+                            word = word,
+                            row = row,
+                            col = col,
+                            horizontal = true,
+                            score = score
+                        })
+                    end
+                end
+
+                -- Try vertical
+                canPlace, _ = board:CanPlaceWord(word, row, col, false, isFirstWord)
+                if canPlace and self:HasRequiredLetters(hand, word, board, row, col, false) then
+                    local score = self:CalculatePlacementScore(gameId, word, row, col, false)
+                    if score > 0 then
+                        table.insert(validMoves, {
+                            word = word,
+                            row = row,
+                            col = col,
+                            horizontal = false,
+                            score = score
+                        })
+                    end
+                end
+            end
+        end
+    end
+
+    return validMoves
+end
+
+--[[
+    Generate all dictionary words that can be made from hand letters
+]]
+function WordGame:GenerateWordsFromHand(hand)
+    local possibleWords = {}
+    local dictionary = self.WordDictionary.WORDS
+
+    -- Build letter count from hand
+    local letterCount = {}
+    for _, letter in ipairs(hand) do
+        local upper = letter:upper()
+        letterCount[upper] = (letterCount[upper] or 0) + 1
+    end
+
+    -- Check each dictionary word
+    for word in pairs(dictionary) do
+        if self:CanMakeWord(word, letterCount) then
+            table.insert(possibleWords, word)
+        end
+    end
+
+    return possibleWords
+end
+
+--[[
+    Check if a word can be made from available letters
+]]
+function WordGame:CanMakeWord(word, letterCount)
+    local needed = {}
+    for i = 1, #word do
+        local letter = word:sub(i, i):upper()
+        needed[letter] = (needed[letter] or 0) + 1
+    end
+
+    for letter, count in pairs(needed) do
+        if (letterCount[letter] or 0) < count then
+            return false
+        end
+    end
+
+    return true
+end
+
+--[[
+    Check if player has required letters (accounting for board tiles)
+]]
+function WordGame:HasRequiredLetters(hand, word, board, startRow, startCol, horizontal)
+    local handCopy = {}
+    for _, letter in ipairs(hand) do
+        local upper = letter:upper()
+        handCopy[upper] = (handCopy[upper] or 0) + 1
+    end
+
+    for i = 1, #word do
+        local row = horizontal and startRow or (startRow + i - 1)
+        local col = horizontal and (startCol + i - 1) or startCol
+        local letter = word:sub(i, i):upper()
+        local boardLetter = board:GetLetter(row, col)
+
+        if boardLetter then
+            -- Use board tile (no hand letter needed)
+            if boardLetter ~= letter then
+                return false
+            end
+        else
+            -- Need letter from hand
+            if (handCopy[letter] or 0) < 1 then
+                return false
+            end
+            handCopy[letter] = handCopy[letter] - 1
+        end
+    end
+
+    return true
+end
+
+--[[
+    Calculate potential score for a placement (without actually placing)
+]]
+function WordGame:CalculatePlacementScore(gameId, word, startRow, startCol, horizontal)
+    local game = self.games[gameId]
+    local state = game.data.state
+    local board = state.board
+
+    -- Simulate placing to find new tiles
+    local placedTiles = {}
+    for i = 1, #word do
+        local row = horizontal and startRow or (startRow + i - 1)
+        local col = horizontal and (startCol + i - 1) or startCol
+        local letter = word:sub(i, i):upper()
+
+        if board:IsEmpty(row, col) then
+            table.insert(placedTiles, { row = row, col = col, letter = letter })
+        end
+    end
+
+    if #placedTiles == 0 then
+        return 0  -- No new tiles, invalid
+    end
+
+    -- Calculate base word score
+    local score = board:CalculateWordScore(word, startRow, startCol, horizontal, placedTiles)
+
+    return score
+end
+
+--[[
+    Execute AI's word placement
+]]
+function WordGame:AIPlayWord(gameId, move)
+    local game = self.games[gameId]
+    if not game then return end
+
+    local aiPlayer = game.data.state.ai.playerNum == 1 and game.player1 or game.player2
+
+    HopeAddon:Debug("AI playing:", move.word, "at", move.row, move.col, move.horizontal and "H" or "V", "for", move.score, "points")
+
+    -- Use existing PlaceWord function
+    local success, message = self:PlaceWord(
+        gameId,
+        move.word,
+        move.horizontal,
+        move.row,
+        move.col,
+        aiPlayer
+    )
+
+    if not success then
+        HopeAddon:Debug("AI move failed:", message)
+        self:AIPass(gameId)
+    end
+
+    game.data.state.ai.phase = "IDLE"
+end
+
+--[[
+    AI passes their turn
+]]
+function WordGame:AIPass(gameId)
+    local game = self.games[gameId]
+    if not game then return end
+
+    local aiPlayer = game.data.state.ai.playerNum == 1 and game.player1 or game.player2
+
+    self:PassTurn(gameId, aiPlayer)
+    game.data.state.ai.phase = "IDLE"
+end
+
+--============================================================
+-- ONLINE STATUS INDICATOR (Remote Games)
+--============================================================
+
+--[[
+    Update online status indicator for remote opponent
+]]
+function WordGame:UpdateOnlineStatus(gameId)
+    local game = self.games[gameId]
+    if not game then return end
+
+    local ui = game.data.ui
+    local GameCore = self.GameCore
+
+    -- Only show for remote games
+    if not GameCore or game.mode ~= GameCore.GAME_MODE.REMOTE then
+        return
+    end
+
+    local FellowTravelers = HopeAddon:GetModule("FellowTravelers")
+    if not FellowTravelers then return end
+
+    local opponent = game.opponent
+    local fellow = FellowTravelers:GetFellow(opponent)
+
+    -- Update status UI elements (if they exist)
+    local statusDot = ui.p2StatusDot
+    local statusText = ui.p2StatusText
+    if not statusDot or not statusText then return end
+
+    local C = HopeAddon.Constants.WORDS_ONLINE_STATUS
+
+    if fellow and fellow.lastSeenTime then
+        local elapsed = time() - fellow.lastSeenTime
+
+        statusDot:Show()
+        statusText:Show()
+
+        if elapsed < C.ACTIVE_THRESHOLD then
+            statusDot:SetTexture("Interface\\COMMON\\Indicator-Green")
+            statusText:SetText("Active")
+            statusText:SetTextColor(0.2, 1, 0.2)
+        elseif elapsed < C.RECENT_THRESHOLD then
+            statusDot:SetTexture("Interface\\COMMON\\Indicator-Yellow")
+            statusText:SetText("Online")
+            statusText:SetTextColor(1, 1, 0.2)
+        elseif elapsed < C.STALE_THRESHOLD then
+            statusDot:SetTexture("Interface\\COMMON\\Indicator-Yellow")
+            statusText:SetText("Away")
+            statusText:SetTextColor(0.8, 0.8, 0.2)
+        else
+            statusDot:SetTexture("Interface\\COMMON\\Indicator-Gray")
+            statusText:SetText("Offline")
+            statusText:SetTextColor(0.5, 0.5, 0.5)
+        end
+    else
+        statusDot:SetTexture("Interface\\COMMON\\Indicator-Gray")
+        statusDot:Show()
+        statusText:SetText("Unknown")
+        statusText:SetTextColor(0.5, 0.5, 0.5)
+        statusText:Show()
+    end
 end
 
 --============================================================
@@ -1178,6 +1646,11 @@ function WordGame:ShowUI(gameId)
     helpText:SetTextColor(0.5, 0.5, 0.5)
     ui.helpText = helpText
 
+    -- ========== GAME CHAT (Remote games only) ==========
+    if self.GameCore and game.mode == self.GameCore.GAME_MODE.REMOTE then
+        self:CreateGameChatPanel(content, ui, game)
+    end
+
     window:Show()
 
     -- Initial render
@@ -1236,6 +1709,22 @@ function WordGame:CreatePlayerPanel(parent, ui, game, playerNum)
     scoreText:SetText("0")
     scoreText:SetTextColor(1, 0.84, 0)
 
+    -- Online status indicator (for player 2 in remote games)
+    local statusDot = nil
+    local statusText = nil
+    if not isP1 then
+        statusDot = frame:CreateTexture(nil, "OVERLAY")
+        statusDot:SetSize(10, 10)
+        statusDot:SetPoint("LEFT", nameText, "RIGHT", 4, 0)
+        statusDot:SetTexture("Interface\\COMMON\\Indicator-Green")
+        statusDot:Hide()  -- Hidden for local games
+
+        statusText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        statusText:SetPoint("LEFT", statusDot, "RIGHT", 3, 0)
+        statusText:SetText("")
+        statusText:Hide()
+    end
+
     -- Store references
     if isP1 then
         ui.p1Frame = frame
@@ -1249,6 +1738,8 @@ function WordGame:CreatePlayerPanel(parent, ui, game, playerNum)
         ui.p2NameText = nameText
         ui.p2ScoreText = scoreText
         ui.p2ActiveGlow = glow
+        ui.p2StatusDot = statusDot
+        ui.p2StatusText = statusText
     end
 end
 
@@ -1399,24 +1890,36 @@ function WordGame:UpdateUI(gameId)
         local showGlow = false
         local playerName = UnitName("player")
 
-        if state.gameState == self.GAME_STATE.PLAYER1_TURN then
+        -- Check if AI is thinking
+        local aiThinking = state.ai and state.ai.enabled and state.ai.phase == "THINKING"
+
+        if aiThinking then
+            turnText = "AI is thinking..."
+            ui.turnText:SetTextColor(1, 0.7, 0.3)  -- Orange for AI thinking
+        elseif state.gameState == self.GAME_STATE.PLAYER1_TURN then
             if game.player1 == playerName then
                 turnText = "YOUR TURN!"
                 showGlow = true
+                ui.turnText:SetTextColor(0.2, 1, 0.2)  -- Green for your turn
             else
                 turnText = game.player1 .. "'s turn"
+                ui.turnText:SetTextColor(1, 1, 0.5)  -- Yellow for waiting
             end
         elseif state.gameState == self.GAME_STATE.PLAYER2_TURN then
             if game.player2 == playerName then
                 turnText = "YOUR TURN!"
                 showGlow = true
+                ui.turnText:SetTextColor(0.2, 1, 0.2)  -- Green for your turn
             else
                 turnText = game.player2 .. "'s turn"
+                ui.turnText:SetTextColor(1, 1, 0.5)  -- Yellow for waiting
             end
         elseif state.gameState == self.GAME_STATE.FINISHED then
             turnText = "GAME OVER!"
+            ui.turnText:SetTextColor(1, 0.3, 0.3)  -- Red for game over
         else
             turnText = "Waiting..."
+            ui.turnText:SetTextColor(1, 1, 0.5)
         end
 
         if state.consecutivePasses > 0 then
@@ -1429,6 +1932,9 @@ function WordGame:UpdateUI(gameId)
             if showGlow then ui.turnGlow:Show() else ui.turnGlow:Hide() end
         end
     end
+
+    -- Update online status for remote games
+    self:UpdateOnlineStatus(gameId)
 
     -- Update board tiles
     self:UpdateBoardTiles(gameId)
@@ -1443,6 +1949,50 @@ function WordGame:UpdateUI(gameId)
         local moveText = string.format("Last: %s played '%s' for %d pts",
             lastMove.player, lastMove.word, lastMove.score)
         ui.lastMoveText:SetText(moveText)
+    end
+end
+
+--[[
+    Flash the turn banner to get player's attention (for remote game notifications)
+]]
+function WordGame:FlashTurnBanner(gameId)
+    local game = self.games[gameId]
+    if not game then return end
+
+    local ui = game.data.ui
+    if not ui.turnBanner or not ui.turnGlow then return end
+
+    -- Show and pulse the glow
+    ui.turnGlow:Show()
+
+    -- Use Effects module for pulsing if available
+    if HopeAddon.Effects and HopeAddon.Effects.CreatePulsingGlow then
+        HopeAddon.Effects:CreatePulsingGlow(ui.turnBanner, 2.0, {
+            color = { r = 1, g = 0.84, b = 0, a = 0.8 },
+            pulseSpeed = 0.5,
+        })
+    else
+        -- Fallback: Simple flash using Timer
+        local flashCount = 0
+        local maxFlashes = 6
+
+        local function DoFlash()
+            flashCount = flashCount + 1
+            if flashCount > maxFlashes then
+                ui.turnGlow:SetAlpha(0.6)
+                return
+            end
+
+            if flashCount % 2 == 0 then
+                ui.turnGlow:SetAlpha(0.3)
+            else
+                ui.turnGlow:SetAlpha(1.0)
+            end
+
+            HopeAddon.Timer:After(0.25, DoFlash)
+        end
+
+        DoFlash()
     end
 end
 
@@ -1736,6 +2286,10 @@ function WordGame:CreateDragTile()
     tile:SetFrameStrata("TOOLTIP")
     tile:SetFrameLevel(100)
     tile:Hide()
+
+    -- CRITICAL: Disable mouse so the drag tile doesn't intercept clicks
+    -- This allows OnMouseUp to fire on the board tiles underneath
+    tile:EnableMouse(false)
 
     -- Shadow under tile
     tile.shadow = tile:CreateTexture(nil, "BACKGROUND")
@@ -2668,6 +3222,171 @@ function WordGame:UpdateButtonBar(gameId)
     -- Hide old confirm/cancel buttons if they exist
     if ui.confirmButton then ui.confirmButton:Hide() end
     if ui.cancelButton then ui.cancelButton:Hide() end
+end
+
+--[[
+    Create embedded game chat panel for multiplayer games
+]]
+function WordGame:CreateGameChatPanel(parent, ui, game)
+    local GameChat = HopeAddon:GetModule("GameChat")
+
+    -- Create chat panel container
+    local chatPanel = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    chatPanel:SetSize(180, 150)
+    chatPanel:SetPoint("BOTTOMRIGHT", -5, 45)
+
+    -- Dark semi-transparent background
+    chatPanel:SetBackdrop({
+        bgFile = HopeAddon.assets.textures.TOOLTIP_BG,
+        edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+        tile = true, tileSize = 16, edgeSize = 12,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 }
+    })
+    chatPanel:SetBackdropColor(0.05, 0.05, 0.05, 0.85)
+    chatPanel:SetBackdropBorderColor(0.4, 0.35, 0.3, 0.8)
+
+    -- Title
+    local title = chatPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    title:SetPoint("TOP", 0, -5)
+    title:SetText("|cFFFFD700Game Chat|r")
+
+    -- Messages scroll area
+    local scrollFrame = CreateFrame("ScrollFrame", nil, chatPanel, "UIPanelScrollFrameTemplate")
+    scrollFrame:SetPoint("TOPLEFT", 8, -22)
+    scrollFrame:SetPoint("BOTTOMRIGHT", -28, 30)
+
+    local scrollContent = CreateFrame("Frame", nil, scrollFrame)
+    scrollContent:SetSize(140, 200)
+    scrollFrame:SetScrollChild(scrollContent)
+
+    ui.chatPanel = chatPanel
+    ui.chatScrollFrame = scrollFrame
+    ui.chatScrollContent = scrollContent
+    ui.chatMessages = {}
+
+    -- Input box for typing messages
+    local inputBox = CreateFrame("EditBox", nil, chatPanel, "InputBoxTemplate")
+    inputBox:SetSize(140, 18)
+    inputBox:SetPoint("BOTTOMLEFT", 8, 6)
+    inputBox:SetAutoFocus(false)
+    inputBox:SetMaxLetters(100)
+    inputBox:SetFontObject(GameFontNormalSmall)
+
+    -- Placeholder text
+    inputBox.placeholder = inputBox:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    inputBox.placeholder:SetPoint("LEFT", 5, 0)
+    inputBox.placeholder:SetText("Type to chat...")
+    inputBox.placeholder:SetTextColor(0.5, 0.5, 0.5, 0.7)
+
+    inputBox:SetScript("OnTextChanged", function(self)
+        if self:GetText() == "" then
+            self.placeholder:Show()
+        else
+            self.placeholder:Hide()
+        end
+    end)
+
+    inputBox:SetScript("OnEnterPressed", function(self)
+        local text = self:GetText()
+        if text and text ~= "" then
+            -- Send via GameChat
+            if GameChat then
+                GameChat:SendMessage(text)
+            end
+            self:SetText("")
+        end
+        self:ClearFocus()
+    end)
+
+    inputBox:SetScript("OnEscapePressed", function(self)
+        self:SetText("")
+        self:ClearFocus()
+    end)
+
+    ui.chatInputBox = inputBox
+
+    -- Hook into GameChat to receive messages
+    if GameChat then
+        -- Store original display function
+        local originalDisplay = GameChat.DisplayMessage
+        GameChat.DisplayMessage = function(chatSelf, sender, message)
+            -- Call original
+            originalDisplay(chatSelf, sender, message)
+            -- Also update our embedded display
+            WordGame:AddChatMessage(game.id, sender, message)
+        end
+
+        -- Show existing messages
+        local messages = GameChat:GetMessages()
+        for _, msg in ipairs(messages) do
+            self:AddChatMessage(game.id, msg.sender, msg.message)
+        end
+    end
+
+    -- Hint text
+    local hint = chatPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    hint:SetPoint("BOTTOMRIGHT", -30, 8)
+    hint:SetText("or /gc")
+    hint:SetTextColor(0.4, 0.4, 0.4)
+end
+
+--[[
+    Add a chat message to the embedded display
+]]
+function WordGame:AddChatMessage(gameId, sender, message)
+    local game = self.games[gameId]
+    if not game or not game.data or not game.data.ui then return end
+
+    local ui = game.data.ui
+    if not ui.chatScrollContent then return end
+
+    local content = ui.chatScrollContent
+    local messages = ui.chatMessages or {}
+
+    -- Create message text
+    local msgFrame = CreateFrame("Frame", nil, content)
+    msgFrame:SetSize(135, 14)
+
+    local text = msgFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    text:SetPoint("TOPLEFT")
+    text:SetWidth(135)
+    text:SetJustifyH("LEFT")
+    text:SetWordWrap(true)
+
+    local isMe = sender == UnitName("player")
+    local nameColor = isMe and "|cFF00FF00" or "|cFFFFD700"
+    text:SetText(nameColor .. sender .. ":|r " .. message)
+
+    -- Calculate height
+    local textHeight = text:GetStringHeight() or 14
+    msgFrame:SetHeight(textHeight + 2)
+
+    table.insert(messages, msgFrame)
+    ui.chatMessages = messages
+
+    -- Position all messages
+    local yOffset = 0
+    for i, msg in ipairs(messages) do
+        msg:ClearAllPoints()
+        msg:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -yOffset)
+        yOffset = yOffset + msg:GetHeight()
+    end
+
+    -- Update content height
+    content:SetHeight(math.max(yOffset, 100))
+
+    -- Scroll to bottom
+    if ui.chatScrollFrame then
+        local maxScroll = ui.chatScrollFrame:GetVerticalScrollRange() or 0
+        ui.chatScrollFrame:SetVerticalScroll(maxScroll)
+    end
+
+    -- Limit messages (keep last 20)
+    while #messages > 20 do
+        local old = table.remove(messages, 1)
+        old:Hide()
+        old:SetParent(nil)
+    end
 end
 
 --[[

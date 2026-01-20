@@ -928,10 +928,10 @@ function Minigames:EnsureStatsStructure(playerName)
         known[playerName].stats.minigames = {
             rps = { wins = 0, losses = 0, ties = 0, lastPlayed = nil },
             deathroll = { wins = 0, losses = 0, ties = 0, highestBet = 0, lastPlayed = nil },
-            pong = { wins = 0, losses = 0, highestScore = 0, lastPlayed = nil },
-            tetris = { wins = 0, losses = 0, highestScore = 0, lastPlayed = nil },
-            words = { wins = 0, losses = 0, highestScore = 0, lastPlayed = nil },
-            battleship = { wins = 0, losses = 0, lastPlayed = nil },
+            pong = { wins = 0, losses = 0, ties = 0, highestScore = 0, lastPlayed = nil },
+            tetris = { wins = 0, losses = 0, ties = 0, highestScore = 0, lastPlayed = nil },
+            words = { wins = 0, losses = 0, ties = 0, highestScore = 0, lastPlayed = nil },
+            battleship = { wins = 0, losses = 0, ties = 0, lastPlayed = nil },
         }
     end
 
@@ -942,16 +942,22 @@ function Minigames:EnsureStatsStructure(playerName)
             stats.minigames.deathroll = { wins = 0, losses = 0, ties = 0, highestBet = 0, lastPlayed = nil }
         end
         if not stats.minigames.pong then
-            stats.minigames.pong = { wins = 0, losses = 0, highestScore = 0, lastPlayed = nil }
+            stats.minigames.pong = { wins = 0, losses = 0, ties = 0, highestScore = 0, lastPlayed = nil }
         end
         if not stats.minigames.tetris then
-            stats.minigames.tetris = { wins = 0, losses = 0, highestScore = 0, lastPlayed = nil }
+            stats.minigames.tetris = { wins = 0, losses = 0, ties = 0, highestScore = 0, lastPlayed = nil }
         end
         if not stats.minigames.words then
-            stats.minigames.words = { wins = 0, losses = 0, highestScore = 0, lastPlayed = nil }
+            stats.minigames.words = { wins = 0, losses = 0, ties = 0, highestScore = 0, lastPlayed = nil }
         end
         if not stats.minigames.battleship then
-            stats.minigames.battleship = { wins = 0, losses = 0, lastPlayed = nil }
+            stats.minigames.battleship = { wins = 0, losses = 0, ties = 0, lastPlayed = nil }
+        end
+        -- Migration: ensure ties field exists on all game stats
+        for _, gameStats in pairs(stats.minigames) do
+            if gameStats.ties == nil then
+                gameStats.ties = 0
+            end
         end
     end
 end

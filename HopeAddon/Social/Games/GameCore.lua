@@ -150,10 +150,11 @@ end
     @param gameType string - Type of game
     @param mode string - LOCAL, NEARBY, or REMOTE
     @param opponent string|nil - Opponent name (nil for local)
+    @param sharedGameId string|nil - Optional shared gameId (for network games)
     @return string - Game ID
 ]]
-function GameCore:CreateGame(gameType, mode, opponent)
-    local gameId = self:GenerateGameId()
+function GameCore:CreateGame(gameType, mode, opponent, sharedGameId)
+    local gameId = sharedGameId or self:GenerateGameId()
 
     local game = {
         id = gameId,

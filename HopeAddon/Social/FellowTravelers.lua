@@ -283,6 +283,34 @@ function FellowTravelers:SendDirectMessage(target, msgType, data)
 end
 
 --[[
+    Broadcast a raw message to all channels (for other modules like ActivityFeed)
+    @param msg string - Complete message to broadcast
+]]
+function FellowTravelers:BroadcastMessage(msg)
+    if not HopeAddon.charDb or not HopeAddon.charDb.travelers then return end
+    local settings = HopeAddon.charDb.travelers.fellowSettings
+    if not settings or not settings.enabled then return end
+
+    -- Send to different channels based on context
+    local inRaid = IsInRaid()
+    if IsInGroup() then
+        local channel = inRaid and "RAID" or "PARTY"
+        SafeSendAddonMessage(ADDON_PREFIX, msg, channel)
+    end
+
+    if IsInGuild() then
+        SafeSendAddonMessage(ADDON_PREFIX, msg, "GUILD")
+    end
+
+    -- YELL for nearby non-grouped players (skip when in raid)
+    if not inRaid then
+        SafeSendAddonMessage(ADDON_PREFIX, msg, "YELL")
+    end
+
+    HopeAddon:Debug("Broadcast message:", msg:sub(1, 50))
+end
+
+--[[
     Handle incoming addon messages
 ]]
 function FellowTravelers:OnAddonMessage(prefix, message, channel, sender)
@@ -1004,8 +1032,18 @@ function FellowTravelers:OnPartyChanged()
     end
 
     -- Update known travelers (new members get isNewGroup = true)
+    -- Also re-register any party members who were previously fellows (updates lastSeenTime)
     for _, member in ipairs(newMembers) do
         self:UpdateKnownTraveler(member.name, member.class, member.level, true)
+
+        -- If this party member was previously a fellow, update their lastSeenTime
+        -- This ensures they show up in the "IN YOUR PARTY" section immediately
+        if self:IsFellow(member.name) then
+            self:RegisterFellow(member.name, {
+                class = member.class,
+                level = member.level,
+            })
+        end
     end
 
     -- Update last known party
@@ -1014,6 +1052,17 @@ function FellowTravelers:OnPartyChanged()
     -- Notify TravelerIcons if there are new members
     if #newMembers > 0 and HopeAddon.TravelerIcons then
         HopeAddon.TravelerIcons:OnGroupFormed(newMembers)
+    end
+
+    -- Send immediate PING to party channel when new members join (bypass scheduler)
+    -- This ensures fast Fellow detection for the party challenge button
+    if #newMembers > 0 and IsInGroup() then
+        local inRaid = IsInRaid()
+        local channel = inRaid and "RAID" or "PARTY"
+        local zone = GetZoneText() or "Unknown"
+        local msg = string.format("%s:%d:%s", MSG_PING, PROTOCOL_VERSION, zone)
+        SafeSendAddonMessage(ADDON_PREFIX, msg, channel)
+        HopeAddon:Debug("Immediate party PING sent for", #newMembers, "new members")
     end
 
     -- Broadcast presence to new group (uses deduplication)

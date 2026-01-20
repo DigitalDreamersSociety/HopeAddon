@@ -19,6 +19,7 @@ local GRID_PADDING = 10
 local HEADER_HEIGHT = 30
 local CENTER_GAP = 20  -- Space between the two grids
 local INSTRUCTIONS_HEIGHT = 70  -- Height of instructions panel
+local ANNOUNCEMENTS_HEIGHT = 100  -- Height of gameshow announcements area
 
 -- Colors
 local COLORS = {
@@ -549,20 +550,21 @@ function BattleshipGame:UpdateInstructions(gameId)
             ui.orientationText:SetText(string.format("Press R to rotate  |  Currently: %s  |  Ship %s from click", orientArrow, direction))
         end
     elseif state.phase == "PLAYING" then
-        -- Show combat instructions
+        -- Show combat instructions (this is the ONLY turn indicator during combat)
         ui.instructionsPanel:Show()
 
         if state.currentTurn == "player" then
-            ui.stepTitle:SetText("|cFF00FF00YOUR TURN!|r")
-            ui.instructionsText:SetText("Click a cell on ENEMY WATERS or type /fire A5")
-            ui.orientationText:SetText("Sink all 5 enemy ships to win!")
+            ui.stepTitle:SetText("|cFF00FF00>>> YOUR TURN! <<<|r")
+            ui.instructionsText:SetText("Click a cell on ENEMY WATERS grid  |  Or type: /fire A5")
+            ui.orientationText:SetText("|cFFFFD700Sink all 5 enemy ships to win!|r")
         elseif state.currentTurn == "enemy" then
-            ui.stepTitle:SetText("|cFFFFFF00ENEMY TURN|r")
-            ui.instructionsText:SetText("Waiting for opponent's shot...")
+            local who = state.isLocalGame and "AI" or "OPPONENT"
+            ui.stepTitle:SetText("|cFFFFFF00" .. who .. "'S TURN|r")
+            ui.instructionsText:SetText("Waiting for shot...")
             ui.orientationText:SetText("")
         else
-            ui.stepTitle:SetText("|cFFFFFF00WAITING...|r")
-            ui.instructionsText:SetText("Waiting for shot result...")
+            ui.stepTitle:SetText("|cFFFFFF00WAITING FOR RESULT...|r")
+            ui.instructionsText:SetText("Shot fired, awaiting confirmation...")
             ui.orientationText:SetText("")
         end
     elseif state.phase == "WAITING_OPPONENT" then
@@ -611,21 +613,31 @@ function BattleshipGame:ShowUI(gameId)
     content:SetPoint("TOPLEFT", window, "TOPLEFT", 10, -50)
     content:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", -10, 40)
 
-    -- Initialize gameshow UI frames
-    local BattleshipUI = HopeAddon:GetModule("BattleshipUI")
-    if BattleshipUI then
-        BattleshipUI:InitializeGameFrames(gameId, content)
-    end
-
     -- Initialize shot counter for stats
     gameData.data.state.shotsFired = 0
 
     -- Create instructions panel at top
     self:CreateInstructionsPanel(gameId, content)
 
-    -- Create grids container (below instructions)
+    -- Create announcements area (for gameshow effects like HIT!/MISS!/turn prompts)
+    local announcementsContainer = CreateFrame("Frame", nil, content)
+    announcementsContainer:SetSize(680, ANNOUNCEMENTS_HEIGHT)
+    announcementsContainer:SetPoint("TOP", gameData.data.ui.instructionsPanel, "BOTTOM", 0, -5)
+    -- Subtle background to visually separate from grids
+    local announceBg = announcementsContainer:CreateTexture(nil, "BACKGROUND")
+    announceBg:SetAllPoints()
+    announceBg:SetColorTexture(0.05, 0.1, 0.15, 0.5)
+    gameData.data.ui.announcementsContainer = announcementsContainer
+
+    -- Initialize gameshow UI frames in the announcements area
+    local BattleshipUI = HopeAddon:GetModule("BattleshipUI")
+    if BattleshipUI then
+        BattleshipUI:InitializeGameFrames(gameId, announcementsContainer)
+    end
+
+    -- Create grids container (below announcements area)
     local gridsContainer = CreateFrame("Frame", nil, content)
-    gridsContainer:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -INSTRUCTIONS_HEIGHT - 10)
+    gridsContainer:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -(INSTRUCTIONS_HEIGHT + ANNOUNCEMENTS_HEIGHT + 15))
     gridsContainer:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", 0, 60)
     gameData.data.ui.gridsContainer = gridsContainer
 
@@ -652,6 +664,17 @@ function BattleshipGame:ShowUI(gameId)
     rotateBtn:SetText("Rotate (R)")
     rotateBtn:SetScript("OnClick", function()
         self:ToggleOrientation(gameId)
+    end)
+    rotateBtn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine("Rotate Ship", 1, 0.82, 0)
+        GameTooltip:AddLine("Toggle between horizontal and vertical", 0.7, 0.7, 0.7)
+        GameTooltip:AddLine("Keyboard shortcut: R", 0.5, 0.8, 0.5)
+        GameTooltip:Show()
+        if HopeAddon.Sounds then HopeAddon.Sounds:PlayHover() end
+    end)
+    rotateBtn:SetScript("OnLeave", function()
+        GameTooltip:Hide()
     end)
     gameData.data.ui.rotateBtn = rotateBtn
 
@@ -1000,12 +1023,8 @@ function BattleshipGame:UpdateStatus(gameId)
         end
 
         if state.phase == "PLACEMENT" then
-            local nextShip = Board:GetNextShipToPlace(state.playerBoard)
-            if nextShip then
-                local orient = state.placementOrientation == Board.ORIENTATION.HORIZONTAL and "H" or "V"
-                local shipInfo = nextShip.name .. " (" .. nextShip.size .. ") [" .. orient .. "]"
-                BattleshipUI:ShowTurnPrompt(gameId, "PLACEMENT", nil, shipInfo)
-            end
+            -- Instructions panel already shows placement info, hide turn prompt
+            BattleshipUI:HideTurnPrompt(gameId)
             if ui.rotateBtn then ui.rotateBtn:Show() end
 
         elseif state.phase == "WAITING_OPPONENT" then
@@ -1014,14 +1033,9 @@ function BattleshipGame:UpdateStatus(gameId)
 
         elseif state.phase == "PLAYING" then
             if ui.rotateBtn then ui.rotateBtn:Hide() end
-            if state.currentTurn == "player" then
-                BattleshipUI:ShowTurnPrompt(gameId, "YOUR_TURN")
-            elseif state.currentTurn == "waiting" then
-                BattleshipUI:ShowTurnPrompt(gameId, "ENEMY_TURN", "result")
-            else
-                local who = state.isLocalGame and "AI" or "Opponent"
-                BattleshipUI:ShowTurnPrompt(gameId, "ENEMY_TURN", who)
-            end
+            -- Turn info is now shown in instructions panel only (no duplicate turn prompt)
+            -- BattleshipUI is only used for shot result animations (HIT/MISS/SUNK)
+            BattleshipUI:HideTurnPrompt(gameId)
 
         elseif state.phase == "ENDED" then
             if ui.rotateBtn then ui.rotateBtn:Hide() end

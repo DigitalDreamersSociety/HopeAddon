@@ -311,6 +311,14 @@ function ProfileEditor:CreateSettingsSection(parent)
     enableLabel:SetFont(HopeAddon.assets.fonts.BODY, 11)
     enableLabel:SetPoint("LEFT", enableCheck, "RIGHT", 4, 0)
     enableLabel:SetText("Enable Fellow Traveler detection")
+    enableCheck:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine("Fellow Traveler Detection", 1, 0.82, 0)
+        GameTooltip:AddLine("When enabled, detects other HopeAddon users nearby", 1, 1, 1, true)
+        GameTooltip:AddLine("and adds them to your Fellow Travelers list.", 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    enableCheck:SetScript("OnLeave", function() GameTooltip:Hide() end)
     self.enableCheck = enableCheck
     yOffset = yOffset - 24
 
@@ -322,6 +330,14 @@ function ProfileEditor:CreateSettingsSection(parent)
     chatLabel:SetFont(HopeAddon.assets.fonts.BODY, 11)
     chatLabel:SetPoint("LEFT", chatColorCheck, "RIGHT", 4, 0)
     chatLabel:SetText("Color fellow traveler names in chat")
+    chatColorCheck:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine("Chat Name Coloring", 1, 0.82, 0)
+        GameTooltip:AddLine("Colors Fellow Traveler names in chat with a", 1, 1, 1, true)
+        GameTooltip:AddLine("special purple tint so you can spot them easily.", 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    chatColorCheck:SetScript("OnLeave", function() GameTooltip:Hide() end)
     self.chatColorCheck = chatColorCheck
     yOffset = yOffset - 24
 
@@ -333,6 +349,14 @@ function ProfileEditor:CreateSettingsSection(parent)
     shareLabel:SetFont(HopeAddon.assets.fonts.BODY, 11)
     shareLabel:SetPoint("LEFT", shareCheck, "RIGHT", 4, 0)
     shareLabel:SetText("Share my profile with other users")
+    shareCheck:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine("Profile Sharing", 1, 0.82, 0)
+        GameTooltip:AddLine("Shares your RP profile (backstory, personality,", 1, 1, 1, true)
+        GameTooltip:AddLine("appearance) with other HopeAddon users.", 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    shareCheck:SetScript("OnLeave", function() GameTooltip:Hide() end)
     self.shareCheck = shareCheck
     yOffset = yOffset - 24
 
@@ -344,6 +368,14 @@ function ProfileEditor:CreateSettingsSection(parent)
     tooltipLabel:SetFont(HopeAddon.assets.fonts.BODY, 11)
     tooltipLabel:SetPoint("LEFT", tooltipCheck, "RIGHT", 4, 0)
     tooltipLabel:SetText("Show profiles in tooltips")
+    tooltipCheck:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine("Profile Tooltips", 1, 0.82, 0)
+        GameTooltip:AddLine("Shows Fellow Traveler RP profiles when you", 1, 1, 1, true)
+        GameTooltip:AddLine("hover over them in the game world.", 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    tooltipCheck:SetScript("OnLeave", function() GameTooltip:Hide() end)
     self.tooltipCheck = tooltipCheck
 
     return yOffset

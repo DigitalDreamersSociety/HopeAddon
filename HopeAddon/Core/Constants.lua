@@ -3298,7 +3298,7 @@ C.GAME_DEFINITIONS = {
         id = "battleship",
         name = "Battleship",
         description = "Hunt and sink your opponent's fleet",
-        icon = "Interface\\Icons\\INV_Misc_Anchor",
+        icon = "Interface\\Icons\\INV_Misc_Bomb_07",
         hasLocal = true,
         hasRemote = true,
         system = "gamecore",
@@ -3393,6 +3393,29 @@ C.WORDS_BUTTON_COLORS = {
     DISABLED = { r = 0.3, g = 0.3, b = 0.3 },  -- Disabled gray
 }
 
+-- AI opponent settings (Easy difficulty - ~70% player win rate)
+C.WORDS_AI_SETTINGS = {
+    -- Decision timing (humanlike delays)
+    THINK_TIME_MIN = 1.0,           -- Minimum "thinking" time in seconds
+    THINK_TIME_MAX = 3.0,           -- Maximum "thinking" time in seconds
+
+    -- Difficulty tuning (Easy: makes mistakes, prefers shorter words)
+    MISTAKE_CHANCE = 0.20,          -- 20% chance to pick suboptimal word
+    MAX_WORD_LENGTH = 5,            -- AI prefers words this length or shorter
+    SKIP_LONG_WORD_CHANCE = 0.4,    -- 40% chance to skip words > MAX_WORD_LENGTH
+
+    -- Fallback behavior
+    PASS_IF_NO_WORDS = true,        -- Pass turn if no valid words found
+}
+
+-- Online status indicator thresholds (for remote games)
+C.WORDS_ONLINE_STATUS = {
+    ACTIVE_THRESHOLD = 60,          -- Seconds - "Active" if seen within 1 minute
+    RECENT_THRESHOLD = 300,         -- Seconds - "Online" if seen within 5 minutes
+    STALE_THRESHOLD = 900,          -- Seconds - "Away" if seen within 15 minutes
+    -- Beyond STALE_THRESHOLD = "Offline"
+}
+
 --============================================================
 -- BACKDROP DEFINITIONS
 -- Centralized backdrop templates for TBC Classic compatibility
@@ -3422,12 +3445,12 @@ C.BACKDROPS = {
     },
 
     -- Parchment with gold border (main frames, popups, notifications)
-    -- Used by: journal frame, challenge popups, milestone notifications
+    -- NOTE: Previously used QuestBG which cannot tile/scale. Now uses tiling light parchment.
     PARCHMENT_GOLD = {
-        bgFile = "Interface\\QUESTFRAME\\QuestBG",
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
         edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
-        tile = false,
-        tileSize = 0,
+        tile = true,
+        tileSize = 32,
         edgeSize = 32,
         insets = { left = 11, right = 12, top = 12, bottom = 11 }
     },
@@ -3455,19 +3478,23 @@ C.BACKDROPS = {
     },
 
     -- Parchment with gold border (smaller edge for pages)
+    -- NOTE: Previously used QuestBG which cannot tile/scale. Now uses tiling dark parchment.
     PARCHMENT_GOLD_SMALL = {
-        bgFile = "Interface\\QUESTFRAME\\QuestBG",
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
         edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
-        tile = false,
+        tile = true,
+        tileSize = 32,
         edgeSize = 24,
         insets = { left = 8, right = 8, top = 8, bottom = 8 }
     },
 
     -- Parchment with dialog border (zone pages, themed border color)
+    -- NOTE: Previously used QuestBG which cannot tile/scale. Now uses tiling dark parchment.
     PARCHMENT_DIALOG = {
-        bgFile = "Interface\\QUESTFRAME\\QuestBG",
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
         edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-        tile = false,
+        tile = true,
+        tileSize = 32,
         edgeSize = 24,
         insets = { left = 8, right = 8, top = 8, bottom = 8 }
     },
@@ -3535,10 +3562,12 @@ C.BACKDROPS = {
     },
 
     -- Parchment with tooltip border (game cards, lighter frames)
+    -- NOTE: Previously used QuestBG which cannot tile/scale. Now uses tiling light parchment.
     PARCHMENT_SIMPLE = {
-        bgFile = "Interface\\QUESTFRAME\\QuestBG",
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = false,
+        tile = true,
+        tileSize = 32,
         edgeSize = 12,
         insets = { left = 3, right = 3, top = 3, bottom = 3 }
     },
@@ -4509,6 +4538,290 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         },
     },
 }
+
+--============================================================================
+-- LEVELING GEAR MATRIX (Pre-68 Outland Content)
+-- Organized by role -> level range -> source type (dungeon/quest)
+-- Each category contains 3 recommended items for that leveling phase
+--============================================================================
+
+C.LEVELING_RANGES = {
+    { key = "60-62", minLevel = 60, maxLevel = 62, label = "Level 60-62", dungeonGroup = "Hellfire Citadel" },
+    { key = "63-65", minLevel = 63, maxLevel = 65, label = "Level 63-65", dungeonGroup = "Coilfang / Auchindoun" },
+    { key = "66-67", minLevel = 66, maxLevel = 67, label = "Level 66-67", dungeonGroup = "Auchindoun / Caverns of Time" },
+}
+
+C.LEVELING_ROLES = {
+    tank = { name = "Tank", icon = "Ability_Warrior_DefensiveStance", color = "SKY_BLUE" },
+    healer = { name = "Healer", icon = "Spell_Holy_FlashHeal", color = "FEL_GREEN" },
+    melee_dps = { name = "Melee DPS", icon = "Ability_MeleeDamage", color = "HELLFIRE_RED" },
+    ranged_dps = { name = "Ranged DPS", icon = "Ability_Hunter_AimedShot", color = "GOLD_BRIGHT" },
+    caster_dps = { name = "Caster DPS", icon = "Spell_Fire_FlameBolt", color = "ARCANE_PURPLE" },
+}
+
+C.LEVELING_DUNGEONS = {
+    ["60-62"] = {
+        { name = "Hellfire Ramparts", level = "60-62", zone = "Hellfire Peninsula" },
+        { name = "Blood Furnace", level = "61-63", zone = "Hellfire Peninsula" },
+    },
+    ["63-65"] = {
+        { name = "Slave Pens", level = "62-64", zone = "Zangarmarsh" },
+        { name = "Underbog", level = "63-65", zone = "Zangarmarsh" },
+        { name = "Mana-Tombs", level = "64-66", zone = "Terokkar Forest" },
+    },
+    ["66-67"] = {
+        { name = "Auchenai Crypts", level = "65-67", zone = "Terokkar Forest" },
+        { name = "Old Hillsbrad", level = "66-68", zone = "Caverns of Time" },
+        { name = "Sethekk Halls", level = "67-69", zone = "Terokkar Forest" },
+    },
+}
+
+C.LEVELING_GEAR_MATRIX = {
+    --========================================================================
+    -- TANK
+    --========================================================================
+    ["tank"] = {
+        ["60-62"] = {
+            dungeons = {
+                { itemId = 24064, name = "Ironsole Clompers", icon = "INV_Boots_Plate_09", quality = "rare", slot = "Feet", stats = "+19 Sta, +14 Str, +19 Def", source = "Hellfire Ramparts", sourceType = "dungeon", boss = "Vazruden" },
+                { itemId = 24091, name = "Tenacious Defender", icon = "INV_Belt_13", quality = "rare", slot = "Waist", stats = "+19 Sta, +15 Str, +14 Agi", source = "Hellfire Ramparts", sourceType = "dungeon", boss = "Omor" },
+                { itemId = 24387, name = "Ironblade Gauntlets", icon = "INV_Gauntlets_28", quality = "rare", slot = "Hands", stats = "+20 Str, +14 Agi, +19 Sta, +6 Hit", source = "Blood Furnace", sourceType = "dungeon", boss = "The Maker" },
+            },
+            quests = {
+                { itemId = 25715, name = "Jade Warrior Pauldrons", icon = "INV_Shoulder_25", quality = "rare", slot = "Shoulder", stats = "+28 Sta, +20 Str, +19 Agi", source = "Weaken the Ramparts", sourceType = "quest", zone = "Hellfire Peninsula" },
+                { itemId = 25712, name = "Perfectly Balanced Cape", icon = "INV_Misc_Cape_14", quality = "rare", slot = "Back", stats = "+22 Sta, +15 Agi, +30 AP", source = "Heart of Rage", sourceType = "quest", zone = "Hellfire Peninsula" },
+                { itemId = 24044, name = "Hellreaver", icon = "INV_Polearm_06", quality = "rare", slot = "Polearm", stats = "+30 Str, +27 Sta, +25 Crit", source = "Hellfire Ramparts", sourceType = "dungeon", boss = "Vazruden" },
+            },
+        },
+        ["63-65"] = {
+            dungeons = {
+                { itemId = 24379, name = "Bogstrok Scale Cloak", icon = "INV_Misc_Cape_18", quality = "rare", slot = "Back", stats = "+22 Sta, +16 Def, +208 Armor", source = "Slave Pens", sourceType = "dungeon", boss = "Rokmar" },
+                { itemId = 24363, name = "Unscarred Breastplate", icon = "INV_Chest_Plate_11", quality = "rare", slot = "Chest", stats = "+23 Sta, +26 Str, +21 Agi", source = "Slave Pens", sourceType = "dungeon", boss = "Quagmirran" },
+                { itemId = 24463, name = "Pauldrons of Brute Force", icon = "INV_Shoulder_28", quality = "rare", slot = "Shoulder", stats = "+22 Sta, +16 Str, +18 Def", source = "Underbog", sourceType = "dungeon", boss = "Black Stalker" },
+            },
+            quests = {
+                { itemId = 25540, name = "Dark Cloak of the Marsh", icon = "INV_Misc_Cape_16", quality = "rare", slot = "Back", stats = "+28 Sta, +15 Agi, +30 AP", source = "Lost in Action", sourceType = "quest", zone = "Zangarmarsh" },
+                { itemId = 29336, name = "Mark of the Ravenguard", icon = "INV_Jewelry_Necklace_21", quality = "rare", slot = "Neck", stats = "+40 Sta, +17 Def", source = "Brother Against Brother", sourceType = "quest", zone = "Terokkar Forest" },
+                { itemId = 29337, name = "The Exarch's Protector", icon = "INV_Chest_Plate_15", quality = "rare", slot = "Chest", stats = "+30 Str, +23 Def, +18 Crit", source = "Everything Will Be Alright", sourceType = "quest", zone = "Terokkar Forest" },
+            },
+        },
+        ["66-67"] = {
+            dungeons = {
+                { itemId = 27436, name = "Iron Band of the Unbreakable", icon = "INV_Jewelry_Ring_36", quality = "rare", slot = "Ring", stats = "+27 Sta, +17 Def, +170 Armor", source = "Old Hillsbrad", sourceType = "dungeon", boss = "Lt. Drake" },
+                { itemId = 27427, name = "Durotan's Battle Harness", icon = "INV_Chest_Plate_14", quality = "rare", slot = "Chest", stats = "+34 Sta, +31 Str, +16 Crit", source = "Old Hillsbrad", sourceType = "dungeon", boss = "Captain Skarloc" },
+                { itemId = 27847, name = "Fanblade Pauldrons", icon = "INV_Shoulder_30", quality = "rare", slot = "Shoulder", stats = "+22 Sta, +16 Str, +20 Def, +15 Parry", source = "Auchenai Crypts", sourceType = "dungeon", boss = "Shirrak" },
+            },
+            quests = {
+                { itemId = 29316, name = "Warchief's Mantle", icon = "INV_Shoulder_32", quality = "rare", slot = "Shoulder", stats = "+27 Sta, +23 Str, +18 Parry", source = "Return to Andormu", sourceType = "quest", zone = "Tanaris" },
+                { itemId = 29336, name = "Mark of the Ravenguard", icon = "INV_Jewelry_Necklace_21", quality = "rare", slot = "Neck", stats = "+40 Sta, +17 Def", source = "Brother Against Brother", sourceType = "quest", zone = "Terokkar Forest" },
+                { itemId = 29337, name = "The Exarch's Protector", icon = "INV_Chest_Plate_15", quality = "rare", slot = "Chest", stats = "+30 Str, +23 Def, +18 Crit", source = "Everything Will Be Alright", sourceType = "quest", zone = "Terokkar Forest" },
+            },
+        },
+    },
+
+    --========================================================================
+    -- HEALER
+    --========================================================================
+    ["healer"] = {
+        ["60-62"] = {
+            dungeons = {
+                { itemId = 24083, name = "Lifegiver Britches", icon = "INV_Pants_Cloth_14", quality = "rare", slot = "Legs", stats = "+25 Int, +16 Sta, +12 Spirit, +44 Heal", source = "Hellfire Ramparts", sourceType = "dungeon", boss = "Vazruden" },
+                { itemId = 24397, name = "Raiments of Divine Authority", icon = "INV_Chest_Cloth_43", quality = "rare", slot = "Chest", stats = "+21 Int, +16 Sta, +18 Spirit, +46 Heal", source = "Blood Furnace", sourceType = "dungeon", boss = "Keli'dan" },
+                { itemId = 24096, name = "Heartblood Prayer Beads", icon = "INV_Jewelry_Necklace_19", quality = "rare", slot = "Neck", stats = "+15 Int, +15 Sta, +31 Heal, +4 mp5", source = "Hellfire Ramparts", sourceType = "dungeon", boss = "Omor" },
+            },
+            quests = {
+                { itemId = 25718, name = "Mantle of Magical Might", icon = "INV_Shoulder_09", quality = "rare", slot = "Shoulder", stats = "+17 Int, +16 Sta, +10 Spirit, +19 Spell", source = "Weaken the Ramparts", sourceType = "quest", zone = "Hellfire Peninsula" },
+                { itemId = 25714, name = "Crimson Pendant of Clarity", icon = "INV_Jewelry_Necklace_17", quality = "rare", slot = "Neck", stats = "+15 Int, +18 Spell, +6 mp5", source = "Heart of Rage", sourceType = "quest", zone = "Hellfire Peninsula" },
+                { itemId = 25713, name = "Holy Healing Band", icon = "INV_Jewelry_Ring_33", quality = "rare", slot = "Ring", stats = "+15 Int, +33 Heal, +6 mp5", source = "Heart of Rage", sourceType = "quest", zone = "Hellfire Peninsula" },
+            },
+        },
+        ["63-65"] = {
+            dungeons = {
+                { itemId = 24378, name = "Coilfang Hammer of Renewal", icon = "INV_Hammer_16", quality = "rare", slot = "Mace", stats = "+13 Int, +10 Sta, +12 Spirit, +106 Heal", source = "Slave Pens", sourceType = "dungeon", boss = "Rokmar" },
+                { itemId = 24481, name = "Robes of the Augurer", icon = "INV_Chest_Cloth_46", quality = "rare", slot = "Chest", stats = "+18 Int, +18 Sta, +11 Spirit, +28 Spell", source = "Underbog", sourceType = "dungeon", boss = "Black Stalker" },
+                { itemId = 24359, name = "Princely Reign Leggings", icon = "INV_Pants_Cloth_15", quality = "rare", slot = "Legs", stats = "+28 Int, +18 Sta, +12 Spirit, +33 Heal", source = "Slave Pens", sourceType = "dungeon", boss = "Mennu" },
+            },
+            quests = {
+                { itemId = 28029, name = "Goldenvine Wraps", icon = "INV_Bracer_07", quality = "rare", slot = "Wrist", stats = "+14 Int, +24 Heal", source = "Lost in Action", sourceType = "quest", zone = "Zangarmarsh" },
+                { itemId = 29345, name = "Haramad's Leg Wraps", icon = "INV_Pants_Cloth_15", quality = "rare", slot = "Legs", stats = "+18 Int, +12 Spirit, +28 Heal", source = "Undercutting the Competition", sourceType = "quest", zone = "Terokkar Forest" },
+                { itemId = 29328, name = "Consortium Prince's Wrap", icon = "INV_Belt_13", quality = "rare", slot = "Waist", stats = "+16 Int, +22 Heal", source = "Mana-Tombs Quest", sourceType = "quest", zone = "Terokkar Forest" },
+            },
+        },
+        ["66-67"] = {
+            dungeons = {
+                { itemId = 27412, name = "Ironstaff of Regeneration", icon = "INV_Staff_48", quality = "rare", slot = "Staff", stats = "+29 Int, +33 Sta, +35 Spirit, +143 Heal", source = "Auchenai Crypts", sourceType = "dungeon", boss = "Exarch Maladaar" },
+                { itemId = 27410, name = "Collar of Command", icon = "INV_Helmet_48", quality = "rare", slot = "Head", stats = "+23 Int, +29 Spirit, +66 Heal", source = "Auchenai Crypts", sourceType = "dungeon", boss = "Shirrak" },
+                { itemId = 27411, name = "Slippers of Serenity", icon = "INV_Boots_Cloth_10", quality = "rare", slot = "Feet", stats = "+22 Int, +15 Spirit, +35 Heal", source = "Auchenai Crypts", sourceType = "dungeon", boss = "Exarch Maladaar" },
+            },
+            quests = {
+                { itemId = 29317, name = "Tempest's Touch", icon = "INV_Gauntlets_17", quality = "rare", slot = "Hands", stats = "+20 Int, +32 Heal", source = "Return to Andormu", sourceType = "quest", zone = "Tanaris" },
+                { itemId = 29334, name = "Sethekk Oracle's Focus", icon = "INV_Jewelry_Necklace_23", quality = "rare", slot = "Neck", stats = "+18 Int, +36 Heal", source = "Brother Against Brother", sourceType = "quest", zone = "Terokkar Forest" },
+                { itemId = 29341, name = "Auchenai Anchorite's Robe", icon = "INV_Chest_Cloth_47", quality = "rare", slot = "Chest", stats = "+22 Int, +14 Spirit, +40 Heal", source = "Everything Will Be Alright", sourceType = "quest", zone = "Terokkar Forest" },
+            },
+        },
+    },
+
+    --========================================================================
+    -- MELEE DPS
+    --========================================================================
+    ["melee_dps"] = {
+        -- NOTE: Rogues can use daggers, 1H swords, 1H maces, fist, polearms, axes
+        -- NOTE: Feral Druids can use daggers, maces (1H/2H), staves, fist weapons (NO axes/swords/polearms)
+        -- WEAPON CONFLICT: No single weapon type works for both classes at this level
+        ["60-62"] = {
+            dungeons = {
+                -- Weapons listed for BOTH classes since they can't share weapon types:
+                -- Hellreaver (polearm) = Rogues only; Ursol's Claw (staff) = Druids only
+                { itemId = 24044, name = "Hellreaver", icon = "INV_Polearm_2H_01", quality = "rare", slot = "Polearm", stats = "+30 Str, +27 Sta, +25 Crit (Rogues only)", source = "Hellfire Ramparts", sourceType = "dungeon", boss = "Vazruden" },
+                { itemId = 24396, name = "Vest of Vengeance", icon = "INV_Chest_Leather_07", quality = "rare", slot = "Chest", stats = "+27 Agi, +18 Sta, +42 AP, +11 Hit", source = "Blood Furnace", sourceType = "dungeon", boss = "Keli'dan" },
+                { itemId = 24063, name = "Shifting Sash of Midnight", icon = "INV_Belt_03", quality = "rare", slot = "Waist", stats = "+20 Agi, +19 Sta, +12 Hit", source = "Hellfire Ramparts", sourceType = "dungeon", boss = "Vazruden" },
+            },
+            quests = {
+                -- Note: Handguards of Precision removed - it's MAIL armor, rogues/druids can't equip
+                { itemId = 25717, name = "Sure-Step Boots", icon = "INV_Boots_Leather_07", quality = "uncommon", slot = "Feet", stats = "+16 Agi, +18 Sta", source = "Weaken the Ramparts", sourceType = "quest", zone = "Hellfire Peninsula" },
+                { itemId = 25712, name = "Perfectly Balanced Cape", icon = "INV_Misc_Cape_14", quality = "uncommon", slot = "Back", stats = "+22 AP, +14 Crit", source = "Heart of Rage", sourceType = "quest", zone = "Hellfire Peninsula" },
+            },
+        },
+        ["63-65"] = {
+            dungeons = {
+                { itemId = 25943, name = "Creepjacker", icon = "INV_Gauntlets_26", quality = "rare", slot = "Fist", stats = "+13 Sta, +13 Crit, +28 AP", source = "Mana-Tombs", sourceType = "dungeon", boss = "Pandemonius" },
+                { itemId = 24365, name = "Deft Handguards", icon = "INV_Gauntlets_25", quality = "rare", slot = "Hands", stats = "+52 AP, +12 Crit, +18 Sta", source = "Slave Pens", sourceType = "dungeon", boss = "Quagmirran" },
+                { itemId = 24466, name = "Skulldugger's Leggings", icon = "INV_Pants_Leather_11", quality = "rare", slot = "Legs", stats = "+40 AP, +21 Dodge, +16 Hit, +24 Sta", source = "Underbog", sourceType = "dungeon", boss = "Black Stalker" },
+            },
+            quests = {
+                { itemId = 25540, name = "Dark Cloak of the Marsh", icon = "INV_Misc_Cape_16", quality = "uncommon", slot = "Back", stats = "+28 AP, +14 Crit", source = "Lost in Action", sourceType = "quest", zone = "Zangarmarsh" },
+                { itemId = 29343, name = "Haramad's Leggings of the Third Coin", icon = "INV_Pants_Leather_12", quality = "uncommon", slot = "Legs", stats = "+22 Agi, +20 Sta, +32 AP", source = "Undercutting the Competition", sourceType = "quest", zone = "Terokkar Forest" },
+                -- Note: Cryo-mitts removed - it's a caster item (Int/Spirit/+Heal), not melee agility
+            },
+        },
+        ["66-67"] = {
+            dungeons = {
+                { itemId = 27415, name = "Darkguard Face Mask", icon = "INV_Helmet_15", quality = "rare", slot = "Head", stats = "+29 Agi, +30 Sta, +20 Hit, +60 AP", source = "Auchenai Crypts", sourceType = "dungeon", boss = "Exarch Maladaar" },
+                -- Creepjacker (63-65 fist weapon) remains best weapon option until 70; focus on armor upgrades
+                { itemId = 27423, name = "Cloak of Impulsiveness", icon = "INV_Misc_Cape_10", quality = "rare", slot = "Back", stats = "+18 Agi, +19 Sta, +40 AP", source = "Old Hillsbrad", sourceType = "dungeon", boss = "Lieutenant Drake" },
+                { itemId = 27434, name = "Mantle of Perenolde", icon = "INV_Shoulder_23", quality = "rare", slot = "Shoulder", stats = "+24 Sta, +23 Hit, +23 Crit, +20 AP", source = "Old Hillsbrad", sourceType = "dungeon", boss = "Epoch Hunter" },
+            },
+            quests = {
+                { itemId = 29333, name = "Talon Lord's Collar", icon = "INV_Jewelry_Necklace_25", quality = "uncommon", slot = "Neck", stats = "+30 AP, +16 Crit", source = "Brother Against Brother", sourceType = "quest", zone = "Terokkar Forest" },
+                { itemId = 29340, name = "Auchenai Monk's Tunic", icon = "INV_Chest_Leather_01", quality = "uncommon", slot = "Chest", stats = "+24 Agi, +24 Dodge, +19 Hit, +18 AP", source = "Everything Will Be Alright", sourceType = "quest", zone = "Terokkar Forest" },
+                -- Note: Terokk's Quill (polearm) removed - druids can't use polearms; no good melee weapon quest rewards at this level
+            },
+        },
+    },
+
+    --========================================================================
+    -- RANGED DPS (Hunter)
+    -- Note: Hunters can wear leather; mail boots with agility are scarce at 60-65
+    --========================================================================
+    ["ranged_dps"] = {
+        ["60-62"] = {
+            dungeons = {
+                { itemId = 24389, name = "Legion Blunderbuss", icon = "INV_Weapon_Rifle_07", quality = "rare", slot = "Gun", stats = "+9 Agi, +24 AP", source = "Blood Furnace", sourceType = "dungeon", boss = "Broggok" },
+                { itemId = 24022, name = "Scale Leggings of the Skirmisher", icon = "INV_Pants_Mail_10", quality = "rare", slot = "Legs", stats = "+22 Agi, +24 Sta, +32 AP", source = "Hellfire Ramparts", sourceType = "dungeon", boss = "Gargolmar" },
+                { itemId = 24073, name = "Garrote-String Necklace", icon = "INV_Jewelry_Necklace_20", quality = "rare", slot = "Neck", stats = "+36 AP, +14 Crit, +16 Sta", source = "Hellfire Ramparts", sourceType = "dungeon", boss = "Omor" },
+            },
+            quests = {
+                -- Note: Hunters can wear leather; mail agility quest rewards are very limited in 60-62
+                { itemId = 25716, name = "Handguards of Precision", icon = "INV_Gauntlets_24", quality = "uncommon", slot = "Hands", stats = "+20 Agi, +28 Sta, +38 AP", source = "Weaken the Ramparts", sourceType = "quest", zone = "Hellfire Peninsula" },
+                { itemId = 25717, name = "Sure-Step Boots", icon = "INV_Boots_Leather_07", quality = "uncommon", slot = "Feet", stats = "+20 Agi, +28 Sta, +38 AP", source = "Weaken the Ramparts", sourceType = "quest", zone = "Hellfire Peninsula" },
+            },
+        },
+        ["63-65"] = {
+            dungeons = {
+                { itemId = 24381, name = "Coilfang Needler", icon = "INV_Weapon_Crossbow_07", quality = "rare", slot = "Crossbow", stats = "+12 Agi, +22 AP", source = "Slave Pens", sourceType = "dungeon", boss = "Rokmar" },
+                { itemId = 24465, name = "Shamblehide Chestguard", icon = "INV_Chest_Chain_08", quality = "rare", slot = "Chest", stats = "+16 Sta, +19 Int, +21 Crit, +44 AP", source = "Underbog", sourceType = "dungeon", boss = "Black Stalker" },
+                { itemId = 25946, name = "Nethershade Boots", icon = "INV_Boots_Leather_08", quality = "rare", slot = "Feet", stats = "+22 Agi, +21 Sta, +44 AP", source = "Mana-Tombs", sourceType = "dungeon", boss = "Tavarok" },
+            },
+            quests = {
+                -- Note: Mail agility legs are scarce in quests; dungeon drops (Shamblehide/Nethershade) are primary upgrades
+                { itemId = 25540, name = "Dark Cloak of the Marsh", icon = "INV_Misc_Cape_16", quality = "uncommon", slot = "Back", stats = "+16 Agi, +28 AP", source = "Lost in Action", sourceType = "quest", zone = "Zangarmarsh" },
+                { itemId = 29326, name = "Consortium Mantle of Phasing", icon = "INV_Shoulder_22", quality = "uncommon", slot = "Shoulder", stats = "+21 Crit, +46 AP", source = "Someone Else's Hard Work Pays Off", sourceType = "quest", zone = "Terokkar Forest" },
+            },
+        },
+        ["66-67"] = {
+            dungeons = {
+                { itemId = 27413, name = "Ring of the Exarchs", icon = "INV_Jewelry_Ring_49", quality = "rare", slot = "Ring", stats = "+17 Agi, +24 Sta, +34 AP", source = "Auchenai Crypts", sourceType = "dungeon", boss = "Exarch Maladaar" },
+                { itemId = 27414, name = "Mok'Nathal Beast-Mask", icon = "INV_Helmet_50", quality = "rare", slot = "Head", stats = "+23 Agi, +22 Sta, +44 AP", source = "Auchenai Crypts", sourceType = "dungeon", boss = "Exarch Maladaar" },
+                { itemId = 27430, name = "Scaled Greaves of Patience", icon = "INV_Pants_Mail_15", quality = "rare", slot = "Legs", stats = "+28 Agi, +13 Int, +46 AP, +24 Sta", source = "Old Hillsbrad", sourceType = "dungeon", boss = "Captain Skarloc" },
+            },
+            quests = {
+                { itemId = 29319, name = "Tarren Mill Defender's Cinch", icon = "INV_Belt_14", quality = "uncommon", slot = "Waist", stats = "+18 Agi, +16 Sta", source = "Return to Andormu", sourceType = "quest", zone = "Tanaris" },
+                { itemId = 29333, name = "Talon Lord's Collar", icon = "INV_Jewelry_Necklace_25", quality = "uncommon", slot = "Neck", stats = "+20 Agi, +30 AP", source = "Brother Against Brother", sourceType = "quest", zone = "Terokkar Forest" },
+                { itemId = 29339, name = "Auchenai Tracker's Hauberk", icon = "INV_Chest_Chain_11", quality = "uncommon", slot = "Chest", stats = "+29 Int, +60 AP, +5 mp5", source = "Everything Will Be Alright", sourceType = "quest", zone = "Terokkar Forest" },
+            },
+        },
+    },
+
+    --========================================================================
+    -- CASTER DPS
+    --========================================================================
+    ["caster_dps"] = {
+        ["60-62"] = {
+            dungeons = {
+                { itemId = 24069, name = "Crystalfire Staff", icon = "INV_Staff_38", quality = "rare", slot = "Staff", stats = "+34 Int, +34 Sta, +46 Spell", source = "Hellfire Ramparts", sourceType = "dungeon", boss = "Omor" },
+                { itemId = 24384, name = "Diamond-Core Sledgemace", icon = "INV_Hammer_18", quality = "rare", slot = "2H Mace", stats = "+12 Sta, +51 Spell", source = "Blood Furnace", sourceType = "dungeon", boss = "The Maker" },
+                { itemId = 24024, name = "Pauldrons of Arcane Rage", icon = "INV_Shoulder_18", quality = "rare", slot = "Shoulder", stats = "+18 Int, +18 Sta, +27 Spell", source = "Hellfire Ramparts", sourceType = "dungeon", boss = "Gargolmar" },
+            },
+            quests = {
+                { itemId = 25718, name = "Mantle of Magical Might", icon = "INV_Shoulder_09", quality = "uncommon", slot = "Shoulder", stats = "+16 Int, +22 Spell", source = "Weaken the Ramparts", sourceType = "quest", zone = "Hellfire Peninsula" },
+                { itemId = 25713, name = "Deadly Borer Leggings", icon = "INV_Pants_Cloth_13", quality = "uncommon", slot = "Legs", stats = "+18 Int, +16 Sta, +24 Spell", source = "Heart of Rage", sourceType = "quest", zone = "Hellfire Peninsula" },
+                { itemId = 25714, name = "Crimson Pendant of Clarity", icon = "INV_Jewelry_Necklace_17", quality = "uncommon", slot = "Neck", stats = "+14 Int, +20 Spell", source = "Heart of Rage", sourceType = "quest", zone = "Hellfire Peninsula" },
+            },
+        },
+        ["63-65"] = {
+            dungeons = {
+                { itemId = 25950, name = "Staff of Polarities", icon = "INV_Staff_42", quality = "rare", slot = "Staff", stats = "+33 Int, +34 Sta, +28 Hit, +67 Spell", source = "Mana-Tombs", sourceType = "dungeon", boss = "Tavarok" },
+                { itemId = 24462, name = "Luminous Pearls of Insight", icon = "INV_Jewelry_Necklace_16", quality = "rare", slot = "Neck", stats = "+15 Int, +11 Crit, +25 Spell", source = "Underbog", sourceType = "dungeon", boss = "Ghaz'an" },
+                { itemId = 24362, name = "Spore-Soaked Vaneer", icon = "INV_Shoulder_15", quality = "rare", slot = "Shoulder", stats = "+15 Int, +15 Sta, +11 Crit, +19 Spell", source = "Slave Pens", sourceType = "dungeon", boss = "Quagmirran" },
+            },
+            quests = {
+                { itemId = 25541, name = "Cenarion Ring of Casting", icon = "INV_Jewelry_Ring_38", quality = "uncommon", slot = "Ring", stats = "+14 Int, +18 Spell", source = "Lost in Action", sourceType = "quest", zone = "Zangarmarsh" },
+                { itemId = 29328, name = "Consortium Prince's Wrap", icon = "INV_Belt_13", quality = "uncommon", slot = "Waist", stats = "+16 Int, +22 Spell", source = "Mana-Tombs Quest", sourceType = "quest", zone = "Terokkar Forest" },
+                { itemId = 29345, name = "Haramad's Leg Wraps", icon = "INV_Pants_Cloth_15", quality = "uncommon", slot = "Legs", stats = "+18 Int, +26 Spell", source = "Undercutting the Competition", sourceType = "quest", zone = "Terokkar Forest" },
+            },
+        },
+        ["66-67"] = {
+            dungeons = {
+                { itemId = 27431, name = "Time-Shifted Dagger", icon = "INV_Weapon_ShortBlade_42", quality = "rare", slot = "Dagger", stats = "+15 Int, +15 Sta, +13 Crit, +85 Spell", source = "Old Hillsbrad", sourceType = "dungeon", boss = "Epoch Hunter" },
+                { itemId = 27418, name = "Stormreaver Shadow-Kilt", icon = "INV_Pants_Cloth_17", quality = "rare", slot = "Legs", stats = "+26 Int, +19 Sta, +14 Spirit, +25 Crit, +30 Spell", source = "Old Hillsbrad", sourceType = "dungeon", boss = "Lieutenant Drake" },
+                { itemId = 27410, name = "Collar of Command", icon = "INV_Helmet_48", quality = "rare", slot = "Head", stats = "+23 Int, +22 Sta, +29 Spirit, +22 Spell, +66 Heal", source = "Auchenai Crypts", sourceType = "dungeon", boss = "Shirrak" },
+            },
+            quests = {
+                { itemId = 29317, name = "Tempest's Touch", icon = "INV_Gauntlets_17", quality = "uncommon", slot = "Hands", stats = "+18 Int, +28 Spell", source = "Return to Andormu", sourceType = "quest", zone = "Tanaris" },
+                { itemId = 29335, name = "Torc of the Sethekk Prophet", icon = "INV_Jewelry_Necklace_24", quality = "uncommon", slot = "Neck", stats = "+16 Int, +24 Spell", source = "Brother Against Brother", sourceType = "quest", zone = "Terokkar Forest" },
+                { itemId = 29336, name = "The Saga of Terokk", icon = "INV_Offhand_Stratholme_A_02", quality = "uncommon", slot = "Off-hand", stats = "+14 Int, +20 Spell", source = "Terokk's Legacy", sourceType = "quest", zone = "Terokkar Forest" },
+            },
+        },
+    },
+}
+
+-- Helper function to get level range key from player level
+function C:GetLevelRangeKey(level)
+    if level >= 68 then return nil end -- Use endgame system
+    if level >= 66 then return "66-67" end
+    if level >= 63 then return "63-65" end
+    if level >= 60 then return "60-62" end
+    return nil -- Below 60, not in Outland content
+end
+
+-- Helper function to get leveling gear for a role and level
+function C:GetLevelingGear(role, level)
+    local rangeKey = self:GetLevelRangeKey(level)
+    if not rangeKey then return nil end
+
+    local roleData = self.LEVELING_GEAR_MATRIX[role]
+    if not roleData then return nil end
+
+    return roleData[rangeKey]
+end
+
+-- Helper function to get recommended dungeons for a level
+function C:GetRecommendedDungeons(level)
+    local rangeKey = self:GetLevelRangeKey(level)
+    if not rangeKey then return nil end
+
+    return self.LEVELING_DUNGEONS[rangeKey]
+end
 
 -- Build the boss name lookup table now that all boss data is defined
 C:BuildBossNameLookup()

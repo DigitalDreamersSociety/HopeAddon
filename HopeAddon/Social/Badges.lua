@@ -166,6 +166,45 @@ Badges.DISPLAY_ORDER = {
     "flying_mount", "epic_flying",
 }
 
+-- Badge categories for organized display
+Badges.BADGE_CATEGORIES = {
+    {
+        id = "progression",
+        name = "Progression",
+        color = "GOLD_BRIGHT",
+        description = "Level milestones",
+        badges = { "first_steps", "adventurer", "veteran", "hero_of_outland" },
+    },
+    {
+        id = "attunements",
+        name = "Attunements",
+        color = "ARCANE_PURPLE",
+        description = "Raid attunement chains",
+        badges = { "karazhan_attuned", "ssc_attuned", "tk_attuned" },
+    },
+    {
+        id = "boss_slayers",
+        name = "Boss Slayers",
+        color = "HELLFIRE_RED",
+        description = "Major boss defeats",
+        badges = { "prince_slayer", "gruul_slayer", "magtheridon_slayer", "vashj_slayer", "kael_slayer" },
+    },
+    {
+        id = "reputation",
+        name = "Reputation",
+        color = "FEL_GREEN",
+        description = "Faction standings",
+        badges = { "exalted_first", "aldor_exalted", "scryer_exalted" },
+    },
+    {
+        id = "special",
+        name = "Special",
+        color = "SKY_BLUE",
+        description = "Unique achievements",
+        badges = { "flying_mount", "epic_flying" },
+    },
+}
+
 --============================================================
 -- TBC FACTIONS LIST (for exalted check)
 --============================================================
@@ -473,6 +512,49 @@ function Badges:GetAllBadgesWithStatus()
                 unlockDate = badgeData and badgeData.date or nil,
             })
         end
+    end
+
+    return result
+end
+
+--[[
+    Get badges organized by category with status info
+    @return table - Array of { category, badges, earnedCount, totalCount }
+]]
+function Badges:GetBadgesByCategory()
+    local result = {}
+    local travelers = HopeAddon.charDb.travelers
+    local badgesData = travelers.badges or {}
+
+    for _, category in ipairs(self.BADGE_CATEGORIES) do
+        local categoryBadges = {}
+        local earnedCount = 0
+
+        for _, badgeId in ipairs(category.badges) do
+            local def = self.DEFINITIONS[badgeId]
+            if def then
+                local badgeData = badgesData[badgeId]
+                local isUnlocked = badgeData and badgeData.unlocked or false
+
+                table.insert(categoryBadges, {
+                    id = badgeId,
+                    definition = def,
+                    unlocked = isUnlocked,
+                    unlockDate = badgeData and badgeData.date or nil,
+                })
+
+                if isUnlocked then
+                    earnedCount = earnedCount + 1
+                end
+            end
+        end
+
+        table.insert(result, {
+            category = category,
+            badges = categoryBadges,
+            earnedCount = earnedCount,
+            totalCount = #category.badges,
+        })
     end
 
     return result

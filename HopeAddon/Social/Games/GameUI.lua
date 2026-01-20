@@ -21,8 +21,9 @@ GameUI.WINDOW_SIZES = {
     LARGE = { width = 600, height = 500 },
     PONG = { width = 500, height = 400 },
     TETRIS = { width = 700, height = 550 },
+    TETRIS_REMOTE = { width = 480, height = 520 },  -- Single board + opponent panel for Score Challenge
     WORDS = { width = 700, height = 720 },  -- Larger for graphical tiles + tile rack
-    BATTLESHIP = { width = 700, height = 580 },  -- Two 10x10 grids with instructions panel
+    BATTLESHIP = { width = 700, height = 680 },  -- Two 10x10 grids + instructions + announcements area
 }
 
 -- Centralized font constants for game UIs (L3 fix)
@@ -205,6 +206,15 @@ function GameUI:CreateGameWindow(gameId, title, size)
         if GameCore then
             GameCore:EndGame(gameId, "CLOSED")
         end
+    end)
+    closeBtn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine("Close Game", 1, 0.82, 0)
+        GameTooltip:AddLine("Press ESC to close", 0.7, 0.7, 0.7)
+        GameTooltip:Show()
+    end)
+    closeBtn:SetScript("OnLeave", function()
+        GameTooltip:Hide()
     end)
     window.closeBtn = closeBtn
 

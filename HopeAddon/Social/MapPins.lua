@@ -13,6 +13,18 @@ local PIN_UPDATE_INTERVAL = 5  -- Seconds between pin updates
 local LOCATION_STALE_TIME = 300  -- 5 minutes - consider location stale
 local MAX_PINS = 50  -- Maximum pins to display at once
 
+-- RP Status colors (matching NameplateColors module)
+local RP_STATUS_COLORS = {
+    IC = { r = 0.2, g = 1.0, b = 0.2 },      -- Bright Green - In Character
+    OOC = { r = 0.0, g = 0.75, b = 1.0 },    -- Sky Blue - Out of Character
+    LF_RP = { r = 1.0, g = 0.2, b = 0.8 },   -- Hot Pink - Looking for RP
+    DEFAULT = { r = 0.0, g = 0.75, b = 1.0 }, -- Default to OOC (Sky Blue)
+}
+
+-- Star icon texture for Fellow Travelers
+local FELLOW_PIN_ICON = "Interface\\MINIMAP\\TRACKING\\BattleMaster"  -- Sword star icon
+local FELLOW_PIN_SIZE = 20  -- Slightly larger for visibility
+
 --============================================================
 -- STATE
 --============================================================
@@ -69,15 +81,22 @@ end
 ]]
 function MapPins:CreatePin()
     local pin = CreateFrame("Frame", nil, Minimap)
-    pin:SetSize(16, 16)
+    pin:SetSize(FELLOW_PIN_SIZE, FELLOW_PIN_SIZE)
     pin:SetFrameStrata("MEDIUM")
     pin:SetFrameLevel(5)
 
-    -- Icon texture
+    -- Icon texture - bright star icon instead of generic dot
     pin.icon = pin:CreateTexture(nil, "ARTWORK")
     pin.icon:SetAllPoints()
-    pin.icon:SetTexture("Interface\\Minimap\\PartyRaidBlips")
-    pin.icon:SetTexCoord(0.5, 0.625, 0, 0.25)  -- Green dot by default
+    pin.icon:SetTexture(FELLOW_PIN_ICON)
+
+    -- Glow effect for extra visibility
+    pin.glow = pin:CreateTexture(nil, "BACKGROUND")
+    pin.glow:SetSize(FELLOW_PIN_SIZE + 8, FELLOW_PIN_SIZE + 8)
+    pin.glow:SetPoint("CENTER")
+    pin.glow:SetTexture("Interface\\GLUES\\MODELS\\UI_BLOODELF\\GenericGlow64")
+    pin.glow:SetBlendMode("ADD")
+    pin.glow:SetAlpha(0.5)
 
     -- Highlight on mouseover (handlers defined at module scope)
     pin:EnableMouse(true)
@@ -110,6 +129,7 @@ function MapPins:ReleasePin(pin)
     pin.playerName = nil
     pin.playerClass = nil
     pin.playerLevel = nil
+    pin.playerStatus = nil
     pin.x = nil
     pin.y = nil
     table.insert(self.pinPool, pin)
@@ -166,6 +186,50 @@ function MapPins:ZoneToMinimapCoords(x, y, playerX, playerY)
     end
 
     return mapX, -mapY  -- Y is inverted
+end
+
+--[[
+    Get the RP status color for a Fellow Traveler
+    @param fellowName string - The Fellow's name
+    @return table - RGB color table { r, g, b }
+]]
+function MapPins:GetFellowStatusColor(fellowName)
+    if not HopeAddon.FellowTravelers then
+        return RP_STATUS_COLORS.DEFAULT
+    end
+
+    local fellow = HopeAddon.FellowTravelers:GetFellow(fellowName)
+    if not fellow then
+        return RP_STATUS_COLORS.DEFAULT
+    end
+
+    -- Get RP status from profile
+    local status = nil
+    if fellow.profile and fellow.profile.status then
+        status = fellow.profile.status
+    end
+
+    -- Return appropriate color
+    if status and RP_STATUS_COLORS[status] then
+        return RP_STATUS_COLORS[status]
+    end
+
+    return RP_STATUS_COLORS.DEFAULT
+end
+
+--[[
+    Check if pin coloring is enabled
+    @return boolean
+]]
+function MapPins:IsPinColoringEnabled()
+    local settings = HopeAddon.charDb and HopeAddon.charDb.travelers
+        and HopeAddon.charDb.travelers.fellowSettings
+
+    if settings and settings.colorMinimapPins == false then
+        return false
+    end
+
+    return true
 end
 
 --============================================================
@@ -304,6 +368,9 @@ function MapPins:UpdatePins()
     -- Cache function reference for loop efficiency
     local GetClassColor = HopeAddon.GetClassColor
 
+    -- Check if RP status coloring is enabled
+    local useStatusColors = self:IsPinColoringEnabled()
+
     -- Create new pins
     for _, fellow in ipairs(fellows) do
         if playerX and playerY then
@@ -316,12 +383,24 @@ function MapPins:UpdatePins()
                 pin.x = fellow.x
                 pin.y = fellow.y
 
-                -- Color by class
-                if fellow.class then
-                    local classColor = GetClassColor(HopeAddon, fellow.class)
-                    pin.icon:SetVertexColor(classColor.r, classColor.g, classColor.b)
+                -- Color by RP status (bright neon colors)
+                local color
+                if useStatusColors then
+                    color = self:GetFellowStatusColor(fellow.name)
                 else
-                    pin.icon:SetVertexColor(0, 1, 0)  -- Default green
+                    -- Fallback to class color if status coloring disabled
+                    if fellow.class then
+                        color = GetClassColor(HopeAddon, fellow.class)
+                    else
+                        color = RP_STATUS_COLORS.DEFAULT
+                    end
+                end
+
+                pin.icon:SetVertexColor(color.r, color.g, color.b)
+
+                -- Glow matches icon color but more saturated
+                if pin.glow then
+                    pin.glow:SetVertexColor(color.r, color.g, color.b)
                 end
 
                 -- Position on minimap
@@ -356,6 +435,25 @@ function MapPins:SetEnabled(enabled)
         HopeAddon.charDb.travelers.fellowSettings = HopeAddon.charDb.travelers.fellowSettings or {}
         HopeAddon.charDb.travelers.fellowSettings.showMapPins = enabled
     end
+end
+
+--[[
+    Toggle pin coloring on/off
+    @return boolean - New enabled state
+]]
+function MapPins:TogglePinColoring()
+    local settings = HopeAddon.charDb and HopeAddon.charDb.travelers
+        and HopeAddon.charDb.travelers.fellowSettings
+
+    if not settings then return true end
+
+    local newState = not (settings.colorMinimapPins ~= false)
+    settings.colorMinimapPins = newState
+
+    -- Force pin update to apply new colors
+    self:UpdatePins()
+
+    return newState
 end
 
 --[[

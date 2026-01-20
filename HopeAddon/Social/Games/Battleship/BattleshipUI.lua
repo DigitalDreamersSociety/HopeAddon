@@ -316,22 +316,23 @@ end
 -- GAME FRAME MANAGEMENT
 --============================================================
 
-function BattleshipUI:InitializeGameFrames(gameId, parent)
+function BattleshipUI:InitializeGameFrames(gameId, announcementsContainer)
     if self.gameFrames[gameId] then
         return self.gameFrames[gameId]
     end
 
     local frames = {
-        shotResult = self:AcquireShotResultFrame(parent),
-        turnPrompt = self:AcquireTurnPromptFrame(parent),
+        shotResult = self:AcquireShotResultFrame(announcementsContainer),
+        turnPrompt = self:AcquireTurnPromptFrame(announcementsContainer),
         victory = nil,  -- Created on demand
+        announcementsContainer = announcementsContainer,  -- Store reference for victory overlay
     }
 
-    -- Position shot result in center
-    frames.shotResult:SetPoint("CENTER", parent, "CENTER", 0, 0)
+    -- Position shot result centered in announcements area (upper portion)
+    frames.shotResult:SetPoint("CENTER", announcementsContainer, "CENTER", 0, 15)
 
-    -- Position turn prompt at bottom
-    frames.turnPrompt:SetPoint("BOTTOM", parent, "BOTTOM", 0, 5)
+    -- Position turn prompt centered below shot result (lower portion of announcements)
+    frames.turnPrompt:SetPoint("CENTER", announcementsContainer, "CENTER", 0, -30)
 
     self.gameFrames[gameId] = frames
     self.animationTimers[gameId] = {}
@@ -578,8 +579,15 @@ function BattleshipUI:ShowVictoryOverlay(gameId, didWin, stats)
     local frames = self.gameFrames[gameId]
     if not frames then return end
 
-    -- Get parent window
-    local parent = frames.turnPrompt and frames.turnPrompt:GetParent()
+    -- Get the main game window (go up from announcements container)
+    local announcementsContainer = frames.announcementsContainer
+    if not announcementsContainer then return end
+
+    -- Traverse up to find the main window frame
+    local parent = announcementsContainer:GetParent()  -- content frame
+    if parent then
+        parent = parent:GetParent()  -- main window frame
+    end
     if not parent then return end
 
     -- Create victory overlay

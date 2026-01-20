@@ -22,6 +22,14 @@ HopeAddon.charDb = nil    -- Character-specific data
 -- Module registry
 HopeAddon.modules = {}
 
+-- Combat UI auto-hide state
+local combatUIState = {
+    wasJournalOpen = false,
+    wasProfileEditorOpen = false,
+    hiddenGameWindows = {},  -- [gameId] = true for games that were visible
+    isHiddenForCombat = false,
+}
+
 --[[
     Color Definitions
     All colors as {r, g, b, a} tables with hex for display
@@ -150,8 +158,8 @@ end
 ]]
 HopeAddon.assets = {
     textures = {
-        -- Backgrounds
-        PARCHMENT = "Interface\\QUESTFRAME\\QuestBG",
+        -- Backgrounds (NOTE: QuestBG removed - cannot tile/scale, use DIALOG_BG instead)
+        PARCHMENT = "Interface\\DialogFrame\\UI-DialogBox-Background",
         PARCHMENT_DARK = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
         DIALOG_BG = "Interface\\DialogFrame\\UI-DialogBox-Background",
         TOOLTIP_BG = "Interface\\Tooltips\\UI-Tooltip-Background",
@@ -379,6 +387,60 @@ function HopeAddon:SafeCall(func, ...)
 end
 
 --[[
+    SendChallenge - Central challenge routing function
+    Routes to the correct module based on game type.
+
+    @param targetName string - Player to challenge
+    @param gameId string - Game ID (rps, deathroll, pong, tetris, words, battleship)
+    @param betAmount number|nil - Optional bet for death roll
+    @return boolean - True if challenge was sent
+]]
+function HopeAddon:SendChallenge(targetName, gameId, betAmount)
+    if not targetName or targetName == "" then
+        self:Print("Invalid target name")
+        return false
+    end
+
+    gameId = gameId:lower()
+
+    -- Legacy games (RPS, Dice, Death Roll) use Minigames module
+    if gameId == "rps" or gameId == "dice" then
+        local Minigames = self:GetModule("Minigames")
+        if Minigames then
+            Minigames:SendChallenge(targetName, gameId)
+            return true
+        end
+    -- Death Roll uses GameComms with optional bet
+    elseif gameId == "deathroll" or gameId == "death_roll" then
+        local GameComms = self:GetModule("GameComms")
+        if GameComms then
+            GameComms:SendInvite(targetName, "DEATH_ROLL", betAmount or 0)
+            return true
+        end
+    -- Tetris and Pong use Score Challenge for remote play
+    elseif gameId == "tetris" or gameId == "pong" then
+        local ScoreChallenge = self:GetModule("ScoreChallenge")
+        if ScoreChallenge then
+            ScoreChallenge:StartChallenge(targetName, gameId:upper())
+            return true
+        end
+    -- Words and Battleship use GameComms
+    elseif gameId == "words" or gameId == "battleship" then
+        local GameComms = self:GetModule("GameComms")
+        if GameComms then
+            GameComms:SendInvite(targetName, gameId:upper(), 0)
+            return true
+        end
+    else
+        self:Print("Unknown game: " .. gameId)
+        return false
+    end
+
+    self:Print("Required module not loaded for " .. gameId)
+    return false
+end
+
+--[[
     CreateBackdropFrame - Create backdrop-compatible frame
     Handles TBC Classic vs original TBC 2.4.3 differences
 
@@ -583,7 +645,7 @@ HopeAddon.SPEC_ROLE_MAP = {
     },
     ["DRUID"] = {
         [1] = "caster_dps", -- Balance
-        [2] = "tank",       -- Feral (treat as tank since bears have stricter requirements)
+        [2] = "melee_dps",  -- Feral (cat DPS - uses same leather agility gear as rogues)
         [3] = "healer",     -- Restoration
     },
     ["SHAMAN"] = {
@@ -699,6 +761,8 @@ local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("ADDON_LOADED")
 eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:RegisterEvent("PLAYER_LOGOUT")
+eventFrame:RegisterEvent("PLAYER_REGEN_DISABLED")  -- Combat start
+eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")   -- Combat end
 
 eventFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "ADDON_LOADED" then
@@ -710,6 +774,10 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         HopeAddon:OnPlayerLogin()
     elseif event == "PLAYER_LOGOUT" then
         HopeAddon:OnPlayerLogout()
+    elseif event == "PLAYER_REGEN_DISABLED" then
+        HopeAddon:OnCombatStart()
+    elseif event == "PLAYER_REGEN_ENABLED" then
+        HopeAddon:OnCombatEnd()
     end
 end)
 
@@ -745,7 +813,16 @@ function HopeAddon:MigrateCharacterData()
         colorChat = true,
         shareProfile = true,
         showTooltips = true,
+        colorNameplates = true,
+        colorMinimapPins = true,
     }
+    -- Ensure new settings exist for existing users
+    if db.travelers.fellowSettings.colorNameplates == nil then
+        db.travelers.fellowSettings.colorNameplates = true
+    end
+    if db.travelers.fellowSettings.colorMinimapPins == nil then
+        db.travelers.fellowSettings.colorMinimapPins = true
+    end
 
     -- Ensure reputation structure exists
     db.reputation = db.reputation or {}
@@ -761,6 +838,20 @@ function HopeAddon:MigrateCharacterData()
             end
         end
     end
+
+    -- Ensure social feed structure exists
+    db.social = db.social or {}
+    db.social.feed = db.social.feed or {}
+    db.social.lastSeen = db.social.lastSeen or {}
+    db.social.settings = db.social.settings or {
+        showBoss = true,
+        showLevel = true,
+        showGame = true,
+        showBadge = true,
+        showStatus = true,
+    }
+    db.social.myRumors = db.social.myRumors or {}
+    db.social.mugsGiven = db.social.mugsGiven or {}
 end
 
 function HopeAddon:OnAddonLoaded()
@@ -837,6 +928,115 @@ function HopeAddon:OnPlayerLogout()
 end
 
 --[[
+    Combat UI Auto-Hide System
+    Hides all addon UI when entering combat, restores when leaving
+]]
+function HopeAddon:OnCombatStart()
+    -- Check if feature is enabled
+    if not self.db or not self.db.settings.hideUIDuringCombat then
+        return
+    end
+
+    -- Reset state
+    combatUIState.wasJournalOpen = false
+    combatUIState.wasProfileEditorOpen = false
+    wipe(combatUIState.hiddenGameWindows)
+
+    local hidSomething = false
+
+    -- Hide Journal
+    local Journal = self.Journal
+    if Journal and Journal.isOpen and Journal.mainFrame then
+        combatUIState.wasJournalOpen = true
+        Journal.mainFrame:Hide()
+        hidSomething = true
+    end
+
+    -- Hide ProfileEditor
+    local ProfileEditor = self.ProfileEditor
+    if ProfileEditor and ProfileEditor.isOpen and ProfileEditor.frame then
+        combatUIState.wasProfileEditorOpen = true
+        ProfileEditor.frame:Hide()
+        hidSomething = true
+    end
+
+    -- Hide and pause active game windows
+    local GameCore = self.GameCore
+    if GameCore and GameCore.activeGames then
+        for gameId, game in pairs(GameCore.activeGames) do
+            if game.data and game.data.ui and game.data.ui.window then
+                local window = game.data.ui.window
+                if window:IsShown() then
+                    combatUIState.hiddenGameWindows[gameId] = true
+                    window:Hide()
+                    -- Pause the game
+                    GameCore:PauseGame(gameId)
+                    hidSomething = true
+                end
+            end
+        end
+    end
+
+    combatUIState.isHiddenForCombat = hidSomething
+
+    -- Show notification if we hid something
+    if hidSomething and self.db.settings.notificationsEnabled then
+        self:Print("|cFFFFD700UI hidden during combat|r")
+    end
+end
+
+function HopeAddon:OnCombatEnd()
+    -- Only restore if we actually hid things
+    if not combatUIState.isHiddenForCombat then
+        return
+    end
+
+    -- Restore Journal
+    if combatUIState.wasJournalOpen then
+        local Journal = self.Journal
+        if Journal and Journal.mainFrame then
+            Journal.mainFrame:Show()
+        end
+    end
+
+    -- Restore ProfileEditor
+    if combatUIState.wasProfileEditorOpen then
+        local ProfileEditor = self.ProfileEditor
+        if ProfileEditor and ProfileEditor.frame then
+            ProfileEditor.frame:Show()
+        end
+    end
+
+    -- Restore and unpause game windows
+    local GameCore = self.GameCore
+    if GameCore and GameCore.activeGames then
+        for gameId, wasVisible in pairs(combatUIState.hiddenGameWindows) do
+            if wasVisible then
+                local game = GameCore.activeGames[gameId]
+                if game and game.data and game.data.ui and game.data.ui.window then
+                    game.data.ui.window:Show()
+                    -- Unpause the game
+                    GameCore:ResumeGame(gameId)
+                end
+            end
+        end
+    end
+
+    -- Reset state
+    combatUIState.isHiddenForCombat = false
+    wipe(combatUIState.hiddenGameWindows)
+
+    -- Show notification
+    if self.db and self.db.settings.notificationsEnabled then
+        self:Print("|cFF00FF00UI restored|r")
+    end
+end
+
+function HopeAddon:IsUIHiddenForCombat()
+    return combatUIState.isHiddenForCombat
+end
+
+--[[
     Default Database Structures
 ]]
 function HopeAddon:GetDefaultDB()
@@ -850,6 +1050,7 @@ function HopeAddon:GetDefaultDB()
             glowEnabled = true,
             animationsEnabled = true,
             notificationsEnabled = true,
+            hideUIDuringCombat = true,  -- Auto-hide UI when entering combat
         },
 
         -- Minimap button settings
@@ -931,6 +1132,8 @@ function HopeAddon:GetDefaultCharDB()
                 colorChat = true,
                 shareProfile = true,
                 showTooltips = true,
+                colorNameplates = true,     -- Color Fellow nameplates by RP status
+                colorMinimapPins = true,    -- Color minimap pins by RP status
             },
         },
 
@@ -952,6 +1155,40 @@ function HopeAddon:GetDefaultCharDB()
 
         -- Relationships/notes about players
         relationships = {},             -- [playerName] = { note, addedDate }
+
+        -- Social activity feed (Tavern Notice Board)
+        social = {
+            feed = {},           -- Array of { id, type, player, class, data, time, mugs }
+            lastSeen = {},       -- [activityId] = true (deduplication)
+            settings = {
+                showBoss = true,
+                showLevel = true,
+                showGame = true,
+                showBadge = true,
+                showStatus = true,
+            },
+            -- Phase 2: Rumors and reactions
+            myRumors = {},       -- [timestamp] = { text, expires }
+            mugsGiven = {},      -- [activityId] = true
+
+            -- Phase 3: Companions (favorites list)
+            companions = {
+                list = {},       -- { [name] = { since, lastSeen, class, level } }
+                outgoing = {},   -- { [name] = { timestamp } }
+                incoming = {},   -- { [name] = { timestamp, class, level } }
+            },
+
+            -- Phase 4: Toast notification settings
+            toasts = {
+                enabled = true,
+                CompanionOnline = true,
+                CompanionNearby = true,
+                CompanionRequest = true,
+                MugReceived = true,
+                CompanionLfrp = true,
+                FellowDiscovered = true,
+            },
+        },
     }
 end
 
@@ -998,6 +1235,28 @@ SlashCmdList["HOPE"] = function(msg)
     elseif cmd == "sound" then
         HopeAddon.db.settings.soundEnabled = not HopeAddon.db.settings.soundEnabled
         HopeAddon:Print("Sounds:", HopeAddon.db.settings.soundEnabled and "ON" or "OFF")
+    elseif cmd == "combathide" then
+        HopeAddon.db.settings.hideUIDuringCombat = not HopeAddon.db.settings.hideUIDuringCombat
+        HopeAddon:Print("Combat UI hide:", HopeAddon.db.settings.hideUIDuringCombat and "ON" or "OFF")
+    elseif cmd == "nameplates" then
+        -- Toggle Fellow Traveler nameplate coloring
+        local NameplateColors = HopeAddon:GetModule("NameplateColors")
+        if NameplateColors then
+            local enabled = NameplateColors:Toggle()
+            HopeAddon:Print("Fellow nameplate colors:", enabled and "|cFF33FF33ON|r" or "|cFFFF3333OFF|r")
+            if enabled then
+                HopeAddon:Print("  |cFF33FF33IC|r = Green, |cFF00BFFFOOC|r = Blue, |cFFFF33CCLF_RP|r = Pink")
+            end
+        end
+    elseif cmd == "pins" then
+        -- Toggle minimap pin RP status coloring
+        if HopeAddon.MapPins then
+            local enabled = HopeAddon.MapPins:TogglePinColoring()
+            HopeAddon:Print("Fellow minimap pin colors:", enabled and "|cFF33FF33ON|r" or "|cFFFF3333OFF|r")
+            if enabled then
+                HopeAddon:Print("  |cFF33FF33IC|r = Green, |cFF00BFFFOOC|r = Blue, |cFFFF33CCLF_RP|r = Pink")
+            end
+        end
     elseif cmd:find("^tetris") then
         -- /hope tetris [player] - Start Tetris game (local or score challenge)
         local _, _, targetName = cmd:find("^tetris%s*(%S*)")

@@ -46,6 +46,10 @@ Social\MinigamesUI.lua
 Social\Directory.lua
 Social\Relationships.lua
 Social\MapPins.lua
+Social\NameplateColors.lua
+Social\ActivityFeed.lua
+Social\Companions.lua
+Social\SocialToasts.lua
 
 # Game System
 Social\Games\GameCore.lua

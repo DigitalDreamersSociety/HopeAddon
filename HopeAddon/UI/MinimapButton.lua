@@ -83,26 +83,28 @@ function MinimapButton:CreateButton()
     button:RegisterForDrag("LeftButton")
     button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 
-    -- Icon texture (cat! - Feline Familiar or Bombay Cat)
-    local icon = button:CreateTexture(nil, "BACKGROUND")
-    icon:SetSize(21, 21)
+    -- Use the circular tracking icon (already properly sized/shaped)
+    local icon = button:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(20, 20)
     icon:SetPoint("CENTER", 0, 0)
-    icon:SetTexture("Interface\\Icons\\INV_Misc_Cat_01")  -- Black cat icon
+    icon:SetTexture("Interface\\Minimap\\Tracking\\Poisons")  -- Green vial - TBC fel vibes
     button.icon = icon
 
-    -- Border ring (standard minimap button border) - offset to align properly
+    -- Border ring
     local border = button:CreateTexture(nil, "OVERLAY")
     border:SetSize(52, 52)
-    border:SetPoint("TOPLEFT", button, "TOPLEFT", -5, 5)
+    border:SetPoint("TOPLEFT", 0, 0)
     border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
     button.border = border
 
-    -- Highlight texture
+    -- Highlight (circular glow)
     local highlight = button:CreateTexture(nil, "HIGHLIGHT")
     highlight:SetSize(24, 24)
     highlight:SetPoint("CENTER", 0, 0)
     highlight:SetTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
     highlight:SetBlendMode("ADD")
+    -- Mask to circle using tex coords that crop to center
+    highlight:SetTexCoord(0.22, 0.78, 0.22, 0.78)
     button.highlight = highlight
 
     -- Click handler
@@ -145,7 +147,7 @@ function MinimapButton:CreateButton()
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
         GameTooltip:ClearLines()
         GameTooltip:AddLine("|cff9B30FFHope|r Addon", 1, 1, 1)
-        GameTooltip:AddLine("*meow* Your TBC Journey Journal", 0.7, 0.7, 0.7)
+        GameTooltip:AddLine("Your TBC Journey Journal", 0.7, 0.7, 0.7)
         GameTooltip:AddLine(" ")
         GameTooltip:AddLine("|cFFFFD700Left-click|r to open journal", 0.9, 0.9, 0.9)
         GameTooltip:AddLine("|cFFFFD700Drag|r to move me around", 0.9, 0.9, 0.9)

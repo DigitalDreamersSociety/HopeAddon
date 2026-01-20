@@ -171,6 +171,7 @@ function Components:CreateParchmentFrame(name, parent, width, height)
     frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
 
     -- Close on Escape (use module-level handler to avoid closure)
+    frame:EnableKeyboard(true)
     frame:SetScript("OnKeyDown", OnParchmentKeyDown)
     frame:SetPropagateKeyboardInput(true)
 
@@ -209,16 +210,27 @@ function Components:CreateTitleBar(parent, titleText, colorName)
     title:SetShadowOffset(2, -2)
     title:SetShadowColor(0, 0, 0, 0.8)
 
-    -- Decorative line under title
+    -- Enhanced decorative line under title
     local line = titleBar:CreateTexture(nil, "ARTWORK")
-    line:SetTexture(AssetTextures.DIVIDER)
-    line:SetHeight(2)
-    line:SetPoint("TOPLEFT", title, "BOTTOMLEFT", -20, -5)
-    line:SetPoint("TOPRIGHT", title, "BOTTOMRIGHT", 20, -5)
+    line:SetTexture("Interface\\TargetingFrame\\UI-StatusBar")
+    line:SetHeight(4)  -- Thicker than before (was 2)
+    line:SetPoint("TOPLEFT", title, "BOTTOMLEFT", -40, -5)  -- Wider spread
+    line:SetPoint("TOPRIGHT", title, "BOTTOMRIGHT", 40, -5)
     line:SetVertexColor(HopeAddon:GetColor(colorName))
+
+    -- Glow effect beneath line
+    local glow = titleBar:CreateTexture(nil, "BACKGROUND")
+    glow:SetTexture("Interface\\TargetingFrame\\UI-StatusBar")
+    glow:SetHeight(8)
+    glow:SetPoint("TOPLEFT", line, "BOTTOMLEFT", -5, 2)
+    glow:SetPoint("TOPRIGHT", line, "BOTTOMRIGHT", 5, 2)
+    local r, g, b = HopeAddon:GetColor(colorName)
+    glow:SetVertexColor(r, g, b, 0.4)
+    glow:SetBlendMode("ADD")
 
     titleBar.title = title
     titleBar.line = line
+    titleBar.glow = glow
 
     return titleBar
 end
@@ -679,9 +691,17 @@ function Components:CreateScrollFrame(parent, width, height)
 
     function container:ClearEntries(pool)
         for _, entry in ipairs(self.entries) do
-            if pool and entry._pooled then
+            -- Only release to containerPool if it's a container-type item
+            -- Cards are already released by cardPool:ReleaseAll() before this is called
+            if pool and entry._pooled and entry._poolType == "container" then
+                -- Hide all children before releasing to pool (prevents orphaned frames)
+                local children = {entry:GetChildren()}
+                for _, child in ipairs(children) do
+                    child:Hide()
+                end
                 pool:Release(entry)
             else
+                -- For cards and other frames, just hide (they're already released)
                 entry:Hide()
                 entry:SetParent(nil)
             end
@@ -1214,6 +1234,77 @@ function Components:CreateStyledButton(parent, text, width, height, onClick, opt
             self.text:SetTextColor(0.5, 0.5, 0.5)
         end
     end
+
+    return button
+end
+
+--[[
+    CHALLENGE BUTTON
+    Reusable button for challenging players to minigames.
+    Used in Social tab party cards and Directory cards.
+    @param parent Frame - Parent frame
+    @param targetName string|nil - Initial target name (can be set later via button.targetName)
+    @param onClick function - Callback receiving (targetName) when clicked
+    @param options table - Optional { width, height, text }
+    @return Button - Challenge button with targetName property
+]]
+function Components:CreateChallengeButton(parent, targetName, onClick, options)
+    options = options or {}
+    local width = options.width or 80
+    local height = options.height or 28
+    local text = options.text or "CHALLENGE"
+
+    local button = CreateBackdropFrame("Button", nil, parent)
+    button:SetSize(width, height)
+    button.targetName = targetName
+
+    -- Apply backdrop with arcane purple theme
+    local borderColor = HopeAddon.colors.ARCANE_PURPLE
+    button:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+        edgeSize = 12,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    })
+    button:SetBackdropColor(0.4, 0.2, 0.6, 0.9)
+    button:SetBackdropBorderColor(borderColor.r, borderColor.g, borderColor.b, 1)
+
+    -- Gold text
+    button.text = button:CreateFontString(nil, "OVERLAY")
+    button.text:SetFont(HopeAddon.assets.fonts.HEADER, 11)
+    button.text:SetPoint("CENTER")
+    button.text:SetText(text)
+    button.text:SetTextColor(1, 0.84, 0, 1)
+
+    -- Hover effects
+    button:SetScript("OnEnter", function(self)
+        self:SetBackdropColor(0.5, 0.3, 0.7, 1)
+        self:SetBackdropBorderColor(1, 0.84, 0, 1)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Challenge " .. (self.targetName or "player"), 1, 0.84, 0)
+        GameTooltip:AddLine("Select a game to play!", 0.8, 0.8, 0.8)
+        GameTooltip:Show()
+        if HopeAddon.Sounds then
+            HopeAddon.Sounds:PlayHover()
+        end
+    end)
+
+    button:SetScript("OnLeave", function(self)
+        self:SetBackdropColor(0.4, 0.2, 0.6, 0.9)
+        local bc = HopeAddon.colors.ARCANE_PURPLE
+        self:SetBackdropBorderColor(bc.r, bc.g, bc.b, 1)
+        GameTooltip:Hide()
+    end)
+
+    -- Click handler
+    button:SetScript("OnClick", function(self)
+        if HopeAddon.Sounds then
+            HopeAddon.Sounds:PlayClick()
+        end
+        if onClick then
+            onClick(self.targetName)
+        end
+    end)
 
     return button
 end
@@ -2305,6 +2396,293 @@ function Components:CreateReputationBar(parent, width, height, options)
         self.shineOverlay:SetVertexColor(1, 1, 1, 0.15)
         GameTooltip:Hide()
     end)
+
+    return container
+end
+
+--[[
+    SEGMENTED REPUTATION BAR
+    Simplified 4-segment bar for Reputation tab showing Friendly → Honored → Revered → Exalted
+    Each segment fills with standing-appropriate color when reached
+    Item icons displayed above each segment milestone
+
+    @param parent Frame - Parent frame
+    @param width number - Bar width
+    @param height number - Bar height
+    @return Frame - Segmented bar container with SetStanding method
+]]
+function Components:CreateSegmentedReputationBar(parent, width, height)
+    width = width or 300
+    height = height or 16
+
+    -- Standing colors (TBC themed)
+    local STANDING_COLORS = {
+        [5] = { 0.0, 0.8, 0.0 },    -- Friendly: Green
+        [6] = { 0.0, 0.6, 0.8 },    -- Honored: Cyan
+        [7] = { 0.0, 0.4, 0.8 },    -- Revered: Blue
+        [8] = { 0.6, 0.2, 1.0 },    -- Exalted: Purple
+    }
+
+    local STANDING_NAMES = {
+        [4] = "Neutral",
+        [5] = "Friendly",
+        [6] = "Honored",
+        [7] = "Revered",
+        [8] = "Exalted",
+    }
+
+    -- Item icon size
+    local ICON_SIZE = 20
+    local ICON_SPACING = 4
+
+    -- Main container - includes space for icons above and labels below
+    local container = CreateFrame("Frame", nil, parent)
+    container:SetSize(width, height + ICON_SIZE + ICON_SPACING + 14)  -- bar + icons above + labels below
+
+    -- Bar frame (the actual progress bar portion)
+    local barFrame = CreateFrame("Frame", nil, container)
+    barFrame:SetSize(width, height)
+    barFrame:SetPoint("TOP", container, "TOP", 0, -(ICON_SIZE + ICON_SPACING))
+    container.barFrame = barFrame
+
+    -- Dark background track
+    local bgTrack = barFrame:CreateTexture(nil, "BACKGROUND")
+    bgTrack:SetAllPoints()
+    bgTrack:SetColorTexture(0.08, 0.08, 0.08, 0.95)
+    container.bgTrack = bgTrack
+
+    -- Calculate segment dimensions
+    local dividerWidth = 2
+    local numSegments = 4
+    local totalDividerWidth = dividerWidth * (numSegments - 1)  -- 3 dividers
+    local availableWidth = width - 4 - totalDividerWidth  -- 2px padding each side
+    local segmentWidth = availableWidth / numSegments
+
+    -- Create 4 segment fills
+    container.segments = {}
+    for i = 1, numSegments do
+        local seg = barFrame:CreateTexture(nil, "ARTWORK")
+        seg:SetSize(segmentWidth, height - 4)
+        local xOffset = 2 + (i - 1) * (segmentWidth + dividerWidth)
+        seg:SetPoint("LEFT", barFrame, "LEFT", xOffset, 0)
+        seg:SetColorTexture(0.12, 0.12, 0.12, 1)  -- Dark unfilled
+        container.segments[i] = seg
+    end
+
+    -- Create 3 segment dividers
+    container.dividers = {}
+    for i = 1, 3 do
+        local div = barFrame:CreateTexture(nil, "ARTWORK", nil, 1)
+        div:SetSize(dividerWidth, height - 2)
+        local xOffset = 2 + i * segmentWidth + (i - 1) * dividerWidth
+        div:SetPoint("LEFT", barFrame, "LEFT", xOffset, 0)
+        div:SetColorTexture(0.25, 0.25, 0.25, 1)
+        container.dividers[i] = div
+    end
+
+    -- Border frame using tooltip style
+    local borderFrame = CreateBackdropFrame("Frame", nil, barFrame)
+    borderFrame:SetPoint("TOPLEFT", barFrame, "TOPLEFT", -2, 2)
+    borderFrame:SetPoint("BOTTOMRIGHT", barFrame, "BOTTOMRIGHT", 2, -2)
+    self:ApplyBackdrop(borderFrame, "BORDER_ONLY_TOOLTIP", nil, "GREY_DARK")
+    container.borderFrame = borderFrame
+
+    -- Standing labels below segments
+    container.standingLabels = {}
+    local labelNames = { "Friendly", "Honored", "Revered", "Exalted" }
+    for i = 1, 4 do
+        local label = barFrame:CreateFontString(nil, "OVERLAY")
+        label:SetFont(AssetFonts.BODY, 8)
+        label:SetText(labelNames[i])
+        label:SetTextColor(0.5, 0.5, 0.5, 1)  -- Start grey
+        label:SetPoint("TOP", container.segments[i], "BOTTOM", 0, -2)
+        container.standingLabels[i] = label
+    end
+
+    -- Item icon containers (4 positions above the bar, centered over each segment)
+    container.itemContainers = {}
+    for i = 1, 4 do
+        -- Create a button for the item (clickable, has tooltip)
+        local itemBtn = CreateFrame("Button", nil, container)
+        itemBtn:SetSize(ICON_SIZE, ICON_SIZE)
+        -- Position above the center of each segment
+        local segCenterX = 2 + (i - 1) * (segmentWidth + dividerWidth) + segmentWidth / 2
+        itemBtn:SetPoint("BOTTOM", barFrame, "TOP", segCenterX - width/2, ICON_SPACING)
+        itemBtn:Hide()  -- Hidden until an item is set
+
+        -- Icon texture
+        local icon = itemBtn:CreateTexture(nil, "ARTWORK")
+        icon:SetSize(ICON_SIZE - 2, ICON_SIZE - 2)
+        icon:SetPoint("CENTER")
+        icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        itemBtn.icon = icon
+
+        -- Quality border glow
+        local border = itemBtn:CreateTexture(nil, "OVERLAY")
+        border:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
+        border:SetBlendMode("ADD")
+        border:SetPoint("CENTER")
+        border:SetSize(ICON_SIZE + 8, ICON_SIZE + 8)
+        itemBtn.border = border
+
+        container.itemContainers[i] = itemBtn
+    end
+
+    -- Current standing badge (right side of bar)
+    local badge = barFrame:CreateFontString(nil, "OVERLAY")
+    badge:SetFont(AssetFonts.HEADER, 10, "OUTLINE")
+    badge:SetPoint("LEFT", barFrame, "RIGHT", 6, 0)
+    badge:SetText("Neutral")
+    badge:SetTextColor(0.8, 0.8, 0, 1)  -- Default yellow for neutral
+    container.badge = badge
+
+    --[[
+        SetStanding - Update bar to reflect current standing
+        @param standingId number - Current standing (4=Neutral, 5=Friendly, 6=Honored, 7=Revered, 8=Exalted)
+        @param progress number - Progress within current standing (0-1) for partial fill
+    ]]
+    function container:SetStanding(standingId, progress)
+        standingId = standingId or 4
+        progress = progress or 0
+
+        -- Update segments based on standing
+        for i = 1, 4 do
+            local segmentStanding = i + 4  -- 5, 6, 7, 8
+            local seg = self.segments[i]
+            local label = self.standingLabels[i]
+
+            if standingId >= segmentStanding then
+                -- Fully filled - use standing color
+                local c = STANDING_COLORS[segmentStanding]
+                seg:SetColorTexture(c[1], c[2], c[3], 1)
+                label:SetTextColor(c[1], c[2], c[3], 1)
+            elseif standingId == segmentStanding - 1 and progress > 0 then
+                -- Partially filled (current standing, show progress)
+                local c = STANDING_COLORS[segmentStanding]
+                seg:SetColorTexture(c[1] * 0.3, c[2] * 0.3, c[3] * 0.3, 1)
+                label:SetTextColor(0.6, 0.6, 0.6, 1)
+            else
+                -- Not reached - dark
+                seg:SetColorTexture(0.12, 0.12, 0.12, 1)
+                label:SetTextColor(0.4, 0.4, 0.4, 1)
+            end
+        end
+
+        -- Update badge
+        local standingName = STANDING_NAMES[standingId] or "Unknown"
+        self.badge:SetText(standingName)
+
+        -- Badge color based on standing
+        if standingId >= 5 then
+            local c = STANDING_COLORS[standingId]
+            self.badge:SetTextColor(c[1], c[2], c[3], 1)
+        else
+            self.badge:SetTextColor(0.8, 0.8, 0, 1)  -- Yellow for neutral
+        end
+
+        -- Update border color based on standing
+        if standingId >= 6 then
+            -- Honored+ gets gold border
+            self.borderFrame:SetBackdropBorderColor(1, 0.84, 0, 0.8)
+        else
+            -- Below Honored gets grey border
+            self.borderFrame:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+        end
+
+        self.currentStanding = standingId
+    end
+
+    --[[
+        SetItemIcon - Add an item icon above a specific standing segment
+        @param standingId number - Which standing (5, 6, 7, 8)
+        @param itemData table - Item info {icon, quality, name, stats, standing, itemId}
+        @param currentStanding number - Player's current standing (for greying out)
+    ]]
+    function container:SetItemIcon(standingId, itemData, currentStanding)
+        local anchorIndex = standingId - 4  -- Convert 5-8 to 1-4
+        if anchorIndex < 1 or anchorIndex > 4 then return end
+
+        local itemBtn = self.itemContainers[anchorIndex]
+
+        if not itemData then
+            itemBtn:Hide()
+            return
+        end
+
+        -- Set icon texture
+        itemBtn.icon:SetTexture("Interface\\Icons\\" .. (itemData.icon or "INV_Misc_QuestionMark"))
+
+        -- Quality border color
+        local C = HopeAddon.Constants
+        local qualityColor = C.ITEM_QUALITY_COLORS and C.ITEM_QUALITY_COLORS[itemData.quality]
+        if not qualityColor then
+            qualityColor = { r = 1, g = 1, b = 1 }  -- Default white
+        end
+        itemBtn.border:SetVertexColor(qualityColor.r, qualityColor.g, qualityColor.b, 0.9)
+
+        -- Grey out if standing not met
+        if currentStanding < standingId then
+            itemBtn.icon:SetDesaturated(true)
+            itemBtn.icon:SetVertexColor(0.5, 0.5, 0.5)
+            itemBtn.border:SetVertexColor(0.3, 0.3, 0.3, 0.4)
+        else
+            itemBtn.icon:SetDesaturated(false)
+            itemBtn.icon:SetVertexColor(1, 1, 1)
+        end
+
+        -- Store data for tooltip
+        itemBtn.itemData = itemData
+        itemBtn.requiredStanding = standingId
+        itemBtn.currentStanding = currentStanding
+        itemBtn.qualityColor = qualityColor
+
+        -- Tooltip handlers
+        itemBtn:SetScript("OnEnter", function(self)
+            if not self.itemData then return end
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            if self.itemData.itemId then
+                GameTooltip:SetHyperlink("item:" .. self.itemData.itemId)
+            else
+                local qc = self.qualityColor or { r = 1, g = 1, b = 1 }
+                GameTooltip:AddLine(self.itemData.name or "Unknown Item", qc.r, qc.g, qc.b)
+                if self.itemData.stats then
+                    GameTooltip:AddLine(self.itemData.stats, 1, 1, 1, true)
+                end
+            end
+            GameTooltip:AddLine(" ")
+            local standingNames = {"", "", "", "Neutral", "Friendly", "Honored", "Revered", "Exalted"}
+            if (self.currentStanding or 0) >= (self.requiredStanding or 8) then
+                GameTooltip:AddLine("Available for purchase!", 0, 1, 0)
+            else
+                GameTooltip:AddLine("Requires: " .. (standingNames[self.requiredStanding] or "Unknown"), 1, 0.5, 0)
+            end
+            GameTooltip:Show()
+            if HopeAddon.Sounds then HopeAddon.Sounds:PlayHover() end
+        end)
+
+        itemBtn:SetScript("OnLeave", function(self)
+            GameTooltip:Hide()
+        end)
+
+        -- Click to link item in chat
+        itemBtn:SetScript("OnClick", function(self)
+            if not self.itemData then return end
+            if self.itemData.itemId then
+                local link = select(2, GetItemInfo(self.itemData.itemId))
+                if link and ChatFrame1EditBox:IsShown() then
+                    ChatFrame1EditBox:Insert(link)
+                elseif link then
+                    HopeAddon:Print(link)
+                end
+            end
+            if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+        end)
+
+        itemBtn:Show()
+    end
+
+    -- Initial state
+    container:SetStanding(4, 0)
 
     return container
 end

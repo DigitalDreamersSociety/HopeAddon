@@ -45,6 +45,10 @@ This project uses multiple specialized guides:
 - Previous optimization work and patterns
 - For: Learning what's been tried
 
+**Social/Games/GAME_UI_PATTERNS.md** - Minigame UI standards
+- Window sizing, layout patterns, data structures
+- For: Creating or modifying minigames
+
 **README.md** - User documentation
 - Installation, features, commands
 
@@ -89,11 +93,18 @@ HopeAddon/
 | Death Roll | ✅ COMPLETE | Gambling game with escrow system, 3-player support |
 | Pong | ✅ COMPLETE | Classic 2-player Pong with physics, local & score challenge |
 | Score Challenge | ✅ COMPLETE | Turn-based score comparison for Tetris/Pong vs remote players |
-| Words with WoW | ✅ COMPLETE | Scrabble-style word game with WoW vocabulary, save/resume, async multiplayer |
+| Words with WoW | ✅ COMPLETE | Scrabble-style word game with WoW vocabulary, AI opponent, save/resume, async multiplayer |
 | Battleship | ✅ COMPLETE | Classic naval battle with text commands, local AI & multiplayer modes |
 | Game Chat | ✅ COMPLETE | Reusable /gc chat system for in-game communication |
 | Games Hall UI | ✅ COMPLETE | Dedicated Games tab with Practice/Challenge options |
 | Test Suite | ✅ COMPLETE | Comprehensive automated tests for Words with WoW |
+| Activity Feed | ✅ COMPLETE | "Tavern Notice Board" - auto-populated feed from boss kills, level ups, status changes |
+| Rumors | ✅ COMPLETE | Manual status posts with 5-min cooldown, 100 char limit |
+| Mug Reactions | ✅ COMPLETE | "Raise a Mug" (like) reactions on activities |
+| Companions | ✅ COMPLETE | Favorites list with request/accept/decline flow, online status |
+| Social Toasts | ✅ COMPLETE | Non-intrusive notifications for social events |
+| Leveling Gear Guide | ✅ COMPLETE | Level 60-67 gear recommendations by role (dungeons + quests) |
+| Activity Feed | ✅ PHASE 1 | Auto-populated feed showing Fellow Traveler activities (boss kills, levels, badges, games, status) |
 
 ---
 
@@ -136,8 +147,8 @@ end
 ### Core Files (Entry Points)
 | File | Purpose | Size |
 |------|---------|------|
-| `Core/Core.lua` | Main init, utilities, slash commands | 22KB |
-| `Core/Constants.lua` | All static data (milestones, zones, raids, badges) | 97KB |
+| `Core/Core.lua` | Main init, utilities, slash commands | ~73KB |
+| `Core/Constants.lua` | All static data (milestones, raids, badges, loot) | ~240KB |
 | `Core/Effects.lua` | Visual effect utilities | ~20KB |
 | `Core/FramePool.lua` | Generic object pooling | 5KB |
 | `Core/Sounds.lua` | Sound effect playback | ~8KB |
@@ -146,7 +157,7 @@ end
 ### Journal System
 | File | Purpose | Size |
 |------|---------|------|
-| `Journal/Journal.lua` | Main UI, tabs, event tracking | 86KB |
+| `Journal/Journal.lua` | Main UI, tabs, event tracking | ~231KB |
 | `Journal/Pages.lua` | Page templates and rendering | 30KB |
 | `Journal/Milestones.lua` | Level milestone tracking | 8KB |
 | `Journal/ProfileEditor.lua` | Character profile UI | 12KB |
@@ -169,14 +180,19 @@ end
 ### Social System
 | File | Purpose | Size |
 |------|---------|------|
-| `Social/Badges.lua` | Achievement definitions | 17KB |
+| `Social/Badges.lua` | Achievement definitions | ~25KB |
 | `Social/Directory.lua` | Searchable player directory | ~11KB |
-| `Social/FellowTravelers.lua` | Addon-to-addon communication | 33KB |
-| `Social/MapPins.lua` | Minimap pins for Fellow Travelers | ~8KB |
-| `Social/Minigames.lua` | Dice, RPS, Death Roll logic, protocol, stats | 42KB |
-| `Social/MinigamesUI.lua` | Game selection popup, game boards, results | 41KB |
+| `Social/FellowTravelers.lua` | Addon-to-addon communication | ~44KB |
+| `Social/ActivityFeed.lua` | Activity feed (Notice Board) for social tab | ~15KB |
+| `Social/MapPins.lua` | Minimap pins for Fellow Travelers | ~10KB |
+| `Social/Minigames.lua` | Dice, RPS, Death Roll logic, protocol, stats | ~39KB |
+| `Social/MinigamesUI.lua` | Game selection popup, game boards, results | ~68KB |
+| `Social/NameplateColors.lua` | Fellow Traveler nameplate coloring | ~6KB |
 | `Social/Relationships.lua` | Player notes system | ~8KB |
 | `Social/TravelerIcons.lua` | Icon rendering | 12KB |
+| `Social/ActivityFeed.lua` | Activity feed with rumors & mugs | ~18KB |
+| `Social/Companions.lua` | Favorites list with online status | ~10KB |
+| `Social/SocialToasts.lua` | Toast notifications for social events | ~6KB |
 
 <details>
 <summary>FellowTravelers Module Details (Communication Hub) - click to expand</summary>
@@ -231,35 +247,86 @@ end
 - Integrates with Directory for UI display
 </details>
 
+<details>
+<summary>ActivityFeed Module Details - click to expand</summary>
+
+- "Tavern Notice Board" - Activity feed for social events
+- Activity types: STATUS, BOSS, LEVEL, GAME, BADGE, RUMOR, MUG
+- Wire protocol: `ACT:version:type:player:class:data:time` (~20-50 bytes)
+- Limits: 50 max entries, 48-hour retention
+- Key functions:
+  - `PostRumor(text)` - Post manual status (5-min cooldown, 100 char max)
+  - `CanPostRumor()` - Check cooldown status
+  - `GiveMug(activityId)` - React to an activity
+  - `HasMugged(activityId)` - Check if already mugged
+  - `GetFeed()` / `GetRecentFeed(max)` - Get activities
+  - `FormatActivity(activity)` - Get display string
+  - `GetRelativeTime(timestamp)` - "2m", "1h", "3d" format
+- Stores: `charDb.social.feed`, `charDb.social.mugsGiven`, `charDb.social.myRumors`
+</details>
+
+<details>
+<summary>Companions Module Details - click to expand</summary>
+
+- Favorites list with request/accept/decline flow
+- 50 max companions, 24h request expiry
+- Online status based on FellowTravelers lastSeenTime (5-min threshold)
+- Key functions:
+  - `SendRequest(playerName)` - Send companion request
+  - `AcceptRequest(playerName)` - Accept incoming request
+  - `DeclineRequest(playerName)` - Decline request
+  - `RemoveCompanion(playerName)` - Remove from list
+  - `IsCompanion(playerName)` - Check status
+  - `GetAllCompanions()` - Get all with online status
+  - `GetIncomingRequests()` - Get pending requests
+  - `GetOnlineCount()` / `GetCount()` - Statistics
+- Network: COMP_REQ, COMP_ACC, COMP_DEC message types via FellowTravelers
+- Stores: `charDb.social.companions.list`, `.outgoing`, `.incoming`
+</details>
+
+<details>
+<summary>SocialToasts Module Details - click to expand</summary>
+
+- Non-intrusive slide-in notifications from top right
+- 5 second auto-dismiss, max 3 toasts stacked
+- Toast types: companion_online, companion_nearby, companion_request, mug_received, companion_lfrp, fellow_discovered
+- Key functions:
+  - `Show(toastType, playerName, customMessage)` - Display toast
+  - `DismissToast(frame)` - Manually dismiss
+  - `DismissAll()` - Clear all toasts
+- Uses frame pool for performance
+- Settings: `charDb.social.toasts` (per-type toggles)
+</details>
+
 ### Game System
 | File | Purpose | Size |
 |------|---------|------|
-| `Social/Games/GameCore.lua` | Game loop, state machine, utilities | 14KB |
-| `Social/Games/GameUI.lua` | Shared UI components (windows, buttons) | 18KB |
-| `Social/Games/GameComms.lua` | Addon messaging for multiplayer | 16KB |
-| `Social/Games/GameChat.lua` | Reusable in-game chat for all multiplayer games | ~5KB |
-| `Social/Games/ScoreChallenge.lua` | Score-based challenges (Tetris/Pong vs remote) | ~12KB |
-| `Social/Games/Battleship/BattleshipGame.lua` | Battleship main controller with multiplayer | ~28KB |
-| `Social/Games/Battleship/BattleshipUI.lua` | Gameshow-style visual effects for Battleship | ~10KB |
-| `Social/Games/Battleship/BattleshipBoard.lua` | 10x10 grid, ship placement, shot logic | ~10KB |
-| `Social/Games/Battleship/BattleshipAI.lua` | Hunt/Target AI algorithm | ~8KB |
-| `Social/Games/Tetris/TetrisGame.lua` | Tetris battle logic and UI | 28KB |
-| `Social/Games/Tetris/TetrisBlocks.lua` | Tetromino definitions, rotation, SRS | 9KB |
+| `Social/Games/GameCore.lua` | Game loop, state machine, utilities | ~12KB |
+| `Social/Games/GameUI.lua` | Shared UI components (windows, buttons) | ~21KB |
+| `Social/Games/GameComms.lua` | Addon messaging for multiplayer | ~19KB |
+| `Social/Games/GameChat.lua` | Reusable in-game chat for all multiplayer games | ~8KB |
+| `Social/Games/ScoreChallenge.lua` | Score-based challenges (Tetris/Pong vs remote) | ~24KB |
+| `Social/Games/Battleship/BattleshipGame.lua` | Battleship main controller with multiplayer | ~50KB |
+| `Social/Games/Battleship/BattleshipUI.lua` | Gameshow-style visual effects for Battleship | ~23KB |
+| `Social/Games/Battleship/BattleshipBoard.lua` | 10x10 grid, ship placement, shot logic | ~11KB |
+| `Social/Games/Battleship/BattleshipAI.lua` | Hunt/Target AI algorithm | ~10KB |
+| `Social/Games/Tetris/TetrisGame.lua` | Tetris battle logic and UI | ~64KB |
+| `Social/Games/Tetris/TetrisBlocks.lua` | Tetromino definitions, rotation, SRS | ~8KB |
 | `Social/Games/Tetris/TetrisGrid.lua` | 10x20 grid data structure | 10KB |
-| `Social/Games/DeathRoll/DeathRollGame.lua` | Death roll turn-based mechanics | 15KB |
-| `Social/Games/DeathRoll/DeathRollUI.lua` | Death roll gameplay UI | 11KB |
-| `Social/Games/DeathRoll/DeathRollEscrow.lua` | 3-player escrow for gambling | 16KB |
-| `Social/Games/Pong/PongGame.lua` | Pong physics and gameplay | 19KB |
-| `Social/Games/WordsWithWoW/WordBoard.lua` | Word game board mechanics | 14KB |
-| `Social/Games/WordsWithWoW/WordDictionary.lua` | WoW-themed word list | 13KB |
-| `Social/Games/WordsWithWoW/WordGame.lua` | Words with WoW main controller | 23KB |
+| `Social/Games/DeathRoll/DeathRollGame.lua` | Death roll turn-based mechanics | ~22KB |
+| `Social/Games/DeathRoll/DeathRollUI.lua` | Death roll gameplay UI | ~31KB |
+| `Social/Games/DeathRoll/DeathRollEscrow.lua` | 3-player escrow for gambling | ~18KB |
+| `Social/Games/Pong/PongGame.lua` | Pong physics and gameplay | ~35KB |
+| `Social/Games/WordsWithWoW/WordBoard.lua` | Word game board mechanics | ~13KB |
+| `Social/Games/WordsWithWoW/WordDictionary.lua` | WoW-themed word list | ~11KB |
+| `Social/Games/WordsWithWoW/WordGame.lua` | Words with WoW main controller | ~123KB |
 | `Social/Games/WordsWithWoW/WordGamePersistence.lua` | Game save/load, serialization | ~15KB |
-| `Social/Games/WordsWithWoW/WordGameInvites.lua` | Async multiplayer invite system | ~17KB |
+| `Social/Games/WordsWithWoW/WordGameInvites.lua` | Async multiplayer invite system | ~18KB |
 
 ### UI Framework
 | File | Purpose | Size |
 |------|---------|------|
-| `UI/Components.lua` | All reusable UI components | ~68KB |
+| `UI/Components.lua` | All reusable UI components | ~103KB |
 | `UI/Glow.lua` | Glow effects | 11KB |
 | `UI/Animations.lua` | Animation utilities | 12KB |
 | `UI/MinimapButton.lua` | Draggable minimap button | ~6KB |
@@ -282,7 +349,7 @@ Understanding how modules interact is critical for making changes without breaki
 
 **Phase 1:** Core Foundation (FramePool, Constants, Timer, Core, Sounds, Effects)
 **Phase 2:** UI Components (Components, Glow, Animations)
-**Phase 3:** Journal System (Journal, Pages, Milestones, Zones, ProfileEditor)
+**Phase 3:** Journal System (Journal, Pages, Milestones, ProfileEditor)
 **Phase 4:** Raid & Reputation (RaidData, Attunements, Reputation)
 **Phase 5:** Social Features (Badges, FellowTravelers, Directory, Relationships, Minigames, MapPins)
 **Phase 6:** Game System (GameCore, GameUI, GameComms, game implementations)
@@ -291,7 +358,7 @@ Understanding how modules interact is critical for making changes without breaki
 
 | Module | Depends On | Called By |
 |--------|------------|-----------|
-| **Badges** | Constants | Milestones, Zones, RaidData, Attunements, Reputation |
+| **Badges** | Constants | Milestones, RaidData, Attunements, Reputation |
 | **FellowTravelers** | Timer, Core | Directory, Minigames, GameComms, TravelerIcons, MapPins |
 | **Directory** | FellowTravelers, Relationships | Journal (UI) |
 | **Relationships** | Core (charDb) | Directory |
@@ -346,6 +413,7 @@ COMBAT_LOG_EVENT_UNFILTERED → RaidData:OnCombatLogEvent()
 - `travelers.fellows[playerName]` - Addon users only
 - `travelers.myProfile` - Player's RP profile
 - `relationships[playerName]` - Player notes
+- `savedGames.words` - Persistent Words with WoW game states
 
 <details>
 <summary>Full Character Data Structure (click to expand)</summary>
@@ -415,6 +483,13 @@ COMBAT_LOG_EVENT_UNFILTERED → RaidData:OnCombatLogEvent()
             updatedDate = "2024-01-20",
         },
     },
+    savedGames = {
+        words = {
+            games = {},             -- [opponentName] = serialized game state
+            pendingInvites = {},    -- [senderName] = { state, timestamp }
+            sentInvites = {},       -- [recipientName] = { state, timestamp }
+        },
+    },
 }
 ```
 </details>
@@ -429,6 +504,11 @@ COMBAT_LOG_EVENT_UNFILTERED → RaidData:OnCombatLogEvent()
         glowEnabled = true,
         animationsEnabled = true,
         notificationsEnabled = true,
+        hideUIDuringCombat = true,
+    },
+    minimapButton = {
+        position = 225,  -- Angle in degrees
+        enabled = true,
     }
 }
 ```
@@ -466,7 +546,8 @@ Key constant categories in `Core/Constants.lua`:
 | Milestones | `C.LEVEL_MILESTONES` | `[level] = { title, icon, story }` |
 | Attunements | `C.[RAID]_ATTUNEMENT` | `{ chapters = { ... }, questIds = { ... } }` |
 | Bosses | `C.[RAID]_BOSSES` | `{ id, name, location, lore, mechanics, loot }` |
-| Tokens | `C.T[4/5/6]_TOKENS` | `{ slot, dropsFrom, raid, classes }` |
+| Boss Badges | `C.BOSS_BADGES` | `{ id, name, icon, trigger, ... }` |
+| Boss Tiers | `C.BOSS_TIER_THRESHOLDS` | `{ min, quality, color }` (kill count tiers) |
 | Icons | `C.TRAVELER_ICONS` | `{ id, name, icon, quality, category, trigger }` |
 | Deaths | `C.DEATH_TITLES` | `{ min, max, title, color }` |
 | Raid Tiers | `C.RAID_TIERS` | `[raidKey] = "T4"/"T5"/"T6"` |
@@ -474,14 +555,21 @@ Key constant categories in `Core/Constants.lua`:
 | Raid Lists | `C.ATTUNEMENT_RAID_KEYS` | `{ "karazhan", "ssc", ... }` (no Gruul/Mag) |
 | Raid Lists | `C.RAIDS_BY_TIER` | `{ T4 = {...}, T5 = {...}, T6 = {...} }` |
 | Games | `C.GAME_DEFINITIONS` | `{ id, name, description, icon, hasLocal, hasRemote, system, color }` |
+| Words UI | `C.WORDS_*` | Bonus colors, tile settings, AI settings, online thresholds |
+| Loot | `C.CLASS_SPEC_LOOT_HOTLIST` | `[class][specTab] = { rep, drops, crafted }` |
+| Leveling | `C.LEVELING_GEAR_MATRIX` | `[role][level_range] = { dungeons, quests }` |
 
 **Lookup Tables:**
 ```lua
 C.ATTUNEMENT_QUEST_LOOKUP[questId]  -- → { raid, chapter }
 C.ENCOUNTER_TO_BOSS[encounterId]    -- → { raid, boss }
 C.BOSS_NPC_IDS[npcId]               -- → { raid, boss }
+C.BOSS_BADGE_BY_ID[bossId]          -- → badge definition
 C:GetRaidTier(raidKey)              -- → "T4"/"T5"/"T6" or nil
 C:GetGameDefinition(gameId)         -- → { id, name, description, ... }
+C:GetLevelRangeKey(level)           -- → "60-62"/"63-65"/"66-67" or nil
+C:GetLevelingGear(role, level)      -- → { dungeons, quests }
+C:GetRecommendedDungeons(level)     -- → dungeon list for level range
 ```
 
 ---
@@ -890,8 +978,8 @@ OnUpdate(gameId, dt)
 <details>
 <summary>Words with WoW Core Loop Details (click to expand)</summary>
 
-**Files:** 5 core files totaling ~3,880 lines
-- `WordGame.lua` (2,067 lines) - Main controller, UI, game logic
+**Files:** 5 core files totaling ~5,750 lines
+- `WordGame.lua` (~3,940 lines) - Main controller, UI, AI, game logic
 - `WordBoard.lua` (464 lines) - 15x15 grid, placement validation, scoring
 - `WordDictionary.lua` (250 lines) - Word validation, letter values
 - `WordGamePersistence.lua` (528 lines) - Save/load for async multiplayer
@@ -1772,11 +1860,14 @@ board = {
 ## Testing Commands
 
 ```
-/hope                          - Open journal
+/hope (or /journal)            - Open journal
 /hope debug                    - Toggle debug mode
 /hope stats                    - Show stats in chat
 /hope sound                    - Toggle sounds
+/hope combathide               - Toggle auto-hide UI during combat
 /hope minimap                  - Toggle minimap button visibility
+/hope nameplates               - Toggle Fellow nameplate coloring (IC=green, OOC=blue, LF_RP=pink)
+/hope pins                     - Toggle minimap pin RP status coloring
 /hope demo                     - Populate sample data for UI testing
 /hope reset demo               - Clear demo data
 /hope reset confirm            - Reset all character data
@@ -1795,7 +1886,7 @@ board = {
 /fire <coord>                  - Fire at coordinate in Battleship (e.g., /fire A5)
 /ready                         - Signal ships placed in Battleship
 /surrender                     - Forfeit Battleship game
-/gc <message>                  - Send chat to opponent in any game
+/gc (or /gamechat) <message>   - Send chat to opponent in any game
 /hope challenge <player> [game] - Challenge via game selection popup
 /hope accept                   - Accept pending challenge
 /hope decline                  - Decline pending challenge
@@ -1807,6 +1898,553 @@ board = {
 ## Recent Changes
 
 See [CHANGELOG.md](CHANGELOG.md) for historical bug fixes (Phases 5-13).
+
+### Phase 42: Social Tab Scalability (Search, Filter, Sort, Pagination) (2026-01-20)
+
+**Goal:** Add UI controls to handle 50+ Fellow Travelers with search, filter by RP status, sort options, and pagination.
+
+**New Features:**
+
+1. **Search Bar**
+   - Full-text search by name, class, or zone
+   - Debounced (300ms) to prevent excessive refreshes
+   - Gold border on focus
+   - Placeholder text: "Search name, class, zone..."
+
+2. **Sort Dropdown**
+   - Options: Name (A-Z), Name (Z-A), Class, Level (High-Low), Level (Low-High), Last Seen
+   - Uses `UIDropDownMenu` for native WoW feel
+   - Persists across tab switches
+
+3. **Filter Buttons**
+   - All, Online, IC, OOC, LF_RP
+   - Color-coded to match RP status colors
+   - Active filter highlighted
+   - Online = seen within 5 minutes
+
+4. **Pagination Controls**
+   - 20 entries per page
+   - "< Prev" and "Next >" buttons
+   - "Page X of Y" indicator
+   - Only shows when multiple pages exist
+
+**New State (Journal.lua):**
+```lua
+Journal.socialState = {
+    searchText = "",
+    sortOption = "last_seen",
+    filterOption = "all",  -- "all", "online", "ic", "ooc", "lfrp"
+    currentPage = 1,
+    pageSize = 20,
+}
+```
+
+**New Functions (Journal.lua):**
+| Function | Purpose |
+|----------|---------|
+| `CreateSocialToolbar()` | Creates search box + sort dropdown + filter buttons |
+| `GetFilteredSocialEntries()` | Applies RP status filter on top of Directory filter |
+| `RefreshSocialList()` | Refreshes Social tab when filters change |
+| `CreatePaginationControls()` | Creates prev/next page buttons |
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| Journal/Journal.lua | Added socialState, toolbar, pagination (~200 lines) |
+
+**UI Layout:**
+```
+[FELLOW TRAVELERS header]
+
+[🔍 Search name, class, zone...] [Sort: v Last Seen]
+[All] [Online] [IC] [OOC] [LF_RP]           15 travelers
+
+[Directory cards - 20 per page]
+...
+
+        [< Prev]  Page 1 of 3  [Next >]
+```
+
+**Design Decisions:**
+- Filter by RP status uses `entry.profile.status` from Fellow data
+- "Online" filter uses 5-minute threshold against `lastSeenTime`
+- Pagination resets to page 1 when filter/search changes
+- Results count updates dynamically in toolbar
+
+### Phase 41: Looking for RP Board (2026-01-20)
+
+**Goal:** Add a dedicated "Looking for RP" board to the Social tab showing Fellows who are actively seeking roleplay.
+
+**New Features:**
+
+1. **LF_RP Board Section**
+   - Pink-bordered container at top of Social tab (after Your Profile)
+   - Shows Fellows with `LF_RP` status who were seen in last 24 hours
+   - Displays: class icon, name with title, current zone, time ago
+   - "Whisper" button opens chat to that player
+
+2. **Visual Design**
+   - Hot pink border and glow (#FF33CC) matching LF_RP nameplate color
+   - Heart/perfume icon for RP theming
+   - Up to 4 Fellows shown, "more..." indicator if truncated
+   - Sorted by most recently seen
+
+**New Functions (Journal.lua):**
+| Function | Purpose |
+|----------|---------|
+| `GetLookingForRPFellows()` | Gets Fellows with LF_RP status (24hr filter) |
+| `CreateLookingForRPBoard()` | Creates the pink-bordered board container |
+| `CreateLFRPRow()` | Creates individual Fellow row with whisper button |
+| `FormatTimeAgo()` | Formats timestamp into "5 min ago" string |
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| Journal/Journal.lua | Added LF_RP board section (~180 lines) |
+
+**UI Layout:**
+```
+[YOUR PROFILE section]
+
+[LOOKING FOR RP (3 available)]  <- Pink border + glow
+  [Mage] Jaina <Archmage>
+         Dalaran - 5 min ago    [Whisper]
+  [Priest] Anduin <Hero>
+         Stormwind - 1 hr ago   [Whisper]
+  ...
+
+[IN YOUR PARTY section - if applicable]
+
+[FELLOW TRAVELERS section]
+```
+
+### Phase 40: Move Game Stats from Stats Tab to Social Tab (2026-01-20)
+
+**Goal:** Remove global game statistics from the Stats tab and display game history per-player in the Social tab instead.
+
+**Changes:**
+
+1. **Stats Tab Simplified**
+   - Removed "Game Champion Statistics" section
+   - Removed "Rivals & Nemeses" section
+   - Stats tab now shows only: Badges + Boss Kill Tracker
+   - Cleaner, more focused on achievements and progression
+
+2. **Social Tab Enhanced**
+   - Fellow Traveler cards now show game record inline (e.g., `[Games] 5W-3L (8 played)`)
+   - Record color-coded: green for winning, red for losing, gold for tied
+   - Clicking a player card shows detailed per-game breakdown in chat
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| Journal/Journal.lua | Simplified `PopulateStats()`, added `GetOpponentGameStats()`, updated `CreateDirectoryCard()` |
+
+**New Function:**
+- `Journal:GetOpponentGameStats(opponentName)` - Returns game stats for a specific opponent
+
+**UI Result:**
+- Stats tab is cleaner and achievement-focused
+- Game history is contextual - shown per-player where it matters
+- Clicking a player in Social tab reveals detailed game breakdown
+
+### Phase 39: In-World Fellow Traveler Visual Identity (2026-01-20)
+
+**Goal:** Make Fellow Travelers visually distinct in the world with colored nameplates and minimap pins based on RP status.
+
+**New Features:**
+
+1. **Nameplate Coloring by RP Status**
+   - Fellow Traveler nameplates glow with bright neon colors
+   - IC (In Character) = Bright Green (#33FF33)
+   - OOC (Out of Character) = Sky Blue (#00BFFF)
+   - LF_RP (Looking for RP) = Hot Pink (#FF33CC)
+   - Toggle: `/hope nameplates`
+
+2. **Enhanced Minimap Pins**
+   - Star icons instead of generic dots
+   - Glowing effect for visibility
+   - Colors match RP status (same as nameplates)
+   - Toggle: `/hope pins`
+
+3. **New Settings**
+   - `fellowSettings.colorNameplates` (default: true)
+   - `fellowSettings.colorMinimapPins` (default: true)
+
+**New File Created:**
+- `Social/NameplateColors.lua` (~200 lines) - TBC-compatible nameplate coloring module
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| Social/MapPins.lua | Star icons, glow effect, RP status colors (~80 lines) |
+| Core/Core.lua | New settings defaults, slash commands (~30 lines) |
+| HopeAddon.toc | Added NameplateColors.lua |
+
+**Visual Result:**
+- Fellow Travelers immediately stand out in the world
+- Colors communicate their RP availability at a glance
+- Fun, visible indicator that "this person has the addon"
+
+### Phase 43: Activity Feed (Tavern Notice Board) - Phase 1 (2026-01-20)
+
+**Goal:** Implement the Activity Feed system ("Tavern Notice Board") to show recent activities from Fellow Travelers, creating a mini-Facebook style social experience for RP players.
+
+**New Features:**
+
+1. **Activity Feed Module** (`Social/ActivityFeed.lua`)
+   - Shows recent activities from nearby Fellow Travelers
+   - Auto-populates from existing events (boss kills, level ups, badges, games, RP status)
+   - 48-hour retention with automatic cleanup
+   - Deduplication via activity ID tracking
+   - Network protocol: `ACT:version:type:player:class:data:time` (~20-50 bytes)
+
+2. **Activity Types Tracked:**
+   | Type | Source | Wire Format Example |
+   |------|--------|---------------------|
+   | STATUS | RP status change | `ACT:1:STA:Thrall:WARRIOR:IC:1705334400` |
+   | BOSS | Boss kill | `ACT:1:BOSS:Thrall:WARRIOR:Attumen:1705334400` |
+   | LEVEL | Level up | `ACT:1:LVL:Thrall:WARRIOR:70:1705334400` |
+   | GAME | Game win/loss | `ACT:1:GAME:Thrall:WARRIOR:Tetris|W:1705334400` |
+   | BADGE | Badge earned | `ACT:1:BADGE:Thrall:WARRIOR:prince_slayer:1705334400` |
+
+3. **Social Tab UI Enhancement:**
+   - New "RECENT ACTIVITY" section with arcane purple border
+   - Activity cards showing player, action, and relative time
+   - Scroll icon header with activity count badge
+   - Empty state with helpful guidance text
+
+4. **Event Hooks:**
+   - Hooks into `Badges:OnBossKilled()` for boss kills
+   - Hooks into `FellowTravelers:UpdateMyProfile()` for RP status changes
+   - Hooks into `GameCore:EndGame()` for game results
+   - Hooks into `Badges:UnlockBadge()` for badge unlocks
+   - Listens to `PLAYER_LEVEL_UP` event
+
+**Data Structure (`charDb.social`):**
+```lua
+social = {
+    feed = {},           -- Array of { id, type, player, class, data, time, mugs }
+    lastSeen = {},       -- [activityId] = true (deduplication)
+    settings = {
+        showBoss = true,
+        showLevel = true,
+        showGame = true,
+        showBadge = true,
+        showStatus = true,
+    },
+    myRumors = {},       -- Phase 2: [timestamp] = { text, expires }
+    mugsGiven = {},      -- Phase 2: [activityId] = true
+}
+```
+
+**New Files:**
+| File | Lines | Purpose |
+|------|-------|---------|
+| `Social/ActivityFeed.lua` | ~550 | Activity feed module with network protocol |
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `Social/FellowTravelers.lua` | Added `BroadcastMessage()` helper function |
+| `Journal/Journal.lua` | Added `CreateActivityFeedSection()`, `CreateActivityRow()`, updated `PopulateSocial()` |
+| `Core/Core.lua` | Added `charDb.social` defaults and migration |
+| `HopeAddon.toc` | Added ActivityFeed.lua to load order |
+
+**Future Phases (per SOCIAL_FEATURES_PLAN.md):**
+- Phase 2: Rumors (manual posts) + Mug reactions
+- Phase 3: Companions system (favorites list)
+- Phase 4: Toast notifications
+
+### Phase 38: Words with WoW AI Opponent & Multiplayer Enhancements (2026-01-19)
+
+**Goal:** Complete the Words with WoW core gameplay loop with AI opponent for practice mode, online status indicators for remote games, and turn notifications.
+
+**New Features:**
+
+1. **AI Opponent for Practice Mode**
+   - AI automatically plays when it's their turn (1-3 second thinking delay)
+   - Easy difficulty (~70% player win rate): 20% mistake chance, prefers shorter words
+   - Word-finding algorithm checks all dictionary words against hand letters
+   - Falls back to passing if no valid moves found
+
+2. **Online Status Indicator for Remote Games**
+   - Shows opponent status in player panel: Active (green), Online (yellow), Away (yellow), Offline (gray)
+   - Uses FellowTravelers `lastSeenTime` with configurable thresholds
+   - Updates every 15 seconds via ticker
+
+3. **Turn Notifications for Async Games**
+   - Bell sound plays when remote opponent makes a move
+   - Chat notification: "[Words] PlayerName played 'WORD' for X points!"
+   - Turn banner flashes when it becomes your turn
+   - Similar notifications for pass actions
+
+**New Constants (Constants.lua):**
+```lua
+C.WORDS_AI_SETTINGS = {
+    THINK_TIME_MIN = 1.0,
+    THINK_TIME_MAX = 3.0,
+    MISTAKE_CHANCE = 0.20,
+    MAX_WORD_LENGTH = 5,
+    SKIP_LONG_WORD_CHANCE = 0.4,
+}
+
+C.WORDS_ONLINE_STATUS = {
+    ACTIVE_THRESHOLD = 60,
+    RECENT_THRESHOLD = 300,
+    STALE_THRESHOLD = 900,
+}
+```
+
+**New WordGame.lua Functions:**
+| Function | Purpose |
+|----------|---------|
+| `CheckAITurn(gameId)` | Check if AI should play next |
+| `StartAIThinking(gameId)` | Start AI thinking delay |
+| `ProcessAIDecision(gameId)` | Find and execute best word |
+| `FindAllValidPlacements(gameId, hand)` | Get all playable words |
+| `GenerateWordsFromHand(hand)` | Filter dictionary by hand |
+| `CanMakeWord(word, letterCount)` | Check if word possible |
+| `HasRequiredLetters(hand, word, board, row, col, horizontal)` | Account for board tiles |
+| `CalculatePlacementScore(gameId, word, row, col, horizontal)` | Score without placing |
+| `AIPlayWord(gameId, move)` | Execute AI's word |
+| `AIPass(gameId)` | AI passes turn |
+| `UpdateOnlineStatus(gameId)` | Update opponent status UI |
+| `FlashTurnBanner(gameId)` | Animate turn banner |
+
+**New UI Elements:**
+- `p2StatusDot` - Green/yellow/gray indicator texture
+- `p2StatusText` - "Active"/"Online"/"Away"/"Offline" text
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| Core/Constants.lua | Added WORDS_AI_SETTINGS, WORDS_ONLINE_STATUS (~25 lines) |
+| Social/Games/WordsWithWoW/WordGame.lua | AI logic, status UI, notifications (~350 lines) |
+
+### Phase 37: Journey Tab Level-Based Dynamic Content (2026-01-19)
+
+**Goal:** Transform the Journey tab to be level-aware with two distinct experiences based on player level.
+
+**New Features:**
+
+1. **Pre-68 Leveling Mode (Levels 60-67)**
+   - Shows gear recommendations from dungeons and quests instead of attunements
+   - Role-based items (tank, healer, melee_dps, ranged_dps, caster_dps) using spec detection
+   - Three level ranges: 60-62 (Hellfire), 63-65 (Coilfang/Auchindoun), 66-67 (Auchindoun/CoT)
+   - 3 dungeon drops + 3 quest rewards per role per range (90 items total)
+   - Recommended dungeons list for current level range
+
+2. **68+ Endgame Mode (Level 68-70)**
+   - Current attunement-focused progression with tier cards
+   - Existing loot hotlist for spec-specific endgame gear
+
+**Data Structure (Constants.lua):**
+```lua
+C.LEVELING_RANGES = {
+    { key = "60-62", minLevel = 60, maxLevel = 62, label = "Level 60-62", dungeonGroup = "Hellfire Citadel" },
+    { key = "63-65", minLevel = 63, maxLevel = 65, label = "Level 63-65", dungeonGroup = "Coilfang / Auchindoun" },
+    { key = "66-67", minLevel = 66, maxLevel = 67, label = "Level 66-67", dungeonGroup = "Auchindoun / Caverns of Time" },
+}
+
+C.LEVELING_ROLES = {
+    tank = { name = "Tank", icon = "...", color = "SKY_BLUE" },
+    healer = { name = "Healer", icon = "...", color = "FEL_GREEN" },
+    melee_dps = { name = "Melee DPS", icon = "...", color = "HELLFIRE_RED" },
+    ranged_dps = { name = "Ranged DPS", icon = "...", color = "GOLD_BRIGHT" },
+    caster_dps = { name = "Caster DPS", icon = "...", color = "ARCANE_PURPLE" },
+}
+
+C.LEVELING_GEAR_MATRIX = {
+    ["tank"] = { ["60-62"] = { dungeons = {...}, quests = {...} }, ... },
+    -- 5 roles × 3 level ranges × 6 items = 90 total items
+}
+
+-- Helper functions
+C:GetLevelRangeKey(level)        -- Returns "60-62", "63-65", "66-67", or nil
+C:GetLevelingGear(role, level)   -- Returns { dungeons = {...}, quests = {...} }
+C:GetRecommendedDungeons(level)  -- Returns dungeon list for level range
+```
+
+**Journal.lua Changes:**
+- `PopulateJourney()` - Now checks `UnitLevel("player")` and routes to leveling or endgame mode
+- `PopulateJourneyEndgame()` - Renamed from original PopulateJourney (attunement focus)
+- `PopulateJourneyLeveling(playerLevel)` - New function for pre-68 gear guide
+- `CreateLevelingProgressBox(playerLevel, rangeInfo)` - Level progress with XP-style bar
+- `CreateLevelingGearHeader(role, roleInfo, rangeInfo, specName, specPoints)` - Role/spec display
+- `CreateLevelingGearSection(title, color, items, sourceType)` - Gear section with items
+- `CreateLevelingGearCard(parent, item, cardKey, sourceType)` - Individual item cards
+- `CreateRecommendedDungeonsList(dungeons, rangeInfo)` - Dungeon recommendations
+
+**UI Layout (Pre-68):**
+```
+┌─────────────────────────────────────────────────────────┐
+│  YOUR JOURNEY                          Level 64         │
+│  Level 63-65 - Coilfang / Auchindoun                    │
+│  [████████████░░░░░░░░░] 33%                            │
+│  "Venture into the depths of Coilfang and Auchindoun..." │
+│                                                         │
+│  GEAR FOR YOUR JOURNEY                                  │
+│  Protection (21 pts) - Tank                             │
+│                                                         │
+│  [▼] Dungeon Drops (FEL_GREEN)                          │
+│      [Icon] Unscarred Breastplate - Chest               │
+│             +26 Str, +21 Agi, +23 Sta                   │
+│             Quagmirran - Slave Pens                     │
+│      ...                                                │
+│                                                         │
+│  [▼] Quest Rewards (GOLD_BRIGHT)                        │
+│      [Icon] Cenarion Ring of Casting - Ring             │
+│             +Sta, +Def                                  │
+│             Quest: Lost in Action (Zangarmarsh)         │
+│      ...                                                │
+│                                                         │
+│  RECOMMENDED DUNGEONS                                   │
+│  ├─ Slave Pens (62-64) - Zangarmarsh                    │
+│  ├─ Underbog (63-65) - Zangarmarsh                      │
+│  └─ Mana-Tombs (64-66) - Terokkar Forest                │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| Core/Constants.lua | Added LEVELING_RANGES, LEVELING_ROLES, LEVELING_DUNGEONS, LEVELING_GEAR_MATRIX (~280 lines) |
+| Journal/Journal.lua | Added PopulateJourneyLeveling and 7 helper functions (~400 lines) |
+
+**Item Research Sources:**
+- Wowhead TBC Classic database
+- Items verified against actual TBC 2.4.3 dungeon and quest data
+- Role-appropriate stat priorities (tank: Sta/Def, healer: +Heal/Int, etc.)
+
+### Phase 37: Party Fellow Challenge Button (2026-01-19)
+
+**Goal:** Add prominent "CHALLENGE" button next to party members who have the addon in the Social tab.
+
+**New Features:**
+- "IN YOUR PARTY" section appears at top of Social tab when party has Fellow Travelers
+- Each party Fellow shows with class icon, name with title, level, and prominent CHALLENGE button
+- Clicking CHALLENGE opens the game selection popup to choose which game to play
+- Section automatically hides when solo or no Fellows in party
+
+**New Functions (Journal.lua):**
+- `GetPartyFellowTravelers()` (lines 3936-3958) - Gets party members who are addon users
+- `CreatePartyFellowCard(parent, fellow)` (lines 3967-4100) - Creates card with prominent challenge button
+
+**Updated Functions:**
+- `PopulateSocial()` (lines 3883-3898) - Now includes party section before Fellow Travelers list
+
+**UI Layout:**
+```
+═══════════════════════════════════════════════════
+  YOUR PROFILE
+═══════════════════════════════════════════════════
+  IN YOUR PARTY (fel green header)
+───────────────────────────────────────────────────
+│ [Warrior]  Thrall <Hero>           [CHALLENGE]  │
+│            Level 70 Warrior                     │
+───────────────────────────────────────────────────
+  FELLOW TRAVELERS
+  [rest of directory...]
+```
+
+**Files Modified:**
+- `Journal/Journal.lua` (~170 lines added)
+
+### Phase 36: Combat UI Auto-Hide (2026-01-19)
+
+**Goal:** Add best practice auto-hide of addon UI when entering combat.
+
+**New Feature:**
+- UI automatically hides when combat starts (`PLAYER_REGEN_DISABLED`)
+- UI automatically restores when combat ends (`PLAYER_REGEN_ENABLED`)
+- Games are paused during combat and resumed after
+- Setting toggle: `/hope combathide` (enabled by default)
+- Notifications show when UI hides/restores (respects `notificationsEnabled` setting)
+
+**Implementation:**
+- Added `combatUIState` tracking table in Core.lua (lines 25-31)
+- Registered `PLAYER_REGEN_DISABLED/ENABLED` events (lines 710-711)
+- Added `OnCombatStart()` function (lines 857-908) - hides Journal, ProfileEditor, game windows
+- Added `OnCombatEnd()` function (lines 911-956) - restores previously-visible UI
+- Added `IsUIHiddenForCombat()` utility (lines 958-960)
+- Added `hideUIDuringCombat` setting (line 867)
+- Added `/hope combathide` slash command (lines 1002-1004)
+
+**Files Modified:**
+- `Core/Core.lua` (~110 lines added)
+
+### Phase 36: Badge Categories & Boss Kill Tracker (2026-01-19)
+
+**Goal:** Enhance the Stats tab badge display with categorized sections and add a comprehensive boss kill tracker showing all 44 TBC raid bosses.
+
+**New Features:**
+
+1. **Categorized Badge Display**
+   - Badges now grouped into 5 collapsible categories:
+     - Progression (4 level badges) - GOLD_BRIGHT
+     - Attunements (3 badges) - ARCANE_PURPLE
+     - Boss Slayers (5 badges) - HELLFIRE_RED
+     - Reputation (3 badges) - FEL_GREEN
+     - Special (2 flying badges) - SKY_BLUE
+   - Each category shows earned/total count (e.g., "Progression (2 / 4)")
+   - All categories collapsed by default
+
+2. **Boss Kill Tracker Section**
+   - Shows all 44 TBC raid bosses organized by tier
+   - Three collapsible tier sections:
+     - T4 (14 bosses): Karazhan, Gruul's Lair, Magtheridon
+     - T5 (10 bosses): Serpentshrine Cavern, Tempest Keep
+     - T6 (20 bosses): Hyjal, Black Temple, Sunwell
+   - Each boss shows: icon, name, kill count, first kill date
+   - **RPG Quality Colors based on kill count** (uses `C.BOSS_TIER_THRESHOLDS`):
+     - 1 kill = Poor (grey #9D9D9D)
+     - 5 kills = Common (white #FFFFFF)
+     - 10 kills = Uncommon (green #1EFF00)
+     - 25 kills = Rare (blue #0070DD)
+     - 50 kills = Epic (purple #A335EE)
+     - 69 kills = Legendary (orange #FF8000)
+   - Shows progress to next tier (e.g., "4 more for Uncommon")
+   - Card border and boss name colored by current tier
+   - Unkilled bosses: grey border, desaturated icon
+
+**Files Modified:**
+
+- **Social/Badges.lua**
+  - Added `BADGE_CATEGORIES` constant (lines 169-206)
+  - Added `GetBadgesByCategory()` function (lines 520-561)
+
+- **Journal/Journal.lua**
+  - Rewrote `PopulateBadgesSection()` (lines 4037-4097) - Now creates collapsible category sections
+  - Added `CreateBadgeCard()` (lines 4098-4165) - Helper for badge card creation
+  - Added `PopulateBossKillTracker()` (lines 4167-4273) - New boss tracker section
+  - Added `CreateBossKillCard()` (lines 4276-4339) - Helper for boss cards
+  - Added `GetRaidDisplayName()` (lines 4341-4358) - Raid key to name lookup
+  - Updated `PopulateStats()` (lines 4032-4038) - Added call to PopulateBossKillTracker
+
+**Data Sources:**
+- Uses existing `Badges:GetBossBadgesByTier()` and `Badges:GetBossStats()` functions
+- Boss kills stored in `charDb.journal.bossKills` with format: `{ totalKills, firstKill, ... }`
+- Boss definitions from `C.BOSS_BADGES` in Constants.lua (lines 2765-3168)
+
+**Visual Layout:**
+```
+═══════════════════════════════════════════════════
+  BADGES (7 / 17)
+───────────────────────────────────────────────────
+[+] Progression (3 / 4)
+[+] Attunements (1 / 3)
+[+] Boss Slayers (2 / 5)
+[+] Reputation (0 / 3)
+[+] Special (1 / 2)
+
+═══════════════════════════════════════════════════
+  BOSS KILL TRACKER (8 / 44 bosses)
+───────────────────────────────────────────────────
+[+] Tier 4 (6 / 14) - Karazhan, Gruul's Lair, Magtheridon
+[+] Tier 5 (2 / 10) - Serpentshrine Cavern, Tempest Keep
+[+] Tier 6 (0 / 20) - Hyjal, Black Temple, Sunwell
+```
 
 ### Phase 35: Fellow Traveler Discovery & Challenge System Fix (2026-01-19)
 
@@ -2406,10 +3044,9 @@ HopeAddonDB.minimapButton = {
 - ✅ **MinigamesUI Colors Updated** (MinigamesUI.lua:627, 1196) - Replaced BROWN with ARCANE_PURPLE for RPS buttons and game icon buttons
 - ✅ **Tab Color Verification** - Audited all 7 journal tabs, confirmed TBC palette usage:
   - Journey: GOLD_BRIGHT (primary), FEL_GREEN (Outland content)
-  - Zones: FEL_GREEN (Outland Exploration)
   - Reputation: ARCANE_PURPLE (main header), GOLD_BRIGHT (categories)
-  - Attunements: ARCANE_PURPLE (magic theme), tier colors
   - Raids: Tier colors (T4=GOLD_BRIGHT, T5=SKY_BLUE, T6=HELLFIRE_RED)
+  - Attunements: ARCANE_PURPLE (magic theme), tier colors
   - Games: ARCANE_PURPLE (Games Hall)
   - Social: FEL_GREEN (Fellow Travelers)
   - Stats: GOLD_BRIGHT, FEL_GREEN, ARCANE_PURPLE
