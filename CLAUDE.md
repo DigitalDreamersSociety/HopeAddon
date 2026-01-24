@@ -98,13 +98,13 @@ HopeAddon/
 | Game Chat | ✅ COMPLETE | Reusable /gc chat system for in-game communication |
 | Games Hall UI | ✅ COMPLETE | Dedicated Games tab with Practice/Challenge options |
 | Test Suite | ✅ COMPLETE | Comprehensive automated tests for Words with WoW |
-| Activity Feed | ✅ COMPLETE | "Tavern Notice Board" - auto-populated feed from boss kills, level ups, status changes |
+| Activity Feed | ✅ COMPLETE | "Tavern Notice Board" - real-time updates, hybrid refresh, listener system, network sync |
 | Rumors | ✅ COMPLETE | Manual status posts with 5-min cooldown, 100 char limit |
 | Mug Reactions | ✅ COMPLETE | "Raise a Mug" (like) reactions on activities |
 | Companions | ✅ COMPLETE | Favorites list with request/accept/decline flow, online status |
 | Social Toasts | ✅ COMPLETE | Non-intrusive notifications for social events |
 | Leveling Gear Guide | ✅ COMPLETE | Level 60-67 gear recommendations by role (dungeons + quests) |
-| Activity Feed | ✅ PHASE 1 | Auto-populated feed showing Fellow Traveler activities (boss kills, levels, badges, games, status) |
+| Romance System | ✅ COMPLETE | "Azeroth Relationship Status" - one exclusive partner, public status, breakup timeline events |
 
 ---
 
@@ -193,6 +193,7 @@ end
 | `Social/ActivityFeed.lua` | Activity feed with rumors & mugs | ~18KB |
 | `Social/Companions.lua` | Favorites list with online status | ~10KB |
 | `Social/SocialToasts.lua` | Toast notifications for social events | ~6KB |
+| `Social/Romance.lua` | Romance/relationship system with propose/accept/breakup flow | ~15KB |
 
 <details>
 <summary>FellowTravelers Module Details (Communication Hub) - click to expand</summary>
@@ -251,9 +252,34 @@ end
 <summary>ActivityFeed Module Details - click to expand</summary>
 
 - "Tavern Notice Board" - Activity feed for social events
-- Activity types: STATUS, BOSS, LEVEL, GAME, BADGE, RUMOR, MUG
+- Activity types: STATUS, BOSS, LEVEL, GAME, BADGE, RUMOR, MUG, LOOT, ROMANCE, IC_POST, ANON
 - Wire protocol: `ACT:version:type:player:class:data:time` (~20-50 bytes)
 - Limits: 50 max entries, 48-hour retention
+- Broadcast interval: 30 seconds via `broadcastTicker`
+
+**Network Architecture:**
+```
+Outgoing: QueueForBroadcast() → BroadcastActivities() → FellowTravelers:BroadcastMessage()
+                                       ↓
+                              SerializeActivity() → "ACT:1:BOSS:Player:CLASS:data:time"
+                                       ↓
+                              AddToFeed() (own copy) + NotifyListeners()
+
+Incoming: CHAT_MSG_ADDON → FellowTravelers:OnAddonMessage()
+                                       ↓
+                              strsplit(":", message, 3) → msgType, version, data
+                                       ↓
+                              Callback match(msgType=="ACT") → handler(msgType, sender, data)
+                                       ↓
+                              ActivityFeed:HandleNetworkActivity(sender, data)
+                                       ↓
+                              Parse data directly → AddToFeed() → NotifyListeners()
+```
+
+**Listener System** (for real-time UI updates):
+  - `RegisterListener(id, callback)` - Register to receive activity notifications
+  - `UnregisterListener(id)` - Remove listener
+  - `NotifyListeners(count)` - Internal: calls all registered listeners
 - Key functions:
   - `PostRumor(text)` - Post manual status (5-min cooldown, 100 char max)
   - `CanPostRumor()` - Check cooldown status
@@ -262,6 +288,7 @@ end
   - `GetFeed()` / `GetRecentFeed(max)` - Get activities
   - `FormatActivity(activity)` - Get display string
   - `GetRelativeTime(timestamp)` - "2m", "1h", "3d" format
+  - `OnRomanceEvent(eventType, partnerName, reason)` - Called by Romance module
 - Stores: `charDb.social.feed`, `charDb.social.mugsGiven`, `charDb.social.myRumors`
 </details>
 
@@ -296,6 +323,28 @@ end
   - `DismissAll()` - Clear all toasts
 - Uses frame pool for performance
 - Settings: `charDb.social.toasts` (per-type toggles)
+</details>
+
+<details>
+<summary>Romance Module Details - click to expand</summary>
+
+- "Azeroth Relationship Status" - Facebook-style dating for WoW RP
+- One exclusive partner at a time (monogamous)
+- States: SINGLE → PROPOSED (pending) → DATING (accepted)
+- 24-hour rejection cooldown, 7-day proposal expiry
+- Key functions:
+  - `ProposeToPlayer(playerName)` - Send proposal
+  - `AcceptProposal(senderName)` - Accept incoming proposal
+  - `DeclineProposal(senderName)` - Decline incoming proposal
+  - `BreakUp(reason)` - End relationship
+  - `CancelProposal()` - Cancel outgoing proposal
+  - `GetStatus()` - Get current relationship status
+  - `IsPartner(playerName)` - Check if player is current partner
+  - `HasPendingProposal()` - Check for outgoing proposal
+  - `GetPendingIncoming()` - Get array of incoming proposals
+- Network: ROM_REQ, ROM_ACC, ROM_DEC, ROM_BRK message types via FellowTravelers WHISPER
+- Stores: `charDb.social.romance` (status, partner, since, pendingOutgoing, pendingIncoming, cooldowns, history)
+- Broadcasts breakups to ActivityFeed for timeline drama
 </details>
 
 ### Game System
@@ -537,6 +586,106 @@ The addon uses specialized frame pools for efficient UI management. All pools fo
 
 ---
 
+## Social Tab Architecture
+
+The Social tab uses a sub-tabbed interface with three tabs: Feed, Travelers, and Companions.
+
+### Container Structure
+
+```lua
+Journal.socialContainers = {
+    statusBar = nil,      -- Top status bar with profile info
+    tabBar = nil,         -- Sub-tab buttons (Feed, Travelers, Companions)
+    content = nil,        -- Main content area (cleared on tab/filter switch)
+    scrollFrame = nil,    -- Scroll frame wrapper
+}
+
+Journal.socialSubTabs = {
+    feed = nil,           -- Activity feed tab button
+    travelers = nil,      -- Fellow Travelers directory tab button
+    companions = nil,     -- Companions list tab button
+}
+
+Journal.quickFilterButtons = {}      -- Filter buttons for Travelers tab (all, online, party, lfrp)
+Journal.socialContentRegions = {}    -- FontStrings/Textures for manual cleanup
+```
+
+**Note:** `filterBar` is preserved across filter changes but cleared when switching sub-tabs.
+
+### Content Clearing (CRITICAL)
+
+**Before repopulating any social content, you MUST call `ClearSocialContent()`**
+
+```lua
+function Journal:ClearSocialContent(preserveFilterBar)
+    -- Clears all child frames from content container
+    -- Clears all tracked regions (FontStrings, Textures)
+    -- Prevents frame stacking when switching filters/tabs
+    -- If preserveFilterBar=true, keeps the Travelers filter bar
+end
+```
+
+**When to preserve filter bar:**
+- `ClearSocialContent(true)` - When refreshing Travelers list (filter change only)
+- `ClearSocialContent()` - When switching sub-tabs (clears everything)
+
+### Populate Functions
+
+| Function | Purpose | Triggers |
+|----------|---------|----------|
+| `PopulateSocialFeed()` | Activity feed with rumors, mugs | Feed tab select, refresh |
+| `PopulateSocialTravelers()` | Fellow Traveler directory with filters | Travelers tab select, filter change |
+| `PopulateSocialCompanions()` | Companions list with requests | Companions tab select, accept/decline |
+
+### Filter System (Travelers Tab)
+
+State stored in `HopeAddon:GetSocialUI().travelers`:
+```lua
+{
+    quickFilter = "all",     -- "all", "online", "party", "lfrp"
+    searchText = "",         -- Search box text
+    sortOption = "last_seen" -- Sort order
+}
+```
+
+**Filter Functions:**
+```lua
+Journal:GetFilteredTravelerEntries(filterId)  -- Returns filtered array
+Journal:GetFilterCount(filterId)              -- Returns count for button label
+Journal:SetQuickFilter(filterId)              -- Sets filter and refreshes
+Journal:RefreshTravelersList()                -- Clears + repopulates
+```
+
+### Refresh Flow
+
+```
+User clicks filter → SetQuickFilter(filterId)
+                          │
+                          ├─ Update socialUI.travelers.quickFilter
+                          ├─ Update button visuals (on preserved buttons)
+                          └─ RefreshTravelersList()
+                                    │
+                                    ├─ ClearSocialContent(true)  ← preserves filter bar
+                                    └─ PopulateSocialTravelers()
+                                              │
+                                              ├─ GetFilteredTravelerEntries(filter)
+                                              ├─ Reuse existing filterBar OR create new
+                                              ├─ UpdateQuickFilterCounts() (if reusing)
+                                              └─ CreateTravelerRow() for each entry
+```
+
+### Region Tracking
+
+FontStrings and Textures are NOT returned by `frame:GetChildren()`, so they must be tracked manually:
+
+```lua
+-- When creating a FontString/Texture on social content:
+local text = content:CreateFontString(nil, "OVERLAY")
+self:TrackSocialRegion(text)  -- Adds to socialContentRegions for cleanup
+```
+
+---
+
 ## Constants & Enumerates Reference
 
 Key constant categories in `Core/Constants.lua`:
@@ -620,6 +769,21 @@ ColorUtils:HexToRGB(hex)                    -- Convert hex to RGB table
 Effects:Celebrate(frame, duration, opts)    -- Full effect: glow + sparkles + sound
 Effects:IconGlow(frame, duration)           -- Subtle icon glow (1.5s default)
 Effects:ProgressSparkles(bar, duration)     -- Progress bar completion sparkles
+
+-- Pulsing Glow (persistent until manually stopped)
+-- Use for "victory box" or "active selection" effects
+local glowData = Effects:CreatePulsingGlow(frame, colorName, intensity)
+-- colorName: "FEL_GREEN", "GOLD_BRIGHT", "ARCANE_PURPLE", "HELLFIRE_RED", etc.
+-- intensity: 0.3-1.0 (default 1.0), controls glow brightness
+-- Returns glowData table for manual cleanup later
+
+-- To stop the glow:
+Effects:StopGlowsOnParent(frame)            -- Stops ALL glows on a frame
+
+-- Example: Persistent victory glow
+frame.myGlow = Effects:CreatePulsingGlow(frame, "FEL_GREEN", 0.7)
+-- Later, when done:
+Effects:StopGlowsOnParent(frame)
 ```
 
 **Spec Detection Utilities** (`HopeAddon`):
@@ -1899,6 +2063,569 @@ board = {
 
 See [CHANGELOG.md](CHANGELOG.md) for historical bug fixes (Phases 5-13).
 
+### Phase 53: SafeSendAddonMessage pcall Protection (2026-01-23)
+
+**Goal:** Fix "You are not in a raid group" error spam by wrapping SendAddonMessage calls in pcall.
+
+**Root Cause:** The `SafeSendAddonMessage` wrapper function wasn't actually safe - it checked if the function existed but didn't catch runtime errors. When leaving battlegrounds/raids, there's a brief window where `IsInRaid()` returns stale data, causing `SendAddonMessage(..., "RAID")` to error.
+
+**Fix Applied:** Wrapped all `SendAddonMessage` calls in `pcall` to silently handle edge cases:
+
+```lua
+-- Before (errors propagate to user)
+local function SafeSendAddonMessage(prefix, msg, channel, target)
+    if CachedSendAddonMessage then
+        CachedSendAddonMessage(prefix, msg, channel, target)
+    end
+end
+
+-- After (errors caught silently, logged in debug mode)
+local function SafeSendAddonMessage(prefix, msg, channel, target)
+    if CachedSendAddonMessage then
+        local success, err = pcall(CachedSendAddonMessage, prefix, msg, channel, target)
+        if not success and HopeAddon.db and HopeAddon.db.debug then
+            HopeAddon:Debug("SendAddonMessage failed:", channel, err)
+        end
+    end
+end
+```
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `Social/FellowTravelers.lua` | Lines 71-79: Added pcall wrapper with debug logging |
+| `Social/Games/GameComms.lua` | Lines 528-533: Added pcall wrapper with debug logging |
+
+**How Fellow Traveler PING System Works:**
+
+```
+Timer fires every 15 seconds (BROADCAST_INTERVAL)
+       ↓
+BroadcastPresence()
+       ↓
+Builds message: "PING:1:ZoneName|X.XXX|Y.YYY"
+       ↓
+Sends to multiple channels:
+  ├─ PARTY/RAID (if IsInGroup(), chooses based on IsInRaid())
+  ├─ GUILD (if IsInGuild())
+  └─ YELL (every 30s via yellCounter, ~300 yard range)
+       ↓
+Other addon users receive via CHAT_MSG_ADDON event
+       ↓
+OnAddonMessage() → RegisterFellow() → PONG response
+```
+
+**Channel Details:**
+| Channel | Range | Rate | Purpose |
+|---------|-------|------|---------|
+| YELL | ~300 yards | Every 30s | Nearby non-grouped players |
+| PARTY | Group only | Every 15s | Party members |
+| RAID | Raid only | Every 15s | Raid members |
+| GUILD | Guild-wide | Every 15s | All online guildies |
+
+### Phase 52: Social Tab Romance UX Improvements (2026-01-23)
+
+**Goal:** Clean up confusing text in Companions tab and add heart icons directly to Traveler rows for proposing romance.
+
+**Issues Fixed:**
+
+1. **Confusing Hint Text** - Changed from "Click the heart icon on a companion to propose!" to clearer "Click |cFFFF69B4♥|r on any Fellow Traveler to propose!"
+
+2. **Heart Icons on Traveler Rows** - Added heart button directly to `CreateTravelerRow()` so users can propose romance to any Fellow Traveler without first adding them as a companion. Five visual states:
+   - **Partner (Dating)**: Red filled heart (INV_ValentinesCard02), tooltip "Your partner"
+   - **Pending Outgoing**: Pink heart (INV_ValentinesCandy), tooltip "Proposal pending..."
+   - **Pending Incoming**: Pulsing pink heart, tooltip "Wants to propose! Click to respond"
+   - **Single (Available)**: Grey heart (INV_ValentinesCard01), tooltip "Propose Romance"
+   - **Unavailable**: Grey heart, disabled, tooltip showing partner name
+
+3. **Orphaned Code Removed** - Deleted unused `CreateCompanionsSection()` and `CreateCompanionRow()` functions (~184 lines) that were defined but never called anywhere.
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `Journal/Journal.lua` | Line 7433: Changed hint text wording |
+| `Journal/Journal.lua` | Lines 6865-6967: Added heart button to `CreateTravelerRow()` with 5 states (~100 lines) |
+| `Journal/Journal.lua` | Lines 5187-5370: Removed orphaned `CreateCompanionsSection()` and `CreateCompanionRow()` functions (-184 lines) |
+
+**Icon Layout Change:**
+```
+Before: [Whisper] [Invite] [Game] [★ Companion]
+After:  [Whisper] [Invite] [Game] [♥ Romance] [★ Companion]
+```
+
+**User Flow:**
+- Companions tab: Star button (★) adds/removes companions
+- Travelers tab: Heart button (♥) proposes romance directly
+- Both systems work independently - you don't need to be companions to propose romance
+
+### Phase 51: ActivityFeed Network Fix + First Friends Icon Fix (2026-01-23)
+
+**Goal:** Fix two social system bugs - Activity Feed network parsing and First Friends icon awarding to non-addon users.
+
+**Bug 1: ActivityFeed Network Parsing (CRITICAL)**
+
+**Root Cause:** FellowTravelers strips `ACT:version:` prefix before passing to callback, but `HandleNetworkActivity` was reconstructing the message incorrectly (missing version), causing `ParseActivity` to receive misaligned fields.
+
+**Fix Applied:** Parse the payload directly in `HandleNetworkActivity` instead of reconstructing and re-parsing:
+```lua
+-- Old (broken): Reconstructed message missing version
+local fullMsg = MSG_PREFIX .. ":" .. data
+local activity = self:ParseActivity(fullMsg)
+
+-- New (fixed): Parse data directly since FellowTravelers already stripped prefix
+local actType, player, class, actData, timeStr = strsplit(":", data, 5)
+-- Build activity structure directly
+```
+
+**Bug 2: First Friends Icon Awarded to Non-Addon Users**
+
+**Root Cause:** The "first_friends" icon was being awarded when grouping with ANY player for the first time, not just Fellow Travelers (addon users).
+
+**Fix Applied:** Added `IsFellow(name)` check before awarding the icon in both locations:
+- `FellowTravelers.lua:1206` - `self:IsFellow(name)` check added
+- `TravelerIcons.lua:260` - `HopeAddon.FellowTravelers:IsFellow(name)` check added
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `Social/ActivityFeed.lua` | Rewrote `HandleNetworkActivity` to parse payload directly (~15 lines) |
+| `Social/FellowTravelers.lua` | Added `IsFellow(name)` check before awarding first_friends icon |
+| `Social/TravelerIcons.lua` | Added `IsFellow(name)` check before awarding first_friends icon |
+
+### Phase 49: Activity Feed Real-Time Updates (2026-01-21)
+
+**Goal:** Transform Activity Feed into a real-time, dynamic social experience with proper refresh mechanics.
+
+**Architecture Implemented:**
+1. **Listener System** - `ActivityFeed:RegisterListener(id, callback)` pattern for modules to receive notifications
+2. **Hybrid Refresh** - Auto-refresh when scrolled to top, "new activities" banner when scrolled down
+3. **Unread Badge** - Feed tab shows count of unseen activities
+
+**Changes Made:**
+
+| File | Changes |
+|------|---------|
+| `Social/ActivityFeed.lua` | Removed debug spam (~6 print statements); Added listener system (RegisterListener, UnregisterListener, NotifyListeners); Call NotifyListeners on network activity arrival and own broadcasts; Clear listeners in OnDisable |
+| `Journal/Journal.lua` | Register as ActivityFeed listener in OnEnable; Unregister in OnDisable; Added OnNewActivity(), HandleFeedActivityArrival(), ShowNewActivitiesBanner(), HideNewActivitiesBanner(); Hide banner on PopulateSocialFeed; Fixed memory leaks: banner cleanup in OnDisable, nil safety in ClearSocialContent |
+
+**New ActivityFeed API:**
+```lua
+-- Register to receive activity notifications
+ActivityFeed:RegisterListener("MyModule", function(count)
+    -- count = number of new activities
+end)
+
+-- Unregister when done
+ActivityFeed:UnregisterListener("MyModule")
+```
+
+**Feed Refresh Behavior:**
+- **At top of feed:** Auto-refresh silently when new activities arrive
+- **Scrolled down:** Green banner appears: "↑ 2 new activities - Click to refresh"
+- **Not viewing feed:** Unread count badge on Feed tab
+- **Refresh interval:** 30 seconds (matches broadcast interval)
+
+**Romance Integration:** Already complete - Romance module already calls `ActivityFeed:OnRomanceEvent()` for proposals, accepts, and breakups.
+
+### Phase 48: Death Roll Clickable Roll Button (2026-01-21)
+
+**Goal:** Add clickable "ROLL" button to Death Roll turn prompt for better UX (instead of requiring `/roll` command).
+
+**Changes Made (by user):**
+- Turn prompt frame height increased from 50 to 70 pixels
+- Added green "ROLL 1-X" button with gold border
+- Button calls `RandomRoll(1, maxRoll)` on click
+- Hover effects (brightens on mouseover)
+- Button hidden when waiting for opponent's turn
+- Hint text changed to "or type /roll" as fallback
+
+**Pattern for Adding Action Buttons to Turn Prompts:**
+```lua
+-- In frame pool Create function:
+local rollBtn = CreateFrame("Button", nil, frame)
+rollBtn:SetSize(100, 28)
+rollBtn:SetPoint("TOP", promptText, "BOTTOM", 0, -4)
+
+-- Button background (green for action)
+local btnBg = rollBtn:CreateTexture(nil, "BACKGROUND")
+btnBg:SetAllPoints()
+btnBg:SetColorTexture(0.2, 0.6, 0.2, 0.9)
+rollBtn.bg = btnBg
+
+-- Button border (gold)
+local btnBorder = rollBtn:CreateTexture(nil, "BORDER")
+btnBorder:SetPoint("TOPLEFT", -2, 2)
+btnBorder:SetPoint("BOTTOMRIGHT", 2, -2)
+btnBorder:SetColorTexture(0.8, 0.7, 0.2, 1)
+
+-- Hover effects
+rollBtn:SetScript("OnEnter", function(self)
+    self.bg:SetColorTexture(0.3, 0.8, 0.3, 1)  -- Brighten
+    if HopeAddon.Sounds then HopeAddon.Sounds:PlayHover() end
+end)
+rollBtn:SetScript("OnLeave", function(self)
+    self.bg:SetColorTexture(0.2, 0.6, 0.2, 0.9)  -- Normal
+end)
+
+-- In ShowTurnPrompt when it's your turn:
+rollBtn.text:SetText("ROLL 1-" .. maxRoll)
+rollBtn:SetScript("OnClick", function()
+    RandomRoll(1, maxRoll)
+    if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+end)
+rollBtn:Show()
+
+-- When NOT your turn:
+rollBtn:Hide()
+rollBtn:SetScript("OnClick", nil)
+```
+
+**Current Clickable Action Status:**
+
+| Game | Action Method | Status |
+|------|---------------|--------|
+| Death Roll | Clickable "ROLL 1-X" button | ✅ Just added |
+| Battleship | Click enemy grid cells | ✅ Already clickable |
+| Words with WoW | PLAY/PASS buttons, drag tiles | ✅ Already clickable |
+| RPS | Rock/Paper/Scissors buttons | ✅ Already clickable |
+| Pong | Keyboard (W/S, Up/Down) | N/A - real-time game |
+| Tetris | Keyboard (A/D/W/Q/S/Space) | N/A - real-time game |
+
+**All turn-based games now have clickable UI** - no slash commands required!
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `Social/Games/DeathRoll/DeathRollUI.lua` | Added rollBtn to turn prompt pool + fallback (~80 lines) |
+
+### Phase 47: Victory Overlay Pulsing Glow (2026-01-21)
+
+**Goal:** Add persistent pulsing green glow to victory overlays in all games.
+
+**Changes:**
+- Added `Effects:CreatePulsingGlow(panel/overlay, "FEL_GREEN", 0.7)` to victory condition in 3 locations:
+  1. `GameUI:ShowGameOver()` - Generic game over (Tetris, Pong, Death Roll)
+  2. `WordGame:ShowGameOverScreen()` - Words with WoW custom overlay
+  3. `BattleshipUI:ShowVictoryOverlay()` - Battleship victory screen
+- Glow persists until Close button is clicked (not auto-cleanup like `Celebrate()`)
+- Added cleanup via `Effects:StopGlowsOnParent()` in each close handler
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `Social/Games/GameUI.lua` | Added persistent victory glow + cleanup (~10 lines) |
+| `Social/Games/WordsWithWoW/WordGame.lua` | Added victory glow to panel + cleanup (~10 lines) |
+| `Social/Games/Battleship/BattleshipUI.lua` | Added victory glow to overlay + cleanup (~10 lines) |
+| `CLAUDE.md` | Added pulsing glow documentation to Celebration Effects section |
+
+**How `CreatePulsingGlow` Works:**
+
+The function in `Core/Effects.lua:65-112`:
+1. Creates a texture using `GLOW_ICON` asset with `ADD` blend mode
+2. Sizes it to 140% of parent frame (1.4x width/height)
+3. Centers on parent with vertex color from TBC palette
+4. Creates animation group with `BOUNCE` looping
+5. Alpha pulses between 0.3 and 0.8 over 0.8 seconds
+6. Registers in `glowsByParent` index for O(1) cleanup lookup
+
+**How to Reuse Pulsing Glow:**
+```lua
+-- Create persistent pulsing glow (stays until manually stopped)
+local glowData = HopeAddon.Effects:CreatePulsingGlow(frame, colorName, intensity)
+-- frame: Must be a Frame (not FontString/Texture) that can create textures
+-- colorName: "FEL_GREEN", "GOLD_BRIGHT", "ARCANE_PURPLE", "HELLFIRE_RED", "SKY_BLUE", etc.
+-- intensity: 0.3-1.0 (default 1.0) - controls alpha range of pulse
+
+-- Stop glow when done (IMPORTANT - prevents memory leaks):
+HopeAddon.Effects:StopGlowsOnParent(frame)
+
+-- Example pattern for victory boxes:
+if playerWon and HopeAddon.Effects and HopeAddon.Effects.CreatePulsingGlow then
+    frame.victoryGlow = HopeAddon.Effects:CreatePulsingGlow(frame, "FEL_GREEN", 0.7)
+end
+
+-- In close button OnClick:
+closeBtn:SetScript("OnClick", function()
+    if HopeAddon.Effects then
+        HopeAddon.Effects:StopGlowsOnParent(frame)
+    end
+    frame:Hide()
+end)
+```
+
+**Available TBC Palette Colors:**
+| Color Name | RGB | Use Case |
+|------------|-----|----------|
+| `FEL_GREEN` | (0.2, 0.8, 0.2) | Victory, success, Outland theme |
+| `GOLD_BRIGHT` | (1, 0.84, 0) | Active selection, achievements |
+| `ARCANE_PURPLE` | (0.61, 0.19, 1.0) | Magic effects, attunements |
+| `HELLFIRE_RED` | (0.9, 0.2, 0.1) | Danger, T6 content |
+| `SKY_BLUE` | (0.3, 0.7, 1.0) | T5 content, water themes |
+
+### Phase 46: Rumor Popup UI Fix (2026-01-21)
+
+**Goal:** Fix the broken "Post Rumor" button in Social tab and enhance with a two-mode popup for posting rumors and updating RP status.
+
+**Root Cause Found:**
+- `ShowRumorInput(parent)` was called without any argument at line 5802
+- This caused the function to error when trying to use `parent:GetWidth()` on nil
+- Additionally, `CreateActivityFeedSection()` (130 lines) was orphaned code never called
+
+**New Features:**
+
+1. **Two-Mode Rumor Popup** (Journal.lua:5557-5966)
+   - Modal dialog at DIALOG strata with draggable frame
+   - Tab selection: "Post Rumor" | "Update Status"
+   - Escape key closes popup
+
+2. **Rumor Mode Content**
+   - Multi-line text input (100 char max)
+   - Live character counter: "X / 100" (color changes at 80/100)
+   - Cooldown indicator shows remaining time when on 5-min cooldown
+   - Post button disabled during cooldown
+
+3. **Status Mode Content**
+   - Three status buttons with colored dots:
+     - 🟢 In Character (green)
+     - ⚪ Out of Character (grey)
+     - 💗 Looking for RP (pink)
+   - Current status shows "(current)" indicator
+   - Click immediately updates status and closes popup
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `Journal/Journal.lua` | Added GetRumorPopup (~400 lines), SetRumorPopupMode, ShowRumorPopup, HideRumorPopup; updated button handler; removed orphaned CreateActivityFeedSection (~130 lines) |
+
+**Button Change:**
+- Renamed from "Post Rumor" to "+ Share" to indicate popup with options
+
+**Bug Fix (same session):** Rumors not appearing in feed
+- **Root Cause:** `BroadcastActivities()` was defined but never called - activities were queued but never sent
+- **Fix:** Added `broadcastTicker` in `OnEnable()` to call `BroadcastActivities()` every 30 seconds
+- **Fix:** Added immediate broadcast call in `PostRumor()` so rumors appear instantly
+- **Files:** `Social/ActivityFeed.lua` - Added ticker in OnEnable/OnDisable, immediate broadcast in PostRumor
+
+**New Feature (same session):** Companion Online Toast Notification
+- When a companion transitions from offline (>5 min since last seen) to online, shows a toast
+- Uses existing `companion_online` toast type (green, "PlayerName is online")
+- Only triggers for companions (not all Fellow Travelers)
+- Doesn't trigger for new discoveries (they get their own murloc notification)
+- **Files:** `Social/FellowTravelers.lua` - Added online transition detection in `RegisterFellow()`
+
+### Phase 46: Words with WoW Hint System (2026-01-21)
+
+**Goal:** Make Words with WoW easy to play by adding a progressive hint system that guides players through the core game loop (Place → Form → Play).
+
+**New Features:**
+
+1. **3-Step Progress Indicator**
+   - Visual indicator showing current step: "1. Place" → "2. Form" → "3. Play"
+   - Green checkmarks for completed steps, gold highlight for current step
+   - Fades when not player's turn
+
+2. **Contextual Hint Messages**
+   - Dynamic hints based on game state:
+     - "First word must cover the center ★ square"
+     - "Drag a tile from your rack to the board"
+     - "Keep placing tiles to form a word"
+     - "DRAGON looks good! Click PLAY"
+     - "ZORK is not in the dictionary" (red for errors)
+     - "Waiting for opponent..."
+
+3. **Center Square Pulse**
+   - Gold pulsing glow on center square (8,8) for first word
+   - Helps new players understand where to start
+   - Automatically stops once center is covered
+
+4. **PLAY Button Pulse**
+   - Green pulsing glow on PLAY button when word is valid
+   - Visual confirmation that submission will succeed
+   - Draws attention to next action
+
+**New Constants (Constants.lua:3420-3466):**
+```lua
+C.WORDS_HINT_STATE = {
+    FIRST_MOVE, PLACE_TILES, KEEP_PLACING, INVALID_WORD,
+    MUST_COVER_CENTER, NOT_CONNECTED, READY_TO_PLAY,
+    AI_THINKING, OPPONENT_TURN, GAME_OVER
+}
+C.WORDS_HINT_STEPS = { place, form, play }
+C.WORDS_HINT_MESSAGES = { ... }
+C.WORDS_HINT_COLORS = { STEP_ACTIVE, STEP_PENDING, STEP_COMPLETE, HINT_TEXT, HINT_ERROR, CENTER_PULSE }
+```
+
+**New WordGame.lua Functions:**
+| Function | Purpose |
+|----------|---------|
+| `GetHintState(gameId)` | Derives current hint state from game state |
+| `GetCurrentStep(gameId)` | Returns step number (1-3) for indicator |
+| `GetHintMessage(gameId)` | Returns contextual hint message string |
+| `CreateHintContainer()` | Creates hint UI elements |
+| `CreateStepIndicator()` | Creates 3-step progress indicator |
+| `UpdateHints(gameId)` | Updates all hint UI elements |
+| `UpdateStepIndicator(gameId)` | Updates step colors/labels |
+| `UpdateCenterPulse(gameId)` | Manages center square glow |
+| `UpdatePlayButtonPulse(gameId)` | Manages PLAY button glow |
+
+**Integration Points:**
+- `UpdateUI()` → calls `UpdateHints()` at end
+- `AddPendingTile()` → calls `UpdateHints()` after tile placed
+- `RemovePendingTile()` → calls `UpdateHints()` after tile removed
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `Core/Constants.lua` | Added WORDS_HINT_STATE, WORDS_HINT_STEPS, WORDS_HINT_MESSAGES, WORDS_HINT_COLORS (~50 lines) |
+| `Social/Games/WordsWithWoW/WordGame.lua` | Added hint system UI and state derivation (~250 lines) |
+| `Social/Games/GameUI.lua` | Increased WORDS window height (720 → 750) |
+
+### Phase 45: Romance System - "Azeroth Relationship Status" (2026-01-21)
+
+**Goal:** Add a Facebook-style dating system with one exclusive partner, public relationship status visible to Fellow Travelers, and breakup events on the activity timeline.
+
+**New Features:**
+
+1. **Relationship Status System**
+   - One exclusive partner at a time (monogamous)
+   - States: SINGLE, PROPOSED, DATING
+   - Public status visible to all Fellow Travelers via profile sync
+   - Breakups create timeline events for dramatic RP moments
+
+2. **Proposal/Accept/Decline Flow**
+   - Propose to Fellow Travelers via heart button on companion cards
+   - Incoming proposals shown in "Relationship Status" section
+   - Accept/Decline with immediate feedback
+   - 24-hour cooldown after rejection (to prevent spam)
+   - 7-day proposal expiry
+
+3. **Breakup System**
+   - Confirmation dialog before breaking up
+   - Four humorous breakup reasons: "It was mutual", "They grew apart", "Someone else caught their eye", "It's not you, it's me"
+   - Breakup broadcasts to all Fellow Travelers via ActivityFeed
+   - Partner notified via direct WHISPER message
+
+4. **UI Integration**
+   - "Relationship Status" section at top of Companions area
+   - Heart button (♡/♥) on each companion card for proposing
+   - Status colors: Grey (single), Pink (proposed), Deep Pink (dating)
+   - Since date tracking for relationships
+
+**New Files:**
+| File | Lines | Purpose |
+|------|-------|---------|
+| `Social/Romance.lua` | ~450 | Romance module with network handlers for proposal flow |
+
+**New Constants (Constants.lua):**
+```lua
+C.ROMANCE_STATUS = {
+    SINGLE = { id = "SINGLE", label = "Single", color = "808080", icon = "INV_ValentinesCard01", emoji = "" },
+    PROPOSED = { id = "PROPOSED", label = "It's Pending...", color = "FF69B4", icon = "INV_ValentinesCandy", emoji = "💕" },
+    DATING = { id = "DATING", label = "In a Relationship", color = "FF1493", icon = "INV_ValentinesCard02", emoji = "💖" },
+}
+
+C.ROMANCE_MSG = {
+    REQUEST = "ROM_REQ", ACCEPT = "ROM_ACC", DECLINE = "ROM_DEC", BREAKUP = "ROM_BRK", SYNC = "ROM_SYN",
+}
+
+C.ROMANCE_TIMINGS = {
+    REJECTION_COOLDOWN = 86400,  -- 24 hours
+    REQUEST_EXPIRY = 604800,     -- 7 days
+}
+
+C.BREAKUP_REASON_TEXT = {
+    mutual = "It was mutual.",
+    grew_apart = "They grew apart.",
+    found_another = "Someone else caught their eye.",
+    its_not_you = "It's not you, it's me.",
+}
+```
+
+**New Data Structure (charDb.social.romance):**
+```lua
+romance = {
+    status = "SINGLE",           -- "SINGLE", "PROPOSED", "DATING"
+    partner = nil,               -- Partner name when DATING
+    since = nil,                 -- Unix timestamp when relationship started
+    pendingOutgoing = nil,       -- { target, sentAt } if proposal pending
+    pendingIncoming = {},        -- [{ from, sentAt }] incoming proposals
+    cooldowns = {},              -- [playerName] = rejectionTimestamp
+    history = {},                -- [{ partner, startDate, endDate, reason }]
+}
+```
+
+**Network Protocol (via FellowTravelers WHISPER):**
+| Type | Format | Purpose |
+|------|--------|---------|
+| ROM_REQ | `ROM_REQ:version:playerName` | Propose to player |
+| ROM_ACC | `ROM_ACC:version:playerName` | Accept proposal |
+| ROM_DEC | `ROM_DEC:version:playerName` | Decline proposal |
+| ROM_BRK | `ROM_BRK:version:playerName:reason` | Break up notification |
+| ROM_SYN | `ROM_SYN:version:status:partnerName` | Status sync on PONG |
+
+**Slash Commands:**
+| Command | Description |
+|---------|-------------|
+| `/hope propose <player>` | Propose to a Fellow Traveler |
+| `/hope breakup` | End your current relationship (with confirmation) |
+| `/hope relationship` | Show your relationship status |
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `Core/Constants.lua` | Added ROMANCE_STATUS, ROMANCE_MSG, ROMANCE_TIMINGS, BREAKUP_REASON_TEXT (~50 lines) |
+| `Core/Core.lua` | Added romance defaults to SOCIAL_DATA_DEFAULTS, GetSocialRomance(), slash commands (~80 lines) |
+| `Core/Sounds.lua` | Added romance sound category (propose, accept, decline, breakup, notification) |
+| `Social/Romance.lua` | New module - full proposal/accept/decline/breakup flow (~450 lines) |
+| `Social/ActivityFeed.lua` | Added ROMANCE activity type and OnRomanceEvent() function (~40 lines) |
+| `Journal/Journal.lua` | Added CreateRomanceStatusSection(), heart button on companion cards (~200 lines) |
+| `HopeAddon.toc` | Added Romance.lua to load order |
+
+### Phase 44: Social Tab TBC Visual Enhancement (2026-01-21)
+
+**Goal:** Add TBC/Black Temple themed visual enhancements to the Social tab with fel/demon themed icons, glowing borders, and corner decorations.
+
+**Scope:** Medium polish - new icons + colored glowing borders + corner decorations (no animations beyond glow pulse)
+
+**New Features:**
+
+1. **Activity Feed "Outland Chronicles" Theme**
+   - New `Spell_Fire_FelFire` (green fel fire) header icon
+   - Dual-border glow effect: inner arcane purple + outer fel green
+   - Corner rune decorations at all 4 corners (fel green)
+   - Renamed header to "OUTLAND CHRONICLES" with fel green text
+   - Post button and divider updated to fel green accent
+
+2. **Section Icon Updates**
+   - Activity Feed: `Spell_Fire_FelFire` (fel green fire)
+   - Companions: `Spell_Nature_EyeOfTheStorm` (arcane eye) + sky blue border
+   - Looking for RP: `Spell_Holy_SurgeOfLight` (radiant Sunwell light)
+   - Fellow Travelers: `INV_Misc_Eye_01` (demon eye)
+
+3. **New Helper Functions**
+   - `Components:CreateCornerRunes(parent, color, size)` - Creates 4 corner decoration textures
+   - `Components:CreateSectionHeaderWithIcon(parent, title, color, icon, subtext)` - Section header with icon
+   - `Effects:CreateDualBorderGlow(parent, innerColor, outerColor, intensity)` - Layered inner/outer glow
+
+**New Constants (Constants.lua:4826-4861):**
+```lua
+C.SOCIAL_SECTION_THEMES = {
+    activity_feed = { icon, borderColor, glowColor, title, titleColor },
+    companions = { ... },
+    lf_rp = { ... },
+    fellow_travelers = { ... },
+}
+C.CORNER_RUNE_TEXTURE = "Interface\\Buttons\\UI-ActionButton-Border"
+```
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `Core/Constants.lua` | Added `SOCIAL_SECTION_THEMES` and `CORNER_RUNE_TEXTURE` (~35 lines) |
+| `Core/Effects.lua` | Added `CreateDualBorderGlow()`, updated `StopGlowsOnParent()` (~75 lines) |
+| `UI/Components.lua` | Added `CreateCornerRunes()`, `CreateSectionHeaderWithIcon()` (~90 lines) |
+| `Journal/Journal.lua` | Updated `CreateActivityFeedSection()`, `CreateCompanionsSection()`, `CreateLookingForRPBoard()`, `PopulateSocial()` (~60 lines modified) |
+
 ### Phase 42: Social Tab Scalability (Search, Filter, Sort, Pagination) (2026-01-20)
 
 **Goal:** Add UI controls to handle 50+ Fellow Travelers with search, filter by RP status, sort options, and pagination.
@@ -2086,7 +2813,7 @@ Journal.socialState = {
 - Colors communicate their RP availability at a glance
 - Fun, visible indicator that "this person has the addon"
 
-### Phase 43: Activity Feed (Tavern Notice Board) - Phase 1 (2026-01-20)
+### Phase 43: Activity Feed (Tavern Notice Board) (2026-01-20)
 
 **Goal:** Implement the Activity Feed system ("Tavern Notice Board") to show recent activities from Fellow Travelers, creating a mini-Facebook style social experience for RP players.
 
@@ -2095,6 +2822,8 @@ Journal.socialState = {
 1. **Activity Feed Module** (`Social/ActivityFeed.lua`)
    - Shows recent activities from nearby Fellow Travelers
    - Auto-populates from existing events (boss kills, level ups, badges, games, RP status)
+   - Manual "Rumors" posting with 5-min cooldown
+   - "Raise a Mug" reactions on activities
    - 48-hour retention with automatic cleanup
    - Deduplication via activity ID tracking
    - Network protocol: `ACT:version:type:player:class:data:time` (~20-50 bytes)
@@ -2107,11 +2836,14 @@ Journal.socialState = {
    | LEVEL | Level up | `ACT:1:LVL:Thrall:WARRIOR:70:1705334400` |
    | GAME | Game win/loss | `ACT:1:GAME:Thrall:WARRIOR:Tetris|W:1705334400` |
    | BADGE | Badge earned | `ACT:1:BADGE:Thrall:WARRIOR:prince_slayer:1705334400` |
+   | RUMOR | Manual post | `ACT:1:RUM:Thrall:WARRIOR:Looking for RP!:1705334400` |
+   | MUG | Like reaction | `ACT:1:MUG:Thrall:WARRIOR:activity_id:1705334400` |
 
 3. **Social Tab UI Enhancement:**
-   - New "RECENT ACTIVITY" section with arcane purple border
+   - New "OUTLAND CHRONICLES" section with fel green/arcane purple dual-glow border
    - Activity cards showing player, action, and relative time
-   - Scroll icon header with activity count badge
+   - `+ Post` button to create rumors (100 char max, 5-min cooldown)
+   - Mug icon to react to activities
    - Empty state with helpful guidance text
 
 4. **Event Hooks:**
@@ -2133,28 +2865,34 @@ social = {
         showBadge = true,
         showStatus = true,
     },
-    myRumors = {},       -- Phase 2: [timestamp] = { text, expires }
-    mugsGiven = {},      -- Phase 2: [activityId] = true
+    myRumors = {},       -- [timestamp] = { text, expires } (24hr expiry)
+    mugsGiven = {},      -- [activityId] = true
 }
 ```
 
 **New Files:**
 | File | Lines | Purpose |
 |------|-------|---------|
-| `Social/ActivityFeed.lua` | ~550 | Activity feed module with network protocol |
+| `Social/ActivityFeed.lua` | ~850 | Activity feed module with network protocol |
 
 **Files Modified:**
 | File | Changes |
 |------|---------|
 | `Social/FellowTravelers.lua` | Added `BroadcastMessage()` helper function |
-| `Journal/Journal.lua` | Added `CreateActivityFeedSection()`, `CreateActivityRow()`, updated `PopulateSocial()` |
+| `Journal/Journal.lua` | Added `CreateActivityFeedSection()`, `CreateActivityRow()`, `ShowRumorInput()`, updated `PopulateSocial()` |
 | `Core/Core.lua` | Added `charDb.social` defaults and migration |
 | `HopeAddon.toc` | Added ActivityFeed.lua to load order |
 
-**Future Phases (per SOCIAL_FEATURES_PLAN.md):**
-- Phase 2: Rumors (manual posts) + Mug reactions
-- Phase 3: Companions system (favorites list)
-- Phase 4: Toast notifications
+**Rumor System:**
+- `PostRumor(text)` - Post manual status (5-min cooldown, 100 char max, 24hr expiry)
+- `CanPostRumor()` - Returns (canPost, remainingCooldown)
+- UI: `+ Post` button in feed header, inline input dialog
+- Display: `"PlayerName: \"rumor text\""` in feed
+
+**Mug Reactions:**
+- `GiveMug(activityId)` - React to an activity (one per activity)
+- `HasMugged(activityId)` - Check if already reacted
+- UI: Mug icon button on each activity row
 
 ### Phase 38: Words with WoW AI Opponent & Multiplayer Enhancements (2026-01-19)
 

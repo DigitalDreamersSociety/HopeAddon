@@ -118,7 +118,7 @@ function Pages:CreateMilestonePage(parent, data)
 
     -- Chapter header
     local chapterText = page:CreateFontString(nil, "OVERLAY")
-    chapterText:SetFont(HopeAddon.assets.fonts.TITLE, 20)
+    chapterText:SetFont(HopeAddon.assets.fonts.TITLE, 20, "")
     chapterText:SetPoint("TOP", page, "TOP", 0, -20)
     chapterText:SetText(HopeAddon:ColorText("CHAPTER " .. (data.chapter or "?") .. ": " .. (data.title or "Unknown"), "GOLD_BRIGHT"))
     chapterText:SetShadowOffset(2, -2)
@@ -150,21 +150,21 @@ function Pages:CreateMilestonePage(parent, data)
 
     -- Level achieved
     local levelText = page:CreateFontString(nil, "OVERLAY")
-    levelText:SetFont(HopeAddon.assets.fonts.HEADER, 16)
+    levelText:SetFont(HopeAddon.assets.fonts.HEADER, 16, "")
     levelText:SetPoint("TOP", page.icon or divider, "BOTTOM", 0, -20)
     levelText:SetText("Level " .. (data.level or "?") .. " Achieved")
     levelText:SetTextColor(1, 1, 1, 1)
 
     -- Date and zone
     local dateText = page:CreateFontString(nil, "OVERLAY")
-    dateText:SetFont(HopeAddon.assets.fonts.BODY, 12)
+    dateText:SetFont(HopeAddon.assets.fonts.BODY, 12, "")
     dateText:SetPoint("TOP", levelText, "BOTTOM", 0, -5)
     dateText:SetText((data.date or "Unknown Date") .. " - " .. (data.zone or "Unknown Zone"))
     dateText:SetTextColor(HopeAddon:GetTextColor("TERTIARY"))
 
     -- Story/flavor text
     local storyText = page:CreateFontString(nil, "OVERLAY")
-    storyText:SetFont(HopeAddon.assets.fonts.BODY, 13)
+    storyText:SetFont(HopeAddon.assets.fonts.BODY, 13, "")
     storyText:SetPoint("TOP", dateText, "BOTTOM", 0, -25)
     storyText:SetWidth(page:GetWidth() - 60)
     storyText:SetText('"' .. (data.story or "Your journey continues...") .. '"')
@@ -173,12 +173,12 @@ function Pages:CreateMilestonePage(parent, data)
 
     -- Stats section
     local statsHeader = page:CreateFontString(nil, "OVERLAY")
-    statsHeader:SetFont(HopeAddon.assets.fonts.HEADER, 12)
+    statsHeader:SetFont(HopeAddon.assets.fonts.HEADER, 12, "")
     statsHeader:SetPoint("TOPLEFT", page, "TOPLEFT", 30, -280)
     statsHeader:SetText(HopeAddon:ColorText("STATS AT THIS MOMENT:", "BRONZE"))
 
     local statsText = page:CreateFontString(nil, "OVERLAY")
-    statsText:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    statsText:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     statsText:SetPoint("TOPLEFT", statsHeader, "BOTTOMLEFT", 0, -8)
     statsText:SetJustifyH("LEFT")
 
@@ -193,7 +193,7 @@ function Pages:CreateMilestonePage(parent, data)
 
     -- User note section
     local noteHeader = page:CreateFontString(nil, "OVERLAY")
-    noteHeader:SetFont(HopeAddon.assets.fonts.HEADER, 12)
+    noteHeader:SetFont(HopeAddon.assets.fonts.HEADER, 12, "")
     noteHeader:SetPoint("TOPLEFT", page, "TOPLEFT", 30, -360)
     noteHeader:SetText(HopeAddon:ColorText("My Thoughts:", "BRONZE"))
 
@@ -203,7 +203,7 @@ function Pages:CreateMilestonePage(parent, data)
     Components:ApplyBackdropRaw(noteBox, "TOOLTIP_SMALL", 0, 0, 0, 0.3, 0.4, 0.4, 0.4, 0.5)
 
     local noteText = noteBox:CreateFontString(nil, "OVERLAY")
-    noteText:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    noteText:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     noteText:SetPoint("TOPLEFT", noteBox, "TOPLEFT", 8, -8)
     noteText:SetPoint("BOTTOMRIGHT", noteBox, "BOTTOMRIGHT", -8, 8)
     noteText:SetJustifyH("LEFT")
@@ -240,7 +240,7 @@ function Pages:CreateZonePage(parent, data)
 
     -- Header
     local header = page:CreateFontString(nil, "OVERLAY")
-    header:SetFont(HopeAddon.assets.fonts.TITLE, 18)
+    header:SetFont(HopeAddon.assets.fonts.TITLE, 18, "")
     header:SetPoint("TOP", page, "TOP", 0, -20)
     header:SetText(HopeAddon:ColorText("NEW LAND DISCOVERED", theme and theme.primary or "SKY_BLUE"))
 
@@ -255,14 +255,14 @@ function Pages:CreateZonePage(parent, data)
 
     -- Zone title
     local titleText = page:CreateFontString(nil, "OVERLAY")
-    titleText:SetFont(HopeAddon.assets.fonts.HEADER, 16)
+    titleText:SetFont(HopeAddon.assets.fonts.HEADER, 16, "")
     titleText:SetPoint("TOP", page.icon or header, "BOTTOM", 0, -15)
     titleText:SetText(data.title or data.zoneName or "Unknown Zone")
     titleText:SetTextColor(1, 1, 1, 1)
 
     -- Flavor text
     local flavorText = page:CreateFontString(nil, "OVERLAY")
-    flavorText:SetFont(HopeAddon.assets.fonts.BODY, 12)
+    flavorText:SetFont(HopeAddon.assets.fonts.BODY, 12, "")
     flavorText:SetPoint("TOP", titleText, "BOTTOM", 0, -10)
     flavorText:SetWidth(page:GetWidth() - 60)
     flavorText:SetText('"' .. (data.flavor or "") .. '"')
@@ -271,7 +271,7 @@ function Pages:CreateZonePage(parent, data)
 
     -- Discovery info
     local infoText = page:CreateFontString(nil, "OVERLAY")
-    infoText:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    infoText:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     infoText:SetPoint("TOP", flavorText, "BOTTOM", 0, -20)
     infoText:SetText(string.format(
         "First Visited: %s\nLevel When Discovered: %d",
@@ -297,20 +297,20 @@ function Pages:CreateBossPage(parent, data)
 
     -- Victory header
     local header = page:CreateFontString(nil, "OVERLAY")
-    header:SetFont(HopeAddon.assets.fonts.TITLE, 22)
+    header:SetFont(HopeAddon.assets.fonts.TITLE, 22, "")
     header:SetPoint("TOP", page, "TOP", 0, -20)
     header:SetText(HopeAddon:ColorText("VICTORY", "HELLFIRE_RED"))
 
     -- Boss name
     local bossName = page:CreateFontString(nil, "OVERLAY")
-    bossName:SetFont(HopeAddon.assets.fonts.HEADER, 18)
+    bossName:SetFont(HopeAddon.assets.fonts.HEADER, 18, "")
     bossName:SetPoint("TOP", header, "BOTTOM", 0, -15)
     bossName:SetText(data.bossName or "Unknown Boss")
     bossName:SetTextColor(1, 1, 1, 1)
 
     -- Dungeon/Raid name
     local dungeonName = page:CreateFontString(nil, "OVERLAY")
-    dungeonName:SetFont(HopeAddon.assets.fonts.BODY, 12)
+    dungeonName:SetFont(HopeAddon.assets.fonts.BODY, 12, "")
     dungeonName:SetPoint("TOP", bossName, "BOTTOM", 0, -5)
     dungeonName:SetText(data.dungeonName or "Unknown Location")
     dungeonName:SetTextColor(HopeAddon:GetTextColor("TERTIARY"))
@@ -318,7 +318,7 @@ function Pages:CreateBossPage(parent, data)
     -- Boss lore
     if data.lore then
         local loreText = page:CreateFontString(nil, "OVERLAY")
-        loreText:SetFont(HopeAddon.assets.fonts.BODY, 11)
+        loreText:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
         loreText:SetPoint("TOP", dungeonName, "BOTTOM", 0, -15)
         loreText:SetWidth(page:GetWidth() - 60)
         loreText:SetText('"' .. data.lore .. '"')
@@ -328,12 +328,12 @@ function Pages:CreateBossPage(parent, data)
 
     -- Battle record
     local recordHeader = page:CreateFontString(nil, "OVERLAY")
-    recordHeader:SetFont(HopeAddon.assets.fonts.HEADER, 12)
+    recordHeader:SetFont(HopeAddon.assets.fonts.HEADER, 12, "")
     recordHeader:SetPoint("TOPLEFT", page, "TOPLEFT", 30, -200)
     recordHeader:SetText(HopeAddon:ColorText("BATTLE RECORD:", "BRONZE"))
 
     local recordText = page:CreateFontString(nil, "OVERLAY")
-    recordText:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    recordText:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     recordText:SetPoint("TOPLEFT", recordHeader, "BOTTOMLEFT", 0, -8)
     recordText:SetText(string.format(
         "First Kill: %s\nTotal Kills: %d\nDeaths During Fight: %d",
@@ -386,7 +386,7 @@ function Pages:CreateAttunementPage(parent, data)
 
     -- Header
     local header = page:CreateFontString(nil, "OVERLAY")
-    header:SetFont(HopeAddon.assets.fonts.TITLE, 18)
+    header:SetFont(HopeAddon.assets.fonts.TITLE, 18, "")
     header:SetPoint("TOP", iconAnchor, iconAnchorPoint, 0, raidIconPath and -10 or -20)
     header:SetText(HopeAddon:ColorText("THE PATH TO " .. (data.raidName or "UNKNOWN"), "ARCANE_PURPLE"))
 
@@ -409,7 +409,7 @@ function Pages:CreateAttunementPage(parent, data)
 
     -- Chapter list header
     local chaptersHeader = page:CreateFontString(nil, "OVERLAY")
-    chaptersHeader:SetFont(HopeAddon.assets.fonts.HEADER, 14)
+    chaptersHeader:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
     chaptersHeader:SetPoint("TOP", progressBar, "BOTTOM", 0, -20)
     chaptersHeader:SetText(HopeAddon:ColorText("CHAPTERS", "BRONZE"))
 
@@ -450,20 +450,20 @@ function Pages:CreateAttunementPage(parent, data)
 
         -- Chapter number
         local numText = chapterFrame:CreateFontString(nil, "OVERLAY")
-        numText:SetFont(HopeAddon.assets.fonts.HEADER, 12)
+        numText:SetFont(HopeAddon.assets.fonts.HEADER, 12, "")
         numText:SetPoint("LEFT", chapterFrame, "LEFT", iconOffset, 0)
         numText:SetText(HopeAddon:ColorText(tostring(i), chapter.complete and "FEL_GREEN" or "GREY"))
 
         -- Chapter name
         local nameText = chapterFrame:CreateFontString(nil, "OVERLAY")
-        nameText:SetFont(HopeAddon.assets.fonts.HEADER, 12)
+        nameText:SetFont(HopeAddon.assets.fonts.HEADER, 12, "")
         nameText:SetPoint("LEFT", numText, "RIGHT", 10, 8)
         nameText:SetText(chapter.name)
         nameText:SetTextColor(chapter.complete and 1 or 0.6, chapter.complete and 1 or 0.6, chapter.complete and 1 or 0.6)
 
         -- Story text
         local storyText = chapterFrame:CreateFontString(nil, "OVERLAY")
-        storyText:SetFont(HopeAddon.assets.fonts.BODY, 10)
+        storyText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
         storyText:SetPoint("TOPLEFT", nameText, "BOTTOMLEFT", 0, -3)
         storyText:SetWidth(chapterFrame:GetWidth() - 100)
         storyText:SetText(chapter.story)
@@ -505,7 +505,7 @@ function Pages:CreateAttunementMilestonePage(parent, data)
 
     -- Header
     local header = page:CreateFontString(nil, "OVERLAY")
-    header:SetFont(HopeAddon.assets.fonts.TITLE, 20)
+    header:SetFont(HopeAddon.assets.fonts.TITLE, 20, "")
     header:SetPoint("TOP", page, "TOP", 0, -20)
     header:SetText(HopeAddon:ColorText("ATTUNEMENT COMPLETE", "GOLD_BRIGHT"))
     header:SetShadowOffset(2, -2)
@@ -554,7 +554,7 @@ function Pages:CreateAttunementMilestonePage(parent, data)
 
     -- Title
     local titleText = page:CreateFontString(nil, "OVERLAY")
-    titleText:SetFont(HopeAddon.assets.fonts.HEADER, 18)
+    titleText:SetFont(HopeAddon.assets.fonts.HEADER, 18, "")
     titleText:SetPoint("TOP", page.icon or divider, "BOTTOM", 0, -20)
     titleText:SetText(data.title or "Unknown Attunement")
     titleText:SetTextColor(1, 1, 1, 1)
@@ -564,14 +564,14 @@ function Pages:CreateAttunementMilestonePage(parent, data)
     -- Raid name subtitle
     if data.raidName then
         local raidText = page:CreateFontString(nil, "OVERLAY")
-        raidText:SetFont(HopeAddon.assets.fonts.BODY, 14)
+        raidText:SetFont(HopeAddon.assets.fonts.BODY, 14, "")
         raidText:SetPoint("TOP", titleText, "BOTTOM", 0, -5)
         raidText:SetText(HopeAddon:ColorText(data.raidName, "ARCANE_PURPLE"))
     end
 
     -- Story
     local storyText = page:CreateFontString(nil, "OVERLAY")
-    storyText:SetFont(HopeAddon.assets.fonts.BODY, 13)
+    storyText:SetFont(HopeAddon.assets.fonts.BODY, 13, "")
     storyText:SetPoint("TOP", titleText, "BOTTOM", 0, data.raidName and -30 or -20)
     storyText:SetWidth(page:GetWidth() - 60)
     storyText:SetText('"' .. (data.story or "") .. '"')
@@ -588,7 +588,7 @@ function Pages:CreateAttunementMilestonePage(parent, data)
 
     -- Date
     local dateText = page:CreateFontString(nil, "OVERLAY")
-    dateText:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    dateText:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     dateText:SetPoint("TOP", bottomDivider, "BOTTOM", 0, -10)
     dateText:SetText("Completed: " .. (data.date or "Unknown"))
     dateText:SetTextColor(HopeAddon:GetTextColor("TERTIARY"))
@@ -611,7 +611,7 @@ function Pages:CreateFinalBossMilestonePage(parent, data)
 
     -- Header
     local header = page:CreateFontString(nil, "OVERLAY")
-    header:SetFont(HopeAddon.assets.fonts.TITLE, 22)
+    header:SetFont(HopeAddon.assets.fonts.TITLE, 22, "")
     header:SetPoint("TOP", page, "TOP", 0, -20)
     header:SetText(HopeAddon:ColorText("RAID CONQUERED", "GOLD_BRIGHT"))
 
@@ -630,7 +630,7 @@ function Pages:CreateFinalBossMilestonePage(parent, data)
 
     -- Title
     local titleText = page:CreateFontString(nil, "OVERLAY")
-    titleText:SetFont(HopeAddon.assets.fonts.HEADER, 18)
+    titleText:SetFont(HopeAddon.assets.fonts.HEADER, 18, "")
     titleText:SetPoint("TOP", page.icon or header, "BOTTOM", 0, -20)
     titleText:SetText(data.title or "Unknown Victory")
     titleText:SetTextColor(1, 1, 1, 1)
@@ -638,7 +638,7 @@ function Pages:CreateFinalBossMilestonePage(parent, data)
     -- Boss name
     if data.bossName then
         local bossText = page:CreateFontString(nil, "OVERLAY")
-        bossText:SetFont(HopeAddon.assets.fonts.BODY, 14)
+        bossText:SetFont(HopeAddon.assets.fonts.BODY, 14, "")
         bossText:SetPoint("TOP", titleText, "BOTTOM", 0, -5)
         bossText:SetText(data.bossName .. " Defeated")
         bossText:SetTextColor(0.8, 0.2, 0.2, 1)
@@ -646,7 +646,7 @@ function Pages:CreateFinalBossMilestonePage(parent, data)
 
     -- Story
     local storyText = page:CreateFontString(nil, "OVERLAY")
-    storyText:SetFont(HopeAddon.assets.fonts.BODY, 12)
+    storyText:SetFont(HopeAddon.assets.fonts.BODY, 12, "")
     storyText:SetPoint("TOP", titleText, "BOTTOM", 0, -30)
     storyText:SetWidth(page:GetWidth() - 60)
     storyText:SetText('"' .. (data.story or "") .. '"')
@@ -655,7 +655,7 @@ function Pages:CreateFinalBossMilestonePage(parent, data)
 
     -- Date
     local dateText = page:CreateFontString(nil, "OVERLAY")
-    dateText:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    dateText:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     dateText:SetPoint("BOTTOM", page, "BOTTOM", 0, 30)
     dateText:SetText("Victory: " .. (data.date or "Unknown"))
     dateText:SetTextColor(HopeAddon:GetTextColor("TERTIARY"))
@@ -689,7 +689,7 @@ function Pages:CreateTierMilestonePage(parent, data)
 
     -- Header
     local header = page:CreateFontString(nil, "OVERLAY")
-    header:SetFont(HopeAddon.assets.fonts.TITLE, 18)
+    header:SetFont(HopeAddon.assets.fonts.TITLE, 18, "")
     header:SetPoint("TOP", page, "TOP", 0, -20)
     header:SetText(HopeAddon:ColorText(data.tier .. " RAIDING BEGINS", tierColor))
 
@@ -704,14 +704,14 @@ function Pages:CreateTierMilestonePage(parent, data)
 
     -- Title
     local titleText = page:CreateFontString(nil, "OVERLAY")
-    titleText:SetFont(HopeAddon.assets.fonts.HEADER, 16)
+    titleText:SetFont(HopeAddon.assets.fonts.HEADER, 16, "")
     titleText:SetPoint("TOP", page.icon or header, "BOTTOM", 0, -15)
     titleText:SetText(data.title or "New Tier")
     titleText:SetTextColor(1, 1, 1, 1)
 
     -- Story
     local storyText = page:CreateFontString(nil, "OVERLAY")
-    storyText:SetFont(HopeAddon.assets.fonts.BODY, 12)
+    storyText:SetFont(HopeAddon.assets.fonts.BODY, 12, "")
     storyText:SetPoint("TOP", titleText, "BOTTOM", 0, -10)
     storyText:SetWidth(page:GetWidth() - 60)
     storyText:SetText('"' .. (data.story or "") .. '"')
@@ -720,7 +720,7 @@ function Pages:CreateTierMilestonePage(parent, data)
 
     -- Date
     local dateText = page:CreateFontString(nil, "OVERLAY")
-    dateText:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    dateText:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     dateText:SetPoint("BOTTOM", page, "BOTTOM", 0, 25)
     dateText:SetText(data.date or "Unknown")
     dateText:SetTextColor(HopeAddon:GetTextColor("SUBTLE"))

@@ -256,8 +256,8 @@ function TravelerIcons:OnGroupFormed(partyMembers)
                 }
             end
 
-            -- Award first_friends on first group
-            if traveler.stats.groupCount == 1 then
+            -- Award first_friends on first group with a Fellow Traveler (addon user)
+            if traveler.stats.groupCount == 1 and HopeAddon.FellowTravelers and HopeAddon.FellowTravelers:IsFellow(name) then
                 self:AwardIcon(name, "first_friends", context)
             end
 

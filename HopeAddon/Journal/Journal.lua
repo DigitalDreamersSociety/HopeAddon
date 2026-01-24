@@ -33,6 +33,35 @@ Journal.cachedRidingSkill = nil
 -- Cached stats data (invalidated on relevant events)
 Journal.cachedStatsData = nil
 
+-- Social tab cached containers (destroyed on tab switch to prevent memory leaks)
+-- These are complex containers that aren't suitable for pooling
+Journal.socialContainers = {
+    profileSection = nil,
+    activitySection = nil,
+    companionsSection = nil,
+    lfRPBoard = nil,
+    toolbar = nil,
+    paginationControls = nil,
+    -- New tabbed interface elements
+    statusBar = nil,
+    tabBar = nil,
+    content = nil,
+    filterBar = nil,  -- Travelers quick filter bar (preserved across filter changes)
+}
+
+-- Social sub-tab references
+Journal.socialSubTabs = {
+    feed = nil,
+    travelers = nil,
+    companions = nil,
+}
+
+-- Quick filter button references (for Travelers tab)
+Journal.quickFilterButtons = {}
+
+-- Track regions (FontStrings, Textures) created in social content for cleanup
+Journal.socialContentRegions = {}
+
 -- Notification size constants
 local NOTIF_WIDTH_LARGE = 350
 local NOTIF_WIDTH_SMALL = 300
@@ -116,10 +145,23 @@ function Journal:OnEnable()
     self:CreateGameCardPool()
     self:CreateMainFrame()
     self:RegisterEvents()
+
+    -- Register as ActivityFeed listener for real-time updates
+    if HopeAddon.ActivityFeed then
+        HopeAddon.ActivityFeed:RegisterListener("Journal", function(count)
+            Journal:OnNewActivity(count)
+        end)
+    end
+
     HopeAddon:Debug("Journal module enabled")
 end
 
 function Journal:OnDisable()
+    -- Unregister from ActivityFeed listener
+    if HopeAddon.ActivityFeed then
+        HopeAddon.ActivityFeed:UnregisterListener("Journal")
+    end
+
     -- Stop all active effects to prevent memory leaks
     if HopeAddon.Effects then
         -- Stop all glows tracked by Effects module
@@ -184,6 +226,54 @@ function Journal:OnDisable()
     if self.gameCardPool then
         self.gameCardPool:Destroy()
         self.gameCardPool = nil
+    end
+
+    -- Cleanup new activities banner
+    if self.newActivitiesBanner then
+        self.newActivitiesBanner:Hide()
+        self.newActivitiesBanner:SetParent(nil)
+        self.newActivitiesBanner = nil
+    end
+    self.pendingActivityCount = 0
+
+    -- Destroy social tab containers
+    self:CleanupSocialContainers(true)
+end
+
+--[[
+    Cleanup Social tab containers
+    Called on tab switch to destroy containers, and in OnDisable for full cleanup
+    @param destroy boolean - If true, destroy frames and clear references
+]]
+function Journal:CleanupSocialContainers(destroy)
+    if not self.socialContainers then return end
+
+    -- Close any open dropdown menus first
+    CloseDropDownMenus()
+
+    for key, container in pairs(self.socialContainers) do
+        if container then
+            -- Stop any glow effects on the container
+            if container._glowEffect and HopeAddon.Effects then
+                HopeAddon.Effects:StopGlow(container._glowEffect)
+            end
+
+            container:Hide()
+
+            if destroy then
+                container:SetParent(nil)
+                self.socialContainers[key] = nil
+            end
+        end
+    end
+
+    -- Also cleanup rumorInputFrame
+    if self.rumorInputFrame then
+        self.rumorInputFrame:Hide()
+        if destroy then
+            self.rumorInputFrame:SetParent(nil)
+            self.rumorInputFrame = nil
+        end
     end
 end
 
@@ -288,9 +378,9 @@ function Journal:CreateCardPool()
         card.timestamp = card:CreateFontString(nil, "OVERLAY")
 
         -- Setup fonts (unchanging)
-        card.title:SetFont(HopeAddon.assets.fonts.HEADER, 14)
-        card.desc:SetFont(HopeAddon.assets.fonts.BODY, 11)
-        card.timestamp:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+        card.title:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
+        card.desc:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
+        card.timestamp:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
 
         card:Hide()
         return card
@@ -445,7 +535,7 @@ function Journal:CreateBossInfoPool()
 
         -- Pre-create text element
         card.infoText = card:CreateFontString(nil, "OVERLAY")
-        card.infoText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+        card.infoText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
 
         card:Hide()
         return card
@@ -498,7 +588,6 @@ function Journal:CreateGameCardPool()
         card.icon:SetTexture(nil)
         card.title:SetText("")
         card.desc:SetText("")
-        card.stats:SetText("")
 
         -- Reset button states
         card.practiceBtn:Enable()
@@ -790,12 +879,23 @@ function Journal:CreateMainFrame()
     -- Make it close with Escape
     tinsert(UISpecialFrames, "HopeJournalFrame")
 
+    -- Cleanup when hidden (close dropdowns, clear search focus)
+    frame:SetScript("OnHide", function()
+        CloseDropDownMenus()
+        if Journal.socialToolbar and Journal.socialToolbar.searchBox then
+            Journal.socialToolbar.searchBox:ClearFocus()
+        end
+        if Journal.rumorInputFrame then
+            Journal.rumorInputFrame:Hide()
+        end
+    end)
+
     -- Title
-    local titleBar = Components:CreateTitleBar(frame, "CHRONICLE OF OUTLAND", "ARCANE_PURPLE")
+    local titleBar = Components:CreateTitleBar(frame, "HOPE IS HERE", "ARCANE_PURPLE")
 
     -- Character info display
     local charInfo = frame:CreateFontString(nil, "OVERLAY")
-    charInfo:SetFont(HopeAddon.assets.fonts.HEADER, 12)
+    charInfo:SetFont(HopeAddon.assets.fonts.HEADER, 12, "")
     charInfo:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -50, -20)
     local _, class = UnitClass("player")
     local classColor = HopeAddon:GetClassColor(class)
@@ -818,9 +918,9 @@ function Journal:CreateMainFrame()
     local tabs = {}
     local tabData = {
         { id = "journey", label = "Journey", tooltip = "Your TBC progression and timeline" },
+        { id = "attunements", label = "Attunements", tooltip = "Raid attunement quest chains" },
         { id = "reputation", label = "Reputation", tooltip = "Faction standings by category" },
         { id = "raids", label = "Raids", tooltip = "Boss kill tracking by tier (T4/T5/T6)" },
-        { id = "attunements", label = "Attunements", tooltip = "Raid attunement quest chains" },
         { id = "games", label = "Games", tooltip = "Minigames and challenges", color = "ARCANE_PURPLE" },
         { id = "social", label = "Social", tooltip = "Fellow travelers directory", color = "FEL_GREEN" },
         { id = "stats", label = "Stats", tooltip = "Journey statistics summary" },
@@ -854,7 +954,7 @@ function Journal:CreateMainFrame()
 
     -- Footer with stats summary
     local footer = frame:CreateFontString(nil, "OVERLAY")
-    footer:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+    footer:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
     footer:SetPoint("BOTTOM", frame, "BOTTOM", 0, 25)
     footer:SetTextColor(HopeAddon:GetTextColor("SUBTLE"))
     frame.footer = footer
@@ -875,6 +975,26 @@ function Journal:SelectTab(tabId)
     -- Prevent rapid tab switching during animation
     if self.isTabAnimating then return end
     if tabId == self.currentTab then return end
+
+    -- CRITICAL: Close any open dropdown menus to prevent input capture lockup
+    -- WoW's UIDropDownMenu creates an invisible frame that captures ALL mouse input
+    CloseDropDownMenus()
+
+    -- Clear any focused edit boxes (search box, rumor input, etc.)
+    if self.socialToolbar and self.socialToolbar.searchBox then
+        self.socialToolbar.searchBox:ClearFocus()
+    end
+
+    -- Hide/cleanup Social tab dropdowns when leaving
+    if self.currentTab == "social" and self.socialDropdowns then
+        for _, dropdown in pairs(self.socialDropdowns) do
+            if dropdown and dropdown.Hide then
+                dropdown:Hide()
+            end
+        end
+        -- Clear the tracking table
+        wipe(self.socialDropdowns)
+    end
 
     self.isTabAnimating = true
     self.currentTab = tabId
@@ -907,7 +1027,10 @@ function Journal:SelectTab(tabId)
         self.collapsiblePool:ReleaseAll()
     end
 
-    -- 3. Clear and repopulate content (pass containerPool for pooled frame release)
+    -- 3. Destroy Social tab containers (these are not pooled due to complexity)
+    self:CleanupSocialContainers(true)
+
+    -- 4. Clear and repopulate content (pass containerPool for pooled frame release)
     self.mainFrame.scrollContainer:ClearEntries(self.containerPool)
 
     -- Migration: old "directory" tab now split into "games" and "social"
@@ -1400,7 +1523,7 @@ function Journal:CreateJourneySummaryHeader()
         title = container:CreateFontString(nil, "OVERLAY")
         container.summaryTitle = title
     end
-    title:SetFont(HopeAddon.assets.fonts.TITLE, 24)
+    title:SetFont(HopeAddon.assets.fonts.TITLE, 24, "")
     title:ClearAllPoints()
     title:SetPoint("TOP", container, "TOP", 0, -10)
     title:SetText(HopeAddon:ColorText("YOU ARE PREPARED", "FEL_GREEN"))
@@ -1412,7 +1535,7 @@ function Journal:CreateJourneySummaryHeader()
         subtitle = container:CreateFontString(nil, "OVERLAY")
         container.summarySubtitle = subtitle
     end
-    subtitle:SetFont(HopeAddon.assets.fonts.BODY, 12)
+    subtitle:SetFont(HopeAddon.assets.fonts.BODY, 12, "")
     subtitle:ClearAllPoints()
     subtitle:SetPoint("TOP", title, "BOTTOM", 0, -5)
     local playerName = UnitName("player")
@@ -1438,7 +1561,7 @@ function Journal:CreateTierProgressSection()
         sectionTitle = container:CreateFontString(nil, "OVERLAY")
         container.tierSectionTitle = sectionTitle
     end
-    sectionTitle:SetFont(HopeAddon.assets.fonts.HEADER, 14)
+    sectionTitle:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
     sectionTitle:ClearAllPoints()
     sectionTitle:SetPoint("TOPLEFT", container, "TOPLEFT", 10, -5)
     sectionTitle:SetText(HopeAddon:ColorText("RAID PROGRESSION", "GOLD_BRIGHT"))
@@ -1467,22 +1590,22 @@ function Journal:CreateTierProgressSection()
 
                 -- Tier name
                 card.tierName = card:CreateFontString(nil, "OVERLAY")
-                card.tierName:SetFont(HopeAddon.assets.fonts.HEADER, 13)
+                card.tierName:SetFont(HopeAddon.assets.fonts.HEADER, 13, "")
                 card.tierName:SetPoint("TOP", card, "TOP", 0, -8)
 
                 -- Status text
                 card.statusText = card:CreateFontString(nil, "OVERLAY")
-                card.statusText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+                card.statusText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
                 card.statusText:SetPoint("TOP", card.tierName, "BOTTOM", 0, -2)
 
                 -- Progress text
                 card.progressText = card:CreateFontString(nil, "OVERLAY")
-                card.progressText:SetFont(HopeAddon.assets.fonts.BODY, 11)
+                card.progressText:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
                 card.progressText:SetPoint("TOP", card.statusText, "BOTTOM", 0, -8)
 
                 -- Raid list
                 card.raidList = card:CreateFontString(nil, "OVERLAY")
-                card.raidList:SetFont(HopeAddon.assets.fonts.SMALL, 9)
+                card.raidList:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
                 card.raidList:SetPoint("BOTTOM", card, "BOTTOM", 0, 8)
                 card.raidList:SetWidth(140)  -- cardWidth - 10
                 card.raidList:SetJustifyH("CENTER")
@@ -1557,7 +1680,7 @@ function Journal:CreateFocusPanel()
         sectionTitle = container:CreateFontString(nil, "OVERLAY")
         container.focusSectionTitle = sectionTitle
     end
-    sectionTitle:SetFont(HopeAddon.assets.fonts.HEADER, 12)
+    sectionTitle:SetFont(HopeAddon.assets.fonts.HEADER, 12, "")
     sectionTitle:ClearAllPoints()
     sectionTitle:SetPoint("TOPLEFT", container, "TOPLEFT", 10, -5)
     sectionTitle:SetText(HopeAddon:ColorText("CURRENT FOCUS", "GOLD_BRIGHT"))
@@ -1569,7 +1692,7 @@ function Journal:CreateFocusPanel()
         focusTitle = container:CreateFontString(nil, "OVERLAY")
         container.focusTitle = focusTitle
     end
-    focusTitle:SetFont(HopeAddon.assets.fonts.HEADER, 14)
+    focusTitle:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
     focusTitle:ClearAllPoints()
     focusTitle:SetPoint("TOPLEFT", container, "TOPLEFT", 20, -25)
     focusTitle:SetText(HopeAddon:ColorText(focus.title, "FEL_GREEN"))
@@ -1580,7 +1703,7 @@ function Journal:CreateFocusPanel()
         focusSubtitle = container:CreateFontString(nil, "OVERLAY")
         container.focusSubtitle = focusSubtitle
     end
-    focusSubtitle:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+    focusSubtitle:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
     focusSubtitle:ClearAllPoints()
     focusSubtitle:SetPoint("TOPLEFT", focusTitle, "BOTTOMLEFT", 0, -2)
     focusSubtitle:SetTextColor(HopeAddon:GetTextColor("SUBTLE"))
@@ -1595,7 +1718,7 @@ function Journal:CreateFocusPanel()
             itemText = container:CreateFontString(nil, "OVERLAY")
             container[itemKey] = itemText
         end
-        itemText:SetFont(HopeAddon.assets.fonts.BODY, 11)
+        itemText:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
         itemText:ClearAllPoints()
         itemText:SetPoint("TOPLEFT", container, "TOPLEFT", 30, yOffset)
 
@@ -1633,7 +1756,7 @@ function Journal:CreateAttunementSummary()
         sectionTitle = container:CreateFontString(nil, "OVERLAY")
         container.attuneSectionTitle = sectionTitle
     end
-    sectionTitle:SetFont(HopeAddon.assets.fonts.HEADER, 12)
+    sectionTitle:SetFont(HopeAddon.assets.fonts.HEADER, 12, "")
     sectionTitle:ClearAllPoints()
     sectionTitle:SetPoint("TOPLEFT", container, "TOPLEFT", 10, -5)
     sectionTitle:SetText(HopeAddon:ColorText("ATTUNEMENTS", "GOLD_BRIGHT"))
@@ -1647,7 +1770,7 @@ function Journal:CreateAttunementSummary()
             itemText = container:CreateFontString(nil, "OVERLAY")
             container[itemKey] = itemText
         end
-        itemText:SetFont(HopeAddon.assets.fonts.BODY, 10)
+        itemText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
         itemText:ClearAllPoints()
         itemText:SetPoint("TOPLEFT", container, "TOPLEFT", 20, yOffset)
 
@@ -1716,17 +1839,18 @@ function Journal:CreateLootHotlist()
         sectionTitle = container:CreateFontString(nil, "OVERLAY")
         container.lootSectionTitle = sectionTitle
     end
-    sectionTitle:SetFont(HopeAddon.assets.fonts.HEADER, 13)
+    sectionTitle:SetFont(HopeAddon.assets.fonts.HEADER, 13, "")
     sectionTitle:ClearAllPoints()
     sectionTitle:SetPoint("TOPLEFT", container, "TOPLEFT", 10, -8)
-    sectionTitle:SetText("|cFF" .. hexColor .. string.upper(className) .. " - " .. specName .. "|r |cFFAAAAAA(" .. specPoints .. " pts)|r")
+    local gearScoreText = HopeAddon:GetGearScoreText()
+    sectionTitle:SetText("|cFF" .. hexColor .. string.upper(className) .. " - " .. specName .. "|r |cFFAAAAAA(" .. gearScoreText .. ")|r")
     sectionTitle:Show()
 
     local yOffset = -38
 
     -- Category definitions with colors
     local categories = {
-        { key = "rep", title = "Reputation Rewards", color = "ARCANE_PURPLE", icon = "Achievement_Reputation_01" },
+        { key = "rep", title = "Reputation Rewards", color = "ARCANE_PURPLE", icon = "INV_Misc_Token_ArgentDawn" },  -- TBC compatible
         { key = "drops", title = "Dungeon Drops", color = "FEL_GREEN", icon = "INV_Misc_Bone_HumanSkull_01" },
         { key = "crafted", title = "Crafted Gear", color = "GOLD_BRIGHT", icon = "Trade_BlackSmithing" },
     }
@@ -1787,12 +1911,12 @@ function Journal:CreateLootCategorySection(parent, title, colorName, index, yOff
 
         -- Expand/collapse indicator
         section.indicator = section.header:CreateFontString(nil, "OVERLAY")
-        section.indicator:SetFont(HopeAddon.assets.fonts.HEADER, 12)
+        section.indicator:SetFont(HopeAddon.assets.fonts.HEADER, 12, "")
         section.indicator:SetPoint("LEFT", section.header, "LEFT", 8, 0)
 
         -- Title
         section.titleText = section.header:CreateFontString(nil, "OVERLAY")
-        section.titleText:SetFont(HopeAddon.assets.fonts.HEADER, 11)
+        section.titleText:SetFont(HopeAddon.assets.fonts.HEADER, 11, "")
         section.titleText:SetPoint("LEFT", section.indicator, "RIGHT", 6, 0)
 
         -- Hover highlight
@@ -1850,7 +1974,7 @@ function Journal:CreateLootCard(parent, item, cardKey)
 
         -- Source text (faction/dungeon/profession)
         card.sourceText = card:CreateFontString(nil, "OVERLAY")
-        card.sourceText:SetFont(HopeAddon.assets.fonts.SMALL, 9)
+        card.sourceText:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
         card.sourceText:SetPoint("TOPLEFT", card, "TOPLEFT", 8, -6)
 
         -- Item icon
@@ -1867,18 +1991,18 @@ function Journal:CreateLootCard(parent, item, cardKey)
 
         -- Item name
         card.itemName = card:CreateFontString(nil, "OVERLAY")
-        card.itemName:SetFont(HopeAddon.assets.fonts.BODY, 10)
+        card.itemName:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
         card.itemName:SetPoint("TOPLEFT", card.itemIcon, "TOPRIGHT", 8, 0)
 
         -- Slot text
         card.slotText = card:CreateFontString(nil, "OVERLAY")
-        card.slotText:SetFont(HopeAddon.assets.fonts.SMALL, 8)
+        card.slotText:SetFont(HopeAddon.assets.fonts.SMALL, 8, "")
         card.slotText:SetPoint("TOPLEFT", card.itemName, "BOTTOMLEFT", 0, -1)
         card.slotText:SetTextColor(0.7, 0.7, 0.7)
 
         -- Stats text
         card.statsText = card:CreateFontString(nil, "OVERLAY")
-        card.statsText:SetFont(HopeAddon.assets.fonts.SMALL, 8)
+        card.statsText:SetFont(HopeAddon.assets.fonts.SMALL, 8, "")
         card.statsText:SetPoint("TOPLEFT", card.slotText, "BOTTOMLEFT", 0, -1)
         card.statsText:SetTextColor(0.5, 0.75, 0.5)
         card.statsText:SetWidth(cardWidth - 60)
@@ -1897,7 +2021,7 @@ function Journal:CreateLootCard(parent, item, cardKey)
 
         -- Progress/source text
         card.progressText = card:CreateFontString(nil, "OVERLAY")
-        card.progressText:SetFont(HopeAddon.assets.fonts.SMALL, 8)
+        card.progressText:SetFont(HopeAddon.assets.fonts.SMALL, 8, "")
         card.progressText:SetPoint("BOTTOM", card.progressBg, "TOP", 0, 2)
         card.progressText:SetTextColor(0.8, 0.8, 0.8)
 
@@ -2067,7 +2191,7 @@ end
 function Journal:GetNextStep()
     local Attunements = HopeAddon.Attunements
     local playerLevel = UnitLevel("player")
-    local result = { phase = "ENDGAME", title = "Legend of Outland", subtitle = "All attunements complete!", story = "You have conquered all of Outland's challenges.", icon = "Interface\\Icons\\Achievement_Boss_Illidan", progress = { current = 100, total = 100, percentage = 100, label = "Complete" } }
+    local result = { phase = "ENDGAME", title = "Legend of Outland", subtitle = "All attunements complete!", story = "You have conquered all of Outland's challenges.", icon = "Interface\\Icons\\INV_Weapon_Glaive_01", progress = { current = 100, total = 100, percentage = 100, label = "Complete" } }
     if playerLevel < 58 then result.phase = "PRE_OUTLAND" result.title = "Reach the Dark Portal" result.subtitle = "Level " .. playerLevel .. " of 58" result.story = "Journey to Hellfire Peninsula awaits." result.icon = "Interface\\Icons\\Spell_Arcane_PortalOrgrimmar" result.progress = { current = playerLevel, total = 58, percentage = math.floor((playerLevel / 58) * 100), label = playerLevel .. " / 58" } return result end
     local karaProgress = Attunements and Attunements:GetProgress("karazhan")
     if karaProgress and not karaProgress.completed then local chapters = Attunements:GetTotalChapters("karazhan") or 7 local completed = 0 if karaProgress.chapters then for _ in pairs(karaProgress.chapters) do completed = completed + 1 end end result.phase = "T4_ATTUNEMENT" result.title = "Karazhan Attunement" result.subtitle = "Chapter " .. (completed + 1) .. " of " .. chapters result.story = "Complete the Karazhan attunement chain." result.icon = "Interface\\Icons\\INV_Misc_Key_07" result.progress = { current = completed, total = chapters, percentage = math.floor((completed / chapters) * 100), label = completed .. " / " .. chapters } return result end
@@ -2102,15 +2226,15 @@ function Journal:CreateNextStepBox()
     container:SetParent(scrollContent)
     container:SetSize(CONTAINER_WIDTH, 180)
     container:Show()
-    local phaseBadge = container.phaseBadge or container:CreateFontString(nil, "OVERLAY") container.phaseBadge = phaseBadge phaseBadge:SetFont(HopeAddon.assets.fonts.SMALL, 9) phaseBadge:ClearAllPoints() phaseBadge:SetPoint("TOPRIGHT", container, "TOPRIGHT", -10, -8) phaseBadge:SetText(HopeAddon:ColorText(PHASE_NAMES[stepData.phase] or stepData.phase, phaseColor)) phaseBadge:Show()
-    local header = container.stepHeader or container:CreateFontString(nil, "OVERLAY") container.stepHeader = header header:SetFont(HopeAddon.assets.fonts.HEADER, 11) header:ClearAllPoints() header:SetPoint("TOPLEFT", container, "TOPLEFT", 10, -5) header:SetText(HopeAddon:ColorText("YOUR NEXT STEP", phaseColor)) header:Show()
+    local phaseBadge = container.phaseBadge or container:CreateFontString(nil, "OVERLAY") container.phaseBadge = phaseBadge phaseBadge:SetFont(HopeAddon.assets.fonts.SMALL, 9, "") phaseBadge:ClearAllPoints() phaseBadge:SetPoint("TOPRIGHT", container, "TOPRIGHT", -10, -8) phaseBadge:SetText(HopeAddon:ColorText(PHASE_NAMES[stepData.phase] or stepData.phase, phaseColor)) phaseBadge:Show()
+    local header = container.stepHeader or container:CreateFontString(nil, "OVERLAY") container.stepHeader = header header:SetFont(HopeAddon.assets.fonts.HEADER, 11, "") header:ClearAllPoints() header:SetPoint("TOPLEFT", container, "TOPLEFT", 10, -5) header:SetText(HopeAddon:ColorText("YOUR NEXT STEP", phaseColor)) header:Show()
     local icon = container.stepIcon or container:CreateTexture(nil, "ARTWORK") container.stepIcon = icon icon:SetSize(48, 48) icon:ClearAllPoints() icon:SetPoint("TOPLEFT", container, "TOPLEFT", 15, -25) icon:SetTexture(stepData.icon or "Interface\\Icons\\INV_Misc_QuestionMark") icon:Show()
-    local title = container.stepTitle or container:CreateFontString(nil, "OVERLAY") container.stepTitle = title title:SetFont(HopeAddon.assets.fonts.HEADER, 14) title:ClearAllPoints() title:SetPoint("TOPLEFT", icon, "TOPRIGHT", 12, 2) title:SetText(HopeAddon:ColorText(stepData.title, "BRIGHT_WHITE")) title:Show()
-    local subtitle = container.stepSubtitle or container:CreateFontString(nil, "OVERLAY") container.stepSubtitle = subtitle subtitle:SetFont(HopeAddon.assets.fonts.BODY, 11) subtitle:ClearAllPoints() subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -2) subtitle:SetText(HopeAddon:ColorText(stepData.subtitle, "SUBTLE")) subtitle:Show()
-    local story = container.stepStory or container:CreateFontString(nil, "OVERLAY") container.stepStory = story story:SetFont(HopeAddon.assets.fonts.BODY, 10) story:ClearAllPoints() story:SetPoint("TOPLEFT", container, "TOPLEFT", 15, -80) story:SetPoint("RIGHT", container, "RIGHT", -15, 0) story:SetJustifyH("LEFT") story:SetText("|cFFCCCCCC\"" .. (stepData.story or "") .. "\"|r") story:Show()
-    local progressBar = container.stepProgressBar if not progressBar then progressBar = CreateFrame("Frame", nil, container, "BackdropTemplate") progressBar:SetSize(CONTAINER_WIDTH - 40, 16) progressBar:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 }) progressBar:SetBackdropColor(0.1, 0.1, 0.1, 0.8) progressBar:SetBackdropBorderColor(0.3, 0.3, 0.3, 1) progressBar.fill = progressBar:CreateTexture(nil, "ARTWORK") progressBar.fill:SetPoint("TOPLEFT", 2, -2) progressBar.fill:SetPoint("BOTTOMLEFT", 2, 2) progressBar.label = progressBar:CreateFontString(nil, "OVERLAY") progressBar.label:SetFont(HopeAddon.assets.fonts.SMALL, 9) progressBar.label:SetPoint("CENTER", progressBar, "CENTER", 0, 0) container.stepProgressBar = progressBar end
+    local title = container.stepTitle or container:CreateFontString(nil, "OVERLAY") container.stepTitle = title title:SetFont(HopeAddon.assets.fonts.HEADER, 14, "") title:ClearAllPoints() title:SetPoint("TOPLEFT", icon, "TOPRIGHT", 12, 2) title:SetText(HopeAddon:ColorText(stepData.title, "BRIGHT_WHITE")) title:Show()
+    local subtitle = container.stepSubtitle or container:CreateFontString(nil, "OVERLAY") container.stepSubtitle = subtitle subtitle:SetFont(HopeAddon.assets.fonts.BODY, 11, "") subtitle:ClearAllPoints() subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -2) subtitle:SetText(HopeAddon:ColorText(stepData.subtitle, "SUBTLE")) subtitle:Show()
+    local story = container.stepStory or container:CreateFontString(nil, "OVERLAY") container.stepStory = story story:SetFont(HopeAddon.assets.fonts.BODY, 10, "") story:ClearAllPoints() story:SetPoint("TOPLEFT", container, "TOPLEFT", 15, -80) story:SetPoint("RIGHT", container, "RIGHT", -15, 0) story:SetJustifyH("LEFT") story:SetText("|cFFCCCCCC\"" .. (stepData.story or "") .. "\"|r") story:Show()
+    local progressBar = container.stepProgressBar if not progressBar then progressBar = CreateFrame("Frame", nil, container, "BackdropTemplate") progressBar:SetSize(CONTAINER_WIDTH - 40, 16) progressBar:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 }) progressBar:SetBackdropColor(0.1, 0.1, 0.1, 0.8) progressBar:SetBackdropBorderColor(0.3, 0.3, 0.3, 1) progressBar.fill = progressBar:CreateTexture(nil, "ARTWORK") progressBar.fill:SetPoint("TOPLEFT", 2, -2) progressBar.fill:SetPoint("BOTTOMLEFT", 2, 2) progressBar.label = progressBar:CreateFontString(nil, "OVERLAY") progressBar.label:SetFont(HopeAddon.assets.fonts.SMALL, 9, "") progressBar.label:SetPoint("CENTER", progressBar, "CENTER", 0, 0) container.stepProgressBar = progressBar end
     progressBar:ClearAllPoints() progressBar:SetPoint("BOTTOMLEFT", container, "BOTTOMLEFT", 20, 35) local pct = stepData.progress.percentage or 0 progressBar.fill:SetWidth(math.max(1, (CONTAINER_WIDTH - 44) * (pct / 100))) progressBar.fill:SetColorTexture(c.r, c.g, c.b, 0.8) progressBar.label:SetText(stepData.progress.label or (pct .. "%")) progressBar:Show()
-    local nextPreview = container.stepNextPreview or container:CreateFontString(nil, "OVERLAY") container.stepNextPreview = nextPreview nextPreview:SetFont(HopeAddon.assets.fonts.SMALL, 9) nextPreview:ClearAllPoints() nextPreview:SetPoint("BOTTOMLEFT", container, "BOTTOMLEFT", 20, 12) nextPreview:SetText("") nextPreview:Show()
+    local nextPreview = container.stepNextPreview or container:CreateFontString(nil, "OVERLAY") container.stepNextPreview = nextPreview nextPreview:SetFont(HopeAddon.assets.fonts.SMALL, 9, "") nextPreview:ClearAllPoints() nextPreview:SetPoint("BOTTOMLEFT", container, "BOTTOMLEFT", 20, 12) nextPreview:SetText("") nextPreview:Show()
     container:SetBackdropBorderColor(c.r, c.g, c.b, 1) return container
 end
 
@@ -2126,7 +2250,7 @@ function Journal:CreateTimelineSeparator()
         header = container:CreateFontString(nil, "OVERLAY")
         container.timelineHeader = header
     end
-    header:SetFont(HopeAddon.assets.fonts.HEADER, 12)
+    header:SetFont(HopeAddon.assets.fonts.HEADER, 12, "")
     header:ClearAllPoints()
     header:SetPoint("LEFT", container, "LEFT", 10, 0)
     header:SetText(HopeAddon:ColorText("TIMELINE", "GOLD_BRIGHT"))
@@ -2183,7 +2307,7 @@ function Journal:PopulateJourneyPre60(playerLevel)
         title = container:CreateFontString(nil, "OVERLAY")
         container.pre60Title = title
     end
-    title:SetFont(HopeAddon.assets.fonts.HEADER, 16)
+    title:SetFont(HopeAddon.assets.fonts.HEADER, 16, "")
     title:ClearAllPoints()
     title:SetPoint("TOPLEFT", container, "TOPLEFT", 15, -12)
     title:SetText(HopeAddon:ColorText("JOURNEY TO OUTLAND", "GOLD_BRIGHT"))
@@ -2194,7 +2318,7 @@ function Journal:PopulateJourneyPre60(playerLevel)
         levelText = container:CreateFontString(nil, "OVERLAY")
         container.pre60Level = levelText
     end
-    levelText:SetFont(HopeAddon.assets.fonts.TITLE, 24)
+    levelText:SetFont(HopeAddon.assets.fonts.TITLE, 24, "")
     levelText:ClearAllPoints()
     levelText:SetPoint("TOPRIGHT", container, "TOPRIGHT", -15, -12)
     levelText:SetText(HopeAddon:ColorText("Level " .. playerLevel, "FEL_GREEN"))
@@ -2216,7 +2340,7 @@ function Journal:PopulateJourneyPre60(playerLevel)
         progressLabel = container:CreateFontString(nil, "OVERLAY")
         container.pre60ProgressLabel = progressLabel
     end
-    progressLabel:SetFont(HopeAddon.assets.fonts.BODY, 10)
+    progressLabel:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
     progressLabel:ClearAllPoints()
     progressLabel:SetPoint("LEFT", progressBar, "RIGHT", 10, 0)
     progressLabel:SetText(HopeAddon:ColorText(string.format("%d / 60", playerLevel), "GREY"))
@@ -2227,7 +2351,7 @@ function Journal:PopulateJourneyPre60(playerLevel)
         storyText = container:CreateFontString(nil, "OVERLAY")
         container.pre60Story = storyText
     end
-    storyText:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    storyText:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     storyText:ClearAllPoints()
     storyText:SetPoint("TOPLEFT", progressBar, "BOTTOMLEFT", 0, -10)
     storyText:SetWidth(400)
@@ -2254,7 +2378,7 @@ function Journal:PopulateJourneyPre60(playerLevel)
         awaitsTitle = awaitsContainer:CreateFontString(nil, "OVERLAY")
         awaitsContainer.awaitsTitle = awaitsTitle
     end
-    awaitsTitle:SetFont(HopeAddon.assets.fonts.HEADER, 13)
+    awaitsTitle:SetFont(HopeAddon.assets.fonts.HEADER, 13, "")
     awaitsTitle:ClearAllPoints()
     awaitsTitle:SetPoint("TOPLEFT", awaitsContainer, "TOPLEFT", 15, -12)
     awaitsTitle:SetText(HopeAddon:ColorText("WHAT AWAITS IN OUTLAND", "ARCANE_PURPLE"))
@@ -2265,7 +2389,7 @@ function Journal:PopulateJourneyPre60(playerLevel)
         bulletText = awaitsContainer:CreateFontString(nil, "OVERLAY")
         awaitsContainer.bulletText = bulletText
     end
-    bulletText:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    bulletText:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     bulletText:ClearAllPoints()
     bulletText:SetPoint("TOPLEFT", awaitsTitle, "BOTTOMLEFT", 0, -10)
     bulletText:SetWidth(400)
@@ -2393,7 +2517,7 @@ function Journal:CreateLevelingProgressBox(playerLevel, rangeInfo)
         title = container:CreateFontString(nil, "OVERLAY")
         container.levelTitle = title
     end
-    title:SetFont(HopeAddon.assets.fonts.HEADER, 14)
+    title:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
     title:ClearAllPoints()
     title:SetPoint("TOPLEFT", container, "TOPLEFT", 15, -12)
     title:SetText(HopeAddon:ColorText("YOUR JOURNEY", "GOLD_BRIGHT"))
@@ -2404,7 +2528,7 @@ function Journal:CreateLevelingProgressBox(playerLevel, rangeInfo)
         levelText = container:CreateFontString(nil, "OVERLAY")
         container.levelText = levelText
     end
-    levelText:SetFont(HopeAddon.assets.fonts.TITLE, 24)
+    levelText:SetFont(HopeAddon.assets.fonts.TITLE, 24, "")
     levelText:ClearAllPoints()
     levelText:SetPoint("LEFT", title, "RIGHT", 15, 0)
     levelText:SetText(HopeAddon:ColorText("Level " .. playerLevel, "FEL_GREEN"))
@@ -2415,7 +2539,7 @@ function Journal:CreateLevelingProgressBox(playerLevel, rangeInfo)
         rangeLabel = container:CreateFontString(nil, "OVERLAY")
         container.rangeLabel = rangeLabel
     end
-    rangeLabel:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    rangeLabel:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     rangeLabel:ClearAllPoints()
     rangeLabel:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -8)
     local rangeLabelText = rangeInfo and rangeInfo.label or "Level 60-62"
@@ -2438,7 +2562,7 @@ function Journal:CreateLevelingProgressBox(playerLevel, rangeInfo)
         storyText = container:CreateFontString(nil, "OVERLAY")
         container.storyText = storyText
     end
-    storyText:SetFont(HopeAddon.assets.fonts.BODY, 10)
+    storyText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
     storyText:ClearAllPoints()
     storyText:SetPoint("TOPLEFT", progressBar, "BOTTOMLEFT", 0, -6)
     storyText:SetTextColor(0.7, 0.7, 0.7)
@@ -2473,7 +2597,7 @@ function Journal:CreateLevelingGearHeader(role, roleInfo, rangeInfo, specName, s
         title = container:CreateFontString(nil, "OVERLAY")
         container.gearTitle = title
     end
-    title:SetFont(HopeAddon.assets.fonts.HEADER, 13)
+    title:SetFont(HopeAddon.assets.fonts.HEADER, 13, "")
     title:ClearAllPoints()
     title:SetPoint("TOPLEFT", container, "TOPLEFT", 15, -10)
     title:SetText(HopeAddon:ColorText("GEAR FOR YOUR JOURNEY", "GOLD_BRIGHT"))
@@ -2484,12 +2608,13 @@ function Journal:CreateLevelingGearHeader(role, roleInfo, rangeInfo, specName, s
         specInfo = container:CreateFontString(nil, "OVERLAY")
         container.specInfo = specInfo
     end
-    specInfo:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    specInfo:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     specInfo:ClearAllPoints()
     specInfo:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
 
     local roleName = roleInfo and roleInfo.name or "DPS"
-    specInfo:SetText("|cFF" .. hexColor .. specName .. "|r |cFFAAAAAA(" .. specPoints .. " pts)|r - |cFF" .. roleHex .. roleName .. "|r")
+    local gearScoreText = HopeAddon:GetGearScoreText()
+    specInfo:SetText("|cFF" .. hexColor .. specName .. "|r |cFFAAAAAA(" .. gearScoreText .. ")|r - |cFF" .. roleHex .. roleName .. "|r")
 
     return container
 end
@@ -2542,7 +2667,7 @@ function Journal:CreateLevelingGearSection(sectionTitle, colorName, items, sourc
         headerTitle = header:CreateFontString(nil, "OVERLAY")
         header.titleText = headerTitle
     end
-    headerTitle:SetFont(HopeAddon.assets.fonts.HEADER, 11)
+    headerTitle:SetFont(HopeAddon.assets.fonts.HEADER, 11, "")
     headerTitle:ClearAllPoints()
     headerTitle:SetPoint("LEFT", headerIcon, "RIGHT", 8, 0)
     headerTitle:SetText("|cFF" .. hexColor .. sectionTitle .. "|r")
@@ -2594,22 +2719,22 @@ function Journal:CreateLevelingGearCard(parent, item, cardKey, sourceType)
 
         -- Item name
         card.itemName = card:CreateFontString(nil, "OVERLAY")
-        card.itemName:SetFont(HopeAddon.assets.fonts.BODY, 11)
+        card.itemName:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
         card.itemName:SetPoint("TOPLEFT", card.itemIcon, "TOPRIGHT", 10, -2)
 
         -- Slot text
         card.slotText = card:CreateFontString(nil, "OVERLAY")
-        card.slotText:SetFont(HopeAddon.assets.fonts.SMALL, 9)
+        card.slotText:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
         card.slotText:SetPoint("TOPLEFT", card.itemName, "BOTTOMLEFT", 0, -2)
 
         -- Stats text
         card.statsText = card:CreateFontString(nil, "OVERLAY")
-        card.statsText:SetFont(HopeAddon.assets.fonts.SMALL, 9)
+        card.statsText:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
         card.statsText:SetPoint("TOPLEFT", card.slotText, "BOTTOMLEFT", 0, -2)
 
         -- Source text
         card.sourceText = card:CreateFontString(nil, "OVERLAY")
-        card.sourceText:SetFont(HopeAddon.assets.fonts.SMALL, 9)
+        card.sourceText:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
         card.sourceText:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 56, 8)
 
         parent[cardKey] = card
@@ -2689,7 +2814,7 @@ function Journal:CreateRecommendedDungeonsList(dungeons, rangeInfo)
         title = container:CreateFontString(nil, "OVERLAY")
         container.dungeonTitle = title
     end
-    title:SetFont(HopeAddon.assets.fonts.HEADER, 12)
+    title:SetFont(HopeAddon.assets.fonts.HEADER, 12, "")
     title:ClearAllPoints()
     title:SetPoint("TOPLEFT", container, "TOPLEFT", 15, -10)
     title:SetText(HopeAddon:ColorText("RECOMMENDED DUNGEONS", "SKY_BLUE"))
@@ -2704,7 +2829,7 @@ function Journal:CreateRecommendedDungeonsList(dungeons, rangeInfo)
             entry = container:CreateFontString(nil, "OVERLAY")
             container[dungeonKey] = entry
         end
-        entry:SetFont(HopeAddon.assets.fonts.BODY, 10)
+        entry:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
         entry:ClearAllPoints()
         entry:SetPoint("TOPLEFT", container, "TOPLEFT", 25, yOffset)
 
@@ -2754,7 +2879,7 @@ function Journal:CreateChronicleHeader()
         title = container:CreateFontString(nil, "OVERLAY")
         container.titleText = title
     end
-    title:SetFont(HopeAddon.assets.fonts.TITLE, 22)
+    title:SetFont(HopeAddon.assets.fonts.TITLE, 22, "")
     title:ClearAllPoints()
     title:SetPoint("TOP", container, "TOP", 0, -10)
     title:SetText(HopeAddon:ColorText("THE HERO'S JOURNEY", "GOLD_BRIGHT"))
@@ -2767,10 +2892,10 @@ function Journal:CreateChronicleHeader()
         subtitle = container:CreateFontString(nil, "OVERLAY")
         container.subtitleText = subtitle
     end
-    subtitle:SetFont(HopeAddon.assets.fonts.BODY, 13)
+    subtitle:SetFont(HopeAddon.assets.fonts.BODY, 13, "")
     subtitle:ClearAllPoints()
     subtitle:SetPoint("TOP", title, "BOTTOM", 0, -5)
-    subtitle:SetText("The Chronicle of " .. playerName)
+    subtitle:SetText("The Journey of " .. playerName)
     subtitle:SetTextColor(HopeAddon:GetTextColor("SECONDARY"))
 
     -- Decorative divider line
@@ -2802,7 +2927,7 @@ function Journal:CreateChronicleHeader()
         progressText = container:CreateFontString(nil, "OVERLAY")
         container.progressLabel = progressText
     end
-    progressText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+    progressText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
     progressText:ClearAllPoints()
     progressText:SetPoint("TOP", progressBar, "BOTTOM", 0, -5)
     progressText:SetText(string.format("%d of %d milestones completed", completedCount, totalMilestones))
@@ -3004,7 +3129,7 @@ end
 -- Fallback standing label for factions without items in the hotlist
 function Journal:CreateStandingLabel(card, reputationBar, standingName, standingId)
     local label = card:CreateFontString(nil, "OVERLAY")
-    label:SetFont(HopeAddon.assets.fonts.BODY, 10)
+    label:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
     label:SetPoint("LEFT", reputationBar, "RIGHT", 8, 0)
     label:SetText(standingName)
 
@@ -3176,7 +3301,7 @@ function Journal:PopulateAttunements()
                 headerContainer.headerText = raidHeader
             end
             raidHeader:ClearAllPoints()
-            raidHeader:SetFont(HopeAddon.assets.fonts.HEADER, 13)
+            raidHeader:SetFont(HopeAddon.assets.fonts.HEADER, 13, "")
             raidHeader:SetPoint("TOPLEFT", headerContainer, "TOPLEFT", Components.MARGIN_NORMAL, -3)
             raidHeader:SetText(HopeAddon:ColorText(
                 string.format("[%s] %s", tier, summary.raidName),
@@ -3192,7 +3317,7 @@ function Journal:PopulateAttunements()
                 chainContainer.headerText = chainName
             end
             chainName:ClearAllPoints()
-            chainName:SetFont(HopeAddon.assets.fonts.BODY, 11)
+            chainName:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
             chainName:SetPoint("TOPLEFT", chainContainer, "TOPLEFT", Components.MARGIN_NORMAL, -2)
             chainName:SetText(summary.name)
             chainName:SetTextColor(HopeAddon:GetTextColor("SECONDARY"))
@@ -3207,7 +3332,7 @@ function Journal:PopulateAttunements()
                     levelContainer.headerText = levelText
                 end
                 levelText:ClearAllPoints()
-                levelText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+                levelText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
                 levelText:SetPoint("TOPLEFT", levelContainer, "TOPLEFT", Components.MARGIN_NORMAL, -2)
 
                 local levelStr = ""
@@ -3233,7 +3358,7 @@ function Journal:PopulateAttunements()
                     prereqHeader.headerText = prereqHeaderText
                 end
                 prereqHeaderText:ClearAllPoints()
-                prereqHeaderText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+                prereqHeaderText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
                 prereqHeaderText:SetPoint("TOPLEFT", prereqHeader, "TOPLEFT", Components.MARGIN_NORMAL, -2)
                 prereqHeaderText:SetText(HopeAddon:ColorText("Prerequisites:", "HELLFIRE_ORANGE"))
                 self.mainFrame.scrollContainer:AddEntry(prereqHeader)
@@ -3246,7 +3371,7 @@ function Journal:PopulateAttunements()
                         prereqItem.headerText = prereqItemText
                     end
                     prereqItemText:ClearAllPoints()
-                    prereqItemText:SetFont(HopeAddon.assets.fonts.SMALL, 9)
+                    prereqItemText:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
                     prereqItemText:SetPoint("TOPLEFT", prereqItem, "TOPLEFT", Components.MARGIN_NORMAL + 10, -1)
 
                     local prereqStr = "  \226\128\162 " .. prereq.name
@@ -3270,7 +3395,7 @@ function Journal:PopulateAttunements()
                     prereqContainer.headerText = prereqText
                 end
                 prereqText:ClearAllPoints()
-                prereqText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+                prereqText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
                 prereqText:SetPoint("TOPLEFT", prereqContainer, "TOPLEFT", Components.MARGIN_NORMAL, -2)
                 prereqText:SetText("Requires: " .. summary.prerequisite)
                 prereqText:SetTextColor(1, 0.5, 0.3, 1)
@@ -3294,7 +3419,7 @@ function Journal:PopulateAttunements()
 
             -- Progress text overlay
             local progressText = progressBar:CreateFontString(nil, "OVERLAY")
-            progressText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+            progressText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
             progressText:SetPoint("CENTER", progressBar, "CENTER", 0, 0)
             progressText:SetText(string.format("%d/%d Chapters (%d%%)",
                 summary.completedChapters, summary.totalChapters, summary.percentage))
@@ -3315,7 +3440,7 @@ function Journal:PopulateAttunements()
                         titleContainer.headerText = titleText
                     end
                     titleText:ClearAllPoints()
-                    titleText:SetFont(HopeAddon.assets.fonts.BODY, 10)
+                    titleText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
                     titleText:SetPoint("TOPLEFT", titleContainer, "TOPLEFT", Components.MARGIN_NORMAL, -2)
                     titleText:SetText("Title: " .. HopeAddon:ColorText(summary.title, "GOLD_BRIGHT"))
                     self.mainFrame.scrollContainer:AddEntry(titleContainer)
@@ -3497,7 +3622,7 @@ function Journal:PopulateAttunements()
         cipherHeaderContainer.headerText = cipherHeader
     end
     cipherHeader:ClearAllPoints()
-    cipherHeader:SetFont(HopeAddon.assets.fonts.HEADER, 13)
+    cipherHeader:SetFont(HopeAddon.assets.fonts.HEADER, 13, "")
     cipherHeader:SetPoint("TOPLEFT", cipherHeaderContainer, "TOPLEFT", Components.MARGIN_NORMAL, -3)
     cipherHeader:SetText(HopeAddon:ColorText("[PREREQUISITE] Cipher of Damnation", "HELLFIRE_ORANGE"))
 
@@ -3506,7 +3631,7 @@ function Journal:PopulateAttunements()
         cipherSubHeader = cipherHeaderContainer:CreateFontString(nil, "OVERLAY")
         cipherHeaderContainer.subText = cipherSubHeader
     end
-    cipherSubHeader:SetFont(HopeAddon.assets.fonts.BODY, 10)
+    cipherSubHeader:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
     cipherSubHeader:ClearAllPoints()
     cipherSubHeader:SetPoint("TOPLEFT", cipherHeader, "BOTTOMLEFT", 0, -3)
     cipherSubHeader:SetText("Required before starting Tempest Key attunement")
@@ -3525,7 +3650,7 @@ function Journal:PopulateAttunements()
     cipherProgressBar.text:Hide()
 
     local cipherProgressText = cipherProgressBar:CreateFontString(nil, "OVERLAY")
-    cipherProgressText:SetFont(HopeAddon.assets.fonts.SMALL, 9)
+    cipherProgressText:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
     cipherProgressText:SetPoint("CENTER", cipherProgressBar, "CENTER", 0, 0)
     cipherProgressText:SetText(string.format("%d/%d (%d%%)",
         cipherSummary.completedChapters, cipherSummary.totalChapters, cipherSummary.percentage))
@@ -3737,7 +3862,7 @@ function Journal:PopulateRaids()
 
         -- Overall progress label
         local overallLabel = progressContainer:CreateFontString(nil, "OVERLAY")
-        overallLabel:SetFont(HopeAddon.assets.fonts.HEADER, 12)
+        overallLabel:SetFont(HopeAddon.assets.fonts.HEADER, 12, "")
         overallLabel:SetPoint("TOPLEFT", progressContainer, "TOPLEFT", 10, -5)
         overallLabel:SetText(HopeAddon:ColorText(string.format("Overall: %d%% Complete (%d/%d bosses)", overallPercent, totalKilled, totalBosses), "GOLD_BRIGHT"))
 
@@ -3772,7 +3897,7 @@ function Journal:PopulateRaids()
 
             -- Tier label
             local tierLabel = progressContainer:CreateFontString(nil, "OVERLAY")
-            tierLabel:SetFont(HopeAddon.assets.fonts.NORMAL, 10)
+            tierLabel:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
             tierLabel:SetPoint("TOPLEFT", progressContainer, "TOPLEFT", 10 + (i-1) * (miniBarWidth + 10), -48)
             tierLabel:SetText(HopeAddon:ColorText(string.format("%s: %d/%d", tier, prog.killed, prog.total), tierColorName))
 
@@ -3855,7 +3980,7 @@ function Journal:PopulateRaids()
                 tierHeaderContainer.headerText = tierHeader
             end
             tierHeader:ClearAllPoints()
-            tierHeader:SetFont(HopeAddon.assets.fonts.HEADER, 14)
+            tierHeader:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
             tierHeader:SetPoint("LEFT", tierHeaderContainer, "LEFT", Components.MARGIN_SMALL, 0)
             tierHeader:SetText(HopeAddon:ColorText("--- " .. tier .. " RAIDS ---", tierColorName))
             scrollContainer:AddEntry(tierHeaderContainer)
@@ -3907,7 +4032,7 @@ function Journal:PopulateRaids()
                             -- Add "CLEARED!" badge with sparkle effect
                             if not raidSection._clearedBadge then
                                 local badge = raidSection.header:CreateFontString(nil, "OVERLAY")
-                                badge:SetFont(HopeAddon.assets.fonts.HEADER, 10)
+                                badge:SetFont(HopeAddon.assets.fonts.HEADER, 10, "")
                                 badge:SetPoint("RIGHT", raidSection.header, "RIGHT", -35, 0)
                                 badge:SetText(HopeAddon:ColorText("★ CLEARED ★", "GOLD_BRIGHT"))
                                 raidSection._clearedBadge = badge
@@ -4130,7 +4255,7 @@ function Journal:PopulateGames()
         instructionsText = instructionsContainer:CreateFontString(nil, "OVERLAY")
         instructionsContainer.headerText = instructionsText
     end
-    instructionsText:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    instructionsText:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     instructionsText:ClearAllPoints()
     instructionsText:SetPoint("TOPLEFT", instructionsContainer, "TOPLEFT", Components.MARGIN_NORMAL, -8)
     instructionsText:SetText("|cFF9B30FFPractice|r solo or |cFF00FF00Challenge|r a Fellow Traveler to compete!")
@@ -4192,10 +4317,6 @@ function Journal:PopulateGames()
             col = 0
             row = row + 1
         end
-
-        -- Load stats for this game
-        local gameStats = self:GetGameStats(gameData.id)
-        card:SetStats(gameStats.wins, gameStats.losses, gameStats.ties)
 
         -- Show active games badge for Words
         if gameData.id == "words" and card.SetActiveGames then
@@ -4284,20 +4405,24 @@ function Journal:CreateLookingForRPBoard(parent, fellows)
         container._glowEffect = HopeAddon.Effects:CreateBorderGlow(container, nil, glowColor)
     end
 
-    -- Header with icon
+    -- Get theme from constants
+    local C = HopeAddon.Constants
+    local theme = C.SOCIAL_SECTION_THEMES and C.SOCIAL_SECTION_THEMES.lf_rp or {}
+
+    -- Header with radiant light icon (Sunwell theme)
     local headerIcon = container:CreateTexture(nil, "ARTWORK")
     headerIcon:SetSize(20, 20)
     headerIcon:SetPoint("TOPLEFT", container, "TOPLEFT", 12, -10)
-    headerIcon:SetTexture("Interface\\Icons\\INV_Valentineperfumebottle")  -- Heart/perfume icon
+    headerIcon:SetTexture(theme.icon or "Interface\\Icons\\Spell_Holy_SurgeOfLight")  -- Sunwell light
 
     local headerText = container:CreateFontString(nil, "OVERLAY")
-    headerText:SetFont(HopeAddon.assets.fonts.HEADER, 14)
+    headerText:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
     headerText:SetPoint("LEFT", headerIcon, "RIGHT", 8, 0)
-    headerText:SetText("|cFFFF33CCLOOKING FOR RP|r")
+    headerText:SetText("|cFFFF33CC" .. (theme.title or "LOOKING FOR RP") .. "|r")
 
     -- Count badge
     local countBadge = container:CreateFontString(nil, "OVERLAY")
-    countBadge:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+    countBadge:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
     countBadge:SetPoint("LEFT", headerText, "RIGHT", 8, 0)
     countBadge:SetText("|cFFFFFFFF(" .. #fellows .. " available)|r")
 
@@ -4319,7 +4444,7 @@ function Journal:CreateLookingForRPBoard(parent, fellows)
     -- "More..." indicator if truncated
     if #fellows > 4 then
         local moreText = container:CreateFontString(nil, "OVERLAY")
-        moreText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+        moreText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
         moreText:SetPoint("BOTTOMRIGHT", container, "BOTTOMRIGHT", -12, 8)
         moreText:SetText("|cFF808080+" .. (#fellows - 4) .. " more...|r")
     end
@@ -4359,13 +4484,13 @@ function Journal:CreateLFRPRow(parent, fellow, yOffset)
     end
 
     local nameText = row:CreateFontString(nil, "OVERLAY")
-    nameText:SetFont(HopeAddon.assets.fonts.HEADER, 12)
+    nameText:SetFont(HopeAddon.assets.fonts.HEADER, 12, "")
     nameText:SetPoint("TOPLEFT", classIcon, "TOPRIGHT", 8, -2)
     nameText:SetText(displayName)
 
     -- Zone and time
     local zoneText = row:CreateFontString(nil, "OVERLAY")
-    zoneText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+    zoneText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
     zoneText:SetPoint("TOPLEFT", nameText, "BOTTOMLEFT", 0, -2)
     local timeAgo = self:FormatTimeAgo(fellow.lastSeenTime)
     zoneText:SetText("|cFF808080" .. fellow.zone .. " - " .. timeAgo .. "|r")
@@ -4381,7 +4506,7 @@ function Journal:CreateLFRPRow(parent, fellow, yOffset)
     whisperBtn.bg = btnBg
 
     local btnText = whisperBtn:CreateFontString(nil, "OVERLAY")
-    btnText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+    btnText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
     btnText:SetPoint("CENTER")
     btnText:SetText("|cFFFF33CCWhisper|r")
 
@@ -4435,122 +4560,6 @@ end
 --============================================================
 
 --[[
-    Create the "Recent Activity" section - a collapsible section showing
-    recent activities from Fellow Travelers (Notice Board theme)
-    @param parent Frame - Parent frame
-    @return Frame - The activity feed container
-]]
-function Journal:CreateActivityFeedSection(parent)
-    local Components = HopeAddon.Components
-    local ActivityFeed = HopeAddon.ActivityFeed
-
-    -- Get recent activities (max 10 for display)
-    local activities = ActivityFeed and ActivityFeed:GetRecentFeed(10) or {}
-
-    -- Main container with arcane purple border (social feature color)
-    local container = CreateFrame("Frame", nil, parent, "BackdropTemplate")
-    local contentHeight = #activities > 0 and (50 + (#activities * 50)) or 100
-    container:SetSize(parent:GetWidth() - 20, math.min(contentHeight, 350))
-    container._componentType = "activityFeed"
-
-    -- Apply backdrop with arcane purple border
-    container:SetBackdrop(HopeAddon.Constants.BACKDROPS.TOOLTIP)
-    local purpleColor = HopeAddon.colors.ARCANE_PURPLE
-    container:SetBackdropBorderColor(purpleColor.r, purpleColor.g, purpleColor.b, 1)
-
-    -- Header with scroll icon
-    local headerIcon = container:CreateTexture(nil, "ARTWORK")
-    headerIcon:SetSize(20, 20)
-    headerIcon:SetPoint("TOPLEFT", container, "TOPLEFT", 12, -10)
-    headerIcon:SetTexture("Interface\\Icons\\INV_Scroll_03")  -- Scroll icon
-
-    local headerText = container:CreateFontString(nil, "OVERLAY")
-    headerText:SetFont(HopeAddon.assets.fonts.HEADER, 14)
-    headerText:SetPoint("LEFT", headerIcon, "RIGHT", 8, 0)
-    headerText:SetText(HopeAddon:ColorText("RECENT ACTIVITY", "ARCANE_PURPLE"))
-
-    -- Count badge
-    local countBadge = container:CreateFontString(nil, "OVERLAY")
-    countBadge:SetFont(HopeAddon.assets.fonts.SMALL, 10)
-    countBadge:SetPoint("LEFT", headerText, "RIGHT", 8, 0)
-    if #activities > 0 then
-        countBadge:SetText("|cFFFFFFFF(" .. #activities .. " recent)|r")
-    else
-        countBadge:SetText("|cFF808080(none)|r")
-    end
-
-    -- Post Rumor button (top right of header)
-    local postBtn = CreateFrame("Button", nil, container)
-    postBtn:SetSize(60, 22)
-    postBtn:SetPoint("TOPRIGHT", container, "TOPRIGHT", -12, -8)
-
-    local postBtnBg = postBtn:CreateTexture(nil, "BACKGROUND")
-    postBtnBg:SetAllPoints()
-    postBtnBg:SetColorTexture(0.4, 0.2, 0.6, 0.8)
-    postBtn.bg = postBtnBg
-
-    local postBtnText = postBtn:CreateFontString(nil, "OVERLAY")
-    postBtnText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
-    postBtnText:SetPoint("CENTER")
-    postBtnText:SetText("|cFFFFFFFF+ Post|r")
-
-    postBtn:SetScript("OnEnter", function(self)
-        self.bg:SetColorTexture(0.5, 0.3, 0.7, 0.9)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Post a Rumor", 0.8, 0.4, 1)
-        local canPost, remaining = ActivityFeed:CanPostRumor()
-        if canPost then
-            GameTooltip:AddLine("Share what's on your mind!", 0.8, 0.8, 0.8)
-        else
-            GameTooltip:AddLine("Cooldown: " .. remaining .. "s", 1, 0.3, 0.3)
-        end
-        GameTooltip:Show()
-    end)
-    postBtn:SetScript("OnLeave", function(self)
-        self.bg:SetColorTexture(0.4, 0.2, 0.6, 0.8)
-        GameTooltip:Hide()
-    end)
-    postBtn:SetScript("OnClick", function()
-        if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
-        Journal:ShowRumorInput(container)
-    end)
-
-    -- Divider
-    local divider = container:CreateTexture(nil, "ARTWORK")
-    divider:SetSize(container:GetWidth() - 24, 1)
-    divider:SetPoint("TOPLEFT", container, "TOPLEFT", 12, -38)
-    divider:SetColorTexture(purpleColor.r, purpleColor.g, purpleColor.b, 0.4)
-
-    if #activities == 0 then
-        -- Empty state
-        local emptyText = container:CreateFontString(nil, "OVERLAY")
-        emptyText:SetFont(HopeAddon.assets.fonts.BODY, 12)
-        emptyText:SetPoint("CENTER", container, "CENTER", 0, -10)
-        emptyText:SetText("|cFF808080No recent activity from Fellow Travelers.\n\nEvents will appear here as Fellows level up,\ndefeat bosses, earn badges, and change status!|r")
-        emptyText:SetJustifyH("CENTER")
-    else
-        -- Create activity rows
-        local yOffset = -48
-        for i, activity in ipairs(activities) do
-            if yOffset > -330 then
-                local row = self:CreateActivityRow(container, activity, yOffset)
-                yOffset = yOffset - 50
-            end
-        end
-
-        -- "More..." indicator if truncated
-        if #activities > 6 then
-            local moreText = container:CreateFontString(nil, "OVERLAY")
-            moreText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
-            moreText:SetPoint("BOTTOMRIGHT", container, "BOTTOMRIGHT", -12, 8)
-            moreText:SetText("|cFF808080+" .. (#activities - 6) .. " more...|r")
-        end
-    end
-
-    return container
-end
-
---[[
     Create a single activity row in the feed
     @param parent Frame - Parent container
     @param activity table - Activity data { type, player, class, data, time }
@@ -4578,7 +4587,7 @@ function Journal:CreateActivityRow(parent, activity, yOffset)
 
     -- Activity description
     local descText = row:CreateFontString(nil, "OVERLAY")
-    descText:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    descText:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     descText:SetPoint("TOPLEFT", typeIcon, "TOPRIGHT", 8, -2)
     descText:SetWidth(parent:GetWidth() - 120)  -- Leave room for time
     descText:SetWordWrap(true)
@@ -4588,7 +4597,7 @@ function Journal:CreateActivityRow(parent, activity, yOffset)
 
     -- Time ago (top right)
     local timeText = row:CreateFontString(nil, "OVERLAY")
-    timeText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+    timeText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
     timeText:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, -2)
 
     local timeAgo = ActivityFeed and ActivityFeed:GetRelativeTime(activity.time) or "?"
@@ -4605,7 +4614,7 @@ function Journal:CreateActivityRow(parent, activity, yOffset)
     mugIcon:SetTexture("Interface\\Icons\\INV_Drink_10")
 
     local mugCountText = mugBtn:CreateFontString(nil, "OVERLAY")
-    mugCountText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+    mugCountText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
     mugCountText:SetPoint("LEFT", mugIcon, "RIGHT", 2, 0)
     local count = activity.mugs or 0
     mugCountText:SetText(count > 0 and ("|cFFFFD700" .. count .. "|r") or "")
@@ -4682,7 +4691,7 @@ function Journal:CreateMyProfileSection(parent)
 
     -- Header row: "YOUR PROFILE" title + Edit Profile button
     local headerText = container:CreateFontString(nil, "OVERLAY")
-    headerText:SetFont(HopeAddon.assets.fonts.HEADER, 14)
+    headerText:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
     headerText:SetPoint("TOPLEFT", container, "TOPLEFT", 12, -10)
     headerText:SetText("|cFFFFD700YOUR PROFILE|r")
 
@@ -4696,7 +4705,7 @@ function Journal:CreateMyProfileSection(parent)
     editBtnBg:SetColorTexture(0.2, 0.2, 0.2, 0.8)
 
     local editBtnText = editBtn:CreateFontString(nil, "OVERLAY")
-    editBtnText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+    editBtnText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
     editBtnText:SetPoint("CENTER")
     editBtnText:SetText("Edit Profile")
     editBtnText:SetTextColor(1, 0.82, 0, 1)
@@ -4737,14 +4746,14 @@ function Journal:CreateMyProfileSection(parent)
     end
 
     local nameText = container:CreateFontString(nil, "OVERLAY")
-    nameText:SetFont(HopeAddon.assets.fonts.TITLE, 16)
+    nameText:SetFont(HopeAddon.assets.fonts.TITLE, 16, "")
     nameText:SetPoint("TOPLEFT", classIcon, "TOPRIGHT", 10, -2)
     nameText:SetText(displayName)
     container.nameText = nameText  -- Store reference for updates
 
     -- Class/Level info
     local levelText = container:CreateFontString(nil, "OVERLAY")
-    levelText:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    levelText:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     levelText:SetPoint("TOPLEFT", nameText, "BOTTOMLEFT", 0, -2)
     local colorHex = classColor and string.format("%02x%02x%02x", classColor.r * 255, classColor.g * 255, classColor.b * 255) or "FFFFFF"
     levelText:SetText(string.format("Level %d |cFF%s%s|r", UnitLevel("player"), colorHex, playerClass or "Unknown"))
@@ -4752,15 +4761,19 @@ function Journal:CreateMyProfileSection(parent)
 
     -- Title dropdown label
     local titleLabel = container:CreateFontString(nil, "OVERLAY")
-    titleLabel:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+    titleLabel:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
     titleLabel:SetPoint("TOPLEFT", container, "TOPLEFT", 15, -95)
     titleLabel:SetText("Title:")
     titleLabel:SetTextColor(0.7, 0.7, 0.7, 1)
 
-    -- Title dropdown
-    local titleDropdown = CreateFrame("Frame", "HopeAddonSocialTitleDropdown" .. GetTime(), container, "UIDropDownMenuTemplate")
+    -- Title dropdown (static name - frame is hidden/wiped on tab switch via socialDropdowns tracking)
+    local titleDropdown = _G["HopeAddonSocialTitleDropdown"] or CreateFrame("Frame", "HopeAddonSocialTitleDropdown", container, "UIDropDownMenuTemplate")
+    titleDropdown:SetParent(container)
+    titleDropdown:ClearAllPoints()
     titleDropdown:SetPoint("LEFT", titleLabel, "RIGHT", -10, -2)
     UIDropDownMenu_SetWidth(titleDropdown, 140)
+    -- Track for cleanup on tab switch
+    table.insert(Journal.socialDropdowns, titleDropdown)
 
     local function InitializeTitleDropdown()
         local titles = Badges and Badges:GetUnlockedTitles() or {}
@@ -4806,15 +4819,19 @@ function Journal:CreateMyProfileSection(parent)
 
     -- RP Status dropdown label
     local statusLabel = container:CreateFontString(nil, "OVERLAY")
-    statusLabel:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+    statusLabel:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
     statusLabel:SetPoint("TOPLEFT", container, "TOPLEFT", 15, -125)
     statusLabel:SetText("RP Status:")
     statusLabel:SetTextColor(0.7, 0.7, 0.7, 1)
 
-    -- RP Status dropdown
-    local statusDropdown = CreateFrame("Frame", "HopeAddonSocialStatusDropdown" .. GetTime(), container, "UIDropDownMenuTemplate")
+    -- RP Status dropdown (static name - frame is hidden/wiped on tab switch via socialDropdowns tracking)
+    local statusDropdown = _G["HopeAddonSocialStatusDropdown"] or CreateFrame("Frame", "HopeAddonSocialStatusDropdown", container, "UIDropDownMenuTemplate")
+    statusDropdown:SetParent(container)
+    statusDropdown:ClearAllPoints()
     statusDropdown:SetPoint("LEFT", statusLabel, "RIGHT", -10, -2)
     UIDropDownMenu_SetWidth(statusDropdown, 140)
+    -- Track for cleanup on tab switch
+    table.insert(Journal.socialDropdowns, statusDropdown)
 
     local function InitializeStatusDropdown()
         local options = FellowTravelers and FellowTravelers.STATUS_OPTIONS or {}
@@ -4855,6 +4872,7 @@ Journal.socialState = {
     pageSize = 20,  -- Show 20 at a time for performance
 }
 Journal.searchDebounceTimer = nil  -- Timer handle for search debouncing
+Journal.socialDropdowns = {}  -- Track dropdown frames for cleanup on tab switch
 
 --[[
     Create search/filter toolbar for Fellow Travelers list
@@ -4891,7 +4909,7 @@ function Journal:CreateSocialToolbar(parent)
     })
     searchBox:SetBackdropColor(0.1, 0.1, 0.1, 0.8)
     searchBox:SetBackdropBorderColor(0.4, 0.4, 0.4, 0.6)
-    searchBox:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    searchBox:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     searchBox:SetTextColor(1, 1, 1, 1)
     searchBox:SetAutoFocus(false)
     searchBox:SetText(self.socialState.searchText)
@@ -4899,7 +4917,7 @@ function Journal:CreateSocialToolbar(parent)
     toolbar.searchBox = searchBox
 
     local placeholder = searchBox:CreateFontString(nil, "OVERLAY")
-    placeholder:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    placeholder:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     placeholder:SetPoint("LEFT", searchBox, "LEFT", 8, 0)
     placeholder:SetText("|cFF808080Search name, class, zone...|r")
     placeholder:SetJustifyH("LEFT")
@@ -4925,7 +4943,13 @@ function Journal:CreateSocialToolbar(parent)
     end)
     searchBox:SetScript("OnEditFocusGained", function(self) self:SetBackdropBorderColor(1, 0.84, 0, 0.8) end)
     searchBox:SetScript("OnEditFocusLost", function(self) self:SetBackdropBorderColor(0.4, 0.4, 0.4, 0.6) end)
-    searchBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+    searchBox:SetScript("OnEscapePressed", function(self)
+        self:ClearFocus()
+        -- Also close the journal (escape should dismiss the whole UI)
+        if Journal.mainFrame then
+            Journal.mainFrame:Hide()
+        end
+    end)
     searchBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
     -- Allow movement keys to pass through to game while typing
     searchBox:SetScript("OnKeyDown", function(self, key)
@@ -4933,15 +4957,20 @@ function Journal:CreateSocialToolbar(parent)
     end)
 
     local sortLabel = toolbar:CreateFontString(nil, "OVERLAY")
-    sortLabel:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+    sortLabel:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
     sortLabel:SetPoint("LEFT", searchBox, "RIGHT", 15, 0)
     sortLabel:SetText("Sort:")
     sortLabel:SetTextColor(0.7, 0.7, 0.7, 1)
 
-    local sortDropdown = CreateFrame("Frame", "HopeAddonSocialSortDropdown" .. GetTime(), toolbar, "UIDropDownMenuTemplate")
+    -- Sort dropdown (static name - frame is hidden/wiped on tab switch via socialDropdowns tracking)
+    local sortDropdown = _G["HopeAddonSocialSortDropdown"] or CreateFrame("Frame", "HopeAddonSocialSortDropdown", toolbar, "UIDropDownMenuTemplate")
+    sortDropdown:SetParent(toolbar)
+    sortDropdown:ClearAllPoints()
     sortDropdown:SetPoint("LEFT", sortLabel, "RIGHT", -10, -2)
     UIDropDownMenu_SetWidth(sortDropdown, 100)
     toolbar.sortDropdown = sortDropdown
+    -- Track for cleanup on tab switch
+    table.insert(Journal.socialDropdowns, sortDropdown)
 
     UIDropDownMenu_Initialize(sortDropdown, function(self, level)
         local sortOptions = Directory and Directory.SORT_OPTIONS or {}
@@ -4994,7 +5023,7 @@ function Journal:CreateSocialToolbar(parent)
         btn.bg = btnBg
 
         local btnText = btn:CreateFontString(nil, "OVERLAY")
-        btnText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+        btnText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
         btnText:SetPoint("CENTER")
         btnText:SetText(filter.label)
         btn.text = btnText
@@ -5042,7 +5071,7 @@ function Journal:CreateSocialToolbar(parent)
     end
 
     local resultsText = toolbar:CreateFontString(nil, "OVERLAY")
-    resultsText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+    resultsText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
     resultsText:SetPoint("TOPRIGHT", toolbar, "TOPRIGHT", -12, filterY - 4)
     resultsText:SetText("")
     resultsText:SetTextColor(0.6, 0.6, 0.6, 1)
@@ -5103,7 +5132,7 @@ function Journal:CreatePaginationControls(parent, totalEntries, currentPage, pag
     container._componentType = "pagination"
 
     local pageText = container:CreateFontString(nil, "OVERLAY")
-    pageText:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    pageText:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     pageText:SetPoint("CENTER", container, "CENTER", 0, 0)
     pageText:SetText(string.format("Page %d of %d", currentPage, totalPages))
     pageText:SetTextColor(0.8, 0.8, 0.8, 1)
@@ -5117,7 +5146,7 @@ function Journal:CreatePaginationControls(parent, totalEntries, currentPage, pag
         prevBg:SetColorTexture(0.3, 0.3, 0.3, 0.6)
         prevBtn.bg = prevBg
         local prevText = prevBtn:CreateFontString(nil, "OVERLAY")
-        prevText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+        prevText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
         prevText:SetPoint("CENTER")
         prevText:SetText("< Prev")
         prevText:SetTextColor(1, 0.84, 0, 1)
@@ -5139,7 +5168,7 @@ function Journal:CreatePaginationControls(parent, totalEntries, currentPage, pag
         nextBg:SetColorTexture(0.3, 0.3, 0.3, 0.6)
         nextBtn.bg = nextBg
         local nextText = nextBtn:CreateFontString(nil, "OVERLAY")
-        nextText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+        nextText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
         nextText:SetPoint("CENTER")
         nextText:SetText("Next >")
         nextText:SetTextColor(1, 0.84, 0, 1)
@@ -5153,186 +5182,6 @@ function Journal:CreatePaginationControls(parent, totalEntries, currentPage, pag
     end
 
     return container
-end
-
---[[
-    Create the Companions section (favorites list)
-    @param parent Frame
-    @return Frame
-]]
-function Journal:CreateCompanionsSection(parent)
-    local Companions = HopeAddon.Companions
-    local companions = Companions and Companions:GetAllCompanions() or {}
-    local requests = Companions and Companions:GetIncomingRequests() or {}
-    local onlineCount = Companions and Companions:GetOnlineCount() or 0
-    local totalCount = Companions and Companions:GetCount() or 0
-
-    local container = CreateFrame("Frame", nil, parent, "BackdropTemplate")
-    local hasRequests = #requests > 0
-    local contentHeight = 55 + (#companions * 35) + (hasRequests and (#requests * 40 + 10) or 0)
-    container:SetSize(parent:GetWidth() - 20, math.max(math.min(contentHeight, 250), 80))
-    container._componentType = "companionsSection"
-
-    container:SetBackdrop(HopeAddon.Constants.BACKDROPS.TOOLTIP)
-    local goldColor = HopeAddon.colors.GOLD_BRIGHT
-    container:SetBackdropBorderColor(goldColor.r, goldColor.g, goldColor.b, 1)
-
-    -- Header with friends icon
-    local headerIcon = container:CreateTexture(nil, "ARTWORK")
-    headerIcon:SetSize(20, 20)
-    headerIcon:SetPoint("TOPLEFT", container, "TOPLEFT", 12, -10)
-    headerIcon:SetTexture("Interface\\Icons\\Achievement_GuildPerk_EverybodysFriend")
-
-    local headerText = container:CreateFontString(nil, "OVERLAY")
-    headerText:SetFont(HopeAddon.assets.fonts.HEADER, 14)
-    headerText:SetPoint("LEFT", headerIcon, "RIGHT", 8, 0)
-    headerText:SetText(HopeAddon:ColorText("COMPANIONS", "GOLD_BRIGHT"))
-
-    local countText = container:CreateFontString(nil, "OVERLAY")
-    countText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
-    countText:SetPoint("LEFT", headerText, "RIGHT", 8, 0)
-    if totalCount > 0 then
-        countText:SetText("|cFF00FF00(" .. onlineCount .. "/" .. totalCount .. " online)|r")
-    else
-        countText:SetText("|cFF808080(0)|r")
-    end
-
-    -- Pending requests badge
-    if hasRequests then
-        local requestBadge = container:CreateFontString(nil, "OVERLAY")
-        requestBadge:SetFont(HopeAddon.assets.fonts.SMALL, 10)
-        requestBadge:SetPoint("TOPRIGHT", container, "TOPRIGHT", -12, -12)
-        requestBadge:SetText("|cFFFF3333" .. #requests .. " pending|r")
-    end
-
-    -- Divider
-    local divider = container:CreateTexture(nil, "ARTWORK")
-    divider:SetSize(container:GetWidth() - 24, 1)
-    divider:SetPoint("TOPLEFT", container, "TOPLEFT", 12, -38)
-    divider:SetColorTexture(goldColor.r, goldColor.g, goldColor.b, 0.4)
-
-    local yOffset = -48
-
-    -- Pending requests section first
-    if hasRequests then
-        local reqLabel = container:CreateFontString(nil, "OVERLAY")
-        reqLabel:SetFont(HopeAddon.assets.fonts.SMALL, 10)
-        reqLabel:SetPoint("TOPLEFT", container, "TOPLEFT", 12, yOffset)
-        reqLabel:SetText("|cFFFFD700Incoming Requests:|r")
-        yOffset = yOffset - 18
-
-        for _, req in ipairs(requests) do
-            local reqRow = self:CreateCompanionRequestRow(container, req, yOffset)
-            yOffset = yOffset - 38
-        end
-
-        yOffset = yOffset - 8
-    end
-
-    -- Companion rows
-    if #companions == 0 and not hasRequests then
-        local emptyText = container:CreateFontString(nil, "OVERLAY")
-        emptyText:SetFont(HopeAddon.assets.fonts.BODY, 11)
-        emptyText:SetPoint("CENTER", container, "CENTER", 0, -10)
-        emptyText:SetText("|cFF808080No companions yet.\nAdd Fellows from the directory below!|r")
-        emptyText:SetJustifyH("CENTER")
-    else
-        for _, comp in ipairs(companions) do
-            if yOffset > -240 then
-                local row = self:CreateCompanionRow(container, comp, yOffset)
-                yOffset = yOffset - 32
-            end
-        end
-    end
-
-    return container
-end
-
---[[
-    Create a single companion row
-    @param parent Frame
-    @param comp table - Companion data { name, class, level, isOnline, zone, selectedTitle }
-    @param yOffset number
-    @return Frame
-]]
-function Journal:CreateCompanionRow(parent, comp, yOffset)
-    local row = CreateFrame("Frame", nil, parent)
-    row:SetSize(parent:GetWidth() - 24, 28)
-    row:SetPoint("TOPLEFT", parent, "TOPLEFT", 12, yOffset)
-
-    -- Online status dot
-    local statusDot = row:CreateTexture(nil, "ARTWORK")
-    statusDot:SetSize(10, 10)
-    statusDot:SetPoint("LEFT", row, "LEFT", 0, 0)
-    statusDot:SetTexture("Interface\\COMMON\\Indicator-Green")
-    if comp.isOnline then
-        statusDot:SetVertexColor(0, 1, 0)  -- Green = online
-    else
-        statusDot:SetVertexColor(0.5, 0.5, 0.5)  -- Grey = offline
-    end
-
-    -- Class icon
-    local classIcon = row:CreateTexture(nil, "ARTWORK")
-    classIcon:SetSize(18, 18)
-    classIcon:SetPoint("LEFT", statusDot, "RIGHT", 6, 0)
-    local classPath = "Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES"
-    classIcon:SetTexture(classPath)
-    local coords = CLASS_ICON_TCOORDS[comp.class]
-    if coords then
-        classIcon:SetTexCoord(unpack(coords))
-    end
-
-    -- Name with title
-    local nameText = row:CreateFontString(nil, "OVERLAY")
-    nameText:SetFont(HopeAddon.assets.fonts.BODY, 11)
-    nameText:SetPoint("LEFT", classIcon, "RIGHT", 6, 0)
-
-    local classColor = HopeAddon:GetClassColor(comp.class) or { r = 0.7, g = 0.7, b = 0.7 }
-    local nameStr = string.format("|cFF%02x%02x%02x%s|r",
-        classColor.r * 255, classColor.g * 255, classColor.b * 255, comp.name)
-    if comp.selectedTitle then
-        nameStr = nameStr .. " |cFFFFD700<" .. comp.selectedTitle .. ">|r"
-    end
-    nameText:SetText(nameStr)
-
-    -- Zone (right side) or "Offline"
-    local zoneText = row:CreateFontString(nil, "OVERLAY")
-    zoneText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
-    zoneText:SetPoint("RIGHT", row, "RIGHT", -30, 0)
-    if comp.isOnline then
-        zoneText:SetText("|cFF00BFFF" .. (comp.zone or "Unknown") .. "|r")
-    else
-        zoneText:SetText("|cFF606060Offline|r")
-    end
-
-    -- Remove button (X)
-    local removeBtn = CreateFrame("Button", nil, row)
-    removeBtn:SetSize(16, 16)
-    removeBtn:SetPoint("RIGHT", row, "RIGHT", 0, 0)
-
-    local removeText = removeBtn:CreateFontString(nil, "OVERLAY")
-    removeText:SetFont(HopeAddon.assets.fonts.SMALL, 12)
-    removeText:SetPoint("CENTER")
-    removeText:SetText("|cFF606060×|r")
-
-    removeBtn:SetScript("OnEnter", function()
-        removeText:SetText("|cFFFF3333×|r")
-        GameTooltip:SetOwner(removeBtn, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Remove Companion", 1, 0.3, 0.3)
-        GameTooltip:Show()
-    end)
-    removeBtn:SetScript("OnLeave", function()
-        removeText:SetText("|cFF606060×|r")
-        GameTooltip:Hide()
-    end)
-    removeBtn:SetScript("OnClick", function()
-        if HopeAddon.Companions then
-            HopeAddon.Companions:RemoveCompanion(comp.name)
-            Journal:RefreshSocialList()
-        end
-    end)
-
-    return row
 end
 
 --[[
@@ -5360,7 +5209,7 @@ function Journal:CreateCompanionRequestRow(parent, req, yOffset)
 
     -- Name
     local nameText = row:CreateFontString(nil, "OVERLAY")
-    nameText:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    nameText:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     nameText:SetPoint("LEFT", classIcon, "RIGHT", 6, 0)
 
     local classColor = HopeAddon:GetClassColor(req.class) or { r = 0.7, g = 0.7, b = 0.7 }
@@ -5377,7 +5226,7 @@ function Journal:CreateCompanionRequestRow(parent, req, yOffset)
     acceptBg:SetColorTexture(0.2, 0.6, 0.2, 0.8)
 
     local acceptText = acceptBtn:CreateFontString(nil, "OVERLAY")
-    acceptText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+    acceptText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
     acceptText:SetPoint("CENTER")
     acceptText:SetText("|cFFFFFFFFAccept|r")
 
@@ -5404,7 +5253,7 @@ function Journal:CreateCompanionRequestRow(parent, req, yOffset)
     declineBg:SetColorTexture(0.5, 0.2, 0.2, 0.8)
 
     local declineText = declineBtn:CreateFontString(nil, "OVERLAY")
-    declineText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+    declineText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
     declineText:SetPoint("CENTER")
     declineText:SetText("|cFFFFFFFFDecline|r")
 
@@ -5448,7 +5297,7 @@ function Journal:ShowRumorInput(parent)
         self.rumorInputFrame = frame
 
         local editBox = CreateFrame("EditBox", nil, frame)
-        editBox:SetFont(HopeAddon.assets.fonts.BODY, 12)
+        editBox:SetFont(HopeAddon.assets.fonts.BODY, 12, "")
         editBox:SetSize(frame:GetWidth() - 90, 20)
         editBox:SetPoint("LEFT", frame, "LEFT", 10, 0)
         editBox:SetMaxLetters(100)
@@ -5467,7 +5316,7 @@ function Journal:ShowRumorInput(parent)
         sendBg:SetAllPoints()
         sendBg:SetColorTexture(0.2, 0.6, 0.2, 0.8)
         local sendText = sendBtn:CreateFontString(nil, "OVERLAY")
-        sendText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+        sendText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
         sendText:SetPoint("CENTER")
         sendText:SetText("|cFFFFFFFFSend|r")
         frame.sendBtn = sendBtn
@@ -5494,11 +5343,15 @@ function Journal:ShowRumorInput(parent)
         end)
         editBox:SetScript("OnEscapePressed", function()
             frame:Hide()
+            -- Also close the journal (escape should dismiss the whole UI)
+            if Journal.mainFrame then
+                Journal.mainFrame:Hide()
+            end
         end)
 
         -- Placeholder text
         local placeholder = editBox:CreateFontString(nil, "ARTWORK")
-        placeholder:SetFont(HopeAddon.assets.fonts.BODY, 12)
+        placeholder:SetFont(HopeAddon.assets.fonts.BODY, 12, "")
         placeholder:SetPoint("LEFT", editBox, "LEFT", 5, 0)
         placeholder:SetText("|cFF808080What's on your mind?|r")
         frame.placeholder = placeholder
@@ -5520,134 +5373,2596 @@ function Journal:ShowRumorInput(parent)
     self.rumorInputFrame.editBox:SetFocus()
 end
 
+--============================================================
+-- POST POPUP - IC Post vs Anonymous Rumor selection
+--============================================================
+
+local POST_POPUP_WIDTH = 360
+local POST_POPUP_HEIGHT = 380
+
+-- Post type options (Phase 50)
+local POST_TYPE_OPTIONS = {
+    {
+        id = "IC",
+        label = "In Character",
+        description = "Your name and title will be shown",
+        color = { 0.2, 0.8, 0.2 },       -- Fel green
+        icon = "Interface\\Icons\\Spell_Holy_MindVision",
+        previewFormat = function(playerName, title)
+            if title and title ~= "" then
+                return string.format("|cFFFFD700%s|r |cFF808080<%s>|r:", playerName, title)
+            end
+            return string.format("|cFFFFD700%s|r:", playerName)
+        end,
+    },
+    {
+        id = "ANON",
+        label = "Tavern Rumor",
+        description = "Anonymous - 'A patron whispers...'",
+        color = { 0.61, 0.19, 1.0 },     -- Arcane purple
+        icon = "Interface\\Icons\\INV_Scroll_01",
+        previewFormat = function()
+            return "|cFF808080A patron whispers|r:"
+        end,
+    },
+}
+
+-- Status options for status mode (kept for backward compatibility)
+local STATUS_OPTIONS = {
+    { id = "IC", label = "In Character", color = {0.0, 1.0, 0.0}, hex = "00FF00" },
+    { id = "OOC", label = "Out of Character", color = {0.5, 0.5, 0.5}, hex = "808080" },
+    { id = "LF_RP", label = "Looking for RP", color = {1.0, 0.41, 0.71}, hex = "FF69B4" },
+}
+
+--[[
+    Get or create the post popup frame (IC Post vs Anonymous Rumor)
+    @return Frame - The popup frame
+]]
+function Journal:GetRumorPopup()
+    if self.rumorPopup then
+        return self.rumorPopup
+    end
+
+    -- Create popup frame
+    local popup = CreateFrame("Frame", "HopePostPopup", UIParent, "BackdropTemplate")
+    popup:SetSize(POST_POPUP_WIDTH, POST_POPUP_HEIGHT)
+    popup:SetPoint("CENTER", UIParent, "CENTER", 0, 100)
+    popup:SetFrameStrata("DIALOG")
+    popup:SetBackdrop({
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+        edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+        tile = true,
+        tileSize = 32,
+        edgeSize = 16,
+        insets = { left = 4, right = 4, top = 4, bottom = 4 },
+    })
+    popup:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
+    popup:SetBackdropBorderColor(1.0, 0.84, 0.0, 1)
+    popup:EnableMouse(true)
+    popup:SetMovable(true)
+    popup:RegisterForDrag("LeftButton")
+    popup:SetScript("OnDragStart", popup.StartMoving)
+    popup:SetScript("OnDragStop", popup.StopMovingOrSizing)
+
+    -- Title
+    local title = popup:CreateFontString(nil, "OVERLAY")
+    title:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
+    title:SetPoint("TOP", popup, "TOP", 0, -15)
+    title:SetText(HopeAddon:ColorText("TAVERN NOTICE BOARD", "GOLD_BRIGHT"))
+    popup.title = title
+
+    -- Subtitle
+    local subtitle = popup:CreateFontString(nil, "OVERLAY")
+    subtitle:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+    subtitle:SetPoint("TOP", title, "BOTTOM", 0, -2)
+    subtitle:SetText("|cFF808080Share with Fellow Travelers|r")
+
+    -- Close (X) button
+    local closeBtn = CreateFrame("Button", nil, popup, "UIPanelCloseButton")
+    closeBtn:SetPoint("TOPRIGHT", popup, "TOPRIGHT", -2, -2)
+    closeBtn:SetScript("OnClick", function()
+        popup:Hide()
+    end)
+
+    -- Content container
+    local content = CreateFrame("Frame", nil, popup)
+    content:SetPoint("TOPLEFT", popup, "TOPLEFT", 20, -50)
+    content:SetPoint("BOTTOMRIGHT", popup, "BOTTOMRIGHT", -20, 50)
+    popup.content = content
+
+    -- Edit box with background
+    local editBoxFrame = CreateFrame("Frame", nil, content, "BackdropTemplate")
+    editBoxFrame:SetSize(POST_POPUP_WIDTH - 40, 60)
+    editBoxFrame:SetPoint("TOP", content, "TOP", 0, 0)
+    editBoxFrame:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+        edgeSize = 10,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 },
+    })
+    editBoxFrame:SetBackdropColor(0.05, 0.05, 0.05, 0.9)
+    editBoxFrame:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+
+    local editBox = CreateFrame("EditBox", nil, editBoxFrame)
+    editBox:SetFont(HopeAddon.assets.fonts.BODY, 12, "")
+    editBox:SetPoint("TOPLEFT", editBoxFrame, "TOPLEFT", 8, -8)
+    editBox:SetPoint("BOTTOMRIGHT", editBoxFrame, "BOTTOMRIGHT", -8, 8)
+    editBox:SetMaxLetters(100)
+    editBox:SetAutoFocus(false)
+    editBox:SetMultiLine(true)
+    editBox:SetTextInsets(2, 2, 2, 2)
+    editBox:SetTextColor(1, 1, 1)
+    popup.editBox = editBox
+
+    -- Character counter
+    local charCounter = content:CreateFontString(nil, "OVERLAY")
+    charCounter:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
+    charCounter:SetPoint("TOPRIGHT", editBoxFrame, "BOTTOMRIGHT", 0, -3)
+    charCounter:SetText("0 / 100")
+    charCounter:SetTextColor(0.6, 0.6, 0.6)
+    popup.charCounter = charCounter
+
+    -- Cooldown indicator
+    local cooldownText = content:CreateFontString(nil, "OVERLAY")
+    cooldownText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
+    cooldownText:SetPoint("TOPLEFT", editBoxFrame, "BOTTOMLEFT", 0, -3)
+    cooldownText:SetTextColor(1, 0.5, 0.5)
+    cooldownText:Hide()
+    popup.cooldownText = cooldownText
+
+    editBox:SetScript("OnTextChanged", function(self)
+        local len = #self:GetText()
+        charCounter:SetText(len .. " / 100")
+        if len >= 100 then
+            charCounter:SetTextColor(1, 0.3, 0.3)
+        elseif len >= 80 then
+            charCounter:SetTextColor(1, 0.8, 0)
+        else
+            charCounter:SetTextColor(0.6, 0.6, 0.6)
+        end
+        -- Update preview
+        Journal:UpdatePostPreview()
+    end)
+
+    editBox:SetScript("OnEscapePressed", function()
+        popup:Hide()
+    end)
+
+    -- "HOW TO POST" label
+    local howToLabel = content:CreateFontString(nil, "OVERLAY")
+    howToLabel:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+    howToLabel:SetPoint("TOPLEFT", editBoxFrame, "BOTTOMLEFT", 0, -22)
+    howToLabel:SetText("|cFF808080Choose how to post:|r")
+
+    -- POST TYPE RADIO BUTTONS
+    popup.postTypeButtons = {}
+    popup.selectedPostType = "IC"  -- Default to IC
+
+    local yOffset = -40
+    for i, option in ipairs(POST_TYPE_OPTIONS) do
+        local btn = CreateFrame("Button", nil, content, "BackdropTemplate")
+        btn:SetSize(POST_POPUP_WIDTH - 40, 50)
+        btn:SetPoint("TOP", editBoxFrame, "BOTTOM", 0, yOffset)
+        btn:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8x8",
+            edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+            edgeSize = 10,
+            insets = { left = 2, right = 2, top = 2, bottom = 2 },
+        })
+        btn:SetBackdropColor(0.1, 0.1, 0.1, 0.9)
+        btn:SetBackdropBorderColor(option.color[1], option.color[2], option.color[3], 0.4)
+
+        -- Radio button indicator (circle)
+        local radio = btn:CreateTexture(nil, "OVERLAY")
+        radio:SetSize(16, 16)
+        radio:SetPoint("LEFT", btn, "LEFT", 12, 0)
+        radio:SetTexture("Interface\\Buttons\\UI-RadioButton")
+        radio:SetTexCoord(0, 0.25, 0, 1)  -- Unchecked state
+        btn.radio = radio
+
+        -- Type icon
+        local icon = btn:CreateTexture(nil, "ARTWORK")
+        icon:SetSize(24, 24)
+        icon:SetPoint("LEFT", radio, "RIGHT", 10, 0)
+        icon:SetTexture(option.icon)
+        btn.icon = icon
+
+        -- Type label
+        local label = btn:CreateFontString(nil, "OVERLAY")
+        label:SetFont(HopeAddon.assets.fonts.BODY, 12, "")
+        label:SetPoint("LEFT", icon, "RIGHT", 8, 6)
+        label:SetText(option.label)
+        label:SetTextColor(option.color[1], option.color[2], option.color[3])
+        btn.label = label
+
+        -- Description
+        local desc = btn:CreateFontString(nil, "OVERLAY")
+        desc:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
+        desc:SetPoint("LEFT", icon, "RIGHT", 8, -8)
+        desc:SetText("|cFF808080" .. option.description .. "|r")
+        btn.desc = desc
+
+        btn.typeId = option.id
+        btn.option = option
+
+        btn:SetScript("OnEnter", function(self)
+            self:SetBackdropBorderColor(1, 0.84, 0, 1)
+            if HopeAddon.Sounds then HopeAddon.Sounds:PlayHover() end
+        end)
+        btn:SetScript("OnLeave", function(self)
+            if popup.selectedPostType == self.typeId then
+                self:SetBackdropBorderColor(self.option.color[1], self.option.color[2], self.option.color[3], 1)
+            else
+                self:SetBackdropBorderColor(self.option.color[1], self.option.color[2], self.option.color[3], 0.4)
+            end
+        end)
+        btn:SetScript("OnClick", function(self)
+            if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+            popup.selectedPostType = self.typeId
+            Journal:UpdatePostTypeSelection()
+            Journal:UpdatePostPreview()
+        end)
+
+        popup.postTypeButtons[i] = btn
+        yOffset = yOffset - 55
+    end
+
+    -- Preview section
+    local previewLabel = content:CreateFontString(nil, "OVERLAY")
+    previewLabel:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
+    previewLabel:SetPoint("TOPLEFT", popup.postTypeButtons[2], "BOTTOMLEFT", 0, -10)
+    previewLabel:SetText("|cFF808080Preview:|r")
+    popup.previewLabel = previewLabel
+
+    local previewFrame = CreateFrame("Frame", nil, content, "BackdropTemplate")
+    previewFrame:SetSize(POST_POPUP_WIDTH - 40, 36)
+    previewFrame:SetPoint("TOP", previewLabel, "BOTTOM", 0, -4)
+    previewFrame:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+        edgeSize = 8,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    })
+    previewFrame:SetBackdropColor(0.05, 0.05, 0.05, 0.8)
+    previewFrame:SetBackdropBorderColor(0.3, 0.3, 0.3, 0.6)
+    popup.previewFrame = previewFrame
+
+    local previewText = previewFrame:CreateFontString(nil, "OVERLAY")
+    previewText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+    previewText:SetPoint("LEFT", previewFrame, "LEFT", 8, 0)
+    previewText:SetPoint("RIGHT", previewFrame, "RIGHT", -8, 0)
+    previewText:SetJustifyH("LEFT")
+    previewText:SetWordWrap(true)
+    previewText:SetText("|cFF808080Your message will appear here...|r")
+    popup.previewText = previewText
+
+    -- BOTTOM BUTTONS --
+
+    -- Cancel button
+    local cancelBtn = CreateFrame("Button", nil, popup, "UIPanelButtonTemplate")
+    cancelBtn:SetSize(90, 24)
+    cancelBtn:SetPoint("BOTTOMLEFT", popup, "BOTTOMLEFT", 20, 15)
+    cancelBtn:SetText("Cancel")
+    cancelBtn:SetScript("OnClick", function()
+        if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+        popup:Hide()
+    end)
+    popup.cancelBtn = cancelBtn
+
+    -- Post button
+    local postBtn = CreateFrame("Button", nil, popup, "UIPanelButtonTemplate")
+    postBtn:SetSize(90, 24)
+    postBtn:SetPoint("BOTTOMRIGHT", popup, "BOTTOMRIGHT", -20, 15)
+    postBtn:SetText("Post")
+    popup.postBtn = postBtn
+
+    postBtn:SetScript("OnClick", function()
+        if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+        local text = editBox:GetText()
+        if text and text ~= "" and HopeAddon.ActivityFeed then
+            local isAnonymous = (popup.selectedPostType == "ANON")
+            if HopeAddon.ActivityFeed:PostMessage(text, isAnonymous) then
+                editBox:SetText("")
+                popup:Hide()
+                -- Switch to Feed sub-tab and refresh so user sees their post
+                if Journal.mainFrame and Journal.mainFrame:IsVisible() then
+                    Journal:SelectSocialSubTab("feed")
+                end
+            end
+        else
+            HopeAddon:Print("Please enter a message to post.")
+        end
+    end)
+
+    -- Escape to close
+    popup:EnableKeyboard(true)
+    popup:SetScript("OnKeyDown", function(self, key)
+        if key == "ESCAPE" then
+            self:SetPropagateKeyboardInput(false)
+            self:Hide()
+        else
+            self:SetPropagateKeyboardInput(true)
+        end
+    end)
+
+    popup:Hide()
+    self.rumorPopup = popup
+    return popup
+end
+
+--[[
+    Update post type radio button selection visuals
+]]
+function Journal:UpdatePostTypeSelection()
+    local popup = self.rumorPopup
+    if not popup then return end
+
+    for _, btn in ipairs(popup.postTypeButtons) do
+        if popup.selectedPostType == btn.typeId then
+            -- Selected state
+            btn.radio:SetTexCoord(0.25, 0.5, 0, 1)  -- Checked
+            btn:SetBackdropColor(0.15, 0.15, 0.15, 0.9)
+            btn:SetBackdropBorderColor(btn.option.color[1], btn.option.color[2], btn.option.color[3], 1)
+        else
+            -- Unselected state
+            btn.radio:SetTexCoord(0, 0.25, 0, 1)  -- Unchecked
+            btn:SetBackdropColor(0.1, 0.1, 0.1, 0.9)
+            btn:SetBackdropBorderColor(btn.option.color[1], btn.option.color[2], btn.option.color[3], 0.4)
+        end
+    end
+
+    -- Update preview frame border to match selected type
+    local selectedOption = nil
+    for _, opt in ipairs(POST_TYPE_OPTIONS) do
+        if opt.id == popup.selectedPostType then
+            selectedOption = opt
+            break
+        end
+    end
+    if selectedOption then
+        popup.previewFrame:SetBackdropBorderColor(selectedOption.color[1], selectedOption.color[2], selectedOption.color[3], 0.6)
+    end
+end
+
+--[[
+    Update the preview text based on current selection and text
+]]
+function Journal:UpdatePostPreview()
+    local popup = self.rumorPopup
+    if not popup then return end
+
+    local text = popup.editBox:GetText()
+    if not text or text == "" then
+        popup.previewText:SetText("|cFF808080Your message will appear here...|r")
+        return
+    end
+
+    -- Truncate for preview
+    if #text > 50 then
+        text = text:sub(1, 47) .. "..."
+    end
+
+    -- Get the format function for the selected type
+    local selectedOption = nil
+    for _, opt in ipairs(POST_TYPE_OPTIONS) do
+        if opt.id == popup.selectedPostType then
+            selectedOption = opt
+            break
+        end
+    end
+
+    if selectedOption and selectedOption.previewFormat then
+        local playerName = UnitName("player")
+        local title = nil
+        if HopeAddon.FellowTravelers then
+            local profile = HopeAddon.FellowTravelers:GetMyProfile()
+            if profile and profile.selectedTitle then
+                title = profile.selectedTitle
+            end
+        end
+        local attribution = selectedOption.previewFormat(playerName, title)
+        popup.previewText:SetText(attribution .. " \"" .. text .. "\"")
+    else
+        popup.previewText:SetText("\"" .. text .. "\"")
+    end
+end
+
+--[[
+    Show the post popup
+]]
+function Journal:ShowRumorPopup()
+    local popup = self:GetRumorPopup()
+    popup:Show()
+    popup.editBox:SetText("")
+    popup.charCounter:SetText("0 / 100")
+    popup.selectedPostType = "IC"  -- Default to IC Post
+
+    -- Check cooldown
+    if HopeAddon.ActivityFeed then
+        local canPost, remaining = HopeAddon.ActivityFeed:CanPost()
+        if not canPost then
+            local mins = math.floor(remaining / 60)
+            local secs = remaining % 60
+            popup.cooldownText:SetText(string.format("Cooldown: %d:%02d", mins, secs))
+            popup.cooldownText:Show()
+            popup.postBtn:Disable()
+        else
+            popup.cooldownText:Hide()
+            popup.postBtn:Enable()
+        end
+    end
+
+    self:UpdatePostTypeSelection()
+    self:UpdatePostPreview()
+    popup.editBox:SetFocus()
+end
+
+--[[
+    Hide the post popup
+]]
+function Journal:HideRumorPopup()
+    if self.rumorPopup then
+        self.rumorPopup:Hide()
+    end
+end
+
 function Journal:PopulateSocial()
     local Components = HopeAddon.Components
-    local Directory = HopeAddon.Directory
+    local C = HopeAddon.Constants
     local scrollContainer = self.mainFrame.scrollContainer
 
-    -- Your Profile section (lit-up container at top)
-    local profileSection = self:CreateMyProfileSection(scrollContainer.content)
-    scrollContainer:AddEntry(profileSection)
+    -- Ensure social data structure exists using centralized helper
+    local socialUI = HopeAddon:GetSocialUI()
+    if not socialUI then return end
+
+    -- SECTION 1: Status Bar (Your profile summary - always visible)
+    local statusBar = self:CreateSocialStatusBar(scrollContainer.content)
+    scrollContainer:AddEntry(statusBar)
+    self.socialContainers.statusBar = statusBar
 
     -- Spacer
-    local spacer = Components:CreateSpacer(scrollContainer.content, 15)
-    scrollContainer:AddEntry(spacer)
+    local spacer1 = Components:CreateSpacer(scrollContainer.content, 8)
+    scrollContainer:AddEntry(spacer1)
 
-    -- RECENT ACTIVITY section (Notice Board)
-    local activitySection = self:CreateActivityFeedSection(scrollContainer.content)
-    scrollContainer:AddEntry(activitySection)
+    -- SECTION 2: Sub-Tab Bar
+    local tabBar = self:CreateSocialTabBar(scrollContainer.content)
+    scrollContainer:AddEntry(tabBar)
+    self.socialContainers.tabBar = tabBar
 
-    -- Spacer after Activity Feed
-    local activitySpacer = Components:CreateSpacer(scrollContainer.content, 15)
-    scrollContainer:AddEntry(activitySpacer)
+    -- Spacer
+    local spacer2 = Components:CreateSpacer(scrollContainer.content, 8)
+    scrollContainer:AddEntry(spacer2)
 
-    -- COMPANIONS section (favorites list)
-    local companionsSection = self:CreateCompanionsSection(scrollContainer.content)
-    scrollContainer:AddEntry(companionsSection)
+    -- SECTION 3: Tab Content (dynamic based on active sub-tab)
+    local content = self:CreateSocialContent()
+    content:SetParent(scrollContainer.content)
+    scrollContainer:AddEntry(content)
+    self.socialContainers.content = content
 
-    -- Spacer after Companions
-    local companionsSpacer = Components:CreateSpacer(scrollContainer.content, 15)
-    scrollContainer:AddEntry(companionsSpacer)
+    -- Populate based on active sub-tab
+    local activeTab = socialUI.activeTab or "travelers"
+    self:SelectSocialSubTab(activeTab)
+end
 
-    -- LOOKING FOR RP board section
-    local lfRPFellows = self:GetLookingForRPFellows()
-    if #lfRPFellows > 0 then
-        local lfRPBoard = self:CreateLookingForRPBoard(scrollContainer.content, lfRPFellows)
-        scrollContainer:AddEntry(lfRPBoard)
+--[[
+    Create the Social Status Bar (your profile summary)
+    Shows: Class icon, Name <Title>, RP Status dropdown, Post Rumor button
+    @param parent Frame - Parent frame
+    @return Frame - Status bar frame
+]]
+function Journal:CreateSocialStatusBar(parent)
+    local C = HopeAddon.Constants
+    local height = C.SOCIAL_TAB.STATUS_BAR_HEIGHT
 
-        -- Spacer after LF_RP board
-        local lfRPSpacer = Components:CreateSpacer(scrollContainer.content, 15)
-        scrollContainer:AddEntry(lfRPSpacer)
+    local bar = self.containerPool:Acquire()
+    bar:SetParent(parent)
+    bar:SetHeight(height)
+    bar._componentType = "header"
+
+    -- Get player info
+    local playerName = UnitName("player")
+    local _, playerClass = UnitClass("player")
+    local myProfile = HopeAddon.charDb.travelers and HopeAddon.charDb.travelers.myProfile or {}
+    local classColor = playerClass and HopeAddon:GetClassColor(playerClass) or { r = 0.7, g = 0.7, b = 0.7 }
+
+    -- Class icon
+    local classIcon = bar:CreateTexture(nil, "ARTWORK")
+    classIcon:SetSize(28, 28)
+    classIcon:SetPoint("LEFT", bar, "LEFT", 12, 0)
+    local coords = CLASS_ICON_TCOORDS[playerClass]
+    if coords then
+        classIcon:SetTexture("Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES")
+        classIcon:SetTexCoord(unpack(coords))
     end
 
-    -- IN YOUR PARTY section (only if party has Fellow Travelers)
-    local partyFellows = self:GetPartyFellowTravelers()
-    if #partyFellows > 0 then
-        -- Party header
-        local partyHeader = self:CreateSectionHeader("IN YOUR PARTY", "FEL_GREEN", "Fellow Travelers in your group")
-        scrollContainer:AddEntry(partyHeader)
+    -- Name with title
+    local nameText = bar:CreateFontString(nil, "OVERLAY")
+    nameText:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
+    nameText:SetPoint("LEFT", classIcon, "RIGHT", 8, 0)
 
-        -- Party member cards with challenge buttons
-        for _, fellow in ipairs(partyFellows) do
-            local card = self:CreatePartyFellowCard(scrollContainer.content, fellow)
-            scrollContainer:AddEntry(card)
+    local displayName = "|cFF" .. string.format("%02x%02x%02x", classColor.r * 255, classColor.g * 255, classColor.b * 255) .. playerName .. "|r"
+    if myProfile.selectedTitle and myProfile.selectedTitle ~= "" then
+        local Badges = HopeAddon.Badges
+        local titleColor = Badges and Badges:GetTitleColor(myProfile.selectedTitle) or "FFD700"
+        displayName = displayName .. " |cFF" .. titleColor .. "<" .. myProfile.selectedTitle .. ">|r"
+    end
+    nameText:SetText(displayName)
+
+    -- RP Status dropdown (compact)
+    local statusDropdown = CreateFrame("Frame", "HopeAddonSocialStatusDropdownBar", bar, "UIDropDownMenuTemplate")
+    statusDropdown:SetPoint("LEFT", nameText, "RIGHT", 10, -2)
+    UIDropDownMenu_SetWidth(statusDropdown, 80)
+
+    local currentStatus = myProfile.status or "OOC"
+    UIDropDownMenu_SetText(statusDropdown, currentStatus)
+
+    UIDropDownMenu_Initialize(statusDropdown, function(self, level)
+        local info = UIDropDownMenu_CreateInfo()
+        for _, statusId in ipairs({ "IC", "OOC", "LF_RP" }) do
+            local statusDef = C.RP_STATUS[statusId]
+            info.text = statusDef.label
+            info.value = statusId
+            info.checked = (currentStatus == statusId)
+            info.func = function()
+                UIDropDownMenu_SetText(statusDropdown, statusId)
+                if HopeAddon.FellowTravelers then
+                    HopeAddon.FellowTravelers:UpdateMyProfile({ status = statusId })
+                end
+            end
+            UIDropDownMenu_AddButton(info)
         end
+    end)
 
-        -- Spacer before Fellow Travelers section
-        local partySpacer = Components:CreateSpacer(scrollContainer.content, 20)
-        scrollContainer:AddEntry(partySpacer)
+    -- Post Rumor button
+    local rumorBtn = CreateFrame("Button", nil, bar, "BackdropTemplate")
+    rumorBtn:SetSize(90, 24)
+    rumorBtn:SetPoint("RIGHT", bar, "RIGHT", -12, 0)
+    rumorBtn:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+        edgeSize = 10,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    })
+    rumorBtn:SetBackdropColor(0.2, 0.4, 0.2, 0.9)
+    rumorBtn:SetBackdropBorderColor(0.4, 0.8, 0.4, 1)
+
+    local rumorText = rumorBtn:CreateFontString(nil, "OVERLAY")
+    rumorText:SetFont(HopeAddon.assets.fonts.HEADER, 10, "")
+    rumorText:SetPoint("CENTER")
+    rumorText:SetText("+ Share")
+    rumorText:SetTextColor(0.4, 1.0, 0.4)
+
+    rumorBtn:SetScript("OnClick", function()
+        HopeAddon.Sounds:PlayClick()
+        Journal:ShowRumorPopup()
+    end)
+    rumorBtn:SetScript("OnEnter", function(self)
+        self:SetBackdropBorderColor(1, 0.84, 0, 1)
+    end)
+    rumorBtn:SetScript("OnLeave", function(self)
+        self:SetBackdropBorderColor(0.4, 0.8, 0.4, 1)
+    end)
+
+    return bar
+end
+
+--[[
+    Create the Social Sub-Tab Bar
+    Shows: [Feed] [Travelers] [Companions] tabs
+    @param parent Frame - Parent frame
+    @return Frame - Tab bar frame
+]]
+function Journal:CreateSocialTabBar(parent)
+    local C = HopeAddon.Constants
+    local Components = HopeAddon.Components
+
+    local bar = self.containerPool:Acquire()
+    bar:SetParent(parent)
+    bar:SetHeight(C.SOCIAL_TAB.TAB_HEIGHT + 4)
+    bar._componentType = "header"
+
+    -- Use centralized helper for social UI access
+    local socialUI = HopeAddon:GetSocialUI()
+    local activeTab = socialUI and socialUI.activeTab or "travelers"
+
+    -- Create sub-tabs
+    local tabs = {
+        { id = "feed", label = "Feed" },
+        { id = "travelers", label = "Travelers" },
+        { id = "companions", label = "Companions" },
+    }
+
+    local xOffset = 8
+    for _, tabInfo in ipairs(tabs) do
+        local isActive = (tabInfo.id == activeTab)
+        local tab = Components:CreateSocialSubTab(bar, tabInfo.id, tabInfo.label, isActive, function(tabId)
+            self:SelectSocialSubTab(tabId)
+        end)
+        tab:SetPoint("LEFT", bar, "LEFT", xOffset, 0)
+        xOffset = xOffset + C.SOCIAL_TAB.TAB_WIDTH + C.SOCIAL_TAB.TAB_SPACING
+
+        self.socialSubTabs[tabInfo.id] = tab
     end
 
-    -- Fellow Travelers Header
-    local header = self:CreateSectionHeader("FELLOW TRAVELERS", "FEL_GREEN", "Addon users you have encountered")
-    scrollContainer:AddEntry(header)
+    -- Update badge counts
+    self:UpdateSocialTabBadges()
 
-    -- Search/Filter/Sort Toolbar
-    local toolbar = self:CreateSocialToolbar(scrollContainer.content)
-    scrollContainer:AddEntry(toolbar)
-    self.socialToolbar = toolbar  -- Store reference for updates
+    return bar
+end
 
-    -- Get filtered entries using social state (search, sort, filter)
-    local allEntries = self:GetFilteredSocialEntries()
-    local totalEntries = #allEntries
+--[[
+    Clear social tab content container
+    Removes all child frames and tracked regions (FontStrings, Textures)
+    Must be called before repopulating content to prevent stacking
+    @param preserveFilterBar boolean - If true, keeps the filter bar (for Travelers tab refresh)
+]]
+function Journal:ClearSocialContent(preserveFilterBar)
+    -- Safety check for nil socialContainers
+    if not self.socialContainers or not self.socialContainers.content then return end
 
-    -- Apply pagination
-    local pageSize = self.socialState.pageSize
-    local currentPage = self.socialState.currentPage
-    local startIdx = (currentPage - 1) * pageSize + 1
-    local endIdx = math.min(startIdx + pageSize - 1, totalEntries)
+    local filterBar = preserveFilterBar and self.socialContainers.filterBar or nil
 
-    -- Slice entries for current page
-    local entries = {}
-    for i = startIdx, endIdx do
-        if allEntries[i] then
-            table.insert(entries, allEntries[i])
+    -- Hide all children (frame cleanup), except filter bar if preserving
+    local children = { self.socialContainers.content:GetChildren() }
+    for _, child in ipairs(children) do
+        if child ~= filterBar then
+            child:Hide()
+            child:SetParent(nil)
         end
     end
 
-    -- Update results count in toolbar
-    if toolbar.resultsText then
-        local filterText = self.socialState.filterOption ~= "all" and (" (" .. self.socialState.filterOption:upper() .. ")") or ""
-        toolbar.resultsText:SetText(string.format("%d travelers%s", totalEntries, filterText))
+    -- If not preserving filter bar, clear reference and button table
+    if not preserveFilterBar then
+        self.socialContainers.filterBar = nil
+        if self.quickFilterButtons then
+            wipe(self.quickFilterButtons)
+        end
     end
 
-    if totalEntries == 0 then
-        -- No entries placeholder
-        local placeholderFrame = self:AcquireContainer(scrollContainer.content, 150)
-        local placeholder = placeholderFrame.headerText
-        if not placeholder then
-            placeholder = placeholderFrame:CreateFontString(nil, "OVERLAY")
-            placeholderFrame.headerText = placeholder
+    -- Hide all tracked regions (FontStrings, Textures not returned by GetChildren)
+    -- Note: SetParent(nil) releases references to allow garbage collection
+    if self.socialContentRegions then
+        for _, region in ipairs(self.socialContentRegions) do
+            if region and region.Hide then
+                region:Hide()
+                region:SetParent(nil)
+            end
         end
-        placeholder:SetFont(HopeAddon.assets.fonts.BODY, 14)
-        placeholder:ClearAllPoints()
-        placeholder:SetPoint("CENTER", placeholderFrame, "CENTER", 0, 0)
+        wipe(self.socialContentRegions)
+    end
+end
 
-        -- Different message based on whether filters are active
-        local hasFilter = self.socialState.searchText ~= "" or self.socialState.filterOption ~= "all"
-        if hasFilter then
-            placeholder:SetText("No fellow travelers match your filters.\n\nTry adjusting your search or filters.")
-        else
-            placeholder:SetText("No fellow travelers found yet...\n\nGroup up with other HopeAddon users\nto discover them automatically!")
+--[[
+    Select a social sub-tab and refresh content
+    @param tabId string - Tab identifier (feed, travelers, companions)
+]]
+function Journal:SelectSocialSubTab(tabId)
+    -- Use centralized helper for social UI access
+    local socialUI = HopeAddon:GetSocialUI()
+    if not socialUI then return end
+
+    -- Update stored state
+    socialUI.activeTab = tabId
+
+    -- Update tab visuals
+    for id, tab in pairs(self.socialSubTabs) do
+        if tab and tab.SetActive then
+            tab:SetActive(id == tabId)
         end
-        placeholder:SetTextColor(HopeAddon:GetTextColor("SUBTLE"))
-        placeholder:SetJustifyH("CENTER")
-        scrollContainer:AddEntry(placeholderFrame)
+    end
+
+    -- Clear existing content before populating
+    self:ClearSocialContent()
+
+    -- Populate based on selected tab
+    if tabId == "feed" then
+        self:PopulateSocialFeed()
+    elseif tabId == "travelers" then
+        self:PopulateSocialTravelers()
+    elseif tabId == "companions" then
+        self:PopulateSocialCompanions()
+    end
+end
+
+--[[
+    Create content container for tab content
+    @return Frame - Content container
+]]
+function Journal:CreateSocialContent()
+    local container = self.containerPool:Acquire()
+    container:SetHeight(400)  -- Will be resized dynamically by content
+    container._componentType = "content"
+    return container
+end
+
+--[[
+    Track a region (FontString, Texture) for cleanup when switching sub-tabs
+    FontStrings and Textures are not returned by GetChildren(), so we track them manually
+    @param region Region - The region to track
+    @return Region - Same region for chaining
+]]
+function Journal:TrackSocialRegion(region)
+    if region then
+        table.insert(self.socialContentRegions, region)
+    end
+    return region
+end
+
+--[[
+    Get online status from lastSeenTime
+    @param lastSeenTime number - Timestamp of last seen
+    @return string - "online", "away", or "offline"
+]]
+function Journal:GetOnlineStatus(lastSeenTime)
+    if not lastSeenTime then return "offline" end
+    local C = HopeAddon.Constants
+    local elapsed = time() - lastSeenTime
+    if elapsed < C.SOCIAL_TAB.ONLINE_THRESHOLD then
+        return "online"
+    elseif elapsed < C.SOCIAL_TAB.AWAY_THRESHOLD then
+        return "away"
     else
-        -- Create cards for each entry on this page
-        for _, entry in ipairs(entries) do
-            local card = self:CreateDirectoryCard(entry)
-            scrollContainer:AddEntry(card)
-        end
+        return "offline"
+    end
+end
 
-        -- Pagination controls (if more than one page)
-        local paginationControls = self:CreatePaginationControls(scrollContainer.content, totalEntries, currentPage, pageSize)
-        if paginationControls then
-            local paginationSpacer = Components:CreateSpacer(scrollContainer.content, 10)
-            scrollContainer:AddEntry(paginationSpacer)
-            scrollContainer:AddEntry(paginationControls)
+--[[
+    Get count for quick filter buttons
+    @param filterId string - Filter identifier
+    @return number - Count of matching entries
+]]
+function Journal:GetFilterCount(filterId)
+    if not HopeAddon.Directory then return 0 end
+    local fellows = HopeAddon.Directory:GetAllEntries()
+    if filterId == "all" then
+        return #fellows
+    end
+    if filterId == "online" then
+        local count = 0
+        for _, f in ipairs(fellows) do
+            if self:GetOnlineStatus(f.lastSeenTime) == "online" then
+                count = count + 1
+            end
+        end
+        return count
+    end
+    if filterId == "party" then
+        if not HopeAddon.FellowTravelers then return 0 end
+        local partyMembers = HopeAddon.FellowTravelers:GetPartyMembers()
+        return partyMembers and #partyMembers or 0
+    end
+    if filterId == "lfrp" then
+        local count = 0
+        for _, f in ipairs(fellows) do
+            if f.profile and f.profile.status == "LF_RP" then
+                count = count + 1
+            end
+        end
+        return count
+    end
+    return 0
+end
+
+--[[
+    Refresh travelers list when filters change
+    Clears content first to prevent stacking of old entries
+]]
+function Journal:RefreshTravelersList()
+    local socialUI = HopeAddon:GetSocialUI()
+    if not socialUI then return end
+
+    if socialUI.activeTab == "travelers" then
+        -- Preserve filter bar when just changing filters
+        self:ClearSocialContent(true)
+        self:PopulateSocialTravelers()
+    end
+end
+
+--[[
+    Called when new activities arrive from ActivityFeed
+    @param count number - Number of new activities
+]]
+function Journal:OnNewActivity(count)
+    -- Always update the unread badge
+    self:UpdateSocialTabBadges()
+
+    -- If viewing Social tab's Feed sub-tab, handle refresh
+    if self.currentTab == "social" then
+        local socialUI = HopeAddon:GetSocialUI()
+        if socialUI and socialUI.activeTab == "feed" then
+            self:HandleFeedActivityArrival(count)
         end
     end
+end
+
+--[[
+    Handle new activity arrival while viewing feed
+    Uses hybrid approach: auto-refresh if at top, show banner if scrolled
+    @param count number - Number of new activities
+]]
+function Journal:HandleFeedActivityArrival(count)
+    -- Check if scrolled to top (within 20px tolerance)
+    local scrollFrame = self.socialContainers and self.socialContainers.scrollFrame
+    if scrollFrame then
+        local scrollPos = scrollFrame:GetVerticalScroll()
+        if scrollPos < 20 then
+            -- Auto-refresh silently
+            self:ClearSocialContent()
+            self:PopulateSocialFeed()
+            return
+        end
+    end
+
+    -- Not at top - show "new activities" banner
+    self:ShowNewActivitiesBanner(count)
+end
+
+--[[
+    Show banner indicating new activities are available
+    @param count number - Number of new activities to add
+]]
+function Journal:ShowNewActivitiesBanner(count)
+    local content = self.socialContainers and self.socialContainers.content
+    if not content then return end
+
+    -- Create banner if it doesn't exist
+    if not self.newActivitiesBanner then
+        local banner = CreateFrame("Button", nil, content, "BackdropTemplate")
+        banner:SetHeight(28)
+        banner:SetFrameStrata("HIGH")
+        banner:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8x8",
+            edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+            edgeSize = 8,
+            insets = { left = 2, right = 2, top = 2, bottom = 2 },
+        })
+        banner:SetBackdropColor(0.15, 0.5, 0.15, 0.95)
+        banner:SetBackdropBorderColor(0.3, 0.8, 0.3, 1)
+
+        local text = banner:CreateFontString(nil, "OVERLAY")
+        text:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
+        text:SetPoint("CENTER")
+        text:SetTextColor(1, 1, 1)
+        banner.text = text
+
+        -- Hover effect
+        banner:SetScript("OnEnter", function(self)
+            self:SetBackdropColor(0.2, 0.6, 0.2, 1)
+            if HopeAddon.Sounds then HopeAddon.Sounds:PlayHover() end
+        end)
+        banner:SetScript("OnLeave", function(self)
+            self:SetBackdropColor(0.15, 0.5, 0.15, 0.95)
+        end)
+
+        -- Click to refresh
+        banner:SetScript("OnClick", function()
+            if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+            banner:Hide()
+            Journal.pendingActivityCount = 0
+            Journal:ClearSocialContent()
+            Journal:PopulateSocialFeed()
+        end)
+
+        self.newActivitiesBanner = banner
+    end
+
+    -- Update count and position
+    self.pendingActivityCount = (self.pendingActivityCount or 0) + count
+    local label = self.pendingActivityCount == 1 and "activity" or "activities"
+    self.newActivitiesBanner.text:SetText(string.format(
+        "|cFFFFFFFF\226\134\145 %d new %s|r - Click to refresh",
+        self.pendingActivityCount,
+        label
+    ))
+
+    -- Position at top of content area
+    self.newActivitiesBanner:ClearAllPoints()
+    self.newActivitiesBanner:SetPoint("TOPLEFT", content, "TOPLEFT", 4, 4)
+    self.newActivitiesBanner:SetPoint("TOPRIGHT", content, "TOPRIGHT", -4, 4)
+    self.newActivitiesBanner:Show()
+    self.newActivitiesBanner:Raise()
+end
+
+--[[
+    Hide the new activities banner (called when switching tabs or refreshing)
+]]
+function Journal:HideNewActivitiesBanner()
+    if self.newActivitiesBanner then
+        self.newActivitiesBanner:Hide()
+    end
+    self.pendingActivityCount = 0
+end
+
+--[[
+    Update tab badge counts
+]]
+function Journal:UpdateSocialTabBadges()
+    if not self.socialSubTabs then return end
+
+    local socialUI = HopeAddon:GetSocialUI()
+    if not socialUI then return end
+
+    -- Feed: Show unread count
+    if HopeAddon.ActivityFeed then
+        local feed = HopeAddon.ActivityFeed:GetRecentFeed(50)
+        local lastSeen = socialUI.feed and socialUI.feed.lastSeenTimestamp or 0
+        local unread = 0
+        for _, activity in ipairs(feed) do
+            if activity.time > lastSeen then
+                unread = unread + 1
+            end
+        end
+        if self.socialSubTabs.feed then
+            self.socialSubTabs.feed:SetBadge(unread > 0 and tostring(unread) or "")
+        end
+    end
+
+    -- Travelers: Show online count
+    local onlineCount = self:GetFilterCount("online")
+    if self.socialSubTabs.travelers then
+        self.socialSubTabs.travelers:SetBadge(onlineCount > 0 and tostring(onlineCount) or "")
+    end
+
+    -- Companions: Show online companions
+    if HopeAddon.Companions then
+        local companions = HopeAddon.Companions:GetAllCompanions()
+        local onlineCompanions = 0
+        for _, comp in ipairs(companions) do
+            if self:GetOnlineStatus(comp.lastSeenTime) == "online" then
+                onlineCompanions = onlineCompanions + 1
+            end
+        end
+        if self.socialSubTabs.companions then
+            self.socialSubTabs.companions:SetBadge(onlineCompanions > 0 and tostring(onlineCompanions) or "")
+        end
+    end
+end
+
+--============================================================
+-- SOCIAL SUB-TAB CONTENT FUNCTIONS
+--============================================================
+
+--[[
+    Populate the Travelers sub-tab with quick filters and traveler list
+]]
+function Journal:PopulateSocialTravelers()
+    local content = self.socialContainers.content
+    if not content then return end
+
+    local socialUI = HopeAddon:GetSocialUI()
+    if not socialUI then return end
+
+    local C = HopeAddon.Constants
+    local Components = HopeAddon.Components
+
+    -- Get filtered entries based on quick filter
+    local quickFilter = socialUI.travelers and socialUI.travelers.quickFilter or "all"
+    local entries = self:GetFilteredTravelerEntries(quickFilter)
+
+    -- Create or reuse quick filter bar (persists across filter changes)
+    local filterBar = self.socialContainers.filterBar
+    if not filterBar or not filterBar:IsShown() then
+        -- Clear old button references
+        wipe(self.quickFilterButtons)
+        filterBar = self:CreateQuickFilters(content)
+        filterBar:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
+        filterBar:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+        self.socialContainers.filterBar = filterBar
+    else
+        -- Update counts on existing buttons
+        self:UpdateQuickFilterCounts()
+    end
+
+    -- Create rows for each traveler
+    local yOffset = -36  -- Below filter bar
+    for _, entry in ipairs(entries) do
+        local row = self:CreateTravelerRow(content, entry)
+        row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, yOffset)
+        row:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+        yOffset = yOffset - C.SOCIAL_TAB.TRAVELER_ROW_HEIGHT - 2
+    end
+
+    -- Adjust content height
+    content:SetHeight(math.abs(yOffset) + 20)
+end
+
+--[[
+    Update counts on existing quick filter buttons without recreating them
+]]
+function Journal:UpdateQuickFilterCounts()
+    for filterId, btn in pairs(self.quickFilterButtons) do
+        if btn and btn.text then
+            local count = self:GetFilterCount(filterId)
+            local label = filterId == "all" and "All" or
+                          filterId == "online" and "Online" or
+                          filterId == "party" and "Party" or
+                          filterId == "lfrp" and "LF_RP" or filterId
+            btn.text:SetText(label .. " " .. count)
+        end
+    end
+end
+
+--[[
+    Get filtered traveler entries based on quick filter
+    @param filterId string - Filter identifier (all, online, party, lfrp)
+    @return table - Array of filtered entries
+]]
+function Journal:GetFilteredTravelerEntries(filterId)
+    if not HopeAddon.Directory then return {} end
+    local allEntries = HopeAddon.Directory:GetAllEntries()
+
+    if filterId == "all" then
+        return allEntries
+    end
+
+    local filtered = {}
+    for _, entry in ipairs(allEntries) do
+        local include = false
+
+        if filterId == "online" then
+            include = self:GetOnlineStatus(entry.lastSeenTime) == "online"
+        elseif filterId == "party" then
+            local partyMembers = HopeAddon.FellowTravelers and HopeAddon.FellowTravelers:GetPartyMembers() or {}
+            for _, pm in ipairs(partyMembers) do
+                if pm.name == entry.name then
+                    include = true
+                    break
+                end
+            end
+        elseif filterId == "lfrp" then
+            include = entry.profile and entry.profile.status == "LF_RP"
+        end
+
+        if include then
+            table.insert(filtered, entry)
+        end
+    end
+
+    return filtered
+end
+
+--[[
+    Create quick filter buttons bar
+    @param parent Frame - Parent frame
+    @return Frame - Filter bar frame
+]]
+function Journal:CreateQuickFilters(parent)
+    local C = HopeAddon.Constants
+
+    local bar = CreateFrame("Frame", nil, parent)
+    bar:SetHeight(28)
+
+    -- Use centralized helper for social UI access
+    local socialUI = HopeAddon:GetSocialUI()
+    local quickFilter = socialUI and socialUI.travelers and socialUI.travelers.quickFilter or "all"
+
+    local filters = {
+        { id = "all", label = "All" },
+        { id = "online", label = "Online" },
+        { id = "party", label = "Party" },
+        { id = "lfrp", label = "LF_RP" },
+    }
+
+    local xOffset = 0
+    for _, filterInfo in ipairs(filters) do
+        local count = self:GetFilterCount(filterInfo.id)
+        local isActive = (filterInfo.id == quickFilter)
+
+        local btn = CreateFrame("Button", nil, bar, "BackdropTemplate")
+        btn:SetSize(70, 24)
+        btn:SetPoint("LEFT", bar, "LEFT", xOffset, 0)
+        btn:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8x8",
+            edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+            edgeSize = 8,
+            insets = { left = 1, right = 1, top = 1, bottom = 1 },
+        })
+
+        local btnText = btn:CreateFontString(nil, "OVERLAY")
+        btnText:SetFont(HopeAddon.assets.fonts.HEADER, 10, "")
+        btnText:SetPoint("CENTER")
+        btnText:SetText(filterInfo.label .. " " .. count)
+        btn.text = btnText
+
+        -- Track active state on the button itself
+        btn.isActive = isActive
+        btn.filterId = filterInfo.id
+
+        -- Set active/inactive visual with explicit boolean check
+        local function SetActive(active)
+            active = (active == true)  -- Ensure boolean
+            btn.isActive = active
+            if active then
+                btn:SetBackdropColor(0.2, 0.5, 0.2, 0.9)
+                btn:SetBackdropBorderColor(0.4, 1.0, 0.4, 1)
+                btnText:SetTextColor(0.4, 1.0, 0.4)
+            else
+                btn:SetBackdropColor(0.15, 0.15, 0.15, 0.8)
+                btn:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+                btnText:SetTextColor(0.7, 0.7, 0.7)
+            end
+        end
+        btn.SetActive = SetActive
+        SetActive(isActive)
+
+        btn:SetScript("OnClick", function()
+            HopeAddon.Sounds:PlayClick()
+            self:SetQuickFilter(filterInfo.id)
+        end)
+
+        btn:SetScript("OnEnter", function(self)
+            self:SetBackdropBorderColor(1, 0.84, 0, 1)
+        end)
+        btn:SetScript("OnLeave", function(self)
+            -- Restore border color based on tracked active state
+            if self.isActive then
+                self:SetBackdropBorderColor(0.4, 1.0, 0.4, 1)
+            else
+                self:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+            end
+        end)
+
+        self.quickFilterButtons[filterInfo.id] = btn
+        xOffset = xOffset + 74
+    end
+
+    return bar
+end
+
+--[[
+    Set quick filter and refresh travelers list
+    @param filterId string - Filter identifier
+]]
+function Journal:SetQuickFilter(filterId)
+    local socialUI = HopeAddon:GetSocialUI()
+    if not socialUI then return end
+
+    -- Ensure travelers sub-table exists
+    if not socialUI.travelers then
+        socialUI.travelers = { quickFilter = "all", searchText = "", sortOption = "last_seen" }
+    end
+    socialUI.travelers.quickFilter = filterId
+
+    -- Update button visuals (buttons persist across refreshes)
+    -- Use explicit loop to ensure each button gets correct state
+    for id, btn in pairs(self.quickFilterButtons) do
+        if btn and btn.SetActive then
+            local shouldBeActive = (id == filterId)
+            btn:SetActive(shouldBeActive)
+            HopeAddon:Debug("QuickFilter: Button", id, "active=", shouldBeActive)
+        end
+    end
+
+    self:RefreshTravelersList()
+end
+
+--[[
+    Create a unified traveler row
+    @param parent Frame - Parent frame
+    @param entry table - Traveler entry data
+    @return Frame - Row frame
+]]
+function Journal:CreateTravelerRow(parent, entry)
+    local C = HopeAddon.Constants
+    local Relationships = HopeAddon.Relationships
+    local Badges = HopeAddon.Badges
+
+    local row = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    row:SetHeight(C.SOCIAL_TAB.TRAVELER_ROW_HEIGHT)
+    row:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+        edgeSize = 10,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    })
+    row:SetBackdropColor(0.1, 0.1, 0.1, 0.8)
+
+    local classColor = entry.class and HopeAddon:GetClassColor(entry.class) or { r = 0.5, g = 0.5, b = 0.5 }
+    row:SetBackdropBorderColor(classColor.r, classColor.g, classColor.b, 0.6)
+
+    -- Online status indicator
+    local statusDot = row:CreateTexture(nil, "OVERLAY")
+    statusDot:SetSize(10, 10)
+    statusDot:SetPoint("LEFT", row, "LEFT", 8, 0)
+    statusDot:SetTexture("Interface\\COMMON\\Indicator-Green")
+    local status = self:GetOnlineStatus(entry.lastSeenTime)
+    if status == "online" then
+        statusDot:SetVertexColor(0.2, 1.0, 0.2)
+    elseif status == "away" then
+        statusDot:SetVertexColor(1.0, 0.8, 0.2)
+    else
+        statusDot:SetVertexColor(0.5, 0.5, 0.5)
+    end
+
+    -- Class icon
+    local classIcon = row:CreateTexture(nil, "ARTWORK")
+    classIcon:SetSize(28, 28)
+    classIcon:SetPoint("LEFT", statusDot, "RIGHT", 6, 0)
+    local coords = CLASS_ICON_TCOORDS[entry.class]
+    if coords then
+        classIcon:SetTexture("Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES")
+        classIcon:SetTexCoord(unpack(coords))
+    end
+
+    -- Name with title
+    local nameText = row:CreateFontString(nil, "OVERLAY")
+    nameText:SetFont(HopeAddon.assets.fonts.HEADER, 12, "")
+    nameText:SetPoint("LEFT", classIcon, "RIGHT", 8, 4)
+
+    local colorHex = string.format("%02x%02x%02x", classColor.r * 255, classColor.g * 255, classColor.b * 255)
+    local displayName = "|cFF" .. colorHex .. entry.name .. "|r"
+    if entry.selectedTitle and entry.selectedTitle ~= "" then
+        local titleColor = Badges and Badges:GetTitleColor(entry.selectedTitle) or "FFD700"
+        displayName = displayName .. " |cFF" .. titleColor .. "<" .. entry.selectedTitle .. ">|r"
+    end
+    nameText:SetText(displayName)
+
+    -- Zone/status text
+    local zoneText = row:CreateFontString(nil, "OVERLAY")
+    zoneText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+    zoneText:SetPoint("TOPLEFT", nameText, "BOTTOMLEFT", 0, -2)
+    zoneText:SetText(entry.lastSeenZone or "Unknown")
+    zoneText:SetTextColor(0.6, 0.6, 0.6)
+
+    -- Relationship tag (if set)
+    local relType = HopeAddon.charDb.social.relationshipTypes and HopeAddon.charDb.social.relationshipTypes[entry.name]
+    if relType and relType ~= "NONE" then
+        local relDef = C.RELATIONSHIP_TYPES[relType]
+        if relDef then
+            local relTag = row:CreateFontString(nil, "OVERLAY")
+            relTag:SetFont(HopeAddon.assets.fonts.HEADER, 9, "")
+            relTag:SetPoint("LEFT", nameText, "RIGHT", 8, 0)
+            relTag:SetText("[" .. relDef.label .. "]")
+            local r, g, b = HopeAddon.ColorUtils:HexToRGB(relDef.color)
+            relTag:SetTextColor(r, g, b)
+        end
+    end
+
+    -- Action icon buttons (right side)
+    -- Layout: [Whisper] [Invite] [Game] [Companion] - right to left
+    local ICON_SIZE = 22
+    local ICON_SPACING = 4
+    local ICON_PADDING = 8
+
+    -- Helper to create icon button with tooltip
+    local function CreateActionIcon(parent, texture, tooltipText, onClick)
+        local btn = CreateFrame("Button", nil, parent)
+        btn:SetSize(ICON_SIZE, ICON_SIZE)
+        btn:RegisterForClicks("LeftButtonUp")  -- Required for button to receive click events
+
+        local icon = btn:CreateTexture(nil, "ARTWORK")
+        icon:SetAllPoints()
+        icon:SetTexture(texture)
+        icon:SetVertexColor(0.7, 0.7, 0.7)  -- Normal: dimmed
+        btn.icon = icon
+
+        btn:SetScript("OnEnter", function(self)
+            self.icon:SetVertexColor(1, 0.84, 0)  -- Hover: gold
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:SetText(tooltipText, 1, 1, 1)
+            GameTooltip:Show()
+            if HopeAddon.Sounds then HopeAddon.Sounds:PlayHover() end
+        end)
+
+        btn:SetScript("OnLeave", function(self)
+            self.icon:SetVertexColor(0.7, 0.7, 0.7)  -- Reset
+            GameTooltip:Hide()
+        end)
+
+        btn:SetScript("OnClick", function()
+            if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+            onClick()
+        end)
+
+        return btn
+    end
+
+    -- Companion button (rightmost)
+    local isCompanion = HopeAddon.Companions and HopeAddon.Companions:IsCompanion(entry.name)
+    local companionBtn = CreateActionIcon(row,
+        "Interface\\COMMON\\ReputationStar",
+        isCompanion and "Remove from companions" or "Add to companions",
+        function()
+            if HopeAddon.Companions then
+                if HopeAddon.Companions:IsCompanion(entry.name) then
+                    HopeAddon.Companions:RemoveCompanion(entry.name)
+                else
+                    HopeAddon.Companions:SendRequest(entry.name)
+                end
+                self:RefreshTravelersList()
+            end
+        end
+    )
+    companionBtn:SetPoint("RIGHT", row, "RIGHT", -ICON_PADDING, 0)
+    companionBtn.icon:SetTexCoord(0, 0.5, 0, 0.5)
+    if isCompanion then
+        companionBtn.icon:SetVertexColor(1, 0.84, 0)  -- Gold for companions
+    end
+
+    -- Romance heart button (between companion and game)
+    local romanceBtn = nil
+    local romance = HopeAddon:GetSocialRomance()
+    if romance and HopeAddon.Romance then
+        local isPartner = romance.partner and romance.partner == entry.name
+        local isPendingOutgoing = romance.pendingOutgoing and romance.pendingOutgoing.to == entry.name
+        local isPendingIncoming = romance.pendingIncoming and romance.pendingIncoming[entry.name] ~= nil
+
+        romanceBtn = CreateFrame("Button", nil, row)
+        romanceBtn:SetSize(ICON_SIZE, ICON_SIZE)
+        romanceBtn:RegisterForClicks("LeftButtonUp")  -- Required for button to receive click events
+        romanceBtn:SetPoint("RIGHT", companionBtn, "LEFT", -ICON_SPACING, 0)
+
+        local heartIcon = romanceBtn:CreateTexture(nil, "ARTWORK")
+        heartIcon:SetAllPoints()
+        heartIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        romanceBtn.icon = heartIcon
+
+        if isPartner then
+            -- Already dating - bright pink
+            heartIcon:SetTexture("Interface\\Icons\\INV_ValentinesCard02")
+            heartIcon:SetVertexColor(1, 0.2, 0.6, 1)
+            romanceBtn:SetScript("OnEnter", function(self)
+                self.icon:SetVertexColor(1, 0.4, 0.8, 1)
+                GameTooltip:SetOwner(self, "ANCHOR_TOP")
+                GameTooltip:AddLine("In a relationship", 1.0, 0.08, 0.58)
+                GameTooltip:Show()
+            end)
+            romanceBtn:SetScript("OnLeave", function(self)
+                self.icon:SetVertexColor(1, 0.2, 0.6, 1)
+                GameTooltip:Hide()
+            end)
+
+        elseif isPendingOutgoing then
+            -- Proposal pending - candy icon
+            heartIcon:SetTexture("Interface\\Icons\\INV_ValentinesCandy")
+            heartIcon:SetVertexColor(1, 0.5, 0.8, 1)
+            romanceBtn:SetScript("OnEnter", function(self)
+                self.icon:SetVertexColor(1, 0.7, 0.9, 1)
+                GameTooltip:SetOwner(self, "ANCHOR_TOP")
+                GameTooltip:AddLine("Proposal pending...", 1.0, 0.41, 0.71)
+                GameTooltip:AddLine("Waiting for response", 0.7, 0.7, 0.7)
+                GameTooltip:Show()
+            end)
+            romanceBtn:SetScript("OnLeave", function(self)
+                self.icon:SetVertexColor(1, 0.5, 0.8, 1)
+                GameTooltip:Hide()
+            end)
+
+        elseif isPendingIncoming then
+            -- They proposed - gold heart
+            heartIcon:SetTexture("Interface\\Icons\\INV_ValentinesCard02")
+            heartIcon:SetVertexColor(1, 0.8, 0.2, 1)
+            romanceBtn:SetScript("OnEnter", function(self)
+                self.icon:SetVertexColor(1, 0.9, 0.4, 1)
+                GameTooltip:SetOwner(self, "ANCHOR_TOP")
+                GameTooltip:AddLine(entry.name .. " proposed!", 1.0, 0.41, 0.71)
+                GameTooltip:AddLine("Go to Companions tab to respond", 0.7, 0.7, 0.7)
+                GameTooltip:Show()
+                if HopeAddon.Sounds then HopeAddon.Sounds:PlayHover() end
+            end)
+            romanceBtn:SetScript("OnLeave", function(self)
+                self.icon:SetVertexColor(1, 0.8, 0.2, 1)
+                GameTooltip:Hide()
+            end)
+            romanceBtn:SetScript("OnClick", function()
+                if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+                Journal:SelectSocialSubTab("companions")
+            end)
+
+        elseif romance.status == "SINGLE" then
+            -- Single - grey heart, pink on hover
+            heartIcon:SetTexture("Interface\\Icons\\INV_ValentinesCard01")
+            heartIcon:SetVertexColor(0.5, 0.5, 0.5, 0.7)
+            romanceBtn:SetScript("OnEnter", function(self)
+                self.icon:SetVertexColor(1, 0.4, 0.7, 1)
+                GameTooltip:SetOwner(self, "ANCHOR_TOP")
+                GameTooltip:AddLine("Propose to " .. entry.name, 1.0, 0.41, 0.71)
+                GameTooltip:AddLine("Click to send a proposal", 0.7, 0.7, 0.7)
+                GameTooltip:Show()
+                if HopeAddon.Sounds then HopeAddon.Sounds:PlayHover() end
+            end)
+            romanceBtn:SetScript("OnLeave", function(self)
+                self.icon:SetVertexColor(0.5, 0.5, 0.5, 0.7)
+                GameTooltip:Hide()
+            end)
+            romanceBtn:SetScript("OnClick", function()
+                if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+                HopeAddon.Romance:ProposeToPlayer(entry.name)
+                Journal:RefreshTravelersList()
+            end)
+
+        else
+            -- Dating someone else - very dim
+            heartIcon:SetTexture("Interface\\Icons\\INV_ValentinesCard01")
+            heartIcon:SetVertexColor(0.3, 0.3, 0.3, 0.5)
+            romanceBtn:SetScript("OnEnter", function(self)
+                GameTooltip:SetOwner(self, "ANCHOR_TOP")
+                GameTooltip:AddLine("Already in a relationship", 0.5, 0.5, 0.5)
+                GameTooltip:Show()
+            end)
+            romanceBtn:SetScript("OnLeave", function()
+                GameTooltip:Hide()
+            end)
+        end
+    end
+
+    -- Game button
+    local gameBtn = CreateActionIcon(row,
+        "Interface\\ICONS\\INV_Misc_Dice_02",
+        "Challenge to game",
+        function()
+            if HopeAddon.MinigamesUI then
+                HopeAddon.MinigamesUI:ShowGameSelectionPopup(entry.name)
+            end
+        end
+    )
+    local gameAnchor = romanceBtn or companionBtn
+    gameBtn:SetPoint("RIGHT", gameAnchor, "LEFT", -ICON_SPACING, 0)
+
+    -- Invite button
+    local inviteBtn = CreateActionIcon(row,
+        "Interface\\BUTTONS\\UI-GroupLoot-Pass-Up",
+        "Invite to party",
+        function()
+            InviteUnit(entry.name)
+        end
+    )
+    inviteBtn:SetPoint("RIGHT", gameBtn, "LEFT", -ICON_SPACING, 0)
+
+    -- Whisper button
+    local whisperBtn = CreateActionIcon(row,
+        "Interface\\CHATFRAME\\UI-ChatIcon-Chat-Up",
+        "Whisper " .. entry.name,
+        function()
+            ChatFrame_OpenChat("/w " .. entry.name .. " ")
+        end
+    )
+    whisperBtn:SetPoint("RIGHT", inviteBtn, "LEFT", -ICON_SPACING, 0)
+
+    -- Row hover effect (no click action)
+    row:SetScript("OnEnter", function(self)
+        self:SetBackdropColor(0.15, 0.15, 0.15, 0.9)
+    end)
+    row:SetScript("OnLeave", function(self)
+        self:SetBackdropColor(0.1, 0.1, 0.1, 0.8)
+    end)
+
+    return row
+end
+
+--[[
+    Populate the Feed sub-tab with activity feed
+]]
+function Journal:PopulateSocialFeed()
+    local content = self.socialContainers.content
+    if not content then return end
+
+    local socialUI = HopeAddon:GetSocialUI()
+    if not socialUI then return end
+
+    -- Hide the new activities banner when refreshing
+    self:HideNewActivitiesBanner()
+
+    local C = HopeAddon.Constants
+
+    -- Get feed with optional filter
+    local filterType = socialUI.feed and socialUI.feed.filter or "all"
+    local allActivities = {}
+    if HopeAddon.ActivityFeed then
+        allActivities = HopeAddon.ActivityFeed:GetFeed() or {}
+    end
+
+    local activities = {}
+    for _, activity in ipairs(allActivities) do
+        if filterType == "all" or (activity.type and activity.type:lower() == filterType) then
+            table.insert(activities, activity)
+        end
+    end
+
+    -- Group by time (Now, Earlier Today, Yesterday, This Week)
+    local now = time()
+    local todayStart = now - (now % 86400)
+    local grouped = {
+        now = {},
+        earlier = {},
+        yesterday = {},
+        thisWeek = {},
+        older = {},
+    }
+
+    for _, activity in ipairs(activities) do
+        local age = now - (activity.time or 0)
+        if age < 3600 then
+            table.insert(grouped.now, activity)
+        elseif (activity.time or 0) >= todayStart then
+            table.insert(grouped.earlier, activity)
+        elseif (activity.time or 0) >= todayStart - 86400 then
+            table.insert(grouped.yesterday, activity)
+        elseif age < 604800 then
+            table.insert(grouped.thisWeek, activity)
+        else
+            table.insert(grouped.older, activity)
+        end
+    end
+
+    -- Create rows with time group headers
+    local yOffset = 0
+    local groups = {
+        { key = "now", label = "Now" },
+        { key = "earlier", label = "Earlier Today" },
+        { key = "yesterday", label = "Yesterday" },
+        { key = "thisWeek", label = "This Week" },
+        { key = "older", label = "Older" },
+    }
+
+    for _, group in ipairs(groups) do
+        local items = grouped[group.key]
+        if #items > 0 then
+            -- Group header
+            local header = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            header:SetPoint("TOPLEFT", content, "TOPLEFT", 8, yOffset - 8)
+            header:SetText("─── " .. group.label .. " ───")
+            header:SetTextColor(0.5, 0.5, 0.5)
+            self:TrackSocialRegion(header)
+            yOffset = yOffset - 24
+
+            -- Activity rows
+            for _, activity in ipairs(items) do
+                local row = self:CreateFeedRow(content, activity)
+                row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, yOffset)
+                row:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+                yOffset = yOffset - C.SOCIAL_TAB.FEED_ROW_HEIGHT - 2
+            end
+        end
+    end
+
+    -- Mark feed as seen (socialUI already validated at function start)
+    if socialUI.feed then
+        socialUI.feed.lastSeenTimestamp = time()
+    end
+
+    -- Empty state
+    if #activities == 0 then
+        local emptyText = content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        emptyText:SetPoint("CENTER", content, "CENTER", 0, 0)
+        emptyText:SetText("No recent activity.\nYour Fellow Travelers' adventures will appear here!")
+        emptyText:SetTextColor(0.6, 0.6, 0.6)
+        emptyText:SetJustifyH("CENTER")
+        self:TrackSocialRegion(emptyText)
+        yOffset = -100
+    end
+
+    -- Adjust content height
+    content:SetHeight(math.abs(yOffset) + 20)
+end
+
+--[[
+    Create a feed activity row
+    @param parent Frame - Parent frame
+    @param activity table - Activity data
+    @return Frame - Row frame
+]]
+function Journal:CreateFeedRow(parent, activity)
+    local C = HopeAddon.Constants
+
+    local row = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    row:SetHeight(C.SOCIAL_TAB.FEED_ROW_HEIGHT)
+    row:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+        edgeSize = 10,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    })
+    row:SetBackdropColor(0.1, 0.1, 0.1, 0.7)
+
+    -- Get border color based on activity type
+    local borderR, borderG, borderB = 0.3, 0.3, 0.3
+    if HopeAddon.ActivityFeed and HopeAddon.ActivityFeed.GetActivityBorderColor then
+        borderR, borderG, borderB = HopeAddon.ActivityFeed:GetActivityBorderColor(activity.type)
+    elseif activity.type == "IC" or activity.type == "IC_POST" then
+        -- IC Post: Fel green
+        borderR, borderG, borderB = 0.2, 0.8, 0.2
+    elseif activity.type == "ANON" then
+        -- Anonymous: Arcane purple
+        borderR, borderG, borderB = 0.61, 0.19, 1.0
+    elseif activity.type == "LOOT" then
+        -- Loot: Gold
+        borderR, borderG, borderB = 1.0, 0.84, 0
+    elseif activity.type == "BOSS" then
+        -- Boss kills: Hellfire red
+        borderR, borderG, borderB = 0.9, 0.2, 0.1
+    elseif activity.type == "BADGE" then
+        -- Badges: Gold
+        borderR, borderG, borderB = 1.0, 0.84, 0
+    end
+    row:SetBackdropBorderColor(borderR, borderG, borderB, 0.8)
+
+    -- Activity type icon
+    local typeIcon = row:CreateTexture(nil, "ARTWORK")
+    typeIcon:SetSize(24, 24)
+    typeIcon:SetPoint("LEFT", row, "LEFT", 8, 0)
+
+    -- Get icon based on activity type - use new constants if available
+    local iconPath = "Interface\\Icons\\INV_Misc_QuestionMark"
+    if C.FEED_ACTIVITY_ICONS and C.FEED_ACTIVITY_ICONS[activity.type] then
+        iconPath = C.FEED_ACTIVITY_ICONS[activity.type]
+    elseif activity.type == "IC" or activity.type == "IC_POST" then
+        -- IC Post: Speech bubble / RP mask
+        iconPath = "Interface\\Icons\\Spell_Holy_MindVision"
+    elseif activity.type == "ANON" then
+        -- Anonymous: Scroll
+        iconPath = "Interface\\Icons\\INV_Scroll_01"
+    elseif activity.type == "BOSS" then
+        iconPath = "Interface\\Icons\\Achievement_Boss_Gruul"
+    elseif activity.type == "LVL" or activity.type == "LEVEL" then
+        iconPath = "Interface\\Icons\\Spell_Holy_SurgeOfLight"
+    elseif activity.type == "GAME" then
+        iconPath = "Interface\\Icons\\INV_Misc_Dice_02"
+    elseif activity.type == "BADGE" then
+        iconPath = "Interface\\Icons\\Achievement_General"
+    elseif activity.type == "STA" or activity.type == "STATUS" then
+        iconPath = "Interface\\Icons\\Spell_Holy_MindVision"
+    elseif activity.type == "RUM" or activity.type == "RUMOR" then
+        iconPath = "Interface\\Icons\\INV_Letter_15"
+    elseif activity.type == "LOOT" then
+        iconPath = "Interface\\Icons\\INV_Misc_Bag_10"
+    elseif activity.type == "ROM" or activity.type == "ROMANCE" then
+        iconPath = "Interface\\Icons\\INV_ValentinesCard02"
+    end
+    typeIcon:SetTexture(iconPath)
+
+    -- Activity text
+    local activityText = row:CreateFontString(nil, "OVERLAY")
+    activityText:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
+    activityText:SetPoint("LEFT", typeIcon, "RIGHT", 8, 4)
+    activityText:SetPoint("RIGHT", row, "RIGHT", -80, 4)
+    activityText:SetJustifyH("LEFT")
+
+    local text = ""
+    if HopeAddon.ActivityFeed and HopeAddon.ActivityFeed.FormatActivity then
+        text = HopeAddon.ActivityFeed:FormatActivity(activity)
+    else
+        text = (activity.player or "Someone") .. " did something"
+    end
+    activityText:SetText(text)
+
+    -- Set text color based on activity type
+    if activity.type == "IC" or activity.type == "IC_POST" then
+        -- IC posts: Gold/warm
+        activityText:SetTextColor(1.0, 0.9, 0.7)
+    elseif activity.type == "ANON" then
+        -- Anonymous: Slightly purple/mysterious
+        activityText:SetTextColor(0.85, 0.8, 0.95)
+    else
+        activityText:SetTextColor(0.9, 0.9, 0.9)
+    end
+
+    -- Context/zone text (hidden for anonymous posts to preserve anonymity)
+    local contextText = row:CreateFontString(nil, "OVERLAY")
+    contextText:SetFont(HopeAddon.assets.fonts.BODY, 9, "")
+    contextText:SetPoint("TOPLEFT", activityText, "BOTTOMLEFT", 0, -2)
+
+    -- For anonymous posts, don't show zone/context info
+    local isAnonymous = (activity.type == "ANON")
+    local context = ""
+    if not isAnonymous then
+        context = activity.zone or ""
+        -- For IC/user posts, show the text content is already in main text, no need for context
+        if activity.type == "IC" or activity.type == "RUM" then
+            context = ""
+        elseif activity.data and type(activity.data) == "string" then
+            context = activity.data
+        end
+    end
+    contextText:SetText(context)
+    contextText:SetTextColor(0.5, 0.5, 0.5)
+
+    -- Time ago
+    local timeText = row:CreateFontString(nil, "OVERLAY")
+    timeText:SetFont(HopeAddon.assets.fonts.BODY, 9, "")
+    timeText:SetPoint("RIGHT", row, "RIGHT", -40, 0)
+    local timeAgo = ""
+    if HopeAddon.ActivityFeed and HopeAddon.ActivityFeed.GetRelativeTime then
+        timeAgo = HopeAddon.ActivityFeed:GetRelativeTime(activity.time)
+    else
+        local age = time() - (activity.time or time())
+        if age < 60 then
+            timeAgo = "now"
+        elseif age < 3600 then
+            timeAgo = math.floor(age / 60) .. "m"
+        elseif age < 86400 then
+            timeAgo = math.floor(age / 3600) .. "h"
+        else
+            timeAgo = math.floor(age / 86400) .. "d"
+        end
+    end
+    timeText:SetText(timeAgo)
+    timeText:SetTextColor(0.5, 0.5, 0.5)
+
+    -- Mug button
+    local mugBtn = CreateFrame("Button", nil, row)
+    mugBtn:SetSize(20, 20)
+    mugBtn:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+    local mugTex = mugBtn:CreateTexture(nil, "ARTWORK")
+    mugTex:SetAllPoints()
+    mugTex:SetTexture("Interface\\Icons\\INV_Drink_04")
+
+    local hasMugged = HopeAddon.ActivityFeed and HopeAddon.ActivityFeed:HasMugged(activity.id)
+    if hasMugged then
+        mugTex:SetVertexColor(1, 0.84, 0)
+    else
+        mugTex:SetVertexColor(0.5, 0.5, 0.5)
+    end
+
+    mugBtn:SetScript("OnClick", function()
+        HopeAddon.Sounds:PlayClick()
+        if HopeAddon.ActivityFeed then
+            HopeAddon.ActivityFeed:GiveMug(activity.id)
+            mugTex:SetVertexColor(1, 0.84, 0)
+        end
+    end)
+
+    mugBtn:SetScript("OnEnter", function()
+        GameTooltip:SetOwner(mugBtn, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Raise a Mug!", 1, 0.84, 0)
+        GameTooltip:AddLine("Show appreciation for this activity", 0.8, 0.8, 0.8)
+        if activity.mugs and activity.mugs > 0 then
+            GameTooltip:AddLine(activity.mugs .. " mugs raised", 0.4, 1.0, 0.4)
+        end
+        GameTooltip:Show()
+    end)
+    mugBtn:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
+    return row
+end
+
+--[[
+    Populate the Companions sub-tab with companion grid
+]]
+function Journal:PopulateSocialCompanions()
+    local content = self.socialContainers.content
+    if not content then return end
+
+    local C = HopeAddon.Constants
+
+    -- Reset yOffset tracker
+    self.companionYOffset = 0
+
+    -- Add Romance Status section at the top
+    self:CreateRomanceStatusSection(content)
+
+    -- Get companions grouped by status
+    local companions = {}
+    if HopeAddon.Companions then
+        companions = HopeAddon.Companions:GetAllCompanions() or {}
+    end
+
+    local online, away, offline = {}, {}, {}
+
+    for _, comp in ipairs(companions) do
+        local status = self:GetOnlineStatus(comp.lastSeenTime)
+        if status == "online" then
+            table.insert(online, comp)
+        elseif status == "away" then
+            table.insert(away, comp)
+        else
+            table.insert(offline, comp)
+        end
+    end
+
+    -- Get pending requests
+    local requests = {}
+    if HopeAddon.Companions then
+        requests = HopeAddon.Companions:GetIncomingRequests() or {}
+    end
+
+    -- Pending requests section (if any)
+    if #requests > 0 then
+        self:CreateCompanionRequests(content, requests)
+    end
+
+    -- Create sections
+    if #online > 0 then
+        self:CreateCompanionSection(content, "Online Now", online, "online")
+    end
+    if #away > 0 then
+        self:CreateCompanionSection(content, "Away", away, "away")
+    end
+    if #offline > 0 then
+        self:CreateCompanionSection(content, "Offline", offline, "offline")
+    end
+
+    -- Empty state
+    if #companions == 0 and #requests == 0 then
+        local emptyText = content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        emptyText:SetPoint("CENTER", content, "CENTER", 0, 0)
+        emptyText:SetText("No companions yet.\n\nClick the star on any traveler\nto add them as a companion!")
+        emptyText:SetTextColor(0.6, 0.6, 0.6)
+        emptyText:SetJustifyH("CENTER")
+        self:TrackSocialRegion(emptyText)
+        self.companionYOffset = -100
+    end
+
+    -- Adjust content height
+    content:SetHeight(math.abs(self.companionYOffset) + 20)
+end
+
+--[[
+    Create the Romance Status section at top of Companions tab
+    Shows current relationship status, partner info, pending proposals
+    @param parent Frame - Parent frame
+]]
+function Journal:CreateRomanceStatusSection(parent)
+    local C = HopeAddon.Constants
+    local Romance = HopeAddon.Romance
+    if not Romance then return end
+
+    local romanceData = Romance:GetStatus()
+    local status = romanceData.status or "SINGLE"
+    local statusDef = C.ROMANCE_STATUS[status]
+
+    -- Section container with pink/grey border based on status
+    local container = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    container:SetSize(parent:GetWidth() - 16, 80)
+    container:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, self.companionYOffset)
+
+    local borderColor = status == "DATING" and {1, 0.08, 0.58, 1} or {0.5, 0.5, 0.5, 0.8}
+    container:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+        edgeSize = 12,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    })
+    container:SetBackdropColor(0.1, 0.05, 0.1, 0.9)
+    container:SetBackdropBorderColor(unpack(borderColor))
+    self:TrackSocialRegion(container)
+
+    -- Heart icon
+    local heartIcon = container:CreateTexture(nil, "ARTWORK")
+    heartIcon:SetSize(28, 28)
+    heartIcon:SetPoint("TOPLEFT", container, "TOPLEFT", 12, -10)
+    if statusDef and statusDef.icon then
+        heartIcon:SetTexture("Interface\\Icons\\" .. statusDef.icon)
+    else
+        heartIcon:SetTexture("Interface\\Icons\\INV_ValentinesCard01")
+    end
+    self:TrackSocialRegion(heartIcon)
+
+    -- Title: "RELATIONSHIP STATUS"
+    local titleText = container:CreateFontString(nil, "OVERLAY")
+    titleText:SetFont(HopeAddon.assets.fonts.HEADER, 11, "")
+    titleText:SetPoint("LEFT", heartIcon, "RIGHT", 8, 4)
+    titleText:SetText("RELATIONSHIP STATUS")
+    titleText:SetTextColor(1, 0.41, 0.71)  -- Hot pink
+    self:TrackSocialRegion(titleText)
+
+    -- Status text
+    local statusText = container:CreateFontString(nil, "OVERLAY")
+    statusText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+    statusText:SetPoint("TOPLEFT", heartIcon, "BOTTOMLEFT", 0, -4)
+
+    if status == "DATING" and romanceData.partner then
+        -- Get partner info
+        local partnerInfo = Romance:GetPartnerInfo()
+        local partnerClass = partnerInfo and partnerInfo.class or "UNKNOWN"
+        local classColor = HopeAddon:GetClassColor(partnerClass)
+
+        statusText:SetText("|cFFFF1493<3 Dating:|r " ..
+            string.format("|cFF%02X%02X%02X%s|r",
+                classColor.r * 255, classColor.g * 255, classColor.b * 255,
+                romanceData.partner))
+
+        -- "Since" date
+        if romanceData.since then
+            local sinceText = container:CreateFontString(nil, "OVERLAY")
+            sinceText:SetFont(HopeAddon.assets.fonts.BODY, 9, "")
+            sinceText:SetPoint("TOPLEFT", statusText, "BOTTOMLEFT", 0, -2)
+            sinceText:SetText("Since: " .. date("%b %d, %Y", romanceData.since))
+            sinceText:SetTextColor(0.6, 0.6, 0.6)
+            self:TrackSocialRegion(sinceText)
+        end
+
+        -- Break Up button
+        local breakupBtn = CreateFrame("Button", nil, container, "BackdropTemplate")
+        breakupBtn:SetSize(80, 22)
+        breakupBtn:SetPoint("BOTTOMRIGHT", container, "BOTTOMRIGHT", -10, 10)
+        breakupBtn:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8x8",
+            edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+            edgeSize = 8,
+            insets = { left = 1, right = 1, top = 1, bottom = 1 },
+        })
+        breakupBtn:SetBackdropColor(0.4, 0.1, 0.1, 0.9)
+        breakupBtn:SetBackdropBorderColor(0.6, 0.2, 0.2, 1)
+
+        local breakupText = breakupBtn:CreateFontString(nil, "OVERLAY")
+        breakupText:SetFont(HopeAddon.assets.fonts.HEADER, 9, "")
+        breakupText:SetPoint("CENTER")
+        breakupText:SetText("</3 Break Up")
+        breakupText:SetTextColor(0.9, 0.5, 0.5)
+
+        breakupBtn:SetScript("OnClick", function()
+            HopeAddon.Sounds:PlayClick()
+            -- Show confirmation
+            StaticPopupDialogs["HOPEADDON_BREAKUP_CONFIRM"] = {
+                text = "Are you sure you want to break up with " .. romanceData.partner .. "?",
+                button1 = "Yes",
+                button2 = "No",
+                OnAccept = function()
+                    Romance:BreakUp("mutual")
+                    Journal:ClearSocialContent()
+                    Journal:PopulateSocialCompanions()
+                end,
+                timeout = 0,
+                whileDead = true,
+                hideOnEscape = true,
+            }
+            StaticPopup_Show("HOPEADDON_BREAKUP_CONFIRM")
+        end)
+
+        breakupBtn:SetScript("OnEnter", function(self)
+            self:SetBackdropBorderColor(0.8, 0.3, 0.3, 1)
+        end)
+        breakupBtn:SetScript("OnLeave", function(self)
+            self:SetBackdropBorderColor(0.6, 0.2, 0.2, 1)
+        end)
+
+    elseif status == "PROPOSED" and romanceData.pendingOutgoing then
+        -- Waiting for response
+        statusText:SetText("|cFFFF69B4<3 Proposed to:|r " .. romanceData.pendingOutgoing.to)
+        statusText:SetTextColor(1, 0.41, 0.71)
+
+        local waitText = container:CreateFontString(nil, "OVERLAY")
+        waitText:SetFont(HopeAddon.assets.fonts.BODY, 9, "")
+        waitText:SetPoint("TOPLEFT", statusText, "BOTTOMLEFT", 0, -2)
+        waitText:SetText("Waiting for their response...")
+        waitText:SetTextColor(0.6, 0.6, 0.6)
+        self:TrackSocialRegion(waitText)
+
+        -- Cancel button
+        local cancelBtn = CreateFrame("Button", nil, container, "BackdropTemplate")
+        cancelBtn:SetSize(70, 22)
+        cancelBtn:SetPoint("BOTTOMRIGHT", container, "BOTTOMRIGHT", -10, 10)
+        cancelBtn:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8x8",
+            edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+            edgeSize = 8,
+            insets = { left = 1, right = 1, top = 1, bottom = 1 },
+        })
+        cancelBtn:SetBackdropColor(0.3, 0.3, 0.3, 0.9)
+        cancelBtn:SetBackdropBorderColor(0.5, 0.5, 0.5, 1)
+
+        local cancelText = cancelBtn:CreateFontString(nil, "OVERLAY")
+        cancelText:SetFont(HopeAddon.assets.fonts.HEADER, 9, "")
+        cancelText:SetPoint("CENTER")
+        cancelText:SetText("Cancel")
+        cancelText:SetTextColor(0.8, 0.8, 0.8)
+
+        cancelBtn:SetScript("OnClick", function()
+            HopeAddon.Sounds:PlayClick()
+            Romance:CancelProposal()
+            Journal:ClearSocialContent()
+            Journal:PopulateSocialCompanions()
+        end)
+
+    else
+        -- Single
+        statusText:SetText("|cFF808080Status:|r Single")
+
+        local hintText = container:CreateFontString(nil, "OVERLAY")
+        hintText:SetFont(HopeAddon.assets.fonts.BODY, 9, "")
+        hintText:SetPoint("TOPLEFT", statusText, "BOTTOMLEFT", 0, -2)
+        hintText:SetText("Click |cFFFF69B4\226\153\165|r on any Fellow Traveler to propose!")
+        hintText:SetTextColor(0.6, 0.6, 0.6)
+        self:TrackSocialRegion(hintText)
+    end
+    self:TrackSocialRegion(statusText)
+
+    -- Check for incoming proposals
+    local incomingRequests = Romance:GetIncomingRequests()
+    if #incomingRequests > 0 then
+        -- Expand container for proposals
+        container:SetHeight(container:GetHeight() + 30 * #incomingRequests)
+
+        local proposalY = -55
+        for _, request in ipairs(incomingRequests) do
+            local propRow = CreateFrame("Frame", nil, container)
+            propRow:SetSize(container:GetWidth() - 20, 26)
+            propRow:SetPoint("TOPLEFT", container, "TOPLEFT", 10, proposalY)
+
+            local propText = propRow:CreateFontString(nil, "OVERLAY")
+            propText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+            propText:SetPoint("LEFT", propRow, "LEFT", 0, 0)
+            propText:SetText("|cFFFF69B4<3|r " .. request.name .. " wants to date you!")
+            self:TrackSocialRegion(propText)
+
+            -- Accept button
+            local acceptBtn = CreateFrame("Button", nil, propRow, "BackdropTemplate")
+            acceptBtn:SetSize(55, 20)
+            acceptBtn:SetPoint("RIGHT", propRow, "RIGHT", -65, 0)
+            acceptBtn:SetBackdrop({
+                bgFile = "Interface\\Buttons\\WHITE8x8",
+                edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+                edgeSize = 6,
+                insets = { left = 1, right = 1, top = 1, bottom = 1 },
+            })
+            acceptBtn:SetBackdropColor(0.2, 0.5, 0.2, 0.9)
+            acceptBtn:SetBackdropBorderColor(0.3, 0.7, 0.3, 1)
+
+            local accText = acceptBtn:CreateFontString(nil, "OVERLAY")
+            accText:SetFont(HopeAddon.assets.fonts.HEADER, 9, "")
+            accText:SetPoint("CENTER")
+            accText:SetText("<3 Yes!")
+            accText:SetTextColor(0.4, 1, 0.4)
+
+            acceptBtn:SetScript("OnClick", function()
+                HopeAddon.Sounds:PlayClick()
+                Romance:AcceptProposal(request.name)
+                Journal:ClearSocialContent()
+                Journal:PopulateSocialCompanions()
+            end)
+
+            -- Decline button
+            local declineBtn = CreateFrame("Button", nil, propRow, "BackdropTemplate")
+            declineBtn:SetSize(55, 20)
+            declineBtn:SetPoint("RIGHT", propRow, "RIGHT", 0, 0)
+            declineBtn:SetBackdrop({
+                bgFile = "Interface\\Buttons\\WHITE8x8",
+                edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+                edgeSize = 6,
+                insets = { left = 1, right = 1, top = 1, bottom = 1 },
+            })
+            declineBtn:SetBackdropColor(0.4, 0.2, 0.2, 0.9)
+            declineBtn:SetBackdropBorderColor(0.6, 0.3, 0.3, 1)
+
+            local decText = declineBtn:CreateFontString(nil, "OVERLAY")
+            decText:SetFont(HopeAddon.assets.fonts.HEADER, 9, "")
+            decText:SetPoint("CENTER")
+            decText:SetText("No")
+            decText:SetTextColor(0.8, 0.5, 0.5)
+
+            declineBtn:SetScript("OnClick", function()
+                HopeAddon.Sounds:PlayClick()
+                Romance:DeclineProposal(request.name)
+                Journal:ClearSocialContent()
+                Journal:PopulateSocialCompanions()
+            end)
+
+            proposalY = proposalY - 30
+        end
+    end
+
+    self.companionYOffset = self.companionYOffset - container:GetHeight() - 16
+
+    -- Add relationship history section if there are past relationships
+    self:CreateRelationshipHistorySection(parent)
+end
+
+--[[
+    Create relationship history display (past relationships)
+    @param parent Frame - Parent frame
+]]
+function Journal:CreateRelationshipHistorySection(parent)
+    local Romance = HopeAddon.Romance
+    if not Romance then return end
+
+    local history = Romance:GetRelationshipHistory()
+    if #history == 0 then return end
+
+    -- Collapsible container
+    local container = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    container:SetSize(parent:GetWidth() - 16, 30 + math.min(#history, 3) * 26)
+    container:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, self.companionYOffset)
+    container:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+        edgeSize = 12,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    })
+    container:SetBackdropColor(0.08, 0.05, 0.08, 0.9)
+    container:SetBackdropBorderColor(0.4, 0.4, 0.4, 0.8)
+    self:TrackSocialRegion(container)
+
+    -- Header with collapse toggle
+    local headerBtn = CreateFrame("Button", nil, container)
+    headerBtn:SetSize(container:GetWidth() - 10, 24)
+    headerBtn:SetPoint("TOPLEFT", container, "TOPLEFT", 5, -3)
+
+    -- Broken heart icon
+    local historyIcon = headerBtn:CreateTexture(nil, "ARTWORK")
+    historyIcon:SetSize(18, 18)
+    historyIcon:SetPoint("LEFT", headerBtn, "LEFT", 2, 0)
+    historyIcon:SetTexture("Interface\\Icons\\Spell_Shadow_SoulLeech_3")
+    historyIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    historyIcon:SetVertexColor(0.5, 0.5, 0.5)
+    self:TrackSocialRegion(historyIcon)
+
+    local headerText = headerBtn:CreateFontString(nil, "OVERLAY")
+    headerText:SetFont(HopeAddon.assets.fonts.HEADER, 10, "")
+    headerText:SetPoint("LEFT", historyIcon, "RIGHT", 6, 0)
+    headerText:SetText("Past Relationships (" .. #history .. ")")
+    headerText:SetTextColor(0.6, 0.6, 0.6)
+    self:TrackSocialRegion(headerText)
+
+    -- Collapse arrow
+    local arrow = headerBtn:CreateFontString(nil, "OVERLAY")
+    arrow:SetFont(HopeAddon.assets.fonts.BODY, 12, "")
+    arrow:SetPoint("RIGHT", headerBtn, "RIGHT", -5, 0)
+    arrow:SetText("v")
+    arrow:SetTextColor(0.5, 0.5, 0.5)
+    self:TrackSocialRegion(arrow)
+
+    -- Content frame (for collapsing)
+    local contentFrame = CreateFrame("Frame", nil, container)
+    contentFrame:SetPoint("TOPLEFT", container, "TOPLEFT", 5, -28)
+    contentFrame:SetPoint("BOTTOMRIGHT", container, "BOTTOMRIGHT", -5, 5)
+    self:TrackSocialRegion(contentFrame)
+
+    -- History rows (show up to 3, most recent first)
+    local rowY = 0
+    for i = 1, math.min(#history, 3) do
+        local rel = history[i]
+
+        local row = CreateFrame("Frame", nil, contentFrame)
+        row:SetSize(contentFrame:GetWidth(), 22)
+        row:SetPoint("TOPLEFT", contentFrame, "TOPLEFT", 0, rowY)
+        self:TrackSocialRegion(row)
+
+        -- Partner name
+        local nameText = row:CreateFontString(nil, "OVERLAY")
+        nameText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+        nameText:SetPoint("LEFT", row, "LEFT", 5, 0)
+        nameText:SetText("|cFF808080</3|r " .. rel.partner)
+        nameText:SetTextColor(0.7, 0.7, 0.7)
+        self:TrackSocialRegion(nameText)
+
+        -- Duration
+        local durationText = row:CreateFontString(nil, "OVERLAY")
+        durationText:SetFont(HopeAddon.assets.fonts.BODY, 9, "")
+        durationText:SetPoint("RIGHT", row, "RIGHT", -5, 0)
+        durationText:SetText(Romance:FormatDuration(rel.duration))
+        durationText:SetTextColor(0.5, 0.5, 0.5)
+        self:TrackSocialRegion(durationText)
+
+        -- End date
+        local dateText = row:CreateFontString(nil, "OVERLAY")
+        dateText:SetFont(HopeAddon.assets.fonts.BODY, 9, "")
+        dateText:SetPoint("RIGHT", durationText, "LEFT", -10, 0)
+        dateText:SetText(date("%b %d", rel.ended))
+        dateText:SetTextColor(0.5, 0.5, 0.5)
+        self:TrackSocialRegion(dateText)
+
+        rowY = rowY - 26
+    end
+
+    -- Show "and X more" if there are more than 3
+    if #history > 3 then
+        local moreText = contentFrame:CreateFontString(nil, "OVERLAY")
+        moreText:SetFont(HopeAddon.assets.fonts.BODY, 9, "")
+        moreText:SetPoint("TOPLEFT", contentFrame, "TOPLEFT", 5, rowY)
+        moreText:SetText("...and " .. (#history - 3) .. " more")
+        moreText:SetTextColor(0.4, 0.4, 0.4)
+        self:TrackSocialRegion(moreText)
+    end
+
+    -- Collapse/expand toggle
+    container.isCollapsed = false
+    container.fullHeight = container:GetHeight()
+    container.collapsedHeight = 30
+
+    headerBtn:SetScript("OnClick", function()
+        if HopeAddon.Sounds then
+            HopeAddon.Sounds:PlayClick()
+        end
+
+        container.isCollapsed = not container.isCollapsed
+        if container.isCollapsed then
+            container:SetHeight(container.collapsedHeight)
+            contentFrame:Hide()
+            arrow:SetText(">")
+        else
+            container:SetHeight(container.fullHeight)
+            contentFrame:Show()
+            arrow:SetText("v")
+        end
+    end)
+
+    headerBtn:SetScript("OnEnter", function()
+        headerText:SetTextColor(0.8, 0.8, 0.8)
+        arrow:SetTextColor(0.8, 0.8, 0.8)
+    end)
+
+    headerBtn:SetScript("OnLeave", function()
+        headerText:SetTextColor(0.6, 0.6, 0.6)
+        arrow:SetTextColor(0.5, 0.5, 0.5)
+    end)
+
+    self.companionYOffset = self.companionYOffset - container:GetHeight() - 12
+end
+
+--[[
+    Create a section of companion cards
+    @param parent Frame - Parent frame
+    @param title string - Section title
+    @param companions table - Array of companions
+    @param status string - Status type (online, away, offline)
+]]
+function Journal:CreateCompanionSection(parent, title, companions, status)
+    local C = HopeAddon.Constants
+
+    -- Section header
+    local header = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    header:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, self.companionYOffset)
+    header:SetText(title .. " (" .. #companions .. ")")
+    if status == "online" then
+        header:SetTextColor(0.2, 1.0, 0.2)
+    elseif status == "away" then
+        header:SetTextColor(1.0, 0.8, 0.2)
+    else
+        header:SetTextColor(0.5, 0.5, 0.5)
+    end
+    self:TrackSocialRegion(header)
+    self.companionYOffset = self.companionYOffset - 24
+
+    -- Create card grid (4 per row)
+    local cardSize = C.SOCIAL_TAB.COMPANION_CARD_SIZE
+    local cardsPerRow = C.SOCIAL_TAB.COMPANION_CARDS_PER_ROW
+    local spacing = 8
+
+    for i, companion in ipairs(companions) do
+        local col = (i - 1) % cardsPerRow
+        local cardRow = math.floor((i - 1) / cardsPerRow)
+
+        local card = self:CreateCompanionCard(parent, companion, status)
+        card:SetPoint("TOPLEFT", parent, "TOPLEFT",
+            8 + col * (cardSize + spacing),
+            self.companionYOffset - cardRow * (cardSize + spacing))
+    end
+
+    -- Adjust yOffset for next section
+    local rows = math.ceil(#companions / cardsPerRow)
+    self.companionYOffset = self.companionYOffset - rows * (cardSize + spacing) - 16
+end
+
+--[[
+    Create pending companion requests section
+    @param parent Frame - Parent frame
+    @param requests table - Array of pending requests
+]]
+function Journal:CreateCompanionRequests(parent, requests)
+    -- Section header
+    local header = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    header:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, self.companionYOffset)
+    header:SetText("Pending Requests (" .. #requests .. ")")
+    header:SetTextColor(1.0, 0.82, 0.0)
+    self:TrackSocialRegion(header)
+    self.companionYOffset = self.companionYOffset - 24
+
+    -- Request rows
+    for _, request in ipairs(requests) do
+        local row = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+        row:SetSize(parent:GetWidth() - 16, 30)
+        row:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, self.companionYOffset)
+
+        local text = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        text:SetPoint("LEFT", 8, 0)
+        text:SetText((request.name or "Unknown") .. " wants to be companions")
+
+        local acceptBtn = CreateFrame("Button", nil, row, "BackdropTemplate")
+        acceptBtn:SetSize(60, 24)
+        acceptBtn:SetPoint("RIGHT", row, "RIGHT", -70, 0)
+        acceptBtn:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8x8",
+            edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+            edgeSize = 8,
+            insets = { left = 1, right = 1, top = 1, bottom = 1 },
+        })
+        acceptBtn:SetBackdropColor(0.2, 0.6, 0.2, 0.9)
+        acceptBtn:SetBackdropBorderColor(0.4, 0.8, 0.4, 1)
+        local acceptText = acceptBtn:CreateFontString(nil, "OVERLAY")
+        acceptText:SetFont(HopeAddon.assets.fonts.HEADER, 10, "")
+        acceptText:SetPoint("CENTER")
+        acceptText:SetText("Accept")
+        acceptText:SetTextColor(0.4, 1.0, 0.4)
+
+        acceptBtn:SetScript("OnClick", function()
+            HopeAddon.Sounds:PlayClick()
+            if HopeAddon.Companions then
+                HopeAddon.Companions:AcceptRequest(request.name)
+            end
+            self:ClearSocialContent()
+            self:PopulateSocialCompanions()
+        end)
+
+        local declineBtn = CreateFrame("Button", nil, row, "BackdropTemplate")
+        declineBtn:SetSize(60, 24)
+        declineBtn:SetPoint("RIGHT", row, "RIGHT", 0, 0)
+        declineBtn:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8x8",
+            edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+            edgeSize = 8,
+            insets = { left = 1, right = 1, top = 1, bottom = 1 },
+        })
+        declineBtn:SetBackdropColor(0.4, 0.2, 0.2, 0.9)
+        declineBtn:SetBackdropBorderColor(0.6, 0.3, 0.3, 1)
+        local declineText = declineBtn:CreateFontString(nil, "OVERLAY")
+        declineText:SetFont(HopeAddon.assets.fonts.HEADER, 10, "")
+        declineText:SetPoint("CENTER")
+        declineText:SetText("Decline")
+        declineText:SetTextColor(0.8, 0.4, 0.4)
+
+        declineBtn:SetScript("OnClick", function()
+            HopeAddon.Sounds:PlayClick()
+            if HopeAddon.Companions then
+                HopeAddon.Companions:DeclineRequest(request.name)
+            end
+            self:ClearSocialContent()
+            self:PopulateSocialCompanions()
+        end)
+
+        self.companionYOffset = self.companionYOffset - 34
+    end
+
+    self.companionYOffset = self.companionYOffset - 10
+end
+
+--[[
+    Create a companion card
+    @param parent Frame - Parent frame
+    @param companion table - Companion data
+    @param status string - Online status
+    @return Frame - Card frame
+]]
+function Journal:CreateCompanionCard(parent, companion, status)
+    local C = HopeAddon.Constants
+
+    local card = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    card:SetSize(C.SOCIAL_TAB.COMPANION_CARD_SIZE, C.SOCIAL_TAB.COMPANION_CARD_SIZE)
+    card:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+        edgeSize = 10,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    })
+    card:SetBackdropColor(0.1, 0.1, 0.1, 0.8)
+
+    local classColor = companion.class and HopeAddon:GetClassColor(companion.class) or { r = 0.5, g = 0.5, b = 0.5 }
+    card:SetBackdropBorderColor(classColor.r, classColor.g, classColor.b, 0.7)
+
+    -- Class icon
+    local classIcon = card:CreateTexture(nil, "ARTWORK")
+    classIcon:SetSize(24, 24)
+    classIcon:SetPoint("TOP", card, "TOP", 0, -8)
+    local coords = CLASS_ICON_TCOORDS[companion.class]
+    if coords then
+        classIcon:SetTexture("Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES")
+        classIcon:SetTexCoord(unpack(coords))
+    end
+
+    -- Name
+    local nameText = card:CreateFontString(nil, "OVERLAY")
+    nameText:SetFont(HopeAddon.assets.fonts.HEADER, 10, "")
+    nameText:SetPoint("TOP", classIcon, "BOTTOM", 0, -4)
+    nameText:SetText((companion.name or "?"):sub(1, 10))
+    nameText:SetTextColor(classColor.r, classColor.g, classColor.b)
+
+    -- Status indicator
+    local statusText = card:CreateFontString(nil, "OVERLAY")
+    statusText:SetFont(HopeAddon.assets.fonts.BODY, 9, "")
+    statusText:SetPoint("TOP", nameText, "BOTTOM", 0, -2)
+    if status == "online" then
+        statusText:SetText("● " .. ((companion.zone or ""):sub(1, 8)))
+        statusText:SetTextColor(0.2, 1.0, 0.2)
+    elseif status == "away" then
+        local mins = math.floor((time() - (companion.lastSeenTime or 0)) / 60)
+        statusText:SetText("○ " .. mins .. "m ago")
+        statusText:SetTextColor(1.0, 0.8, 0.2)
+    else
+        local days = math.floor((time() - (companion.lastSeenTime or 0)) / 86400)
+        statusText:SetText("- " .. days .. " days")
+        statusText:SetTextColor(0.5, 0.5, 0.5)
+    end
+
+    -- RP Status
+    local rpStatus = companion.profile and companion.profile.status or "OOC"
+    local rpText = card:CreateFontString(nil, "OVERLAY")
+    rpText:SetFont(HopeAddon.assets.fonts.BODY, 9, "")
+    rpText:SetPoint("TOP", statusText, "BOTTOM", 0, -2)
+    rpText:SetText(rpStatus)
+    local rpDef = C.RP_STATUS[rpStatus]
+    if rpDef then
+        local r, g, b = HopeAddon.ColorUtils:HexToRGB(rpDef.color)
+        rpText:SetTextColor(r, g, b)
+    end
+
+    -- Relationship badge
+    local relType = HopeAddon.charDb.social.relationshipTypes and HopeAddon.charDb.social.relationshipTypes[companion.name]
+    if relType and relType ~= "NONE" then
+        local relDef = C.RELATIONSHIP_TYPES[relType]
+        if relDef then
+            local relBadge = card:CreateFontString(nil, "OVERLAY")
+            relBadge:SetFont(HopeAddon.assets.fonts.HEADER, 9, "")
+            relBadge:SetPoint("BOTTOM", card, "BOTTOM", 0, 8)
+            relBadge:SetText("[" .. relDef.label .. "]")
+            local r, g, b = HopeAddon.ColorUtils:HexToRGB(relDef.color)
+            relBadge:SetTextColor(r, g, b)
+        end
+    end
+
+    -- Romance heart button (top-right corner) - using actual icon textures
+    local romance = HopeAddon:GetSocialRomance()
+    if romance and HopeAddon.Romance then
+        local heartBtn = CreateFrame("Button", nil, card)
+        heartBtn:SetSize(18, 18)
+        heartBtn:SetPoint("TOPRIGHT", card, "TOPRIGHT", -3, -3)
+
+        -- Icon texture (heart card icon from Valentine's set)
+        local heartIcon = heartBtn:CreateTexture(nil, "ARTWORK")
+        heartIcon:SetSize(16, 16)
+        heartIcon:SetPoint("CENTER")
+        heartIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)  -- Trim icon borders
+
+        -- Highlight on hover
+        local highlight = heartBtn:CreateTexture(nil, "HIGHLIGHT")
+        highlight:SetAllPoints(heartIcon)
+        highlight:SetTexture("Interface\\Buttons\\ButtonHilight-Square")
+        highlight:SetBlendMode("ADD")
+        highlight:SetAlpha(0.3)
+
+        local isPartner = romance.partner and romance.partner == companion.name
+        local isPendingOutgoing = romance.pendingOutgoing and romance.pendingOutgoing.to == companion.name
+        -- pendingIncoming is a table keyed by name, not an array
+        local isPendingIncoming = romance.pendingIncoming and romance.pendingIncoming[companion.name] ~= nil
+
+        if isPartner then
+            -- Already dating - bright pink heart card
+            heartIcon:SetTexture("Interface\\Icons\\INV_ValentinesCard02")
+            heartIcon:SetVertexColor(1, 0.2, 0.6, 1)  -- Pink tint
+            heartBtn:SetScript("OnEnter", function(self)
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:AddLine("In a relationship with " .. companion.name, 1.0, 0.08, 0.58)
+                GameTooltip:Show()
+            end)
+            heartBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+            heartBtn:SetScript("OnClick", nil) -- Can't propose to partner
+        elseif isPendingOutgoing then
+            -- Already proposed - candy (pending) icon
+            heartIcon:SetTexture("Interface\\Icons\\INV_ValentinesCandy")
+            heartIcon:SetVertexColor(1, 0.5, 0.8, 1)  -- Light pink
+            heartBtn:SetScript("OnEnter", function(self)
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:AddLine("Proposal pending...", 1.0, 0.41, 0.71)
+                GameTooltip:AddLine("Waiting for their response", 0.7, 0.7, 0.7)
+                GameTooltip:Show()
+            end)
+            heartBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+            heartBtn:SetScript("OnClick", nil) -- Already pending
+        elseif isPendingIncoming then
+            -- They proposed to us - glowing heart with exclamation
+            heartIcon:SetTexture("Interface\\Icons\\INV_ValentinesCard02")
+            heartIcon:SetVertexColor(1, 0.8, 0.2, 1)  -- Gold/excited
+            heartBtn:SetScript("OnEnter", function(self)
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:AddLine(companion.name .. " proposed to you!", 1.0, 0.41, 0.71)
+                GameTooltip:AddLine("Check relationship status section above", 0.7, 0.7, 0.7)
+                GameTooltip:Show()
+            end)
+            heartBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+            heartBtn:SetScript("OnClick", function()
+                HopeAddon:Print("|cFFFF69B4" .. companion.name .. " proposed to you! Check the relationship status section above.|r")
+            end)
+        elseif romance.status == "SINGLE" then
+            -- Single and available to propose - grey heart that turns pink on hover
+            heartIcon:SetTexture("Interface\\Icons\\INV_ValentinesCard01")
+            heartIcon:SetVertexColor(0.5, 0.5, 0.5, 0.7)  -- Grey/desaturated
+            heartBtn:SetScript("OnEnter", function(self)
+                heartIcon:SetVertexColor(1, 0.4, 0.7, 1)  -- Pink on hover
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:AddLine("Propose to " .. companion.name .. "?", 1.0, 0.41, 0.71)
+                GameTooltip:AddLine("Click to send a proposal", 0.7, 0.7, 0.7)
+                GameTooltip:Show()
+            end)
+            heartBtn:SetScript("OnLeave", function()
+                heartIcon:SetVertexColor(0.5, 0.5, 0.5, 0.7)  -- Back to grey
+                GameTooltip:Hide()
+            end)
+            heartBtn:SetScript("OnClick", function()
+                HopeAddon.Romance:ProposeToPlayer(companion.name)
+                HopeAddon.Sounds:PlayClick()
+                -- Refresh the social tab
+                if Journal.currentTab == "social" then
+                    Journal:PopulateSocial()
+                end
+            end)
+        else
+            -- Already in a relationship with someone else - very dim heart
+            heartIcon:SetTexture("Interface\\Icons\\INV_ValentinesCard01")
+            heartIcon:SetVertexColor(0.3, 0.3, 0.3, 0.5)  -- Very grey
+            heartBtn:SetScript("OnEnter", function(self)
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:AddLine("Already in a relationship", 0.5, 0.5, 0.5)
+                GameTooltip:Show()
+            end)
+            heartBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+            heartBtn:SetScript("OnClick", nil) -- Can't propose while dating
+        end
+    end
+
+    -- Action icons at bottom (Whisper, Invite, Game)
+    local ICON_SIZE = 18
+    local ICON_SPACING = 6
+
+    -- Helper to create icon button
+    local function CreateCardIcon(parent, texture, tooltipText, onClick)
+        local btn = CreateFrame("Button", nil, parent)
+        btn:SetSize(ICON_SIZE, ICON_SIZE)
+
+        local icon = btn:CreateTexture(nil, "ARTWORK")
+        icon:SetAllPoints()
+        icon:SetTexture(texture)
+        icon:SetVertexColor(0.6, 0.6, 0.6)
+        btn.icon = icon
+
+        btn:SetScript("OnEnter", function(self)
+            self.icon:SetVertexColor(1, 0.84, 0)
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:SetText(tooltipText, 1, 1, 1)
+            GameTooltip:Show()
+        end)
+
+        btn:SetScript("OnLeave", function(self)
+            self.icon:SetVertexColor(0.6, 0.6, 0.6)
+            GameTooltip:Hide()
+        end)
+
+        btn:SetScript("OnClick", function()
+            if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+            onClick()
+        end)
+
+        return btn
+    end
+
+    -- Icon row at bottom center
+    local iconWidth = (ICON_SIZE * 3) + (ICON_SPACING * 2)
+    local startX = -iconWidth / 2
+
+    local whisperBtn = CreateCardIcon(card,
+        "Interface\\CHATFRAME\\UI-ChatIcon-Chat-Up",
+        "Whisper " .. companion.name,
+        function() ChatFrame_OpenChat("/w " .. companion.name .. " ") end
+    )
+    whisperBtn:SetPoint("BOTTOM", card, "BOTTOM", startX + ICON_SIZE/2, 6)
+
+    local inviteBtn = CreateCardIcon(card,
+        "Interface\\BUTTONS\\UI-GroupLoot-Pass-Up",
+        "Invite to party",
+        function() InviteUnit(companion.name) end
+    )
+    inviteBtn:SetPoint("LEFT", whisperBtn, "RIGHT", ICON_SPACING, 0)
+
+    local gameBtn = CreateCardIcon(card,
+        "Interface\\ICONS\\INV_Misc_Dice_02",
+        "Challenge to game",
+        function()
+            if HopeAddon.MinigamesUI then
+                HopeAddon.MinigamesUI:ShowGameSelectionPopup(companion.name)
+            end
+        end
+    )
+    gameBtn:SetPoint("LEFT", inviteBtn, "RIGHT", ICON_SPACING, 0)
+
+    -- Card hover effect (no click action)
+    card:SetScript("OnEnter", function(self)
+        self:SetBackdropColor(0.15, 0.15, 0.15, 0.9)
+    end)
+    card:SetScript("OnLeave", function(self)
+        self:SetBackdropColor(0.1, 0.1, 0.1, 0.8)
+    end)
+
+    return card
 end
 
 --[[
@@ -5716,7 +8031,7 @@ function Journal:CreatePartyFellowCard(parent, fellow)
         nameText = card:CreateFontString(nil, "OVERLAY")
         card.nameText = nameText
     end
-    nameText:SetFont(HopeAddon.assets.fonts.HEADER, 14)
+    nameText:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
     nameText:ClearAllPoints()
     nameText:SetPoint("TOPLEFT", classIcon, "TOPRIGHT", 10, -2)
 
@@ -5736,7 +8051,7 @@ function Journal:CreatePartyFellowCard(parent, fellow)
         levelText = card:CreateFontString(nil, "OVERLAY")
         card.levelText = levelText
     end
-    levelText:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    levelText:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     levelText:ClearAllPoints()
     levelText:SetPoint("TOPLEFT", nameText, "BOTTOMLEFT", 0, -2)
     levelText:SetText("Level " .. (fellow.level or "?") .. " " .. (fellow.class or "Unknown"))
@@ -5763,7 +8078,7 @@ function Journal:CreatePartyFellowCard(parent, fellow)
 
             -- Text
             local btnText = challengeBtn:CreateFontString(nil, "OVERLAY")
-            btnText:SetFont(HopeAddon.assets.fonts.HEADER, 11)
+            btnText:SetFont(HopeAddon.assets.fonts.HEADER, 11, "")
             btnText:SetPoint("CENTER", challengeBtn, "CENTER", 0, 0)
             btnText:SetText("CHALLENGE")
             btnText:SetTextColor(1, 0.84, 0, 1)
@@ -7277,18 +9592,18 @@ function Journal:ShowMilestoneNotificationInternal(title, level, story)
 
     -- Configure pre-created font strings
     notif.titleText:ClearAllPoints()
-    notif.titleText:SetFont(HopeAddon.assets.fonts.TITLE, 18)
+    notif.titleText:SetFont(HopeAddon.assets.fonts.TITLE, 18, "")
     notif.titleText:SetPoint("TOP", notif, "TOP", 0, -15)
     notif.titleText:SetText(HopeAddon:ColorText("MILESTONE REACHED", "GOLD_BRIGHT"))
 
     notif.line1:ClearAllPoints()
-    notif.line1:SetFont(HopeAddon.assets.fonts.HEADER, 14)
+    notif.line1:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
     notif.line1:SetPoint("TOP", notif.titleText, "BOTTOM", 0, -8)
     notif.line1:SetText("Level " .. level .. ": " .. title)
     notif.line1:SetTextColor(1, 1, 1, 1)
 
     notif.line2:ClearAllPoints()
-    notif.line2:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    notif.line2:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     notif.line2:SetPoint("TOP", notif.line1, "BOTTOM", 0, -5)
     notif.line2:SetText('"' .. story .. '"')
     notif.line2:SetTextColor(HopeAddon:GetTextColor("SECONDARY"))
@@ -7338,18 +9653,18 @@ function Journal:ShowDiscoveryNotificationInternal(zoneName, title, flavor)
 
     -- Configure pre-created font strings
     notif.titleText:ClearAllPoints()
-    notif.titleText:SetFont(HopeAddon.assets.fonts.HEADER, 14)
+    notif.titleText:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
     notif.titleText:SetPoint("TOP", notif, "TOP", 0, -12)
     notif.titleText:SetText(HopeAddon:ColorText("NEW LAND DISCOVERED", zoneColor))
 
     notif.line1:ClearAllPoints()
-    notif.line1:SetFont(HopeAddon.assets.fonts.BODY, 12)
+    notif.line1:SetFont(HopeAddon.assets.fonts.BODY, 12, "")
     notif.line1:SetPoint("TOP", notif.titleText, "BOTTOM", 0, -5)
     notif.line1:SetText(title)
     notif.line1:SetTextColor(1, 1, 1, 1)
 
     notif.line2:ClearAllPoints()
-    notif.line2:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+    notif.line2:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
     notif.line2:SetPoint("TOP", notif.line1, "BOTTOM", 0, -3)
     notif.line2:SetWidth(280)
     notif.line2:SetText('"' .. flavor .. '"')
@@ -7384,18 +9699,18 @@ function Journal:ShowBossKillNotificationInternal(killData)
 
     -- Configure pre-created font strings
     notif.titleText:ClearAllPoints()
-    notif.titleText:SetFont(HopeAddon.assets.fonts.TITLE, 18)
+    notif.titleText:SetFont(HopeAddon.assets.fonts.TITLE, 18, "")
     notif.titleText:SetPoint("TOP", notif, "TOP", 0, -15)
     notif.titleText:SetText(HopeAddon:ColorText("VICTORY!", "HELLFIRE_RED"))
 
     notif.line1:ClearAllPoints()
-    notif.line1:SetFont(HopeAddon.assets.fonts.HEADER, 14)
+    notif.line1:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
     notif.line1:SetPoint("TOP", notif.titleText, "BOTTOM", 0, -8)
     notif.line1:SetText(killData.bossName .. " defeated!")
     notif.line1:SetTextColor(1, 1, 1, 1)
 
     notif.line2:ClearAllPoints()
-    notif.line2:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    notif.line2:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     notif.line2:SetPoint("TOP", notif.line1, "BOTTOM", 0, -5)
     notif.line2:SetText(killData.raidName)
     notif.line2:SetTextColor(HopeAddon:GetTextColor("TERTIARY"))

@@ -1,6 +1,6 @@
 ## Interface: 20400
-## Title: |cff9B30FFHope|r Addon
-## Notes: Your Personal TBC Journey Journal
+## Title: |cff9B30FFHope Is Here|r
+## Notes: Your TBC Journey Journal
 ## Author: Hope Guild
 ## Version: 1.0.0
 ## SavedVariables: HopeAddonDB
@@ -50,6 +50,7 @@ Social\NameplateColors.lua
 Social\ActivityFeed.lua
 Social\Companions.lua
 Social\SocialToasts.lua
+Social\Romance.lua
 
 # Game System
 Social\Games\GameCore.lua

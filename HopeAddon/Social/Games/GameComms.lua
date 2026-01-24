@@ -256,9 +256,10 @@ function GameComms:AcceptInvite(playerName)
     end
 
     -- Create local game instance using the CHALLENGER'S gameId for synchronization
+    -- isChallenger = false because we are ACCEPTING (the other player challenged us)
     local GameCore = HopeAddon:GetModule("GameCore")
     local mode = GameCore.GAME_MODE.REMOTE
-    local gameId = GameCore:CreateGame(invite.gameType, mode, playerName, invite.gameId)
+    local gameId = GameCore:CreateGame(invite.gameType, mode, playerName, invite.gameId, false)
     GameCore:StartGame(gameId)
 
     -- Send accept message with the shared gameId
@@ -353,9 +354,10 @@ function GameComms:HandleAccept(sender, gameType, gameId, data)
     self.pendingInvites[sender] = nil
 
     -- Create game instance using the SHARED gameId for synchronization
+    -- isChallenger = true because WE sent the invite that was accepted
     local GameCore = HopeAddon:GetModule("GameCore")
     local mode = GameCore.GAME_MODE.REMOTE
-    local sharedGameId = GameCore:CreateGame(gameType, mode, sender, gameId)
+    local sharedGameId = GameCore:CreateGame(gameType, mode, sender, gameId, true)
     GameCore:StartGame(sharedGameId)
 
     -- Notify game module
@@ -524,7 +526,11 @@ function GameComms:BroadcastGameMessage(msgType, gameType, gameId, data)
     local msg = string.format("%s:1:%s:%s:%s", msgType, gameType, gameId or "", data or "")
 
     if CachedSendAddonMessage then
-        CachedSendAddonMessage(prefix, msg, "YELL")
+        -- Use pcall to handle edge cases silently
+        local success, err = pcall(CachedSendAddonMessage, prefix, msg, "YELL")
+        if not success and HopeAddon.db and HopeAddon.db.debug then
+            HopeAddon:Debug("GameComms broadcast failed:", err)
+        end
     end
 end
 

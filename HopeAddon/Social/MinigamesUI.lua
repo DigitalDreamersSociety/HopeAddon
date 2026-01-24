@@ -173,7 +173,7 @@ local function OnChallengeAccept(self)
     elseif challengeData.source == "gamecore" then
         local GameComms = HopeAddon:GetModule("GameComms")
         if GameComms then
-            GameComms:SendAccept(challengeData.challenger, challengeData.sessionId, challengeData.gameType)
+            GameComms:AcceptInvite(challengeData.challenger)
         end
     else
         -- Legacy system
@@ -209,7 +209,7 @@ local function OnChallengeDecline(self)
     elseif challengeData.source == "gamecore" then
         local GameComms = HopeAddon:GetModule("GameComms")
         if GameComms then
-            GameComms:SendDecline(challengeData.challenger, challengeData.sessionId, challengeData.gameType)
+            GameComms:DeclineInvite(challengeData.challenger)
         end
     else
         -- Legacy system
@@ -419,14 +419,14 @@ function MinigamesUI:GetChallengePopup()
 
     -- Title
     local title = popup:CreateFontString(nil, "OVERLAY")
-    title:SetFont(HopeAddon.assets.fonts.HEADER, 14)
+    title:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
     title:SetPoint("TOP", popup, "TOP", 0, -15)
     title:SetText(HopeAddon:ColorText("MINIGAME CHALLENGE", "GOLD_BRIGHT"))
     popup.title = title
 
     -- Challenge text
     local challengeText = popup:CreateFontString(nil, "OVERLAY")
-    challengeText:SetFont(HopeAddon.assets.fonts.BODY, 12)
+    challengeText:SetFont(HopeAddon.assets.fonts.BODY, 12, "")
     challengeText:SetPoint("TOP", title, "BOTTOM", 0, -15)
     challengeText:SetWidth(POPUP_WIDTH - 40)
     challengeText:SetJustifyH("CENTER")
@@ -435,7 +435,7 @@ function MinigamesUI:GetChallengePopup()
 
     -- Timer text
     local timerText = popup:CreateFontString(nil, "OVERLAY")
-    timerText:SetFont(HopeAddon.assets.fonts.SMALL, 11)
+    timerText:SetFont(HopeAddon.assets.fonts.SMALL, 11, "")
     timerText:SetPoint("BOTTOM", popup, "BOTTOM", 0, 15)
     timerText:SetTextColor(0.5, 0.5, 0.5, 1)
     popup.timerText = timerText
@@ -589,13 +589,13 @@ function MinigamesUI:GetGameFrame()
 
     -- Title
     local title = frame:CreateFontString(nil, "OVERLAY")
-    title:SetFont(HopeAddon.assets.fonts.TITLE, 18)
+    title:SetFont(HopeAddon.assets.fonts.TITLE, 18, "")
     title:SetPoint("TOP", frame, "TOP", 0, -20)
     frame.title = title
 
     -- Status text
     local statusText = frame:CreateFontString(nil, "OVERLAY")
-    statusText:SetFont(HopeAddon.assets.fonts.BODY, 12)
+    statusText:SetFont(HopeAddon.assets.fonts.BODY, 12, "")
     statusText:SetPoint("TOP", title, "BOTTOM", 0, -10)
     statusText:SetTextColor(0.3, 0.3, 0.3, 1)
     frame.statusText = statusText
@@ -653,7 +653,7 @@ function MinigamesUI:CreateRPSContainer(frame, content)
 
     -- Instructions
     local instructions = container:CreateFontString(nil, "OVERLAY")
-    instructions:SetFont(HopeAddon.assets.fonts.BODY, 12)
+    instructions:SetFont(HopeAddon.assets.fonts.BODY, 12, "")
     instructions:SetPoint("TOP", container, "TOP", 0, 0)
     instructions:SetText("Choose your weapon:")
     instructions:SetTextColor(0.3, 0.3, 0.3, 1)
@@ -692,7 +692,7 @@ function MinigamesUI:CreateRPSContainer(frame, content)
 
         -- Label below
         local label = buttonRow:CreateFontString(nil, "OVERLAY")
-        label:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+        label:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
         label:SetPoint("TOP", btn, "BOTTOM", 0, -5)
         label:SetText(choiceLabels[choice])
         label:SetTextColor(0.4, 0.4, 0.4, 1)
@@ -705,7 +705,7 @@ function MinigamesUI:CreateRPSContainer(frame, content)
 
     -- Status area for waiting messages
     local waitStatus = container:CreateFontString(nil, "OVERLAY")
-    waitStatus:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    waitStatus:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     waitStatus:SetPoint("BOTTOM", container, "BOTTOM", 0, 20)
     waitStatus:SetText("")
     waitStatus:SetTextColor(0.5, 0.5, 0.5, 1)
@@ -729,14 +729,14 @@ function MinigamesUI:CreateRPSResultContainer(frame, content)
 
     -- Your label
     local myLabel = container:CreateFontString(nil, "OVERLAY")
-    myLabel:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+    myLabel:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
     myLabel:SetPoint("TOP", myIcon, "BOTTOM", 0, -5)
     myLabel:SetText("You")
     myLabel:SetTextColor(0.4, 0.4, 0.4, 1)
 
     -- VS text
     local vsText = container:CreateFontString(nil, "OVERLAY")
-    vsText:SetFont(HopeAddon.assets.fonts.HEADER, 14)
+    vsText:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
     vsText:SetPoint("CENTER", container, "CENTER", 0, 10)
     vsText:SetText("vs")
     vsText:SetTextColor(0.5, 0.5, 0.5, 1)
@@ -749,14 +749,14 @@ function MinigamesUI:CreateRPSResultContainer(frame, content)
 
     -- Opponent label
     local oppLabel = container:CreateFontString(nil, "OVERLAY")
-    oppLabel:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+    oppLabel:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
     oppLabel:SetPoint("TOP", oppIcon, "BOTTOM", 0, -5)
     oppLabel:SetText("Them")
     oppLabel:SetTextColor(0.4, 0.4, 0.4, 1)
 
     -- Result text
     local resultText = container:CreateFontString(nil, "OVERLAY")
-    resultText:SetFont(HopeAddon.assets.fonts.HEADER, 16)
+    resultText:SetFont(HopeAddon.assets.fonts.HEADER, 16, "")
     resultText:SetPoint("BOTTOM", container, "BOTTOM", 0, 20)
     frame.rpsResultText = resultText
 end
@@ -772,7 +772,7 @@ function MinigamesUI:CreateWaitingContainer(frame, content)
 
     -- Waiting message
     local waitingText = container:CreateFontString(nil, "OVERLAY")
-    waitingText:SetFont(HopeAddon.assets.fonts.BODY, 12)
+    waitingText:SetFont(HopeAddon.assets.fonts.BODY, 12, "")
     waitingText:SetPoint("CENTER", container, "CENTER", 0, 20)
     waitingText:SetJustifyH("CENTER")
     waitingText:SetTextColor(0.3, 0.3, 0.3, 1)
@@ -798,7 +798,7 @@ function MinigamesUI:CreateDeclinedContainer(frame, content)
 
     -- Declined message
     local msg = container:CreateFontString(nil, "OVERLAY")
-    msg:SetFont(HopeAddon.assets.fonts.BODY, 12)
+    msg:SetFont(HopeAddon.assets.fonts.BODY, 12, "")
     msg:SetPoint("CENTER", container, "CENTER", 0, 0)
     msg:SetTextColor(0.3, 0.3, 0.3, 1)
     frame.declinedMsg = msg
@@ -1059,21 +1059,21 @@ function MinigamesUI:GetGameSelectionPopup()
 
     -- Title
     local title = popup:CreateFontString(nil, "OVERLAY")
-    title:SetFont(HopeAddon.assets.fonts.HEADER, 14)
+    title:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
     title:SetPoint("TOP", popup, "TOP", 0, -15)
     title:SetText(HopeAddon:ColorText("CHALLENGE", "GOLD_BRIGHT"))
     popup.title = title
 
     -- Target name
     local targetText = popup:CreateFontString(nil, "OVERLAY")
-    targetText:SetFont(HopeAddon.assets.fonts.BODY, 12)
+    targetText:SetFont(HopeAddon.assets.fonts.BODY, 12, "")
     targetText:SetPoint("TOP", title, "BOTTOM", 0, -5)
     targetText:SetTextColor(0.1, 0.6, 0.1, 1)
     popup.targetText = targetText
 
     -- Instructions
     local instructions = popup:CreateFontString(nil, "OVERLAY")
-    instructions:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+    instructions:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
     instructions:SetPoint("TOP", targetText, "BOTTOM", 0, -10)
     instructions:SetText("Select a game:")
     instructions:SetTextColor(0.4, 0.4, 0.4, 1)
@@ -1127,7 +1127,7 @@ function MinigamesUI:GetGameSelectionPopup()
 
         -- Label
         local label = buttonContainer:CreateFontString(nil, "OVERLAY")
-        label:SetFont(HopeAddon.assets.fonts.SMALL, 9)
+        label:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
         label:SetPoint("TOP", btn, "BOTTOM", 0, -LABEL_OFFSET_Y)
         label:SetText(gameDef.name)
         label:SetTextColor(0.4, 0.4, 0.4, 1)
@@ -1277,21 +1277,21 @@ function MinigamesUI:GetTravelerPickerPopup()
 
     -- Title
     local title = popup:CreateFontString(nil, "OVERLAY")
-    title:SetFont(HopeAddon.assets.fonts.HEADER, 14)
+    title:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
     title:SetPoint("TOP", popup, "TOP", 0, -15)
     title:SetText(HopeAddon:ColorText("SELECT OPPONENT", "GOLD_BRIGHT"))
     popup.title = title
 
     -- Game name display
     local gameText = popup:CreateFontString(nil, "OVERLAY")
-    gameText:SetFont(HopeAddon.assets.fonts.BODY, 12)
+    gameText:SetFont(HopeAddon.assets.fonts.BODY, 12, "")
     gameText:SetPoint("TOP", title, "BOTTOM", 0, -5)
     gameText:SetTextColor(0.6, 0.2, 0.8, 1)  -- ARCANE_PURPLE
     popup.gameText = gameText
 
     -- Instructions
     local instructions = popup:CreateFontString(nil, "OVERLAY")
-    instructions:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+    instructions:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
     instructions:SetPoint("TOP", gameText, "BOTTOM", 0, -10)
     instructions:SetText("Choose a Fellow Traveler to challenge:")
     instructions:SetTextColor(0.4, 0.4, 0.4, 1)
@@ -1344,7 +1344,7 @@ function MinigamesUI:GetTravelerPickerPopup()
 
     -- No travelers message
     local noTravelersText = popup:CreateFontString(nil, "OVERLAY")
-    noTravelersText:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    noTravelersText:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     noTravelersText:SetPoint("CENTER", scrollFrame, "CENTER", 0, 0)
     noTravelersText:SetText("No Fellow Travelers nearby.\n\nAddon users are discovered\nautomatically within ~300 yards.\n\nWait a moment or group up\nwith them to discover faster!")
     noTravelersText:SetTextColor(0.5, 0.5, 0.5, 1)
@@ -1383,13 +1383,13 @@ function MinigamesUI:GetTravelerButton(index, parent)
 
     -- Name text
     local nameText = btn:CreateFontString(nil, "OVERLAY")
-    nameText:SetFont(HopeAddon.assets.fonts.HEADER, 12)
+    nameText:SetFont(HopeAddon.assets.fonts.HEADER, 12, "")
     nameText:SetPoint("LEFT", btn, "LEFT", 10, 4)
     btn.nameText = nameText
 
     -- Level/Class text
     local infoText = btn:CreateFontString(nil, "OVERLAY")
-    infoText:SetFont(HopeAddon.assets.fonts.SMALL, 9)
+    infoText:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
     infoText:SetPoint("LEFT", btn, "LEFT", 10, -8)
     infoText:SetTextColor(0.6, 0.6, 0.6, 1)
     btn.infoText = infoText
@@ -1917,14 +1917,14 @@ function MinigamesUI:GetPracticeModePopup()
 
     -- Title
     local title = popup:CreateFontString(nil, "OVERLAY")
-    title:SetFont(HopeAddon.assets.fonts.HEADER, 14)
+    title:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
     title:SetPoint("TOP", popup, "TOP", 0, -15)
     title:SetText(HopeAddon:ColorText("PRACTICE MODE", "GOLD_BRIGHT"))
     popup.title = title
 
     -- Game name subtitle
     local gameText = popup:CreateFontString(nil, "OVERLAY")
-    gameText:SetFont(HopeAddon.assets.fonts.BODY, 12)
+    gameText:SetFont(HopeAddon.assets.fonts.BODY, 12, "")
     gameText:SetPoint("TOP", title, "BOTTOM", 0, -5)
     gameText:SetTextColor(0.1, 0.1, 0.1, 1)
     popup.gameText = gameText
@@ -1941,12 +1941,12 @@ function MinigamesUI:GetPracticeModePopup()
     HopeAddon.Components:ApplyBackdrop(aiBtn, "BORDER_ONLY_TOOLTIP", nil, "FEL_GREEN")
 
     local aiBtnText = aiBtn:CreateFontString(nil, "OVERLAY")
-    aiBtnText:SetFont(HopeAddon.assets.fonts.BODY, 12)
+    aiBtnText:SetFont(HopeAddon.assets.fonts.BODY, 12, "")
     aiBtnText:SetPoint("CENTER", aiBtn, "CENTER", 0, 4)
     aiBtnText:SetText("|cFF00FF00Play vs AI|r")
 
     local aiBtnDesc = aiBtn:CreateFontString(nil, "OVERLAY")
-    aiBtnDesc:SetFont(HopeAddon.assets.fonts.SMALL, 9)
+    aiBtnDesc:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
     aiBtnDesc:SetPoint("CENTER", aiBtn, "CENTER", 0, -8)
     aiBtnDesc:SetText("Single player vs computer")
     aiBtnDesc:SetTextColor(0.4, 0.4, 0.4, 1)
@@ -1970,12 +1970,12 @@ function MinigamesUI:GetPracticeModePopup()
     HopeAddon.Components:ApplyBackdrop(localBtn, "BORDER_ONLY_TOOLTIP", nil, "ARCANE_PURPLE")
 
     local localBtnText = localBtn:CreateFontString(nil, "OVERLAY")
-    localBtnText:SetFont(HopeAddon.assets.fonts.BODY, 12)
+    localBtnText:SetFont(HopeAddon.assets.fonts.BODY, 12, "")
     localBtnText:SetPoint("CENTER", localBtn, "CENTER", 0, 4)
     localBtnText:SetText("|cFF9B30FF2-Player Local|r")
 
     local localBtnDesc = localBtn:CreateFontString(nil, "OVERLAY")
-    localBtnDesc:SetFont(HopeAddon.assets.fonts.SMALL, 9)
+    localBtnDesc:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
     localBtnDesc:SetPoint("CENTER", localBtn, "CENTER", 0, -8)
     localBtnDesc:SetText("Two players, one keyboard")
     localBtnDesc:SetTextColor(0.4, 0.4, 0.4, 1)

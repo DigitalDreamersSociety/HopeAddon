@@ -1570,17 +1570,26 @@ function TetrisGame:CreateBoardUI(container, gameId, playerNum, cellSize, isRemo
     ui.gridFrame = gridFrame
 
     -- Create cell textures
+    -- Use ARTWORK layer with sublevel 1 to ensure cells render above backdrop
     ui.cellTextures = {}
     for row = 1, TetrisGrid.HEIGHT do
         ui.cellTextures[row] = {}
         for col = 1, TetrisGrid.WIDTH do
-            local cell = gridFrame:CreateTexture(nil, "ARTWORK")
+            local cell = gridFrame:CreateTexture(nil, "ARTWORK", nil, 1)
             cell:SetSize(cellSize - 1, cellSize - 1)
             cell:SetPoint("BOTTOMLEFT", gridFrame, "BOTTOMLEFT",
                 (col - 1) * cellSize + 1,
                 (TetrisGrid.HEIGHT - row) * cellSize + 1)
             cell:SetColorTexture(0.1, 0.1, 0.1, 1)
             ui.cellTextures[row][col] = cell
+        end
+    end
+
+    -- Mark all cells as dirty so first UpdateUI draws them properly
+    -- This fixes rendering issues where cells appear "smudged" on initial display
+    for row = 1, TetrisGrid.HEIGHT do
+        for col = 1, TetrisGrid.WIDTH do
+            board.grid:MarkDirty(row, col)
         end
     end
 

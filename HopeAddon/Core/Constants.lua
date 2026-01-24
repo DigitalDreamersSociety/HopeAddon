@@ -25,7 +25,7 @@ C.LEVEL_MILESTONES = {
     [58] = { title = "Outland Awaits",        icon = "Spell_Fire_FelFlameRing",      story = "You are ready. The Portal calls." },
     [60] = { title = "Old World Champion",    icon = "Spell_Holy_ChampionsBond",     story = "Azeroth bows to your might." },
     [65] = { title = "Outland Veteran",       icon = "Spell_Arcane_PortalShattrath", story = "This strange land becomes home." },
-    [70] = { title = "LEGEND",                icon = "Achievement_Boss_Illidan",     story = "Your legend is written in the stars." },
+    [70] = { title = "LEGEND",                icon = "INV_Weapon_Glaive_01",     story = "Your legend is written in the stars." },
 }
 
 --============================================================
@@ -654,7 +654,7 @@ C.HYJAL_QUEST_IDS = {
 C.BT_ATTUNEMENT = {
     name = "Medallion of Karabor",
     icon = "INV_Jewelry_Necklace_36",
-    headerIcon = "Achievement_Boss_Illidan",
+    headerIcon = "INV_Weapon_Glaive_01",
     raidName = "Black Temple",
     raidKey = "bt",
     hasFactionStart = true,
@@ -808,7 +808,7 @@ C.BT_ATTUNEMENT = {
         {
             name = "Entry into the Black Temple",
             story = "Xi'ri awaits at the gates of the Black Temple...",
-            locationIcon = "Achievement_Boss_Illidan",
+            locationIcon = "INV_Weapon_Glaive_01",
             quests = {
                 { id = 10949, name = "Entry Into the Black Temple" },
             },
@@ -816,7 +816,7 @@ C.BT_ATTUNEMENT = {
         {
             name = "A Distraction for Akama",
             story = "The final step - aid Akama's assault on the temple...",
-            locationIcon = "Achievement_Boss_Illidan",
+            locationIcon = "INV_Weapon_Glaive_01",
             quests = {
                 { id = 10985, name = "A Distraction for Akama", reward = "Medallion of Karabor" },
             },
@@ -1063,7 +1063,7 @@ C.BOSS_MILESTONES = {
     first_t6_boss = {
         title = "Tier 6 Begins",
         story = "The final challenges of Outland await.",
-        icon = "Achievement_Boss_Illidan",
+        icon = "INV_Weapon_Glaive_01",
     },
 
     -- Final bosses
@@ -1106,7 +1106,7 @@ C.BOSS_MILESTONES = {
     illidan = {
         title = "The Betrayer's End",
         story = "Illidan Stormrage lies defeated. You are prepared.",
-        icon = "Achievement_Boss_Illidan",
+        icon = "INV_Weapon_Glaive_01",
         raid = "bt",
     },
 
@@ -2114,7 +2114,7 @@ C.BT_BOSSES = {
         order = 9,
         lore = "The Betrayer. Lord of Outland. You are not prepared.",
         quote = "You are not prepared!",
-        icon = "Achievement_Boss_Illidan",
+        icon = "INV_Weapon_Glaive_01",
         dropsToken = "chest",
         phases = {
             { name = "Phase 1", description = "Tank and spank, Shear debuff" },
@@ -2465,7 +2465,7 @@ C.TRAVELER_ICONS = {
         id = "t6_elite",
         name = "T6 Elite",
         description = "Defeated your first Tier 6 raid boss together",
-        icon = "Achievement_Boss_Illidan",
+        icon = "INV_Weapon_Glaive_01",
         quality = "EPIC",
         category = "raiding",
         trigger = { type = "boss_tier", tier = "T6", count = 1 },
@@ -2483,7 +2483,7 @@ C.TRAVELER_ICONS = {
         id = "illidan_slayers",
         name = "Illidan Slayers",
         description = "Defeated Illidan Stormrage together - You were prepared!",
-        icon = "Achievement_Boss_Illidan",
+        icon = "INV_Weapon_Glaive_01",
         quality = "LEGENDARY",
         category = "raiding",
         trigger = { type = "boss", raid = "bt", boss = "illidan" },
@@ -3159,7 +3159,7 @@ C.BOSS_BADGES = {
         tier = "T6",
         name = "Illidan Stormrage",
         shortName = "Illidan",
-        icon = "Achievement_Boss_Illidan",
+        icon = "INV_Weapon_Glaive_01",
         description = "Defeated Illidan Stormrage in Black Temple",
         finalBoss = true,
     },
@@ -3414,6 +3414,51 @@ C.WORDS_ONLINE_STATUS = {
     RECENT_THRESHOLD = 300,         -- Seconds - "Online" if seen within 5 minutes
     STALE_THRESHOLD = 900,          -- Seconds - "Away" if seen within 15 minutes
     -- Beyond STALE_THRESHOLD = "Offline"
+}
+
+-- Hint system states (derived from game state in GetHintState)
+C.WORDS_HINT_STATE = {
+    FIRST_MOVE = "FIRST_MOVE",           -- First word, no tiles placed yet
+    PLACE_TILES = "PLACE_TILES",         -- Your turn, no tiles on board yet
+    KEEP_PLACING = "KEEP_PLACING",       -- Tiles placed but word incomplete/invalid
+    INVALID_WORD = "INVALID_WORD",       -- Word formed but not in dictionary
+    MUST_COVER_CENTER = "MUST_COVER_CENTER", -- First word doesn't cover center
+    NOT_CONNECTED = "NOT_CONNECTED",     -- Word not connected to existing tiles
+    READY_TO_PLAY = "READY_TO_PLAY",     -- Valid word ready, PLAY button enabled
+    AI_THINKING = "AI_THINKING",         -- AI opponent's turn (practice mode)
+    OPPONENT_TURN = "OPPONENT_TURN",     -- Remote opponent's turn
+    GAME_OVER = "GAME_OVER",             -- Game has ended
+}
+
+-- Step indicator definitions (3-step flow)
+C.WORDS_HINT_STEPS = {
+    { id = "place", label = "1. Place", activeLabel = "Place Tiles", icon = "INV_Misc_Rune_01" },
+    { id = "form",  label = "2. Form",  activeLabel = "Form Word",   icon = "INV_Misc_Rune_05" },
+    { id = "play",  label = "3. Play",  activeLabel = "Play!",       icon = "Spell_Holy_SealOfRighteousness" },
+}
+
+-- Contextual hint messages (format strings with %s placeholders)
+C.WORDS_HINT_MESSAGES = {
+    FIRST_MOVE = "First word must cover the center ★ square",
+    PLACE_TILES = "Drag a tile from your rack to the board",
+    KEEP_PLACING = "Keep placing tiles to form a word",
+    WORD_READY = "%s looks good! Click PLAY",
+    INVALID_WORD = "%s is not in the dictionary",
+    MUST_COVER_CENTER = "Word must cover the center ★ square",
+    NOT_CONNECTED = "Word must connect to existing tiles",
+    AI_THINKING = "Opponent is thinking...",
+    OPPONENT_TURN = "Waiting for %s...",
+    GAME_OVER = "",
+}
+
+-- Hint UI colors (TBC theme: gold, grey, green)
+C.WORDS_HINT_COLORS = {
+    STEP_ACTIVE = { r = 1.0, g = 0.84, b = 0, a = 1.0 },      -- Gold - current step
+    STEP_PENDING = { r = 0.5, g = 0.5, b = 0.5, a = 0.6 },    -- Grey - future steps
+    STEP_COMPLETE = { r = 0.3, g = 0.9, b = 0.3, a = 1.0 },   -- Green - completed steps
+    HINT_TEXT = { r = 0.9, g = 0.85, b = 0.7, a = 1.0 },      -- Parchment text
+    HINT_ERROR = { r = 1.0, g = 0.4, b = 0.4, a = 1.0 },      -- Red - error hints
+    CENTER_PULSE = { r = 1.0, g = 0.84, b = 0, a = 0.8 },     -- Gold pulse for center
 }
 
 --============================================================
@@ -4822,6 +4867,338 @@ function C:GetRecommendedDungeons(level)
 
     return self.LEVELING_DUNGEONS[rangeKey]
 end
+
+--============================================================
+-- SOCIAL SECTION THEMES (TBC Visual Enhancement)
+--============================================================
+C.SOCIAL_SECTION_THEMES = {
+    activity_feed = {
+        icon = "Interface\\Icons\\Spell_Fire_FelFire",           -- Green fel fire
+        borderColor = "ARCANE_PURPLE",
+        glowColor = "FEL_GREEN",
+        title = "COMMUNITY FEED",
+        titleColor = "FEL_GREEN",
+    },
+    companions = {
+        icon = "Interface\\Icons\\Spell_Nature_EyeOfTheStorm",   -- Arcane eye
+        borderColor = "SKY_BLUE",
+        glowColor = nil,
+        title = "COMPANIONS",
+        titleColor = "GOLD_BRIGHT",
+    },
+    lf_rp = {
+        icon = "Interface\\Icons\\Spell_Holy_SurgeOfLight",      -- Radiant light
+        borderColor = { 1, 0.2, 0.8 },                           -- Hot pink
+        glowColor = "GOLD_BRIGHT",
+        title = "LOOKING FOR RP",
+        titleColor = nil,                                         -- Uses hot pink inline
+    },
+    fellow_travelers = {
+        icon = "Interface\\Icons\\INV_Misc_Eye_01",              -- Demon eye
+        borderColor = "FEL_GREEN",
+        glowColor = nil,
+        title = "FELLOW TRAVELERS",
+        titleColor = "FEL_GREEN",
+    },
+}
+
+-- Corner rune texture for decorative elements
+C.CORNER_RUNE_TEXTURE = "Interface\\Buttons\\UI-ActionButton-Border"
+
+--============================================================
+-- SOCIAL TAB CONSTANTS
+--============================================================
+
+C.SOCIAL_TAB = {
+    -- Tab bar
+    TAB_WIDTH = 90,
+    TAB_HEIGHT = 24,
+    TAB_SPACING = 2,
+
+    -- Status bar
+    STATUS_BAR_HEIGHT = 36,
+    RUMOR_INPUT_HEIGHT = 50,
+
+    -- Feed
+    FEED_ROW_HEIGHT = 48,
+    FEED_VISIBLE_ROWS = 8,
+    FEED_TIME_GROUPS = { "Now", "Earlier Today", "Yesterday", "This Week" },
+    FEED_FILTERS = { "all", "status", "boss", "level", "game", "badge", "loot" },
+
+    -- Travelers
+    TRAVELER_ROW_HEIGHT = 44,
+    TRAVELER_VISIBLE_ROWS = 8,
+    QUICK_FILTERS = { "all", "online", "party", "lfrp" },
+
+    -- Companions
+    COMPANION_CARD_SIZE = 80,
+    COMPANION_CARDS_PER_ROW = 4,
+    COMPANION_SECTIONS = { "Online Now", "Away", "Offline" },
+
+    -- Thresholds
+    ONLINE_THRESHOLD = 300,   -- 5 minutes
+    AWAY_THRESHOLD = 900,     -- 15 minutes
+
+    -- Share prompts
+    SHARE_PROMPT_EXPIRE = 300,
+    SHARE_PROMPT_DELAY = 3,
+    SHARE_PROMPT_WIDTH = 350,
+    SHARE_PROMPT_HEIGHT = 280,
+
+    -- Loot
+    LOOT_MIN_QUALITY = 4,           -- Epic
+    LOOT_COMMENT_MAX = 100,
+}
+
+--============================================================
+-- FEED POST TYPES (IC Post vs Anonymous Rumor)
+--============================================================
+
+-- Post types for the Activity Feed
+C.FEED_POST_TYPES = {
+    IC_POST = {
+        id = "IC",
+        wireCode = "IC",
+        label = "In Character",
+        description = "Post as your character - your name and title will be shown",
+        icon = "Interface\\Icons\\Spell_Holy_MindVision",
+        borderColor = { 0.2, 0.8, 0.2 },  -- Fel green
+        textColor = { 1.0, 0.84, 0 },      -- Gold for name
+        -- Attribution function returns formatted name
+        -- player: character name, title: optional title from badges
+        formatAttribution = function(player, title, isOwnPost)
+            if title and title ~= "" then
+                return string.format("|cFFFFD700%s|r |cFF808080<%s>|r", player, title)
+            end
+            return string.format("|cFFFFD700%s|r", player)
+        end,
+    },
+    ANON_RUMOR = {
+        id = "ANON",
+        wireCode = "ANON",
+        label = "Tavern Rumor",
+        description = "Post anonymously - 'A patron whispers...'",
+        icon = "Interface\\Icons\\INV_Scroll_01",
+        borderColor = { 0.61, 0.19, 1.0 },  -- Arcane purple
+        textColor = { 0.7, 0.7, 0.7 },       -- Grey for anonymous
+        -- Attribution function - isOwnPost lets you see your own posts
+        formatAttribution = function(player, title, isOwnPost)
+            if isOwnPost then
+                return "|cFF9B30FFYou whispered|r"
+            end
+            return "|cFF808080A patron whispers|r"
+        end,
+    },
+}
+
+-- Helper to get post type by wire code
+function C:GetPostTypeByCode(wireCode)
+    for _, postType in pairs(self.FEED_POST_TYPES) do
+        if postType.wireCode == wireCode then
+            return postType
+        end
+    end
+    return nil
+end
+
+-- Feed activity icons (keyed by wire codes from ActivityFeed.lua ACTIVITY table)
+C.FEED_ACTIVITY_ICONS = {
+    -- Wire codes match ActivityFeed.lua ACTIVITY values
+    STA = "Interface\\Icons\\Spell_Holy_MindVision",      -- STATUS
+    BOSS = "Interface\\Icons\\Achievement_Boss_Gruul",    -- BOSS
+    LVL = "Interface\\Icons\\Spell_Holy_SurgeOfLight",    -- LEVEL
+    GAME = "Interface\\Icons\\INV_Misc_Dice_02",          -- GAME
+    BADGE = "Interface\\Icons\\Achievement_General",       -- BADGE
+    LOOT = "Interface\\Icons\\INV_Misc_Bag_10",           -- LOOT
+    ROM = "Interface\\Icons\\INV_ValentinesCard02",       -- ROMANCE
+    MUG = "Interface\\Icons\\INV_Drink_04",               -- MUG
+    -- New post types (Phase 50)
+    IC = "Interface\\Icons\\Spell_Holy_MindVision",       -- IC_POST
+    ANON = "Interface\\Icons\\INV_Scroll_01",             -- ANON
+    -- Legacy RUMOR type
+    RUM = "Interface\\Icons\\INV_Letter_15",              -- RUMOR (legacy)
+}
+
+-- Feed activity border colors (keyed by wire codes from ActivityFeed.lua ACTIVITY table)
+C.FEED_ACTIVITY_BORDERS = {
+    -- Wire codes match ActivityFeed.lua ACTIVITY values
+    STA = { 0.5, 0.5, 0.5 },         -- STATUS: Grey (informational)
+    BOSS = { 0.8, 0.2, 0.1 },        -- BOSS: Hellfire red
+    LVL = { 0.2, 0.8, 0.2 },         -- LEVEL: Fel green
+    GAME = { 0.61, 0.19, 1.0 },      -- GAME: Arcane purple
+    BADGE = { 1.0, 0.84, 0 },        -- BADGE: Gold
+    LOOT = { 0.64, 0.21, 0.93 },     -- LOOT: Epic purple
+    ROM = { 1.0, 0.08, 0.58 },       -- ROMANCE: Deep pink
+    MUG = { 1.0, 0.84, 0 },          -- MUG: Gold
+    -- New post types (Phase 50)
+    IC = { 0.2, 0.8, 0.2 },          -- IC_POST: Fel green
+    ANON = { 0.61, 0.19, 1.0 },      -- ANON: Arcane purple
+    -- Legacy
+    RUM = { 0.2, 0.8, 0.2 },         -- RUMOR: Treat as IC (green)
+}
+
+C.RELATIONSHIP_TYPES = {
+    NONE = { id = "NONE", label = "--", color = "808080", icon = nil, priority = 99 },
+    ALLY = { id = "ALLY", label = "Ally", color = "00FF00", icon = "Achievement_Reputation_01", priority = 1 },
+    FRIEND = { id = "FRIEND", label = "Friend", color = "00BFFF", icon = "INV_ValentinesCandy", priority = 2 },
+    RIVAL = { id = "RIVAL", label = "Rival", color = "FF6600", icon = "Ability_DualWield", priority = 3 },
+    MENTOR = { id = "MENTOR", label = "Mentor", color = "FFD700", icon = "Spell_Holy_AuraOfLight", priority = 4 },
+    STUDENT = { id = "STUDENT", label = "Student", color = "9370DB", icon = "INV_Misc_Book_09", priority = 5 },
+    FAMILY = { id = "FAMILY", label = "Family", color = "FF69B4", icon = "Spell_Holy_PrayerOfHealing", priority = 6 },
+    ENEMY = { id = "ENEMY", label = "Enemy", color = "FF0000", icon = "Ability_Warrior_Rampage", priority = 7 },
+}
+
+C.SHARE_PROMPT_TYPES = {
+    LOOT = { id = "LOOT", icon = "INV_Misc_Bag_10", label = "Loot Received", settingKey = "promptForLoot" },
+    FIRST_KILL = { id = "FIRST_KILL", icon = "Achievement_Boss_Gruul", label = "First Boss Kill", settingKey = "promptForFirstKills" },
+    ATTUNEMENT = { id = "ATTUNEMENT", icon = "INV_Misc_Key_03", label = "Attunement Complete", settingKey = "promptForAttunements" },
+    GAME_WIN = { id = "GAME_WIN", icon = "INV_Misc_Dice_02", label = "Game Victory", settingKey = "promptForGameWins" },
+}
+
+C.RP_STATUS = {
+    IC = { id = "IC", label = "In Character", color = "00FF00", icon = "Spell_Holy_MindVision" },
+    OOC = { id = "OOC", label = "Out of Character", color = "808080", icon = "Spell_Nature_Sleep" },
+    LF_RP = { id = "LF_RP", label = "Looking for RP", color = "FF33CC", icon = "INV_ValentinesCandy" },
+}
+
+--[[
+    Romance System ("Azeroth Relationship Status")
+    Public, exclusive one-partner romantic relationship system
+    Like Facebook relationship status for WoW RP players
+]]
+C.ROMANCE_STATUS = {
+    SINGLE = {
+        id = "SINGLE",
+        label = "Single",
+        color = "808080",
+        icon = "INV_ValentinesCard01",
+        emoji = "",
+    },
+    PROPOSED = {
+        id = "PROPOSED",
+        label = "It's Pending...",
+        color = "FF69B4",
+        icon = "INV_ValentinesCandy",
+        emoji = "<3",
+    },
+    DATING = {
+        id = "DATING",
+        label = "In a Relationship",
+        color = "FF1493",
+        icon = "INV_ValentinesCard02",
+        emoji = "<3",
+    },
+}
+
+-- Romance network message types (via WHISPER - not throttled)
+C.ROMANCE_MSG = {
+    REQUEST = "ROM_REQ",    -- Send romantic interest
+    ACCEPT = "ROM_ACC",     -- Accept proposal
+    DECLINE = "ROM_DEC",    -- Decline proposal
+    BREAKUP = "ROM_BRK",    -- Break up
+    SYNC = "ROM_SYN",       -- Sync status (broadcast)
+}
+
+-- Romance timing constants
+C.ROMANCE_TIMINGS = {
+    REJECTION_COOLDOWN = 86400,     -- 24 hours before re-proposing to same person
+    REQUEST_EXPIRY = 604800,        -- 7 days for pending requests to expire
+    BREAKUP_REASONS = {
+        MUTUAL = "mutual",
+        GREW_APART = "grew_apart",
+        FOUND_ANOTHER = "found_another",
+        ITS_NOT_YOU = "its_not_you",
+    },
+}
+
+-- Breakup reason display text (humorous)
+C.BREAKUP_REASON_TEXT = {
+    mutual = "It was mutual.",
+    grew_apart = "They grew apart.",
+    found_another = "Someone else caught their eye.",
+    its_not_you = "It's not you, it's me.",
+}
+
+--[[
+    Default Social Data Structure
+    Used by Core.lua for migration and initialization
+    All social.ui access should go through HopeAddon:GetSocialUI()
+]]
+C.SOCIAL_DATA_DEFAULTS = {
+    -- UI State (persisted across sessions)
+    ui = {
+        activeTab = "travelers",
+        feed = {
+            filter = "all",
+            lastSeenTimestamp = 0,
+        },
+        travelers = {
+            quickFilter = "all",
+            searchText = "",
+            sortOption = "last_seen",
+        },
+        companions = {},
+    },
+
+    -- Activity Feed
+    feed = {},
+    lastSeen = {},
+
+    -- Settings
+    settings = {
+        showBoss = true,
+        showLevel = true,
+        showGame = true,
+        showBadge = true,
+        showStatus = true,
+        showLoot = true,
+        promptForLoot = true,
+    },
+
+    -- Rumors (Phase 2)
+    myRumors = {},
+    mugsGiven = {},
+
+    -- Companions
+    companions = {
+        list = {},
+        outgoing = {},
+        incoming = {},
+    },
+
+    -- Share Prompts
+    sharePrompts = {
+        promptForLoot = true,
+        promptForFirstKills = true,
+        promptForAttunements = true,
+        promptForGameWins = false,
+    },
+
+    -- Relationship Types
+    relationshipTypes = {},
+
+    -- Romance System ("Azeroth Relationship Status")
+    romance = {
+        status = "SINGLE",          -- SINGLE, PROPOSED, DATING
+        partner = nil,              -- Partner name when DATING
+        since = nil,                -- Unix timestamp of relationship start
+        pendingOutgoing = nil,      -- { to = "name", timestamp = time() }
+        pendingIncoming = {},       -- { [senderName] = { timestamp, class, level } }
+        cooldowns = {},             -- { [name] = timestamp } 24h rejection cooldown
+        history = {},               -- Array of past relationships for timeline
+    },
+
+    -- Toast Settings
+    toasts = {
+        enabled = true,
+        CompanionOnline = true,
+        CompanionNearby = true,
+        CompanionRequest = true,
+        MugReceived = true,
+        CompanionLfrp = true,
+        FellowDiscovered = true,
+    },
+}
 
 -- Build the boss name lookup table now that all boss data is defined
 C:BuildBossNameLookup()

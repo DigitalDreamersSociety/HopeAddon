@@ -255,7 +255,7 @@ end
 
 --[[
     Get all companions with online status
-    @return table - Array of { name, class, level, since, isOnline, lastSeen, zone, selectedTitle }
+    @return table - Array of { name, class, level, since, isOnline, lastSeenTime, zone, selectedTitle, profile }
 ]]
 function Companions:GetAllCompanions()
     local data = GetCompanionData()
@@ -276,9 +276,10 @@ function Companions:GetAllCompanions()
             level = fellow and fellow.level or info.level or 70,
             since = info.since,
             isOnline = isOnline,
-            lastSeen = lastSeenTime,
+            lastSeenTime = lastSeenTime,  -- Field name matches Journal's expectation
             zone = fellow and fellow.lastSeenZone or "Unknown",
             selectedTitle = fellow and fellow.selectedTitle,
+            profile = fellow and fellow.profile,  -- Include profile for RP status display
         })
     end
 

@@ -169,7 +169,7 @@ RaidData.RAIDS = {
         location = "Shadowmoon Valley",
         requiresAttunement = true,
         attunementKey = "bt",
-        icon = "Achievement_Boss_Illidan",
+        icon = "INV_Weapon_Glaive_01",  -- TBC compatible (Illidan's Warglaive)
         lore = "Illidan Stormrage rules Outland from the Black Temple, former Temple of Karabor.",
         bosses = HopeAddon.Constants.BT_BOSSES,
     },

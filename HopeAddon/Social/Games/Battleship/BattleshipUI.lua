@@ -156,7 +156,7 @@ function BattleshipUI:CreateFramePools()
         -- Create function
         function()
             local container = CreateFrame("Frame", nil, UIParent)
-            container:SetSize(200, 100)
+            container:SetSize(280, 70)  -- Wider, shorter for top bar prominence
 
             -- Semi-transparent background for focus
             local bg = container:CreateTexture(nil, "BACKGROUND")
@@ -265,7 +265,7 @@ function BattleshipUI:AcquireShotResultFrame(parent)
 
     -- Fallback: create directly if pool unavailable
     local container = CreateFrame("Frame", nil, parent)
-    container:SetSize(200, 100)
+    container:SetSize(280, 70)  -- Wider, shorter for top bar prominence
 
     local bg = container:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints()
@@ -316,23 +316,21 @@ end
 -- GAME FRAME MANAGEMENT
 --============================================================
 
-function BattleshipUI:InitializeGameFrames(gameId, announcementsContainer)
+function BattleshipUI:InitializeGameFrames(gameId, topContainer, bottomContainer)
     if self.gameFrames[gameId] then
         return self.gameFrames[gameId]
     end
 
     local frames = {
-        shotResult = self:AcquireShotResultFrame(announcementsContainer),
-        turnPrompt = self:AcquireTurnPromptFrame(announcementsContainer),
+        shotResult = self:AcquireShotResultFrame(topContainer),
+        turnPrompt = nil,  -- No longer used - handled by BattleshipGame status bar
         victory = nil,  -- Created on demand
-        announcementsContainer = announcementsContainer,  -- Store reference for victory overlay
+        topContainer = topContainer,  -- Store reference for victory overlay
+        bottomContainer = bottomContainer,
     }
 
-    -- Position shot result centered in announcements area (upper portion)
-    frames.shotResult:SetPoint("CENTER", announcementsContainer, "CENTER", 0, 15)
-
-    -- Position turn prompt centered below shot result (lower portion of announcements)
-    frames.turnPrompt:SetPoint("CENTER", announcementsContainer, "CENTER", 0, -30)
+    -- Position shot result CENTERED in top announcement area
+    frames.shotResult:SetPoint("CENTER", topContainer, "CENTER", 0, 0)
 
     self.gameFrames[gameId] = frames
     self.animationTimers[gameId] = {}
@@ -353,13 +351,7 @@ function BattleshipUI:CleanupGameFrames(gameId)
         end
     end
 
-    if frames.turnPrompt then
-        if self.turnPromptPool then
-            self.turnPromptPool:Release(frames.turnPrompt)
-        else
-            frames.turnPrompt:Hide()
-        end
-    end
+    -- turnPrompt no longer used (handled by BattleshipGame status bar)
 
     if frames.victory then
         frames.victory:Hide()
@@ -471,68 +463,17 @@ function BattleshipUI:ShowShotResult(gameId, resultType, coord, shipName, isPlay
 end
 
 --============================================================
--- TURN PROMPT
+-- TURN PROMPT (Legacy - now handled by BattleshipGame status bar)
 --============================================================
 
---[[
-    Show turn prompt banner
-    @param gameId string - Game identifier
-    @param turnState string - "YOUR_TURN", "ENEMY_TURN", or "PLACEMENT"
-    @param opponentName string|nil - Opponent name for waiting message
-    @param shipInfo string|nil - Ship placement info for PLACEMENT state
-]]
+-- No longer used - turn info is now displayed in the bottom status bar
+-- Kept as stubs for backwards compatibility
 function BattleshipUI:ShowTurnPrompt(gameId, turnState, opponentName, shipInfo)
-    local frames = self.gameFrames[gameId]
-    if not frames or not frames.turnPrompt then return end
-
-    local state = TURN_STATES[turnState] or TURN_STATES.ENEMY_TURN
-    local prompt = frames.turnPrompt
-
-    -- Set text
-    if turnState == "ENEMY_TURN" and opponentName then
-        prompt.promptText:SetText("Waiting for " .. opponentName .. "...")
-    elseif turnState == "PLACEMENT" and shipInfo then
-        prompt.promptText:SetText("Place: " .. shipInfo)
-    else
-        prompt.promptText:SetText(state.text)
-    end
-
-    prompt.promptText:SetTextColor(state.color.r, state.color.g, state.color.b)
-
-    -- Set hint
-    if state.hint then
-        prompt.hintText:SetText(state.hint)
-        prompt.hintText:Show()
-    else
-        prompt.hintText:Hide()
-    end
-
-    -- Set border color
-    prompt:SetBackdropBorderColor(state.borderColor.r, state.borderColor.g, state.borderColor.b, 1)
-
-    -- Add pulsing glow for YOUR_TURN
-    if state.pulse and HopeAddon.Effects then
-        HopeAddon.Effects:CreatePulsingGlow(prompt, "GOLD_BRIGHT")
-
-        -- Play turn notification sound
-        if HopeAddon.Sounds then
-            HopeAddon.Sounds:Play("battleship", "yourTurn")
-        end
-    end
-
-    prompt:Show()
+    -- No-op: Turn info handled by BattleshipGame:UpdateStatus()
 end
 
 function BattleshipUI:HideTurnPrompt(gameId)
-    local frames = self.gameFrames[gameId]
-    if not frames or not frames.turnPrompt then return end
-
-    frames.turnPrompt:Hide()
-
-    -- Stop any glows
-    if HopeAddon.Effects then
-        HopeAddon.Effects:StopGlowsOnParent(frames.turnPrompt)
-    end
+    -- No-op: Turn info handled by BattleshipGame:UpdateStatus()
 end
 
 --============================================================
@@ -579,12 +520,12 @@ function BattleshipUI:ShowVictoryOverlay(gameId, didWin, stats)
     local frames = self.gameFrames[gameId]
     if not frames then return end
 
-    -- Get the main game window (go up from announcements container)
-    local announcementsContainer = frames.announcementsContainer
-    if not announcementsContainer then return end
+    -- Get the main game window (go up from top container)
+    local topContainer = frames.topContainer
+    if not topContainer then return end
 
     -- Traverse up to find the main window frame
-    local parent = announcementsContainer:GetParent()  -- content frame
+    local parent = topContainer:GetParent()  -- content frame
     if parent then
         parent = parent:GetParent()  -- main window frame
     end
@@ -642,6 +583,10 @@ function BattleshipUI:ShowVictoryOverlay(gameId, didWin, stats)
     closeBtn:SetPoint("BOTTOM", overlay, "BOTTOM", 0, 20)
     closeBtn:SetText("Close")
     closeBtn:SetScript("OnClick", function()
+        -- Clean up victory glow before hiding
+        if HopeAddon.Effects then
+            HopeAddon.Effects:StopGlowsOnParent(overlay)
+        end
         overlay:Hide()
         local GameCore = HopeAddon:GetModule("GameCore")
         if GameCore then
@@ -660,6 +605,11 @@ function BattleshipUI:ShowVictoryOverlay(gameId, didWin, stats)
 
     if didWin and HopeAddon.Effects then
         HopeAddon.Effects:Celebrate(overlay, 2.0)
+
+        -- Persistent pulsing green glow for victory (stays until closed)
+        if HopeAddon.Effects.CreatePulsingGlow then
+            overlay.victoryGlow = HopeAddon.Effects:CreatePulsingGlow(overlay, "FEL_GREEN", 0.7)
+        end
     end
 
     frames.victory = overlay

@@ -234,7 +234,7 @@ HopeAddon.assets = {
         SKULL = "Interface\\Icons\\Ability_Creature_Cursed_02",
         HEART = "Interface\\Icons\\INV_ValentinesCard01",
         GOLD = "Interface\\Icons\\INV_Misc_Coin_02",
-        CROWN = "Interface\\Icons\\Achievement_Reputation_08",
+        CROWN = "Interface\\Icons\\INV_Crown_01",  -- TBC compatible
 
         -- Journal milestones
         POCKET_WATCH = "Interface\\Icons\\INV_Misc_PocketWatch_01",
@@ -273,7 +273,7 @@ HopeAddon.assets = {
         SSC = "Interface\\Icons\\INV_Misc_MonsterClaw_03",
         TK = "Interface\\Icons\\Spell_Arcane_PortalShattrath",
         HYJAL = "Interface\\Icons\\Spell_Fire_Burnout",
-        BT = "Interface\\Icons\\Achievement_Boss_Illidan",
+        BT = "Interface\\Icons\\INV_Weapon_Glaive_01",  -- TBC compatible (Illidan's Warglaive)
     },
 
     -- Dungeon icons for attunement chapters
@@ -384,6 +384,119 @@ function HopeAddon:SafeCall(func, ...)
         return false, "not a function"
     end
     return pcall(func, ...)
+end
+
+--============================================================
+-- SOCIAL DATA HELPERS
+-- Centralized access to social data with automatic initialization
+--============================================================
+
+--[[
+    Deep copy a table (for creating defaults from constants)
+    @param orig table - Original table
+    @return table - Deep copy
+]]
+local function DeepCopy(orig)
+    local copy
+    if type(orig) == "table" then
+        copy = {}
+        for k, v in pairs(orig) do
+            copy[k] = DeepCopy(v)
+        end
+    else
+        copy = orig
+    end
+    return copy
+end
+
+--[[
+    Ensure social data structure exists with all required fields
+    Uses C.SOCIAL_DATA_DEFAULTS as the canonical source of truth
+    @return table - The social data table (charDb.social)
+]]
+function HopeAddon:EnsureSocialData()
+    if not self.charDb then return nil end
+
+    local C = self.Constants
+    if not C or not C.SOCIAL_DATA_DEFAULTS then
+        -- Fallback if constants not loaded yet
+        self.charDb.social = self.charDb.social or {}
+        return self.charDb.social
+    end
+
+    -- Create social table if missing
+    if not self.charDb.social then
+        self.charDb.social = DeepCopy(C.SOCIAL_DATA_DEFAULTS)
+        return self.charDb.social
+    end
+
+    -- Ensure all top-level keys exist
+    local defaults = C.SOCIAL_DATA_DEFAULTS
+    for key, defaultValue in pairs(defaults) do
+        if self.charDb.social[key] == nil then
+            self.charDb.social[key] = DeepCopy(defaultValue)
+        elseif type(defaultValue) == "table" and type(self.charDb.social[key]) == "table" then
+            -- Ensure nested keys exist (one level deep)
+            for subKey, subDefault in pairs(defaultValue) do
+                if self.charDb.social[key][subKey] == nil then
+                    self.charDb.social[key][subKey] = DeepCopy(subDefault)
+                end
+            end
+        end
+    end
+
+    return self.charDb.social
+end
+
+--[[
+    Get social UI state with automatic initialization
+    This is the primary accessor for social.ui - use this instead of direct access
+    @return table - The social.ui table
+]]
+function HopeAddon:GetSocialUI()
+    local social = self:EnsureSocialData()
+    if not social then return nil end
+    return social.ui
+end
+
+--[[
+    Get social settings with automatic initialization
+    @return table - The social.settings table
+]]
+function HopeAddon:GetSocialSettings()
+    local social = self:EnsureSocialData()
+    if not social then return nil end
+    return social.settings
+end
+
+--[[
+    Get companions data with automatic initialization
+    @return table - The social.companions table
+]]
+function HopeAddon:GetSocialCompanions()
+    local social = self:EnsureSocialData()
+    if not social then return nil end
+    return social.companions
+end
+
+--[[
+    Get toast settings with automatic initialization
+    @return table - The social.toasts table
+]]
+function HopeAddon:GetSocialToasts()
+    local social = self:EnsureSocialData()
+    if not social then return nil end
+    return social.toasts
+end
+
+--[[
+    Get romance data with automatic initialization
+    @return table - The social.romance table
+]]
+function HopeAddon:GetSocialRomance()
+    local social = self:EnsureSocialData()
+    if not social then return nil end
+    return social.romance
 end
 
 --[[
@@ -725,6 +838,85 @@ function HopeAddon:IsDPSRole(role)
 end
 
 --[[
+    GEAR SCORE UTILITIES
+    TBC-style gear score calculation based on equipped items
+]]
+
+-- Quality multipliers for gear score (TBC standard formula)
+local QUALITY_MULTIPLIERS = {
+    [0] = 0.0,   -- Poor (grey)
+    [1] = 0.5,   -- Common (white)
+    [2] = 1.0,   -- Uncommon (green)
+    [3] = 1.5,   -- Rare (blue)
+    [4] = 2.0,   -- Epic (purple)
+    [5] = 2.5,   -- Legendary (orange)
+    [6] = 3.0,   -- Artifact
+    [7] = 2.0,   -- Heirloom (treated as epic)
+}
+
+-- Slot IDs that contribute to gear score (per WoW API InventorySlotId)
+local GEAR_SLOTS = {
+    1,  -- Head
+    2,  -- Neck
+    3,  -- Shoulder
+    5,  -- Chest (4 is shirt)
+    6,  -- Waist
+    7,  -- Legs
+    8,  -- Feet
+    9,  -- Wrist
+    10, -- Hands
+    11, -- Finger1
+    12, -- Finger2
+    13, -- Trinket1
+    14, -- Trinket2
+    15, -- Back (cloak)
+    16, -- MainHand
+    17, -- OffHand
+    18, -- Ranged (wand/bow/gun)
+}
+
+--[[
+    Calculate gear score for the player's currently equipped items
+    Uses the classic TBC formula: sum of (itemLevel * qualityMultiplier) for each slot
+    @return number - Total gear score
+    @return number - Average item level
+]]
+function HopeAddon:GetGearScore()
+    local totalScore = 0
+    local totalItemLevel = 0
+    local itemCount = 0
+
+    for _, slotId in ipairs(GEAR_SLOTS) do
+        local itemLink = GetInventoryItemLink("player", slotId)
+        if itemLink then
+            local _, _, quality, itemLevel = GetItemInfo(itemLink)
+            if itemLevel and itemLevel > 0 then
+                local multiplier = QUALITY_MULTIPLIERS[quality or 1] or 1.0
+                totalScore = totalScore + (itemLevel * multiplier)
+                totalItemLevel = totalItemLevel + itemLevel
+                itemCount = itemCount + 1
+            end
+        end
+    end
+
+    local avgItemLevel = itemCount > 0 and math.floor(totalItemLevel / itemCount) or 0
+    return math.floor(totalScore), avgItemLevel
+end
+
+--[[
+    Get a formatted gear score string for display
+    @return string - Formatted as "GS: XXX" or "iLvl: XX"
+]]
+function HopeAddon:GetGearScoreText()
+    local gearScore, avgILvl = self:GetGearScore()
+    if gearScore > 0 then
+        return string.format("GS %d", gearScore)
+    else
+        return "GS --"
+    end
+end
+
+--[[
     TIME FORMATTING UTILITIES
 ]]
 
@@ -807,6 +999,8 @@ function HopeAddon:MigrateCharacterData()
         status = "OOC",
         selectedTitle = nil,
         selectedColor = nil,
+        romanceStatus = "SINGLE",
+        romancePartner = nil,
     }
     db.travelers.fellowSettings = db.travelers.fellowSettings or {
         enabled = true,
@@ -839,19 +1033,9 @@ function HopeAddon:MigrateCharacterData()
         end
     end
 
-    -- Ensure social feed structure exists
-    db.social = db.social or {}
-    db.social.feed = db.social.feed or {}
-    db.social.lastSeen = db.social.lastSeen or {}
-    db.social.settings = db.social.settings or {
-        showBoss = true,
-        showLevel = true,
-        showGame = true,
-        showBadge = true,
-        showStatus = true,
-    }
-    db.social.myRumors = db.social.myRumors or {}
-    db.social.mugsGiven = db.social.mugsGiven or {}
+    -- Ensure social data structure exists using centralized helper
+    -- This uses C.SOCIAL_DATA_DEFAULTS as the canonical source of truth
+    self:EnsureSocialData()
 end
 
 function HopeAddon:OnAddonLoaded()
@@ -1188,6 +1372,34 @@ function HopeAddon:GetDefaultCharDB()
                 CompanionLfrp = true,
                 FellowDiscovered = true,
             },
+
+            -- UI State (for tabbed interface)
+            ui = {
+                activeTab = "travelers",  -- feed, travelers, companions
+                feed = {
+                    filter = "all",
+                    lastSeenTimestamp = 0,
+                },
+                travelers = {
+                    quickFilter = "all",  -- all, online, party, lfrp
+                    searchText = "",
+                    sortOption = "last_seen",
+                },
+                companions = {
+                    -- No special state needed
+                },
+            },
+
+            -- Share prompt settings
+            sharePrompts = {
+                promptForLoot = true,
+                promptForFirstKills = true,
+                promptForAttunements = true,
+                promptForGameWins = false,
+            },
+
+            -- Relationship types (stored per player)
+            relationshipTypes = {},  -- [playerName] = "ALLY" | "FRIEND" | etc.
         },
     }
 end
@@ -1564,6 +1776,83 @@ SlashCmdList["HOPE"] = function(msg)
                 Minigames:CancelGame("user_cancelled")
             end
         end
+    elseif cmd:find("^propose") then
+        -- /hope propose <player> - Propose to a player
+        local _, _, targetName = cmd:find("^propose%s+(%S+)")
+        if not targetName then
+            HopeAddon:Print("Usage: /hope propose <player>")
+            HopeAddon:Print("  Example: /hope propose Jaina")
+        else
+            local valid, err = ValidatePlayerName(targetName)
+            if not valid then
+                HopeAddon:Print("|cFFFF0000Error:|r " .. err)
+                return
+            end
+            local Romance = HopeAddon:GetModule("Romance")
+            if Romance then
+                Romance:ProposeToPlayer(targetName)
+            else
+                HopeAddon:Print("Romance module not loaded!")
+            end
+        end
+    elseif cmd == "breakup" then
+        -- /hope breakup - Break up with your partner
+        local Romance = HopeAddon:GetModule("Romance")
+        if Romance then
+            local romance = HopeAddon:GetSocialRomance()
+            if romance and romance.status == "DATING" and romance.partner then
+                -- Show confirmation dialog
+                StaticPopupDialogs["HOPE_CONFIRM_BREAKUP"] = {
+                    text = "Are you sure you want to break up with " .. romance.partner .. "?\n\nThis will be announced to all Fellow Travelers.",
+                    button1 = "Yes, it's over",
+                    button2 = "Wait, no!",
+                    OnAccept = function()
+                        HopeAddon.Romance:BreakUp("its_not_you")
+                    end,
+                    timeout = 30,
+                    whileDead = true,
+                    hideOnEscape = true,
+                    showAlert = true,
+                }
+                StaticPopup_Show("HOPE_CONFIRM_BREAKUP")
+            else
+                HopeAddon:Print("|cFF808080You're not currently in a relationship.|r")
+            end
+        else
+            HopeAddon:Print("Romance module not loaded!")
+        end
+    elseif cmd == "relationship" then
+        -- /hope relationship - Show current relationship status
+        local romance = HopeAddon:GetSocialRomance()
+        if romance then
+            local C = HopeAddon.Constants
+            local status = C.ROMANCE_STATUS[romance.status]
+            if status then
+                HopeAddon:Print("|cFFFF69B4=== Relationship Status ===|r")
+                HopeAddon:Print("Status: |cFF" .. status.color .. status.label .. "|r " .. status.emoji)
+                if romance.partner then
+                    local since = romance.since and date("%B %d, %Y", romance.since) or "Unknown"
+                    HopeAddon:Print("Partner: |cFF00FF00" .. romance.partner .. "|r")
+                    HopeAddon:Print("Since: " .. since)
+                end
+                if romance.pendingOutgoing then
+                    HopeAddon:Print("Pending proposal to: |cFFFF69B4" .. romance.pendingOutgoing.to .. "|r")
+                end
+                -- pendingIncoming is a table keyed by name, not an array
+                if romance.pendingIncoming then
+                    local count = 0
+                    for _ in pairs(romance.pendingIncoming) do count = count + 1 end
+                    if count > 0 then
+                        HopeAddon:Print("Incoming proposals: |cFFFF69B4" .. count .. "|r")
+                        for name, _ in pairs(romance.pendingIncoming) do
+                            HopeAddon:Print("  - " .. name)
+                        end
+                    end
+                end
+            end
+        else
+            HopeAddon:Print("Romance data not available.")
+        end
     elseif cmd == "demo" then
         -- Populate sample data for testing the UI
         HopeAddon:PopulateDemoData()
@@ -1600,6 +1889,10 @@ SlashCmdList["HOPE"] = function(msg)
         HopeAddon:Print("  /hope challenge <player> [rps] - Challenge to Rock-Paper-Scissors")
         HopeAddon:Print("  /hope accept/decline - Respond to challenge")
         HopeAddon:Print("  /hope cancel - Cancel current game")
+        HopeAddon:Print("  |cFFFF69B4Romance:|r")
+        HopeAddon:Print("  /hope propose <player> - Propose to a Fellow Traveler")
+        HopeAddon:Print("  /hope breakup - End your current relationship")
+        HopeAddon:Print("  /hope relationship - Show your relationship status")
         HopeAddon:Print("  /hope demo - Populate sample data for UI testing")
         HopeAddon:Print("  /hope reset demo - Clear demo data")
         HopeAddon:Print("  /hope reset confirm - Reset all data")
@@ -2079,13 +2372,13 @@ function HopeAddon:ShowTestBar()
 
     -- Title
     local title = frame:CreateFontString(nil, "OVERLAY")
-    title:SetFont(self.assets.fonts.HEADER, 14)
+    title:SetFont(self.assets.fonts.HEADER, 14, "")
     title:SetPoint("TOP", frame, "TOP", 0, -10)
     title:SetText("|cFFFFD700Gaming-Style Reputation Bar Demo|r")
 
     -- Subtitle
     local subtitle = frame:CreateFontString(nil, "OVERLAY")
-    subtitle:SetFont(self.assets.fonts.BODY, 10)
+    subtitle:SetFont(self.assets.fonts.BODY, 10, "")
     subtitle:SetPoint("TOP", title, "BOTTOM", 0, -2)
     subtitle:SetText("Watch it fill up with segment sounds and effects!")
     subtitle:SetTextColor(0.7, 0.7, 0.7)
@@ -2104,7 +2397,7 @@ function HopeAddon:ShowTestBar()
 
     -- Instructions
     local instructions = frame:CreateFontString(nil, "OVERLAY")
-    instructions:SetFont(self.assets.fonts.SMALL, 9)
+    instructions:SetFont(self.assets.fonts.SMALL, 9, "")
     instructions:SetPoint("BOTTOM", frame, "BOTTOM", 0, 25)
     instructions:SetText("Click |cFF00FF00[Fill]|r to animate progress  |  |cFFFF0000[X]|r to close")
     instructions:SetTextColor(0.8, 0.8, 0.8)

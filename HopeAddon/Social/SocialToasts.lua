@@ -38,7 +38,7 @@ local TOAST_TYPES = {
         sound = "notification",
     },
     companion_request = {
-        icon = "Interface\\Icons\\Achievement_GuildPerk_EverybodysFriend",
+        icon = "Interface\\Icons\\Spell_Holy_PrayerOfHealing",
         color = { 1, 0.84, 0 },
         sound = "notification",
     },
@@ -53,8 +53,29 @@ local TOAST_TYPES = {
         sound = "notification",
     },
     fellow_discovered = {
-        icon = "Interface\\Icons\\Achievement_Dungeon_Outland_DungeonMaster",
+        icon = "Interface\\Icons\\Spell_Arcane_PortalShattrath",
         color = { 0.2, 1, 0.2 },
+        sound = "notification",
+    },
+    -- Romance toasts
+    romance_proposal = {
+        icon = "Interface\\Icons\\INV_ValentinesCandy",
+        color = { 1, 0.41, 0.71 },  -- Hot pink
+        sound = "notification",
+    },
+    romance_accepted = {
+        icon = "Interface\\Icons\\INV_ValentinesCard02",
+        color = { 1, 0.08, 0.58 },  -- Deep pink
+        sound = "notification",
+    },
+    romance_declined = {
+        icon = "Interface\\Icons\\INV_ValentinesCard01",
+        color = { 0.5, 0.5, 0.5 },  -- Grey
+        sound = "notification",
+    },
+    romance_breakup = {
+        icon = "Interface\\Icons\\Spell_Shadow_SoulLeech_3",  -- Dark sad icon
+        color = { 0.5, 0.5, 0.5 },
         sound = "notification",
     },
 }
@@ -85,7 +106,7 @@ local function CreateToastFrame()
 
     -- Message text
     local text = frame:CreateFontString(nil, "OVERLAY")
-    text:SetFont(HopeAddon.assets.fonts.BODY, 12)
+    text:SetFont(HopeAddon.assets.fonts.BODY, 12, "")
     text:SetPoint("LEFT", icon, "RIGHT", 10, 0)
     text:SetPoint("RIGHT", frame, "RIGHT", -30, 0)
     text:SetJustifyH("LEFT")
@@ -98,7 +119,7 @@ local function CreateToastFrame()
     closeBtn:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -4, -4)
 
     local closeText = closeBtn:CreateFontString(nil, "OVERLAY")
-    closeText:SetFont(HopeAddon.assets.fonts.SMALL, 14)
+    closeText:SetFont(HopeAddon.assets.fonts.SMALL, 14, "")
     closeText:SetPoint("CENTER")
     closeText:SetText("|cFF808080×|r")
     closeBtn.text = closeText

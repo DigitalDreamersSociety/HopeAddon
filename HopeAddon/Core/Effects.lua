@@ -7,6 +7,7 @@
 local math_random = math.random
 local math_floor = math.floor
 local math_max = math.max
+local math_min = math.min
 local string_sub = string.sub
 
 local Effects = {}
@@ -36,6 +37,14 @@ function Effects:StopGlowsOnParent(parent)
         if glowData.texture then
             glowData.texture:Hide()
             glowData.texture:SetParent(nil)
+        end
+        -- Handle dual border glow inner elements
+        if glowData.innerTexture then
+            glowData.innerTexture:Hide()
+            glowData.innerTexture:SetParent(nil)
+        end
+        if glowData.innerFrame then
+            glowData.innerFrame:Hide()
         end
         if glowData.frame then
             glowData.frame:Hide()
@@ -218,6 +227,73 @@ function Effects:CreateBorderGlow(parent, colorName)
 
     -- Register for cleanup
     local glowData = { frame = glowFrame, texture = glow, animGroup = ag, parent = parent }
+    table.insert(self.activeGlows, glowData)
+
+    -- Register in parent index for O(1) lookup
+    if not self.glowsByParent[parent] then
+        self.glowsByParent[parent] = {}
+    end
+    self.glowsByParent[parent][glowData] = true
+
+    return glowData
+end
+
+-- Creates dual-layer border glow (inner + outer colors)
+-- Used for TBC-themed sections with contrasting glow effects
+function Effects:CreateDualBorderGlow(parent, innerColorName, outerColorName, intensity)
+    if HopeAddon.db and not HopeAddon.db.settings.glowEnabled then
+        return nil
+    end
+
+    intensity = intensity or 1.0
+    local innerColor = HopeAddon.colors[innerColorName] or HopeAddon.colors.ARCANE_PURPLE
+    local outerColor = HopeAddon.colors[outerColorName] or HopeAddon.colors.FEL_GREEN
+
+    -- Outer glow (larger, softer)
+    local outerGlowFrame = CreateFrame("Frame", nil, parent)
+    outerGlowFrame:SetPoint("TOPLEFT", parent, "TOPLEFT", -6, 6)
+    outerGlowFrame:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", 6, -6)
+    outerGlowFrame:SetFrameLevel(math_max(1, parent:GetFrameLevel() - 2))
+
+    local outerGlow = outerGlowFrame:CreateTexture(nil, "BACKGROUND")
+    outerGlow:SetTexture(HopeAddon.assets.textures.GLOW_BUTTON)
+    outerGlow:SetBlendMode("ADD")
+    outerGlow:SetAllPoints(outerGlowFrame)
+    outerGlow:SetVertexColor(outerColor.r, outerColor.g, outerColor.b, 0.35 * intensity)
+
+    -- Inner glow (tighter to border)
+    local innerGlowFrame = CreateFrame("Frame", nil, parent)
+    innerGlowFrame:SetPoint("TOPLEFT", parent, "TOPLEFT", -3, 3)
+    innerGlowFrame:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", 3, -3)
+    innerGlowFrame:SetFrameLevel(math_max(1, parent:GetFrameLevel() - 1))
+
+    local innerGlow = innerGlowFrame:CreateTexture(nil, "BACKGROUND")
+    innerGlow:SetTexture(HopeAddon.assets.textures.GLOW_BUTTON)
+    innerGlow:SetBlendMode("ADD")
+    innerGlow:SetAllPoints(innerGlowFrame)
+    innerGlow:SetVertexColor(innerColor.r, innerColor.g, innerColor.b, 0.5 * intensity)
+
+    -- Subtle pulse on outer glow only
+    local ag = outerGlow:CreateAnimationGroup()
+    ag:SetLooping("BOUNCE")
+
+    local pulse = ag:CreateAnimation("Alpha")
+    pulse:SetFromAlpha(0.25 * intensity)
+    pulse:SetToAlpha(0.45 * intensity)
+    pulse:SetDuration(1.5)
+    pulse:SetSmoothing("IN_OUT")
+
+    ag:Play()
+
+    -- Register for cleanup
+    local glowData = {
+        frame = outerGlowFrame,
+        innerFrame = innerGlowFrame,
+        texture = outerGlow,
+        innerTexture = innerGlow,
+        animGroup = ag,
+        parent = parent
+    }
     table.insert(self.activeGlows, glowData)
 
     -- Register in parent index for O(1) lookup

@@ -98,6 +98,15 @@ Sounds.library = {
         victory = assets.ACHIEVEMENT,     -- Victory fanfare
         defeat = assets.ERROR,            -- Defeat sound
     },
+
+    -- Romance/Relationship sounds (dramatic love story vibes)
+    romance = {
+        propose = assets.CHARACTER_CREATE,  -- Hopeful proposal moment
+        accept = assets.LEVEL_UP,           -- They said yes! (celebration)
+        decline = assets.ERROR,             -- Heartbreak (sad trombone)
+        breakup = assets.ABILITIES_FINAL,   -- Dramatic end (tragedy)
+        notification = assets.BELL,         -- Someone proposed to you!
+    },
 }
 
 -- Sound channel preferences

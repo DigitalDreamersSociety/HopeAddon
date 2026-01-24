@@ -131,12 +131,6 @@ Components.FALLBACK_HEIGHTS = {
 }
 
 -- Module-level handlers (no closures, prevent memory leaks)
-local function OnParchmentKeyDown(self, key)
-    if key == "ESCAPE" then
-        self:Hide()
-    end
-end
-
 local function OnTabEnter(self)
     GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
     GameTooltip:SetText(self._tooltipTitle, 1, 0.84, 0)
@@ -170,10 +164,8 @@ function Components:CreateParchmentFrame(name, parent, width, height)
     frame:SetScript("OnDragStart", frame.StartMoving)
     frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
 
-    -- Close on Escape (use module-level handler to avoid closure)
-    frame:EnableKeyboard(true)
-    frame:SetScript("OnKeyDown", OnParchmentKeyDown)
-    frame:SetPropagateKeyboardInput(true)
+    -- Escape key handling is done via UISpecialFrames in the caller
+    -- (frame:EnableKeyboard doesn't work for regular frames without focus)
 
     return frame
 end
@@ -204,7 +196,7 @@ function Components:CreateTitleBar(parent, titleText, colorName)
 
     -- Title text
     local title = titleBar:CreateFontString(nil, "OVERLAY")
-    title:SetFont(AssetFonts.TITLE, 22)
+    title:SetFont(AssetFonts.TITLE, 22, "")
     title:SetPoint("CENTER", titleBar, "CENTER", 0, 0)
     title:SetText(HopeAddon:ColorText(titleText, colorName))
     title:SetShadowOffset(2, -2)
@@ -281,7 +273,7 @@ function Components:CreateProgressBar(parent, width, height, colorName)
 
     -- Percentage text
     local text = container:CreateFontString(nil, "OVERLAY")
-    text:SetFont(AssetFonts.BODY, 12)
+    text:SetFont(AssetFonts.BODY, 12, "")
     text:SetPoint("CENTER", container, "CENTER", 0, 0)
     text:SetTextColor(1, 1, 1, 1)
     text:SetShadowOffset(1, -1)
@@ -368,7 +360,7 @@ function Components:CreateTabButton(parent, text, width, height, tooltip, custom
 
     -- Text (using 11pt for better fit with many tabs)
     local label = tab:CreateFontString(nil, "OVERLAY")
-    label:SetFont(AssetFonts.HEADER, 11)
+    label:SetFont(AssetFonts.HEADER, 11, "")
     label:SetPoint("CENTER", tab, "CENTER", 0, 0)
     label:SetText(text)
     label:SetTextColor(HopeAddon:GetTextColor("SECONDARY"))
@@ -456,6 +448,99 @@ function Components:CreateTabButton(parent, text, width, height, tooltip, custom
 end
 
 --[[
+    Create a sub-tab button for Social tab's internal navigation
+    @param parent Frame - Parent container
+    @param tabId string - Tab identifier (feed, travelers, companions)
+    @param label string - Display text
+    @param isActive boolean - Whether this tab is currently active
+    @param onClick function - Callback when clicked
+    @return Button - The sub-tab button frame
+]]
+function Components:CreateSocialSubTab(parent, tabId, label, isActive, onClick)
+    local C = HopeAddon.Constants
+    local width = C.SOCIAL_TAB.TAB_WIDTH
+    local height = C.SOCIAL_TAB.TAB_HEIGHT
+
+    local tab = CreateFrame("Button", nil, parent)
+    tab:SetSize(width, height)
+    tab.tabId = tabId
+
+    -- Background
+    local bg = tab:CreateTexture(nil, "BACKGROUND")
+    bg:SetTexture(AssetTextures.DIALOG_BG)
+    bg:SetAllPoints(tab)
+    tab.bg = bg
+
+    -- Text
+    local text = tab:CreateFontString(nil, "OVERLAY")
+    text:SetFont(AssetFonts.HEADER, 11, "")
+    text:SetPoint("LEFT", tab, "LEFT", 8, 0)
+    text:SetText(label)
+    tab.text = text
+
+    -- Badge (for unread counts, online counts, etc.)
+    local badge = tab:CreateFontString(nil, "OVERLAY")
+    badge:SetFont(AssetFonts.HEADER, 9, "OUTLINE")
+    badge:SetPoint("RIGHT", tab, "RIGHT", -6, 0)
+    badge:SetTextColor(1, 0.82, 0)
+    badge:SetText("")
+    tab.badge = badge
+
+    -- Active indicator (bottom bar)
+    local indicator = tab:CreateTexture(nil, "OVERLAY")
+    indicator:SetTexture(AssetTextures.SOLID)
+    indicator:SetPoint("BOTTOMLEFT", tab, "BOTTOMLEFT", 2, 0)
+    indicator:SetPoint("BOTTOMRIGHT", tab, "BOTTOMRIGHT", -2, 0)
+    indicator:SetHeight(2)
+    indicator:Hide()
+    tab.indicator = indicator
+
+    -- Highlight
+    local highlight = tab:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetTexture(AssetTextures.HIGHLIGHT)
+    highlight:SetAllPoints(tab)
+    highlight:SetVertexColor(0.4, 0.6, 0.4, 0.3)
+
+    -- Set active state method
+    function tab:SetActive(active)
+        if active then
+            self.bg:SetVertexColor(0.2, 0.35, 0.2, 0.9)
+            self.text:SetTextColor(0.4, 1.0, 0.4)
+            self.indicator:SetVertexColor(0.4, 1.0, 0.4)
+            self.indicator:Show()
+        else
+            self.bg:SetVertexColor(0.15, 0.15, 0.15, 0.8)
+            self.text:SetTextColor(0.7, 0.7, 0.7)
+            self.indicator:Hide()
+        end
+    end
+
+    -- Set badge method
+    function tab:SetBadge(badgeText)
+        if badgeText and badgeText ~= "" then
+            self.badge:SetText(badgeText)
+            self.badge:Show()
+        else
+            self.badge:SetText("")
+            self.badge:Hide()
+        end
+    end
+
+    -- Apply initial state
+    tab:SetActive(isActive)
+
+    -- Click handler
+    tab:SetScript("OnClick", function()
+        HopeAddon.Sounds:PlayClick()
+        if onClick then
+            onClick(tabId)
+        end
+    end)
+
+    return tab
+end
+
+--[[
     NAV BUTTON
     Small navigation/jump button with color theming
     Used for tier navigation, section jumps, etc.
@@ -478,7 +563,7 @@ function Components:CreateNavButton(parent, text, width, colorName, onClick)
 
     -- Text
     local label = btn:CreateFontString(nil, "OVERLAY")
-    label:SetFont(AssetFonts.HEADER, 11)
+    label:SetFont(AssetFonts.HEADER, 11, "")
     label:SetPoint("CENTER", btn, "CENTER", 0, 0)
     label:SetText(text)
     label:SetTextColor(color.r, color.g, color.b, 1)
@@ -836,7 +921,7 @@ function Components:CreateEntryCard(parent, entryData)
 
     -- Title
     local title = card:CreateFontString(nil, "OVERLAY")
-    title:SetFont(AssetFonts.HEADER, 14)
+    title:SetFont(AssetFonts.HEADER, 14, "")
     title:SetPoint("TOPLEFT", card, "TOPLEFT", iconOffset, -Components.MARGIN_NORMAL)
     title:SetPoint("RIGHT", card, "RIGHT", -Components.MARGIN_NORMAL, 0)
     title:SetText(HopeAddon:ColorText(entryData.title or "Entry", "GOLD_BRIGHT"))
@@ -844,7 +929,7 @@ function Components:CreateEntryCard(parent, entryData)
 
     -- Description - limit to prevent overflow into timestamp area
     local desc = card:CreateFontString(nil, "OVERLAY")
-    desc:SetFont(AssetFonts.BODY, 11)
+    desc:SetFont(AssetFonts.BODY, 11, "")
     desc:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -Components.MARGIN_SMALL)
     desc:SetPoint("RIGHT", card, "RIGHT", -Components.MARGIN_NORMAL, 0)
     desc:SetPoint("BOTTOM", card, "BOTTOM", 0, 22) -- Leave room for timestamp
@@ -865,7 +950,7 @@ function Components:CreateEntryCard(parent, entryData)
 
     -- Timestamp
     local timestamp = card:CreateFontString(nil, "OVERLAY")
-    timestamp:SetFont(AssetFonts.SMALL, 10)
+    timestamp:SetFont(AssetFonts.SMALL, 10, "")
     timestamp:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -Components.MARGIN_NORMAL, 8)
     timestamp:SetText(entryData.timestamp or "")
     timestamp:SetTextColor(HopeAddon:GetTextColor("DISABLED"))
@@ -923,7 +1008,7 @@ function Components:CreateDivider(parent, text)
 
     if text then
         local label = divider:CreateFontString(nil, "OVERLAY")
-        label:SetFont(AssetFonts.SMALL, 10)
+        label:SetFont(AssetFonts.SMALL, 10, "")
         label:SetPoint("CENTER", divider, "CENTER", 0, 0)
         label:SetText(HopeAddon:ColorText(text, "GREY"))
         divider.label = label
@@ -955,7 +1040,7 @@ function Components:CreateCheckbox(parent, label, initialValue)
     checkbox:SetSize(24, 24)
 
     local text = checkbox:CreateFontString(nil, "OVERLAY")
-    text:SetFont(AssetFonts.BODY, 12)
+    text:SetFont(AssetFonts.BODY, 12, "")
     text:SetPoint("LEFT", checkbox, "RIGHT", Components.MARGIN_SMALL, 0)
     text:SetText(label or "")
     text:SetTextColor(HopeAddon:GetTextColor("BRIGHT"))
@@ -986,7 +1071,7 @@ function Components:CreateTextInput(parent, width, height, placeholder)
     local editBox = CreateFrame("EditBox", nil, container)
     editBox:SetPoint("TOPLEFT", container, "TOPLEFT", Components.INPUT_PADDING, -Components.MARGIN_SMALL)
     editBox:SetPoint("BOTTOMRIGHT", container, "BOTTOMRIGHT", -Components.INPUT_PADDING, Components.MARGIN_SMALL)
-    editBox:SetFont(AssetFonts.BODY, 12)
+    editBox:SetFont(AssetFonts.BODY, 12, "")
     editBox:SetTextColor(1, 1, 1, 1)
     editBox:SetAutoFocus(false)
     editBox:SetMultiLine(false)
@@ -1271,7 +1356,7 @@ function Components:CreateChallengeButton(parent, targetName, onClick, options)
 
     -- Gold text
     button.text = button:CreateFontString(nil, "OVERLAY")
-    button.text:SetFont(HopeAddon.assets.fonts.HEADER, 11)
+    button.text:SetFont(HopeAddon.assets.fonts.HEADER, 11, "")
     button.text:SetPoint("CENTER")
     button.text:SetText(text)
     button.text:SetTextColor(1, 0.84, 0, 1)
@@ -1336,7 +1421,7 @@ function Components:CreateCollapsibleSection(parent, title, colorName, startExpa
 
     -- Expand/collapse indicator
     local indicator = header:CreateFontString(nil, "OVERLAY")
-    indicator:SetFont(AssetFonts.HEADER, 14)
+    indicator:SetFont(AssetFonts.HEADER, 14, "")
     indicator:SetPoint("LEFT", header, "LEFT", Components.INPUT_PADDING, 0)
     indicator:SetText(startExpanded and "[-]" or "[+]")
     indicator:SetTextColor(HopeAddon:GetTextColor("TERTIARY"))
@@ -1344,7 +1429,7 @@ function Components:CreateCollapsibleSection(parent, title, colorName, startExpa
 
     -- Title
     local titleText = header:CreateFontString(nil, "OVERLAY")
-    titleText:SetFont(AssetFonts.HEADER, 13)
+    titleText:SetFont(AssetFonts.HEADER, 13, "")
     titleText:SetPoint("LEFT", indicator, "RIGHT", Components.INPUT_PADDING, 0)
     titleText:SetText(HopeAddon:ColorText(title, colorName))
     section.titleText = titleText
@@ -2492,7 +2577,7 @@ function Components:CreateSegmentedReputationBar(parent, width, height)
     local labelNames = { "Friendly", "Honored", "Revered", "Exalted" }
     for i = 1, 4 do
         local label = barFrame:CreateFontString(nil, "OVERLAY")
-        label:SetFont(AssetFonts.BODY, 8)
+        label:SetFont(AssetFonts.BODY, 8, "")
         label:SetText(labelNames[i])
         label:SetTextColor(0.5, 0.5, 0.5, 1)  -- Start grey
         label:SetPoint("TOP", container.segments[i], "BOTTOM", 0, -2)
@@ -2839,7 +2924,7 @@ function Components:CreateTravelerIconRow(parent, travelerName, maxIcons)
         -- Show "+N" if there are more icons
         if #travelerIcons > maxIcons then
             local moreText = self:CreateFontString(nil, "OVERLAY")
-            moreText:SetFont(AssetFonts.SMALL, 10)
+            moreText:SetFont(AssetFonts.SMALL, 10, "")
             moreText:SetPoint("LEFT", self, "LEFT", displayCount * (iconSize + spacing), 0)
             moreText:SetText("+" .. (#travelerIcons - maxIcons))
             moreText:SetTextColor(HopeAddon:GetTextColor("TERTIARY"))
@@ -2871,7 +2956,7 @@ function Components:CreateTravelerCard(parent, travelerData)
     -- Class-colored name
     local classColor = HopeAddon:GetClassColor(travelerData.class)
     local nameText = card:CreateFontString(nil, "OVERLAY")
-    nameText:SetFont(AssetFonts.HEADER, 13)
+    nameText:SetFont(AssetFonts.HEADER, 13, "")
     nameText:SetPoint("TOPLEFT", card, "TOPLEFT", Components.MARGIN_NORMAL, -Components.MARGIN_NORMAL)
     nameText:SetText(string.format("|cFF%02x%02x%02x%s|r",
         classColor.r * 255, classColor.g * 255, classColor.b * 255,
@@ -2880,7 +2965,7 @@ function Components:CreateTravelerCard(parent, travelerData)
 
     -- Level
     local levelText = card:CreateFontString(nil, "OVERLAY")
-    levelText:SetFont(AssetFonts.SMALL, 10)
+    levelText:SetFont(AssetFonts.SMALL, 10, "")
     levelText:SetPoint("LEFT", nameText, "RIGHT", Components.MARGIN_SMALL, 0)
     if travelerData.level then
         levelText:SetText("(" .. travelerData.level .. ")")
@@ -2890,7 +2975,7 @@ function Components:CreateTravelerCard(parent, travelerData)
 
     -- Last seen
     local lastSeenText = card:CreateFontString(nil, "OVERLAY")
-    lastSeenText:SetFont(AssetFonts.SMALL, 9)
+    lastSeenText:SetFont(AssetFonts.SMALL, 9, "")
     lastSeenText:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", Components.MARGIN_NORMAL, Components.MARGIN_SMALL)
     if travelerData.lastSeen then
         lastSeenText:SetText("Last seen: " .. travelerData.lastSeen)
@@ -2908,7 +2993,7 @@ function Components:CreateTravelerCard(parent, travelerData)
     -- Stats summary
     if travelerData.stats then
         local statsText = card:CreateFontString(nil, "OVERLAY")
-        statsText:SetFont(AssetFonts.SMALL, 9)
+        statsText:SetFont(AssetFonts.SMALL, 9, "")
         statsText:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -Components.MARGIN_NORMAL, Components.MARGIN_SMALL)
 
         local statParts = {}
@@ -2960,7 +3045,7 @@ function Components:CreateSectionHeader(parent, title, colorName, subtext)
 
     -- Header font string
     local header = container:CreateFontString(nil, "OVERLAY")
-    header:SetFont(AssetFonts.HEADER, 16)
+    header:SetFont(AssetFonts.HEADER, 16, "")
     header:SetPoint("TOPLEFT", container, "TOPLEFT", Components.MARGIN_NORMAL, -5)
     header:SetText(HopeAddon:ColorText(title, colorName))
     container.headerText = header
@@ -2968,8 +3053,53 @@ function Components:CreateSectionHeader(parent, title, colorName, subtext)
     -- Subheader font string (if provided)
     if subtext then
         local subheader = container:CreateFontString(nil, "OVERLAY")
-        subheader:SetFont(AssetFonts.BODY, 11)
+        subheader:SetFont(AssetFonts.BODY, 11, "")
         subheader:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -3)
+        subheader:SetText(subtext)
+        subheader:SetTextColor(HopeAddon:GetTextColor("TERTIARY"))
+        container.subText = subheader
+    end
+
+    return container
+end
+
+--[[
+    SECTION HEADER WITH ICON
+    Creates a themed section header with icon for TBC visual enhancement
+    @param parent Frame - Parent frame
+    @param title string - Header title text
+    @param colorName string - Color constant name (default "GOLD_BRIGHT")
+    @param iconPath string - Icon texture path
+    @param subtext string - Optional subtitle text
+    @return Frame - Header container frame
+]]
+function Components:CreateSectionHeaderWithIcon(parent, title, colorName, iconPath, subtext)
+    colorName = colorName or "GOLD_BRIGHT"
+
+    local headerHeight = subtext and 50 or 30
+    local container = CreateFrame("Frame", nil, parent)
+    container:SetHeight(headerHeight)
+    container._componentType = Components.COMPONENT_TYPE.SECTION_HEADER
+
+    -- Icon texture
+    local icon = container:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(22, 22)
+    icon:SetPoint("TOPLEFT", container, "TOPLEFT", Components.MARGIN_NORMAL, -4)
+    icon:SetTexture(iconPath)
+    container.icon = icon
+
+    -- Header font string (positioned after icon)
+    local header = container:CreateFontString(nil, "OVERLAY")
+    header:SetFont(AssetFonts.HEADER, 16, "")
+    header:SetPoint("LEFT", icon, "RIGHT", 8, 0)
+    header:SetText(HopeAddon:ColorText(title, colorName))
+    container.headerText = header
+
+    -- Subheader font string (if provided)
+    if subtext then
+        local subheader = container:CreateFontString(nil, "OVERLAY")
+        subheader:SetFont(AssetFonts.BODY, 11, "")
+        subheader:SetPoint("TOPLEFT", icon, "BOTTOMLEFT", 0, -3)
         subheader:SetText(subtext)
         subheader:SetTextColor(HopeAddon:GetTextColor("TERTIARY"))
         container.subText = subheader
@@ -2995,7 +3125,7 @@ function Components:CreateCategoryHeader(parent, title, colorName)
 
     -- Header font string
     local header = container:CreateFontString(nil, "OVERLAY")
-    header:SetFont(AssetFonts.HEADER, 13)
+    header:SetFont(AssetFonts.HEADER, 13, "")
     header:SetPoint("TOPLEFT", container, "TOPLEFT", Components.MARGIN_NORMAL, -3)
     header:SetText(HopeAddon:ColorText(title, colorName))
     container.headerText = header
@@ -3063,7 +3193,7 @@ function Components:CreateGameCard(parent, gameData, onPractice, onChallenge)
 
     -- Description (secondary text, below title)
     local desc = card:CreateFontString(nil, "OVERLAY")
-    desc:SetFont(AssetFonts.BODY, 9)
+    desc:SetFont(AssetFonts.BODY, 9, "")
     desc:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -2)
     desc:SetPoint("RIGHT", card, "RIGHT", -8, 0)
     desc:SetJustifyH("LEFT")
@@ -3072,13 +3202,6 @@ function Components:CreateGameCard(parent, gameData, onPractice, onChallenge)
     desc:SetTextColor(HopeAddon:GetTextColor("SECONDARY"))
     card.desc = desc
 
-    -- Stats row (W: X L: X T: X)
-    local stats = card:CreateFontString(nil, "OVERLAY")
-    stats:SetFont(AssetFonts.SMALL, 9)
-    stats:SetPoint("BOTTOMLEFT", icon, "BOTTOMRIGHT", 8, 2)
-    stats:SetTextColor(0.6, 0.6, 0.6, 1)
-    card.stats = stats
-
     -- Practice button (left)
     local practiceBtn = CreateBackdropFrame("Button", nil, card)
     practiceBtn:SetSize(BUTTON_WIDTH, BUTTON_HEIGHT)
@@ -3086,7 +3209,7 @@ function Components:CreateGameCard(parent, gameData, onPractice, onChallenge)
     self:ApplyBackdrop(practiceBtn, "BUTTON_SIMPLE", "GREEN_BTN_BG", "GREEN_DARK")
 
     local practiceBtnText = practiceBtn:CreateFontString(nil, "OVERLAY")
-    practiceBtnText:SetFont(AssetFonts.SMALL, 10)
+    practiceBtnText:SetFont(AssetFonts.SMALL, 10, "")
     practiceBtnText:SetPoint("CENTER", practiceBtn, "CENTER", 0, 0)
     practiceBtnText:SetText("Practice")
     practiceBtnText:SetTextColor(0.8, 1.0, 0.8, 1)
@@ -3115,7 +3238,7 @@ function Components:CreateGameCard(parent, gameData, onPractice, onChallenge)
     self:ApplyBackdrop(challengeBtn, "BUTTON_SIMPLE", "ARCANE_BTN_BG", "ARCANE_BORDER")
 
     local challengeBtnText = challengeBtn:CreateFontString(nil, "OVERLAY")
-    challengeBtnText:SetFont(AssetFonts.SMALL, 10)
+    challengeBtnText:SetFont(AssetFonts.SMALL, 10, "")
     challengeBtnText:SetPoint("CENTER", challengeBtn, "CENTER", 0, 0)
     challengeBtnText:SetText("Challenge")
     challengeBtnText:SetTextColor(1.0, 0.8, 1.0, 1)
@@ -3176,9 +3299,6 @@ function Components:CreateGameCard(parent, gameData, onPractice, onChallenge)
         -- Set description
         self.desc:SetText(data.description)
 
-        -- Reset stats (will be set externally)
-        self.stats:SetText("")
-
         -- Configure Practice button
         if data.hasLocal then
             self.practiceBtn:Enable()
@@ -3210,25 +3330,6 @@ function Components:CreateGameCard(parent, gameData, onPractice, onChallenge)
         end)
     end
 
-    -- Method to set stats text
-    function card:SetStats(wins, losses, ties)
-        local parts = {}
-        if wins and wins > 0 then
-            table.insert(parts, "|cFF00FF00W:" .. wins .. "|r")
-        end
-        if losses and losses > 0 then
-            table.insert(parts, "|cFFFF0000L:" .. losses .. "|r")
-        end
-        if ties and ties > 0 then
-            table.insert(parts, "|cFF888888T:" .. ties .. "|r")
-        end
-        if #parts > 0 then
-            self.stats:SetText(table.concat(parts, "  "))
-        else
-            self.stats:SetText("|cFF666666No games played|r")
-        end
-    end
-
     -- Active games badge (top-right corner)
     local badge = card:CreateFontString(nil, "OVERLAY")
     badge:SetFont(AssetFonts.SMALL, 9, "OUTLINE")
@@ -3256,6 +3357,75 @@ function Components:CreateGameCard(parent, gameData, onPractice, onChallenge)
     end
 
     return card
+end
+
+--[[
+    CREATE CORNER RUNES
+    Creates 4 corner decoration textures for TBC-themed containers
+
+    @param parent Frame - Parent frame to attach runes to
+    @param colorName string|table - Color name from HopeAddon.colors or RGB table {r, g, b}
+    @param size number - Size of each rune (default 16)
+    @return table - Table of 4 texture references for cleanup
+]]
+function Components:CreateCornerRunes(parent, colorName, size)
+    size = size or 16
+    local color
+    if type(colorName) == "table" then
+        color = { r = colorName[1] or colorName.r, g = colorName[2] or colorName.g, b = colorName[3] or colorName.b }
+    else
+        color = Colors[colorName] or Colors.FEL_GREEN
+    end
+
+    local C = HopeAddon.Constants
+    local runeTexture = C.CORNER_RUNE_TEXTURE or "Interface\\Buttons\\UI-ActionButton-Border"
+
+    local runes = {}
+
+    -- Create 4 corner runes
+    -- Note: UI-ActionButton-Border is a circular glow, so rotation doesn't matter visually
+    -- We still apply different tex coords for variety if needed in the future
+    local corners = {
+        { anchor = "TOPLEFT", x = -4, y = 4 },
+        { anchor = "TOPRIGHT", x = 4, y = 4 },
+        { anchor = "BOTTOMRIGHT", x = 4, y = -4 },
+        { anchor = "BOTTOMLEFT", x = -4, y = -4 },
+    }
+
+    for i, corner in ipairs(corners) do
+        local rune = parent:CreateTexture(nil, "OVERLAY")
+        rune:SetTexture(runeTexture)
+        rune:SetBlendMode("ADD")
+        rune:SetSize(size, size)
+        rune:SetPoint(corner.anchor, parent, corner.anchor, corner.x, corner.y)
+        rune:SetVertexColor(color.r, color.g, color.b, 0.7)
+
+        -- TBC 2.4.3 compatible: SetRotation may not exist, but the circular glow
+        -- texture looks the same regardless of rotation, so no workaround needed
+        -- If using a non-symmetric texture in the future, use SetTexCoord rotation math
+
+        table.insert(runes, rune)
+    end
+
+    return runes
+end
+
+--[[
+    HIDE CORNER RUNES
+    Utility to hide/show corner runes
+
+    @param runes table - Table of rune textures from CreateCornerRunes
+    @param hide boolean - true to hide, false to show
+]]
+function Components:HideCornerRunes(runes, hide)
+    if not runes then return end
+    for _, rune in ipairs(runes) do
+        if hide then
+            rune:Hide()
+        else
+            rune:Show()
+        end
+    end
 end
 
 -- Register with addon

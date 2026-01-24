@@ -39,7 +39,7 @@ Badges.DEFINITIONS = {
         id = "hero_of_outland",
         name = "Hero of Outland",
         description = "Reach level 70",
-        icon = "Achievement_Level_70",
+        icon = "Spell_Holy_ChampionsBond",  -- TBC compatible
         unlock = { type = "level", value = 70 },
         reward = { colorHex = "FFD700", colorName = "Gold", title = "Hero" },  -- Gold
     },
@@ -117,7 +117,7 @@ Badges.DEFINITIONS = {
         id = "exalted_first",
         name = "Exalted One",
         description = "Reach Exalted with any TBC faction",
-        icon = "Achievement_Reputation_08",
+        icon = "INV_Crown_01",  -- TBC compatible crown
         unlock = { type = "reputation", value = "any_exalted" },
         reward = { colorHex = "FFEE8C", colorName = "Pale Gold" },  -- Pale Gold
     },

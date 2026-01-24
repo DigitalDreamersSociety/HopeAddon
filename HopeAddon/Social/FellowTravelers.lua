@@ -69,9 +69,13 @@ local PROFILE_REQUEST_COOLDOWN = 60  -- seconds between profile requests per pla
 local CachedSendAddonMessage = (C_ChatInfo and C_ChatInfo.SendAddonMessage) or SendAddonMessage
 
 -- Safe wrapper for SendAddonMessage using cached function
+-- Uses pcall to silently handle edge cases (leaving BGs, raid disbands, etc.)
 local function SafeSendAddonMessage(prefix, msg, channel, target)
     if CachedSendAddonMessage then
-        CachedSendAddonMessage(prefix, msg, channel, target)
+        local success, err = pcall(CachedSendAddonMessage, prefix, msg, channel, target)
+        if not success and HopeAddon.db and HopeAddon.db.debug then
+            HopeAddon:Debug("SendAddonMessage failed:", channel, err)
+        end
     end
 end
 
@@ -544,6 +548,15 @@ function FellowTravelers:SerializeProfile(profile)
         return str:gsub("([;=|])", "\\%1"):gsub("\n", "\\n")
     end
 
+    -- Get romance status to include
+    local romanceStatus = ""
+    local romancePartner = ""
+    if HopeAddon.Romance then
+        local romanceData = HopeAddon.Romance:GetStatus()
+        romanceStatus = romanceData.status or "SINGLE"
+        romancePartner = romanceData.partner or ""
+    end
+
     local parts = {
         "b=" .. escape(profile.backstory or ""):sub(1, 200),  -- Truncate long fields
         "a=" .. escape(profile.appearance or ""):sub(1, 150),
@@ -553,6 +566,8 @@ function FellowTravelers:SerializeProfile(profile)
         "t=" .. table.concat(profile.personality or {}, ","),
         "c=" .. (profile.selectedColor or ""),
         "n=" .. escape(profile.selectedTitle or ""),
+        "rs=" .. romanceStatus,
+        "rp=" .. escape(romancePartner),
     }
 
     return table.concat(parts, ";")
@@ -580,6 +595,8 @@ function FellowTravelers:DeserializeProfile(data)
         personality = {},
         selectedColor = nil,
         selectedTitle = nil,
+        romanceStatus = "SINGLE",
+        romancePartner = nil,
     }
 
     for part in data:gmatch("[^;]+") do
@@ -604,6 +621,10 @@ function FellowTravelers:DeserializeProfile(data)
                 profile.selectedColor = value
             elseif key == "n" and value ~= "" then
                 profile.selectedTitle = value
+            elseif key == "rs" then
+                profile.romanceStatus = value
+            elseif key == "rp" and value ~= "" then
+                profile.romancePartner = value
             end
         end
     end
@@ -625,7 +646,9 @@ function FellowTravelers:RegisterFellow(name, info)
     local fellows = HopeAddon.charDb.travelers.fellows
     if not fellows then return end
 
-    if not fellows[name] then
+    local isNewFellow = not fellows[name]
+
+    if isNewFellow then
         fellows[name] = {
             firstSeen = HopeAddon:GetDate(),
         }
@@ -638,8 +661,25 @@ function FellowTravelers:RegisterFellow(name, info)
         HopeAddon:Print("|cFF9B30FF[Fellow Traveler]|r |cFF00FF00" .. name .. "|r discovered nearby! Mrglglgl!")
     end
 
-    -- Update info
+    -- Check for companion online transition (offline -> online)
+    -- Only for existing fellows (not new discoveries - they get their own notification)
     local fellow = fellows[name]
+    if not isNewFellow then
+        local COMPANION_ONLINE_THRESHOLD = 300  -- 5 minutes
+        local oldLastSeenTime = fellow.lastSeenTime or 0
+        local wasOffline = (time() - oldLastSeenTime) >= COMPANION_ONLINE_THRESHOLD
+
+        -- If they were offline and are now coming back, check if they're a companion
+        if wasOffline then
+            local Companions = HopeAddon.Companions
+            local SocialToasts = HopeAddon.SocialToasts
+            if Companions and Companions:IsCompanion(name) and SocialToasts then
+                SocialToasts:Show("companion_online", name)
+            end
+        end
+    end
+
+    -- Update info
     fellow.lastSeen = HopeAddon:GetDate()
     fellow.lastSeenTime = time()
 
@@ -1166,8 +1206,8 @@ function FellowTravelers:UpdateKnownTraveler(name, class, level, isNewGroup)
         travelers[name].stats.groupCount = (travelers[name].stats.groupCount or 0) + 1
         HopeAddon:Debug("Group count with", name, ":", travelers[name].stats.groupCount)
 
-        -- Notify TravelerIcons if first group
-        if isFirstGroup and HopeAddon.TravelerIcons then
+        -- Notify TravelerIcons if first group with a Fellow Traveler (addon user)
+        if isFirstGroup and HopeAddon.TravelerIcons and self:IsFellow(name) then
             HopeAddon.TravelerIcons:AwardIcon(name, "first_friends", { zone = GetZoneText() })
         end
 

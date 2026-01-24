@@ -29,7 +29,8 @@ DeathRollGame.ROLL_STATE = {
 DeathRollGame.DEFAULT_MAX_ROLL = 1000
 
 -- Proximity requirement for remote games (to verify rolls via chat)
-DeathRollGame.PROXIMITY_REQUIRED = true
+-- Set to false since we now send rolls over network
+DeathRollGame.PROXIMITY_REQUIRED = false
 
 -- Roll detection pattern (from CHAT_MSG_SYSTEM)
 -- Format: "PlayerName rolls X (1-Y)"
@@ -170,9 +171,29 @@ function DeathRollGame:OnStart(gameId)
     -- Show UI
     self:ShowUI(gameId)
 
-    HopeAddon:Print("Death Roll started! " .. game.player1 .. " rolls first.")
-    HopeAddon:Print("Type /roll " .. state.currentMax .. " to roll")
+    -- Check if practice mode for funny messages
+    local isPracticeMode = self.GameCore and game.mode == self.GameCore.GAME_MODE.LOCAL
+
+    if isPracticeMode then
+        HopeAddon:Print("Death Roll Practice started! Time to battle... yourself!")
+        HopeAddon:Print("Type /roll " .. state.currentMax .. " (you'll be rolling for both sides)")
+    else
+        HopeAddon:Print("Death Roll started! " .. game.player1 .. " rolls first.")
+        HopeAddon:Print("Type /roll " .. state.currentMax .. " to roll")
+    end
 end
+
+-- Funny practice mode messages (random selection)
+DeathRollGame.PRACTICE_JOKES = {
+    "Congratulations, you beat yourself!",
+    "You won! ...against yourself. We won't tell anyone.",
+    "Victory! Your other hand is crying.",
+    "You defeated your inner demons! (It was just you.)",
+    "Winner winner! But also loser loser?",
+    "Flawless victory over... yourself!",
+    "You're your own worst enemy. Literally.",
+    "At least you can't lose to yourself... wait.",
+}
 
 --[[
     Called when game ends
@@ -187,10 +208,20 @@ function DeathRollGame:OnEnd(gameId, reason)
 
     state.rollState = self.ROLL_STATE.FINISHED
 
+    -- Check if this is a practice/local game (playing against yourself)
+    local playerName = UnitName("player")
+    local isPracticeMode = self.GameCore and game.mode == self.GameCore.GAME_MODE.LOCAL
+
     -- Determine loser/winner
     if game.winner then
         local loser = game.winner == game.player1 and game.player2 or game.player1
-        HopeAddon:Print("Death Roll ended! " .. loser .. " loses!")
+
+        if isPracticeMode then
+            -- Funny message for practice mode
+            HopeAddon:Print("Death Roll Practice ended!")
+        else
+            HopeAddon:Print("Death Roll ended! " .. loser .. " loses!")
+        end
 
         if state.betAmount > 0 then
             HopeAddon:Print(loser .. " owes " .. HopeAddon:FormatGold(state.betAmount * 10000))
@@ -201,7 +232,6 @@ function DeathRollGame:OnEnd(gameId, reason)
     if self.GameCore and game.mode == self.GameCore.GAME_MODE.REMOTE and game.opponent then
         local Minigames = HopeAddon:GetModule("Minigames")
         if Minigames and Minigames.RecordGameResult then
-            local playerName = UnitName("player")
             local result = (game.winner == playerName) and "win" or "lose"
             local betAmount = state.betAmount or 0
             Minigames:RecordGameResult(game.opponent, "deathroll", result, betAmount)
@@ -217,7 +247,16 @@ function DeathRollGame:OnEnd(gameId, reason)
         if state.betAmount > 0 then
             stats["Bet"] = HopeAddon:FormatGold(state.betAmount * 10000)
         end
-        self.GameUI:ShowGameOver(gameId, game.winner, stats)
+
+        -- Add funny joke for practice mode
+        if isPracticeMode then
+            local joke = self.PRACTICE_JOKES[math.random(#self.PRACTICE_JOKES)]
+            stats[""] = joke  -- Empty key for clean display
+        end
+
+        -- For practice mode, always show as "victory" since you won against yourself
+        local displayWinner = isPracticeMode and playerName or game.winner
+        self.GameUI:ShowGameOver(gameId, displayWinner, stats)
     end
 end
 
@@ -300,7 +339,8 @@ function DeathRollGame:OnSystemMessage(msg)
     -- Find active game this roll belongs to
     for gameId, game in pairs(self.games) do
         if self:IsValidRoll(game, playerName, maxRoll) then
-            self:ProcessRoll(gameId, playerName, rollResult, maxRoll)
+            -- fromNetwork=false because we detected this from CHAT_MSG_SYSTEM (local roll)
+            self:ProcessRoll(gameId, playerName, rollResult, maxRoll, false)
             return
         end
     end
@@ -314,7 +354,12 @@ function DeathRollGame:IsValidRoll(game, playerName, maxRoll)
 
     local state = game.data.state
 
+    -- Game must be in progress
     if state.rollState == self.ROLL_STATE.FINISHED then
+        return false
+    end
+
+    if state.rollState == self.ROLL_STATE.WAITING_TO_START then
         return false
     end
 
@@ -323,7 +368,32 @@ function DeathRollGame:IsValidRoll(game, playerName, maxRoll)
         return false
     end
 
-    -- Check if player is in this game
+    -- Check max roll matches expected
+    if maxRoll ~= state.currentMax then
+        return false
+    end
+
+    -- Validate roll is within expected bounds (sanity check)
+    -- Note: actual roll value is validated in ProcessRoll
+    if maxRoll < 1 then
+        return false
+    end
+
+    -- Check if this is practice mode (playing against yourself)
+    local isPracticeMode = self.GameCore and game.mode == self.GameCore.GAME_MODE.LOCAL
+    local localPlayerName = UnitName("player")
+
+    if isPracticeMode then
+        -- In practice mode, the local player rolls for both sides
+        -- The roll message will always say their actual name (not "Name (2)")
+        if playerName ~= localPlayerName then
+            return false
+        end
+        -- Allow roll for either turn since it's the same person
+        return true
+    end
+
+    -- Remote game: check if player is in this game
     local isPlayer1 = playerName == game.player1
     local isPlayer2 = playerName == game.player2
 
@@ -339,27 +409,53 @@ function DeathRollGame:IsValidRoll(game, playerName, maxRoll)
         return false
     end
 
-    -- Check max roll matches expected
-    if maxRoll ~= state.currentMax then
-        return false
-    end
-
     return true
 end
 
 --[[
     Process a valid roll with gameshow animation sequence
+    @param fromNetwork boolean - True if this roll came from network (don't re-send)
 ]]
-function DeathRollGame:ProcessRoll(gameId, playerName, rollResult, maxRoll)
+function DeathRollGame:ProcessRoll(gameId, playerName, rollResult, maxRoll, fromNetwork)
     local game = self.games[gameId]
     if not game then return end
 
+    if not game.data or not game.data.state then
+        HopeAddon:Debug("ProcessRoll: Invalid game data for", gameId)
+        return
+    end
+
     local state = game.data.state
+
+    -- Validate roll result is within expected bounds
+    if type(rollResult) ~= "number" or rollResult < 1 or rollResult > maxRoll then
+        HopeAddon:Debug("ProcessRoll: Invalid roll result", rollResult, "max", maxRoll)
+        return
+    end
+
+    -- Validate maxRoll matches expected
+    if maxRoll ~= state.currentMax then
+        HopeAddon:Debug("ProcessRoll: Max mismatch - expected", state.currentMax, "got", maxRoll)
+        return
+    end
+
     local localPlayerName = UnitName("player")
     local isLocalPlayer = (playerName == localPlayerName)
 
     -- Block further rolls during animation
     state.animating = true
+
+    -- If this is a LOCAL roll (detected from our /roll), send it to the opponent
+    -- Do this BEFORE animation so opponent receives it promptly
+    if isLocalPlayer and not fromNetwork then
+        if self.GameCore and game.mode == self.GameCore.GAME_MODE.REMOTE then
+            if self.GameComms then
+                local moveData = string.format("%d|%d", rollResult, maxRoll)
+                self.GameComms:SendMove(game.opponent, "DEATH_ROLL", gameId, moveData)
+                HopeAddon:Debug("Sent roll to opponent:", rollResult, "/", maxRoll)
+            end
+        end
+    end
 
     -- Record roll
     table.insert(state.rollHistory, {
@@ -402,17 +498,22 @@ function DeathRollGame:ProcessRoll(gameId, playerName, rollResult, maxRoll)
         -- Update current max and switch turns
         currentState.currentMax = rollResult
 
+        -- Check if this is practice mode (playing against yourself)
+        local isPracticeMode = self.GameCore and currentGame.mode == self.GameCore.GAME_MODE.LOCAL
+
         local nextPlayerName
         local isYourTurn = false
 
         if currentState.rollState == self.ROLL_STATE.PLAYER1_TURN then
             currentState.rollState = self.ROLL_STATE.PLAYER2_TURN
             nextPlayerName = currentGame.player2
-            isYourTurn = (nextPlayerName == localPlayerName)
+            -- In practice mode, it's always your turn (you're both players)
+            isYourTurn = isPracticeMode or (nextPlayerName == localPlayerName)
         else
             currentState.rollState = self.ROLL_STATE.PLAYER1_TURN
             nextPlayerName = currentGame.player1
-            isYourTurn = (nextPlayerName == localPlayerName)
+            -- In practice mode, it's always your turn (you're both players)
+            isYourTurn = isPracticeMode or (nextPlayerName == localPlayerName)
         end
 
         -- Show turn prompt with gameshow style
@@ -422,18 +523,16 @@ function DeathRollGame:ProcessRoll(gameId, playerName, rollResult, maxRoll)
         end
 
         -- Print turn message to chat (backup for non-gameshow clients)
-        HopeAddon:Print(nextPlayerName .. "'s turn. /roll " .. rollResult)
+        if isPracticeMode then
+            -- Funny message for practice mode turns
+            local turnSide = currentState.rollState == self.ROLL_STATE.PLAYER1_TURN and "You" or "Also You"
+            HopeAddon:Print(turnSide .. "'s turn. /roll " .. rollResult)
+        else
+            HopeAddon:Print(nextPlayerName .. "'s turn. /roll " .. rollResult)
+        end
 
         -- Unblock rolls
         currentState.animating = false
-
-        -- Send update to remote player if networked
-        if self.GameCore and currentGame.mode == self.GameCore.GAME_MODE.REMOTE then
-            if self.GameComms then
-                local stateData = string.format("%d|%s", rollResult, playerName)
-                self.GameComms:SendState(currentGame.opponent, "DEATH_ROLL", gameId, stateData)
-            end
-        end
     end)
 end
 
@@ -445,28 +544,104 @@ end
     Handle roll from remote player
 ]]
 function DeathRollGame:HandleRemoteRoll(sender, gameId, data)
+    -- Validate sender
+    if not sender or sender == "" then
+        HopeAddon:Debug("HandleRemoteRoll: Invalid sender")
+        return
+    end
+
+    -- Validate data format
+    if not data or data == "" then
+        HopeAddon:Debug("HandleRemoteRoll: Empty data")
+        return
+    end
+
     local rollResult, maxRoll = strsplit("|", data)
     rollResult = tonumber(rollResult)
     maxRoll = tonumber(maxRoll)
 
-    local game = self.games[gameId]
-    if not game then return end
+    if not rollResult or not maxRoll then
+        HopeAddon:Debug("HandleRemoteRoll: Invalid data format -", data)
+        return
+    end
 
-    -- Process as if we detected it locally
-    self:ProcessRoll(gameId, sender, rollResult, maxRoll)
+    local game = self.games[gameId]
+    if not game then
+        HopeAddon:Debug("HandleRemoteRoll: Game not found:", gameId)
+        return
+    end
+
+    -- Validate sender is our opponent (security check)
+    if game.opponent and sender ~= game.opponent then
+        HopeAddon:Debug("HandleRemoteRoll: Sender mismatch - expected", game.opponent, "got", sender)
+        return
+    end
+
+    -- Validate the roll is legitimate
+    if not self:IsValidRoll(game, sender, maxRoll) then
+        HopeAddon:Debug("HandleRemoteRoll: Invalid roll from", sender, "- not their turn or wrong max")
+        return
+    end
+
+    -- Validate roll result is within bounds
+    if rollResult < 1 or rollResult > maxRoll then
+        HopeAddon:Debug("HandleRemoteRoll: Roll out of bounds:", rollResult, "max:", maxRoll)
+        return
+    end
+
+    HopeAddon:Debug("Received remote roll from", sender, ":", rollResult, "/", maxRoll)
+
+    -- Process the roll with fromNetwork=true so we don't re-send it
+    self:ProcessRoll(gameId, sender, rollResult, maxRoll, true)
 end
 
 --[[
     Handle state sync from remote player
 ]]
 function DeathRollGame:HandleRemoteState(sender, gameId, data)
+    -- Validate sender
+    if not sender or sender == "" then
+        HopeAddon:Debug("HandleRemoteState: Invalid sender")
+        return
+    end
+
+    -- Validate data
+    if not data or data == "" then
+        HopeAddon:Debug("HandleRemoteState: Empty data")
+        return
+    end
+
     local rollResult, playerName = strsplit("|", data)
     rollResult = tonumber(rollResult)
 
+    if not rollResult then
+        HopeAddon:Debug("HandleRemoteState: Invalid roll result in data")
+        return
+    end
+
     local game = self.games[gameId]
-    if not game or not game.data then return end
+    if not game or not game.data then
+        HopeAddon:Debug("HandleRemoteState: Game not found:", gameId)
+        return
+    end
+
+    -- Validate sender is our opponent
+    if game.opponent and sender ~= game.opponent then
+        HopeAddon:Debug("HandleRemoteState: Sender mismatch - expected", game.opponent, "got", sender)
+        return
+    end
 
     local state = game.data.state
+    if not state then
+        HopeAddon:Debug("HandleRemoteState: Invalid game state")
+        return
+    end
+
+    -- Validate roll result is reasonable (sanity check)
+    if rollResult < 1 or rollResult > 1000000 then
+        HopeAddon:Debug("HandleRemoteState: Invalid roll value:", rollResult)
+        return
+    end
 
     -- Sync our state
     state.currentMax = rollResult
@@ -528,8 +703,12 @@ function DeathRollGame:ShowUI(gameId)
     local state = game.data.state
     local localPlayerName = UnitName("player")
 
-    -- Create larger game window for gameshow display
-    local window = self.GameUI:CreateGameWindow(gameId, "DEATH ROLL", "MEDIUM")
+    -- Check if practice mode (playing against yourself)
+    local isPracticeMode = self.GameCore and game.mode == self.GameCore.GAME_MODE.LOCAL
+
+    -- Create larger game window for gameshow display (fun title for practice)
+    local windowTitle = isPracticeMode and "DEATH ROLL (Solo Edition)" or "DEATH ROLL"
+    local window = self.GameUI:CreateGameWindow(gameId, windowTitle, "MEDIUM")
     if not window then return end
 
     -- Store window reference for cleanup
@@ -537,8 +716,11 @@ function DeathRollGame:ShowUI(gameId)
 
     local content = window.content
 
-    -- Player names header
-    local p1Label = self.GameUI:CreateLabel(content, game.player1, "GameFontNormalLarge")
+    -- Player names header (funny names for practice mode)
+    local p1Name = isPracticeMode and "You" or game.player1
+    local p2Name = isPracticeMode and "Also You" or game.player2
+
+    local p1Label = self.GameUI:CreateLabel(content, p1Name, "GameFontNormalLarge")
     p1Label:SetPoint("TOPLEFT", 15, -10)
     p1Label:SetTextColor(0.2, 0.9, 0.2)
 
@@ -546,7 +728,7 @@ function DeathRollGame:ShowUI(gameId)
     vsLabel:SetPoint("TOP", 0, -12)
     vsLabel:SetTextColor(0.7, 0.7, 0.7)
 
-    local p2Label = self.GameUI:CreateLabel(content, game.player2, "GameFontNormalLarge")
+    local p2Label = self.GameUI:CreateLabel(content, p2Name, "GameFontNormalLarge")
     p2Label:SetPoint("TOPRIGHT", -15, -10)
     p2Label:SetTextColor(0.9, 0.2, 0.2)
 
@@ -595,8 +777,14 @@ function DeathRollGame:ShowUI(gameId)
     window:Show()
 
     -- Show initial turn prompt
-    local isYourTurn = (state.rollState == self.ROLL_STATE.PLAYER1_TURN and game.player1 == localPlayerName)
-        or (state.rollState == self.ROLL_STATE.PLAYER2_TURN and game.player2 == localPlayerName)
+    -- In practice mode, it's always your turn (you're both players)
+    local isYourTurn
+    if isPracticeMode then
+        isYourTurn = true  -- Always your turn in practice mode
+    else
+        isYourTurn = (state.rollState == self.ROLL_STATE.PLAYER1_TURN and game.player1 == localPlayerName)
+            or (state.rollState == self.ROLL_STATE.PLAYER2_TURN and game.player2 == localPlayerName)
+    end
     local opponentName = isYourTurn and nil or (state.rollState == self.ROLL_STATE.PLAYER1_TURN and game.player1 or game.player2)
 
     if DeathRollUI then
@@ -655,26 +843,79 @@ end
 
 --[[
     Start a new Death Roll game
-    @param opponent string|nil - Opponent name (nil for local)
+    @param opponent string|nil - Opponent name (nil for local/practice)
     @param betAmount number|nil - Gold bet in gold units
     @param maxRoll number|nil - Starting max (default 1000)
-    @return string - Game ID
+    @return string|nil - Game ID or nil if validation fails
 ]]
 function DeathRollGame:StartGame(opponent, betAmount, maxRoll)
-    if not self.GameCore then return nil end
+    if not self.GameCore then
+        HopeAddon:Debug("StartGame failed: GameCore not available")
+        return nil
+    end
+
+    -- Validate maxRoll
+    maxRoll = maxRoll or self.DEFAULT_MAX_ROLL
+    if type(maxRoll) ~= "number" or maxRoll < 2 then
+        HopeAddon:Print("|cFFFF0000Invalid max roll!|r Must be at least 2.")
+        return nil
+    end
+    if maxRoll > 1000000 then
+        HopeAddon:Print("|cFFFF0000Max roll too high!|r Maximum is 1,000,000.")
+        return nil
+    end
+
+    -- Validate betAmount
+    betAmount = betAmount or 0
+    if type(betAmount) ~= "number" or betAmount < 0 then
+        betAmount = 0
+    end
+
+    -- Validate opponent name (if provided)
+    if opponent then
+        if type(opponent) ~= "string" or opponent == "" then
+            HopeAddon:Print("|cFFFF0000Invalid opponent name!|r")
+            return nil
+        end
+        -- Can't play against yourself in remote mode
+        if opponent == UnitName("player") then
+            HopeAddon:Print("|cFFFFFF00Want to practice? Use the Practice button instead!|r")
+            return nil
+        end
+    end
+
+    -- Check for existing active game (prevent multiple games)
+    for existingGameId, existingGame in pairs(self.games) do
+        if existingGame.data and existingGame.data.state then
+            local existingState = existingGame.data.state
+            if existingState.rollState ~= self.ROLL_STATE.FINISHED then
+                HopeAddon:Print("|cFFFF0000You already have an active Death Roll game!|r")
+                HopeAddon:Print("Finish or cancel it first.")
+                return nil
+            end
+        end
+    end
 
     local mode = opponent and self.GameCore.GAME_MODE.REMOTE or self.GameCore.GAME_MODE.LOCAL
     local gameId = self.GameCore:CreateGame(self.GameCore.GAME_TYPE.DEATH_ROLL, mode, opponent)
 
-    local game = self.GameCore:GetGame(gameId)
-    if game and game.data and game.data.state then
-        local state = game.data.state
-        state.maxRoll = maxRoll or self.DEFAULT_MAX_ROLL
-        state.currentMax = state.maxRoll
-        state.betAmount = betAmount or 0
+    if not gameId then
+        HopeAddon:Print("|cFFFF0000Failed to create game!|r")
+        return nil
     end
 
-    -- If local, set player 2 as the local player
+    local game = self.GameCore:GetGame(gameId)
+    if not game or not game.data or not game.data.state then
+        HopeAddon:Print("|cFFFF0000Failed to initialize game!|r")
+        return nil
+    end
+
+    local state = game.data.state
+    state.maxRoll = maxRoll
+    state.currentMax = state.maxRoll
+    state.betAmount = betAmount
+
+    -- If local/practice mode, set player 2 as the local player
     if not opponent then
         game.player2 = UnitName("player") .. " (2)"
     end

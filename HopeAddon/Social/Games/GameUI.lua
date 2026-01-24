@@ -22,7 +22,7 @@ GameUI.WINDOW_SIZES = {
     PONG = { width = 500, height = 400 },
     TETRIS = { width = 700, height = 550 },
     TETRIS_REMOTE = { width = 480, height = 520 },  -- Single board + opponent panel for Score Challenge
-    WORDS = { width = 700, height = 720 },  -- Larger for graphical tiles + tile rack
+    WORDS = { width = 700, height = 750 },  -- Larger for graphical tiles + tile rack + hint system
     BATTLESHIP = { width = 700, height = 680 },  -- Two 10x10 grids + instructions + announcements area
 }
 
@@ -535,9 +535,16 @@ function GameUI:ShowGameOver(gameId, winner, stats)
         resultText:SetText("VICTORY!")
         resultText:SetTextColor(0.2, 1, 0.2)
 
-        -- Celebration effect for victory
+        -- Celebration effect for victory (sparkles + temporary effects)
         if HopeAddon.Effects then
             HopeAddon.Effects:Celebrate(overlay, 2.5, { colorName = "FEL_GREEN" })
+        end
+
+        -- Persistent pulsing green glow on the overlay (stays until closed)
+        -- This creates the satisfying "victory box" effect
+        if HopeAddon.Effects and HopeAddon.Effects.CreatePulsingGlow then
+            -- Store reference for cleanup when overlay is hidden
+            overlay.victoryGlow = HopeAddon.Effects:CreatePulsingGlow(overlay, "FEL_GREEN", 0.7)
         end
     else
         resultText:SetText("DEFEAT")
@@ -560,6 +567,10 @@ function GameUI:ShowGameOver(gameId, winner, stats)
     local closeBtn = self:CreateButton(overlay, "Close", 120, 32)
     closeBtn:SetPoint("BOTTOM", 0, 30)
     closeBtn:SetScript("OnClick", function()
+        -- Clean up victory glow before hiding
+        if HopeAddon.Effects then
+            HopeAddon.Effects:StopGlowsOnParent(overlay)
+        end
         overlay:Hide()
         window:Hide()
         self:DestroyGameWindow(gameId)

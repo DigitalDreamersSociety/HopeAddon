@@ -362,18 +362,18 @@ function Reputation:ShowReputationNotification(factionName, standingInfo, loreTe
 
     -- Configure pre-created font strings
     notif.titleText:ClearAllPoints()
-    notif.titleText:SetFont(HopeAddon.assets.fonts.TITLE, 16)
+    notif.titleText:SetFont(HopeAddon.assets.fonts.TITLE, 16, "")
     notif.titleText:SetPoint("TOP", notif, "TOP", 0, -12)
     notif.titleText:SetText("|cFF" .. standingInfo.hex .. "REPUTATION: " .. string.upper(standingInfo.name) .. "|r")
 
     notif.line1:ClearAllPoints()
-    notif.line1:SetFont(HopeAddon.assets.fonts.HEADER, 14)
+    notif.line1:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
     notif.line1:SetPoint("TOP", notif.titleText, "BOTTOM", 0, -5)
     notif.line1:SetText(factionName)
     notif.line1:SetTextColor(1, 1, 1, 1)
 
     notif.line2:ClearAllPoints()
-    notif.line2:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    notif.line2:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     notif.line2:SetPoint("TOP", notif.line1, "BOTTOM", 0, -8)
     notif.line2:SetWidth(350)
     notif.line2:SetText('"' .. loreText .. '"')
@@ -423,25 +423,25 @@ function Reputation:ShowChoiceNotification(chosenFaction, opposingFaction, loreT
 
     -- Configure pre-created font strings
     notif.titleText:ClearAllPoints()
-    notif.titleText:SetFont(HopeAddon.assets.fonts.TITLE, 20)
+    notif.titleText:SetFont(HopeAddon.assets.fonts.TITLE, 20, "")
     notif.titleText:SetPoint("TOP", notif, "TOP", 0, -15)
     notif.titleText:SetText(HopeAddon:ColorText("A FATEFUL CHOICE", "GOLD_BRIGHT"))
 
     notif.line1:ClearAllPoints()
-    notif.line1:SetFont(HopeAddon.assets.fonts.HEADER, 16)
+    notif.line1:SetFont(HopeAddon.assets.fonts.HEADER, 16, "")
     notif.line1:SetPoint("TOP", notif.titleText, "BOTTOM", 0, -8)
     notif.line1:SetText("You have aligned with " .. HopeAddon:ColorText(chosenFaction, "ARCANE_PURPLE"))
     notif.line1:SetTextColor(1, 1, 1, 1)
 
     notif.line2:ClearAllPoints()
-    notif.line2:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    notif.line2:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     notif.line2:SetPoint("TOP", notif.line1, "BOTTOM", 0, -10)
     notif.line2:SetWidth(380)
     notif.line2:SetText('"' .. loreText .. '"')
     notif.line2:SetTextColor(0.9, 0.85, 0.7, 1)
 
     notif.line3:ClearAllPoints()
-    notif.line3:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+    notif.line3:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
     notif.line3:SetPoint("BOTTOM", notif, "BOTTOM", 0, 12)
     notif.line3:SetText(HopeAddon:ColorText(opposingFaction, "HELLFIRE_RED") .. " will never trust you again.")
     notif.line3:SetTextColor(1, 1, 1, 1)

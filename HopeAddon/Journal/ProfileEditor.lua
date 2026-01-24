@@ -78,7 +78,7 @@ function ProfileEditor:CreateFrame()
 
     -- Title
     local title = frame:CreateFontString(nil, "OVERLAY")
-    title:SetFont(HopeAddon.assets.fonts.TITLE, 18)
+    title:SetFont(HopeAddon.assets.fonts.TITLE, 18, "")
     title:SetPoint("TOP", 0, -16)
     title:SetText("|cFFFFD700RP Profile|r")
 
@@ -123,14 +123,14 @@ function ProfileEditor:CreateProfileFields(parent)
 
     -- Section header
     local header = parent:CreateFontString(nil, "OVERLAY")
-    header:SetFont(HopeAddon.assets.fonts.HEADER, 14)
+    header:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
     header:SetPoint("TOPLEFT", MARGIN, yOffset)
     header:SetText("|cFF00BFFFCharacter Profile|r")
     yOffset = yOffset - 25
 
     -- Status dropdown
     local statusLabel = parent:CreateFontString(nil, "OVERLAY")
-    statusLabel:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    statusLabel:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     statusLabel:SetPoint("TOPLEFT", MARGIN, yOffset)
     statusLabel:SetText("RP Status:")
     yOffset = yOffset - 20
@@ -141,7 +141,7 @@ function ProfileEditor:CreateProfileFields(parent)
 
     -- Pronouns
     local pronounsLabel = parent:CreateFontString(nil, "OVERLAY")
-    pronounsLabel:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    pronounsLabel:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     pronounsLabel:SetPoint("TOPLEFT", MARGIN, yOffset)
     pronounsLabel:SetText("Pronouns (optional):")
     yOffset = yOffset - 18
@@ -154,7 +154,7 @@ function ProfileEditor:CreateProfileFields(parent)
 
     -- Backstory
     local backstoryLabel = parent:CreateFontString(nil, "OVERLAY")
-    backstoryLabel:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    backstoryLabel:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     backstoryLabel:SetPoint("TOPLEFT", MARGIN, yOffset)
     backstoryLabel:SetText("Backstory:")
     yOffset = yOffset - 18
@@ -167,7 +167,7 @@ function ProfileEditor:CreateProfileFields(parent)
 
     -- Appearance
     local appearanceLabel = parent:CreateFontString(nil, "OVERLAY")
-    appearanceLabel:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    appearanceLabel:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     appearanceLabel:SetPoint("TOPLEFT", MARGIN, yOffset)
     appearanceLabel:SetText("Physical Appearance:")
     yOffset = yOffset - 18
@@ -180,7 +180,7 @@ function ProfileEditor:CreateProfileFields(parent)
 
     -- RP Hooks
     local hooksLabel = parent:CreateFontString(nil, "OVERLAY")
-    hooksLabel:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    hooksLabel:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     hooksLabel:SetPoint("TOPLEFT", MARGIN, yOffset)
     hooksLabel:SetText("RP Hooks / Rumors:")
     yOffset = yOffset - 18
@@ -193,7 +193,7 @@ function ProfileEditor:CreateProfileFields(parent)
 
     -- Personality traits
     local traitsLabel = parent:CreateFontString(nil, "OVERLAY")
-    traitsLabel:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    traitsLabel:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     traitsLabel:SetPoint("TOPLEFT", MARGIN, yOffset)
     traitsLabel:SetText("Personality Traits (select up to 5):")
     yOffset = yOffset - 20
@@ -211,7 +211,7 @@ function ProfileEditor:CreateProfileFields(parent)
         checkbox:SetPoint("TOPLEFT", MARGIN + (col * checkWidth), yOffset - (row * 22))
 
         local label = checkbox:CreateFontString(nil, "OVERLAY")
-        label:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+        label:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
         label:SetPoint("LEFT", checkbox, "RIGHT", 2, 0)
         label:SetText(trait)
         checkbox.traitName = trait
@@ -244,14 +244,14 @@ function ProfileEditor:CreateBadgeSection(parent)
 
     -- Section header
     local header = parent:CreateFontString(nil, "OVERLAY")
-    header:SetFont(HopeAddon.assets.fonts.HEADER, 14)
+    header:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
     header:SetPoint("TOPLEFT", MARGIN, yOffset)
     header:SetText("|cFFFFD700Badge Rewards|r")
     yOffset = yOffset - 25
 
     -- Name color dropdown
     local colorLabel = parent:CreateFontString(nil, "OVERLAY")
-    colorLabel:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    colorLabel:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     colorLabel:SetPoint("TOPLEFT", MARGIN, yOffset)
     colorLabel:SetText("Display Color (from badges):")
     yOffset = yOffset - 20
@@ -262,7 +262,7 @@ function ProfileEditor:CreateBadgeSection(parent)
 
     -- Title dropdown
     local titleLabel = parent:CreateFontString(nil, "OVERLAY")
-    titleLabel:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    titleLabel:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     titleLabel:SetPoint("TOPLEFT", MARGIN, yOffset)
     titleLabel:SetText("Display Title (from badges):")
     yOffset = yOffset - 20
@@ -273,13 +273,13 @@ function ProfileEditor:CreateBadgeSection(parent)
 
     -- Badge list preview
     local badgeLabel = parent:CreateFontString(nil, "OVERLAY")
-    badgeLabel:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    badgeLabel:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     badgeLabel:SetPoint("TOPLEFT", MARGIN, yOffset)
     badgeLabel:SetText("Unlocked Badges:")
     yOffset = yOffset - 18
 
     self.badgeListText = parent:CreateFontString(nil, "OVERLAY")
-    self.badgeListText:SetFont(HopeAddon.assets.fonts.SMALL, 10)
+    self.badgeListText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
     self.badgeListText:SetPoint("TOPLEFT", MARGIN, yOffset)
     self.badgeListText:SetWidth(FRAME_WIDTH - 80)
     self.badgeListText:SetJustifyH("LEFT")
@@ -298,7 +298,7 @@ function ProfileEditor:CreateSettingsSection(parent)
 
     -- Section header
     local header = parent:CreateFontString(nil, "OVERLAY")
-    header:SetFont(HopeAddon.assets.fonts.HEADER, 14)
+    header:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
     header:SetPoint("TOPLEFT", MARGIN, yOffset)
     header:SetText("|cFF00FF00Fellow Traveler Settings|r")
     yOffset = yOffset - 25
@@ -308,7 +308,7 @@ function ProfileEditor:CreateSettingsSection(parent)
     enableCheck:SetSize(20, 20)
     enableCheck:SetPoint("TOPLEFT", MARGIN, yOffset)
     local enableLabel = enableCheck:CreateFontString(nil, "OVERLAY")
-    enableLabel:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    enableLabel:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     enableLabel:SetPoint("LEFT", enableCheck, "RIGHT", 4, 0)
     enableLabel:SetText("Enable Fellow Traveler detection")
     enableCheck:SetScript("OnEnter", function(self)
@@ -327,7 +327,7 @@ function ProfileEditor:CreateSettingsSection(parent)
     chatColorCheck:SetSize(20, 20)
     chatColorCheck:SetPoint("TOPLEFT", MARGIN, yOffset)
     local chatLabel = chatColorCheck:CreateFontString(nil, "OVERLAY")
-    chatLabel:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    chatLabel:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     chatLabel:SetPoint("LEFT", chatColorCheck, "RIGHT", 4, 0)
     chatLabel:SetText("Color fellow traveler names in chat")
     chatColorCheck:SetScript("OnEnter", function(self)
@@ -346,7 +346,7 @@ function ProfileEditor:CreateSettingsSection(parent)
     shareCheck:SetSize(20, 20)
     shareCheck:SetPoint("TOPLEFT", MARGIN, yOffset)
     local shareLabel = shareCheck:CreateFontString(nil, "OVERLAY")
-    shareLabel:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    shareLabel:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     shareLabel:SetPoint("LEFT", shareCheck, "RIGHT", 4, 0)
     shareLabel:SetText("Share my profile with other users")
     shareCheck:SetScript("OnEnter", function(self)
@@ -365,7 +365,7 @@ function ProfileEditor:CreateSettingsSection(parent)
     tooltipCheck:SetSize(20, 20)
     tooltipCheck:SetPoint("TOPLEFT", MARGIN, yOffset)
     local tooltipLabel = tooltipCheck:CreateFontString(nil, "OVERLAY")
-    tooltipLabel:SetFont(HopeAddon.assets.fonts.BODY, 11)
+    tooltipLabel:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     tooltipLabel:SetPoint("LEFT", tooltipCheck, "RIGHT", 4, 0)
     tooltipLabel:SetText("Show profiles in tooltips")
     tooltipCheck:SetScript("OnEnter", function(self)

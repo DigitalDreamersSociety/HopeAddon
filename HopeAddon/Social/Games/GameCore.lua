@@ -151,10 +151,31 @@ end
     @param mode string - LOCAL, NEARBY, or REMOTE
     @param opponent string|nil - Opponent name (nil for local)
     @param sharedGameId string|nil - Optional shared gameId (for network games)
+    @param isChallenger boolean|nil - True if this player initiated the challenge (goes first)
     @return string - Game ID
 ]]
-function GameCore:CreateGame(gameType, mode, opponent, sharedGameId)
+function GameCore:CreateGame(gameType, mode, opponent, sharedGameId, isChallenger)
     local gameId = sharedGameId or self:GenerateGameId()
+    local localPlayer = UnitName("player")
+
+    -- Determine player1/player2 based on who challenged
+    -- Player1 always goes first, so challenger should be player1
+    local player1, player2
+    if mode == self.GAME_MODE.REMOTE and opponent then
+        if isChallenger then
+            -- Challenger: I am player1, opponent is player2
+            player1 = localPlayer
+            player2 = opponent
+        else
+            -- Acceptor: Challenger (opponent) is player1, I am player2
+            player1 = opponent
+            player2 = localPlayer
+        end
+    else
+        -- Local games: local player is always player1
+        player1 = localPlayer
+        player2 = opponent or "Player 2"
+    end
 
     local game = {
         id = gameId,
@@ -162,8 +183,9 @@ function GameCore:CreateGame(gameType, mode, opponent, sharedGameId)
         mode = mode,
         state = self.STATE.IDLE,
         opponent = opponent,
-        player1 = UnitName("player"),
-        player2 = opponent or "Player 2",
+        player1 = player1,
+        player2 = player2,
+        isChallenger = isChallenger or false,
         startTime = nil,
         endTime = nil,
         winner = nil,

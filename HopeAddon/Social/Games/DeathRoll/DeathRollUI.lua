@@ -170,7 +170,7 @@ function DeathRollUI:CreateFramePools()
         -- Create function
         function()
             local frame = CreateBackdropFrame("Frame", nil, UIParent)
-            frame:SetSize(1, 50)  -- Width set dynamically when parented
+            frame:SetSize(1, 70)  -- Width set dynamically when parented (increased for button)
 
             frame:SetBackdrop({
                 bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
@@ -184,13 +184,52 @@ function DeathRollUI:CreateFramePools()
 
             -- Main prompt text
             local promptText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-            promptText:SetPoint("TOP", frame, "TOP", 0, -8)
+            promptText:SetPoint("TOP", frame, "TOP", 0, -6)
             promptText:SetText("")
             frame.promptText = promptText
 
-            -- Command hint text
-            local hintText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-            hintText:SetPoint("TOP", promptText, "BOTTOM", 0, -3)
+            -- Roll button (big clickable button)
+            local rollBtn = CreateFrame("Button", nil, frame)
+            rollBtn:SetSize(100, 28)
+            rollBtn:SetPoint("TOP", promptText, "BOTTOM", 0, -4)
+
+            -- Button background
+            local btnBg = rollBtn:CreateTexture(nil, "BACKGROUND")
+            btnBg:SetAllPoints()
+            btnBg:SetColorTexture(0.2, 0.6, 0.2, 0.9)
+            rollBtn.bg = btnBg
+
+            -- Button border
+            local btnBorder = rollBtn:CreateTexture(nil, "BORDER")
+            btnBorder:SetPoint("TOPLEFT", -2, 2)
+            btnBorder:SetPoint("BOTTOMRIGHT", 2, -2)
+            btnBorder:SetColorTexture(0.8, 0.7, 0.2, 1)
+            rollBtn.border = btnBorder
+
+            -- Button text
+            local btnText = rollBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+            btnText:SetPoint("CENTER")
+            btnText:SetText("ROLL!")
+            btnText:SetTextColor(1, 1, 1)
+            rollBtn.text = btnText
+
+            -- Hover effects
+            rollBtn:SetScript("OnEnter", function(self)
+                self.bg:SetColorTexture(0.3, 0.8, 0.3, 1)
+                if HopeAddon.Sounds then
+                    HopeAddon.Sounds:PlayHover()
+                end
+            end)
+            rollBtn:SetScript("OnLeave", function(self)
+                self.bg:SetColorTexture(0.2, 0.6, 0.2, 0.9)
+            end)
+
+            rollBtn:Hide()  -- Hidden by default, shown when it's your turn
+            frame.rollBtn = rollBtn
+
+            -- Command hint text (below button)
+            local hintText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            hintText:SetPoint("TOP", rollBtn, "BOTTOM", 0, -3)
             hintText:SetText("")
             frame.hintText = hintText
 
@@ -205,6 +244,12 @@ function DeathRollUI:CreateFramePools()
             frame:SetBackdropBorderColor(COLORS.GOLD.r, COLORS.GOLD.g, COLORS.GOLD.b, 1)
             frame.promptText:SetText("")
             frame.hintText:SetText("")
+            -- Reset roll button
+            if frame.rollBtn then
+                frame.rollBtn:Hide()
+                frame.rollBtn:SetScript("OnClick", nil)
+                frame.rollBtn.bg:SetColorTexture(0.2, 0.6, 0.2, 0.9)
+            end
             -- Stop any active effects
             if HopeAddon.Effects then
                 HopeAddon.Effects:StopGlowsOnParent(frame)
@@ -620,26 +665,60 @@ function DeathRollUI:AcquireTurnPromptFrame(parent)
         })
         frame:SetBackdropColor(0.1, 0.08, 0.15, 0.95)
         local promptText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-        promptText:SetPoint("TOP", frame, "TOP", 0, -8)
+        promptText:SetPoint("TOP", frame, "TOP", 0, -6)
         frame.promptText = promptText
-        local hintText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        hintText:SetPoint("TOP", promptText, "BOTTOM", 0, -3)
+
+        -- Create roll button for fallback
+        local rollBtn = CreateFrame("Button", nil, frame)
+        rollBtn:SetSize(100, 28)
+        rollBtn:SetPoint("TOP", promptText, "BOTTOM", 0, -4)
+        local btnBg = rollBtn:CreateTexture(nil, "BACKGROUND")
+        btnBg:SetAllPoints()
+        btnBg:SetColorTexture(0.2, 0.6, 0.2, 0.9)
+        rollBtn.bg = btnBg
+        local btnBorder = rollBtn:CreateTexture(nil, "BORDER")
+        btnBorder:SetPoint("TOPLEFT", -2, 2)
+        btnBorder:SetPoint("BOTTOMRIGHT", 2, -2)
+        btnBorder:SetColorTexture(0.8, 0.7, 0.2, 1)
+        rollBtn.border = btnBorder
+        local btnText = rollBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+        btnText:SetPoint("CENTER")
+        btnText:SetText("ROLL!")
+        btnText:SetTextColor(1, 1, 1)
+        rollBtn.text = btnText
+        rollBtn:SetScript("OnEnter", function(self)
+            self.bg:SetColorTexture(0.3, 0.8, 0.3, 1)
+        end)
+        rollBtn:SetScript("OnLeave", function(self)
+            self.bg:SetColorTexture(0.2, 0.6, 0.2, 0.9)
+        end)
+        rollBtn:Hide()
+        frame.rollBtn = rollBtn
+
+        local hintText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        hintText:SetPoint("TOP", rollBtn, "BOTTOM", 0, -3)
         frame.hintText = hintText
     end
 
     -- Configure for this parent
     frame:SetParent(parent)
-    frame:SetSize(parent:GetWidth() - 30, 50)
+    frame:SetSize(parent:GetWidth() - 30, 70)  -- Increased height for button
     frame:ClearAllPoints()
-    frame:SetPoint("BOTTOM", parent, "BOTTOM", 0, 60)
+    frame:SetPoint("BOTTOM", parent, "BOTTOM", 0, 50)
     frame:SetBackdropBorderColor(COLORS.GOLD.r, COLORS.GOLD.g, COLORS.GOLD.b, 1)
     frame:Hide()
 
     -- Reset text
     frame.promptText:SetText("YOUR TURN!")
     frame.promptText:SetTextColor(COLORS.GOLD.r, COLORS.GOLD.g, COLORS.GOLD.b)
-    frame.hintText:SetText("/roll 1-1000")
-    frame.hintText:SetTextColor(0.8, 0.8, 0.8)
+    frame.hintText:SetText("or type /roll")
+    frame.hintText:SetTextColor(0.6, 0.6, 0.6)
+
+    -- Reset button
+    if frame.rollBtn then
+        frame.rollBtn:Hide()
+        frame.rollBtn:SetScript("OnClick", nil)
+    end
 
     return frame
 end
@@ -832,8 +911,22 @@ function DeathRollUI:ShowTurnPrompt(gameId, maxRoll, isYourTurn, opponentName)
         -- YOUR TURN - pulsing gold
         turnPrompt.promptText:SetText("YOUR TURN!")
         turnPrompt.promptText:SetTextColor(COLORS.GOLD.r, COLORS.GOLD.g, COLORS.GOLD.b)
-        turnPrompt.hintText:SetText("/roll 1-" .. maxRoll)
+        turnPrompt.hintText:SetText("or type /roll 1-" .. maxRoll)
         turnPrompt:SetBackdropBorderColor(COLORS.GOLD.r, COLORS.GOLD.g, COLORS.GOLD.b, 1)
+
+        -- Show and configure the roll button
+        if turnPrompt.rollBtn then
+            turnPrompt.rollBtn.text:SetText("ROLL 1-" .. maxRoll)
+            turnPrompt.rollBtn:SetScript("OnClick", function()
+                -- Execute the roll command
+                RandomRoll(1, maxRoll)
+                -- Play click sound
+                if HopeAddon.Sounds then
+                    HopeAddon.Sounds:PlayClick()
+                end
+            end)
+            turnPrompt.rollBtn:Show()
+        end
 
         -- Add pulsing glow effect
         if HopeAddon.Effects then
@@ -845,7 +938,12 @@ function DeathRollUI:ShowTurnPrompt(gameId, maxRoll, isYourTurn, opponentName)
             HopeAddon.Sounds:PlayDeathRollYourTurn()
         end
     else
-        -- Waiting for opponent
+        -- Waiting for opponent - hide roll button
+        if turnPrompt.rollBtn then
+            turnPrompt.rollBtn:Hide()
+            turnPrompt.rollBtn:SetScript("OnClick", nil)
+        end
+
         local name = opponentName or "opponent"
         turnPrompt.promptText:SetText("Waiting for " .. name .. "...")
         turnPrompt.promptText:SetTextColor(0.6, 0.6, 0.6)
@@ -863,6 +961,11 @@ end
 function DeathRollUI:HideTurnPrompt(gameId)
     local frames = self.gameshowFrames[gameId]
     if not frames or not frames.turnPrompt then return end
+
+    -- Hide the roll button too
+    if frames.turnPrompt.rollBtn then
+        frames.turnPrompt.rollBtn:Hide()
+    end
 
     frames.turnPrompt:Hide()
     if HopeAddon.Effects then

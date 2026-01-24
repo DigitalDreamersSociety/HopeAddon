@@ -167,6 +167,13 @@ function WordGame:OnCreate(gameId, game)
             -- Status area
             lastMoveText = nil,
             instructionText = nil,
+            -- Hint system UI
+            hintContainer = nil,        -- Container for hint elements
+            hintText = nil,             -- Contextual hint FontString
+            stepIndicator = nil,        -- Step indicator container
+            stepFrames = {},            -- Array of 3 step frames
+            centerPulseGlow = nil,      -- Glow data for center square pulse
+            playButtonPulseGlow = nil,  -- Glow data for PLAY button pulse
         },
         state = {
             board = self.WordBoard:New(),  -- WordBoard instance with methods
@@ -195,6 +202,9 @@ function WordGame:OnCreate(gameId, game)
             },
             -- Online status ticker (for remote games)
             statusTicker = nil,
+            -- Hint system state
+            currentHintState = nil,     -- Current hint state enum
+            currentStep = 0,            -- Current step (1, 2, or 3)
         },
     }
 
@@ -1538,11 +1548,14 @@ function WordGame:ShowUI(gameId)
     -- ========== TURN BANNER ==========
     self:CreateTurnBanner(content, ui)
 
+    -- ========== HINT SYSTEM ==========
+    self:CreateHintContainer(content, ui, gameId)
+
     -- ========== BOARD CONTAINER ==========
     local boardSize = self.BOARD_SIZE * (self.TILE_SIZE + self.TILE_PADDING) + 40  -- +40 for row/col labels
     local boardContainer = CreateFrame("Frame", nil, content)
     boardContainer:SetSize(boardSize, boardSize)
-    boardContainer:SetPoint("TOP", 0, -60)
+    boardContainer:SetPoint("TOP", 0, -85)  -- Below turn banner (5) + hint container (45+35=80)
     ui.boardContainer = boardContainer
 
     -- Board background (clean wood tone instead of quest parchment)
@@ -1692,7 +1705,7 @@ function WordGame:CreatePlayerPanel(parent, ui, game, playerNum)
     local icon = frame:CreateTexture(nil, "ARTWORK")
     icon:SetSize(32, 32)
     icon:SetPoint("LEFT", 8, 0)
-    icon:SetTexture("Interface\\Icons\\Achievement_Character_Human_" .. (isP1 and "Male" or "Female"))
+    icon:SetTexture("Interface\\Icons\\INV_Misc_Head_Human_0" .. (isP1 and "1" or "2"))  -- TBC compatible
 
     -- Player name
     local nameText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -1775,6 +1788,298 @@ function WordGame:CreateTurnBanner(parent, ui)
     ui.turnBanner = banner
     ui.turnText = turnText
     ui.turnGlow = turnGlow
+end
+
+--[[
+    Create the hint container with step indicator and contextual hint text
+    Positioned below the turn banner, above the board
+]]
+function WordGame:CreateHintContainer(parent, ui, gameId)
+    local C = HopeAddon.Constants
+
+    -- Container for all hint elements
+    local hintContainer = CreateFrame("Frame", nil, parent)
+    hintContainer:SetSize(400, 45)
+    hintContainer:SetPoint("TOP", 0, -35)
+    ui.hintContainer = hintContainer
+
+    -- Step indicator (3 steps: Place → Form → Play)
+    self:CreateStepIndicator(hintContainer, ui)
+
+    -- Hint text (contextual message) - below step indicator
+    local hintText = hintContainer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    hintText:SetPoint("TOP", 0, -25)
+    hintText:SetText("")  -- Will be set by UpdateHints
+    local hintColor = C.WORDS_HINT_COLORS.HINT_TEXT
+    hintText:SetTextColor(hintColor.r, hintColor.g, hintColor.b, hintColor.a)
+    ui.hintText = hintText
+end
+
+--[[
+    Create the 3-step progress indicator (Place → Form → Play)
+]]
+function WordGame:CreateStepIndicator(parent, ui)
+    local C = HopeAddon.Constants
+    local steps = C.WORDS_HINT_STEPS
+    local colors = C.WORDS_HINT_COLORS
+
+    -- Container for steps
+    local stepIndicator = CreateFrame("Frame", nil, parent)
+    stepIndicator:SetSize(300, 20)
+    stepIndicator:SetPoint("TOP", 0, 0)
+    ui.stepIndicator = stepIndicator
+
+    ui.stepFrames = {}
+
+    local stepWidth = 80
+    local totalWidth = stepWidth * #steps + 30 * (#steps - 1)  -- 30px for arrows
+    local startX = -totalWidth / 2 + stepWidth / 2
+
+    for i, stepDef in ipairs(steps) do
+        -- Step frame
+        local stepFrame = CreateFrame("Frame", nil, stepIndicator)
+        stepFrame:SetSize(stepWidth, 18)
+        stepFrame:SetPoint("CENTER", startX + (i - 1) * (stepWidth + 30), 0)
+
+        -- Step number circle/dot
+        local dot = stepFrame:CreateTexture(nil, "BACKGROUND")
+        dot:SetSize(14, 14)
+        dot:SetPoint("LEFT", 0, 0)
+        dot:SetTexture("Interface\\COMMON\\Indicator-Gray")
+        stepFrame.dot = dot
+
+        -- Step label
+        local label = stepFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        label:SetPoint("LEFT", dot, "RIGHT", 4, 0)
+        label:SetText(stepDef.label)
+        label:SetTextColor(colors.STEP_PENDING.r, colors.STEP_PENDING.g, colors.STEP_PENDING.b, colors.STEP_PENDING.a)
+        stepFrame.label = label
+
+        -- Arrow to next step (except for last step)
+        if i < #steps then
+            local arrow = stepIndicator:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            arrow:SetPoint("LEFT", stepFrame, "RIGHT", 8, 0)
+            arrow:SetText("→")
+            arrow:SetTextColor(0.5, 0.5, 0.5, 0.6)
+            stepFrame.arrow = arrow
+        end
+
+        stepFrame.stepId = stepDef.id
+        stepFrame.stepIndex = i
+        ui.stepFrames[i] = stepFrame
+    end
+end
+
+--[[
+    Update the step indicator based on current step
+]]
+function WordGame:UpdateStepIndicator(gameId)
+    local game = self.games[gameId]
+    if not game then return end
+
+    local ui = game.data.ui
+    local state = game.data.state
+    local C = HopeAddon.Constants
+    local colors = C.WORDS_HINT_COLORS
+
+    if not ui.stepFrames then return end
+
+    local currentStep = state.currentStep or 0
+
+    for i, stepFrame in ipairs(ui.stepFrames) do
+        local dot = stepFrame.dot
+        local label = stepFrame.label
+        local arrow = stepFrame.arrow
+
+        if i < currentStep then
+            -- Completed step (green)
+            dot:SetTexture("Interface\\COMMON\\Indicator-Green")
+            label:SetTextColor(colors.STEP_COMPLETE.r, colors.STEP_COMPLETE.g, colors.STEP_COMPLETE.b, colors.STEP_COMPLETE.a)
+            if arrow then
+                arrow:SetTextColor(colors.STEP_COMPLETE.r, colors.STEP_COMPLETE.g, colors.STEP_COMPLETE.b, 0.8)
+            end
+        elseif i == currentStep then
+            -- Active step (gold)
+            dot:SetTexture("Interface\\COMMON\\Indicator-Yellow")
+            label:SetTextColor(colors.STEP_ACTIVE.r, colors.STEP_ACTIVE.g, colors.STEP_ACTIVE.b, colors.STEP_ACTIVE.a)
+            -- Use activeLabel if available
+            local steps = C.WORDS_HINT_STEPS
+            if steps[i] and steps[i].activeLabel then
+                label:SetText(steps[i].activeLabel)
+            end
+            if arrow then
+                arrow:SetTextColor(0.5, 0.5, 0.5, 0.6)
+            end
+        else
+            -- Pending step (grey)
+            dot:SetTexture("Interface\\COMMON\\Indicator-Gray")
+            label:SetTextColor(colors.STEP_PENDING.r, colors.STEP_PENDING.g, colors.STEP_PENDING.b, colors.STEP_PENDING.a)
+            -- Reset to normal label
+            local steps = C.WORDS_HINT_STEPS
+            if steps[i] then
+                label:SetText(steps[i].label)
+            end
+            if arrow then
+                arrow:SetTextColor(0.5, 0.5, 0.5, 0.4)
+            end
+        end
+    end
+
+    -- Hide step indicator when not player's turn
+    if ui.stepIndicator then
+        if currentStep == 0 then
+            ui.stepIndicator:SetAlpha(0.4)
+        else
+            ui.stepIndicator:SetAlpha(1.0)
+        end
+    end
+end
+
+--[[
+    Update hint system UI elements based on current game state
+]]
+function WordGame:UpdateHints(gameId)
+    local game = self.games[gameId]
+    if not game then return end
+
+    local ui = game.data.ui
+    local state = game.data.state
+    local C = HopeAddon.Constants
+
+    -- Get current hint state
+    local hintState = self:GetHintState(gameId)
+    local currentStep = self:GetCurrentStep(gameId)
+    local hintMessage = self:GetHintMessage(gameId)
+
+    -- Update state tracking
+    state.currentHintState = hintState
+    state.currentStep = currentStep
+
+    -- Update hint text
+    if ui.hintText then
+        ui.hintText:SetText(hintMessage)
+
+        -- Color the hint text based on state (error = red, normal = parchment)
+        local colors = C.WORDS_HINT_COLORS
+        if hintState == C.WORDS_HINT_STATE.INVALID_WORD or
+           hintState == C.WORDS_HINT_STATE.MUST_COVER_CENTER or
+           hintState == C.WORDS_HINT_STATE.NOT_CONNECTED then
+            ui.hintText:SetTextColor(colors.HINT_ERROR.r, colors.HINT_ERROR.g, colors.HINT_ERROR.b, colors.HINT_ERROR.a)
+        else
+            ui.hintText:SetTextColor(colors.HINT_TEXT.r, colors.HINT_TEXT.g, colors.HINT_TEXT.b, colors.HINT_TEXT.a)
+        end
+    end
+
+    -- Update step indicator (if implemented)
+    if ui.stepFrames then
+        self:UpdateStepIndicator(gameId)
+    end
+
+    -- Update center square pulse (for first move)
+    self:UpdateCenterPulse(gameId)
+
+    -- Update PLAY button pulse (when word is ready)
+    self:UpdatePlayButtonPulse(gameId)
+end
+
+--[[
+    Update the center square pulse effect
+    Pulses when it's the first word and player needs to cover center
+]]
+function WordGame:UpdateCenterPulse(gameId)
+    local game = self.games[gameId]
+    if not game then return end
+
+    local ui = game.data.ui
+    local state = game.data.state
+    local C = HopeAddon.Constants
+    local Effects = HopeAddon.Effects
+
+    -- Get center tile frame
+    local CENTER = self.WordBoard.CENTER  -- Should be 8
+    local centerTile = ui.tileFrames and ui.tileFrames[CENTER] and ui.tileFrames[CENTER][CENTER]
+    if not centerTile then return end
+
+    local hintState = state.currentHintState
+
+    -- Should pulse when first move and center needs covering
+    local shouldPulse = (hintState == C.WORDS_HINT_STATE.FIRST_MOVE or
+                         hintState == C.WORDS_HINT_STATE.MUST_COVER_CENTER)
+
+    if shouldPulse then
+        -- Create or maintain the pulse
+        if not ui.centerPulseGlow and Effects and Effects.CreateBorderGlow then
+            ui.centerPulseGlow = Effects:CreateBorderGlow(centerTile, "GOLD_BRIGHT")
+        elseif not ui.centerPulseGlow then
+            -- Fallback: Create simple glow texture
+            local glow = centerTile:CreateTexture(nil, "OVERLAY")
+            glow:SetPoint("TOPLEFT", -4, 4)
+            glow:SetPoint("BOTTOMRIGHT", 4, -4)
+            glow:SetTexture(HopeAddon.assets.textures.GLOW_BUTTON)
+            local color = C.WORDS_HINT_COLORS.CENTER_PULSE
+            glow:SetVertexColor(color.r, color.g, color.b, color.a)
+            glow:SetBlendMode("ADD")
+            ui.centerPulseGlow = { frame = glow, isSimple = true }
+        end
+    else
+        -- Stop the pulse
+        if ui.centerPulseGlow then
+            if Effects and Effects.StopGlowsOnParent then
+                Effects:StopGlowsOnParent(centerTile)
+            elseif ui.centerPulseGlow.isSimple and ui.centerPulseGlow.frame then
+                ui.centerPulseGlow.frame:Hide()
+            end
+            ui.centerPulseGlow = nil
+        end
+    end
+end
+
+--[[
+    Update the PLAY button pulse effect
+    Pulses when word is valid and ready to submit
+]]
+function WordGame:UpdatePlayButtonPulse(gameId)
+    local game = self.games[gameId]
+    if not game then return end
+
+    local ui = game.data.ui
+    local state = game.data.state
+    local C = HopeAddon.Constants
+    local Effects = HopeAddon.Effects
+
+    local playBtn = ui.playBtn
+    if not playBtn then return end
+
+    local hintState = state.currentHintState
+
+    -- Should pulse when word is ready to play
+    local shouldPulse = (hintState == C.WORDS_HINT_STATE.READY_TO_PLAY)
+
+    if shouldPulse then
+        -- Create or maintain the pulse
+        if not ui.playButtonPulseGlow and Effects and Effects.CreateBorderGlow then
+            ui.playButtonPulseGlow = Effects:CreateBorderGlow(playBtn, "FEL_GREEN")
+        elseif not ui.playButtonPulseGlow then
+            -- Fallback: Create simple glow texture
+            local glow = playBtn:CreateTexture(nil, "OVERLAY")
+            glow:SetPoint("TOPLEFT", -3, 3)
+            glow:SetPoint("BOTTOMRIGHT", 3, -3)
+            glow:SetTexture(HopeAddon.assets.textures.GLOW_BUTTON)
+            glow:SetVertexColor(0.3, 1, 0.3, 0.7)  -- Green for action
+            glow:SetBlendMode("ADD")
+            ui.playButtonPulseGlow = { frame = glow, isSimple = true }
+        end
+    else
+        -- Stop the pulse
+        if ui.playButtonPulseGlow then
+            if Effects and Effects.StopGlowsOnParent then
+                Effects:StopGlowsOnParent(playBtn)
+            elseif ui.playButtonPulseGlow.isSimple and ui.playButtonPulseGlow.frame then
+                ui.playButtonPulseGlow.frame:Hide()
+            end
+            ui.playButtonPulseGlow = nil
+        end
+    end
 end
 
 --[[
@@ -1950,6 +2255,149 @@ function WordGame:UpdateUI(gameId)
             lastMove.player, lastMove.word, lastMove.score)
         ui.lastMoveText:SetText(moveText)
     end
+
+    -- Update hint system
+    self:UpdateHints(gameId)
+end
+
+--[[
+    Derive the current hint state from game state
+    Returns one of C.WORDS_HINT_STATE values
+]]
+function WordGame:GetHintState(gameId)
+    local game = self.games[gameId]
+    if not game then return nil end
+
+    local C = HopeAddon.Constants
+    local state = game.data.state
+    local playerName = UnitName("player")
+    local isMyTurn = self:IsPlayerTurn(gameId, playerName)
+    local pending = self.dragState.pendingPlacements
+    local hasPending = #pending > 0
+    local isFirstWord = state.board:IsBoardEmpty()
+
+    -- Game over check
+    if state.gameState == self.GAME_STATE.FINISHED then
+        return C.WORDS_HINT_STATE.GAME_OVER
+    end
+
+    -- Not my turn checks
+    if not isMyTurn then
+        -- Check for AI thinking
+        if state.ai and state.ai.enabled and state.ai.phase == "THINKING" then
+            return C.WORDS_HINT_STATE.AI_THINKING
+        end
+        return C.WORDS_HINT_STATE.OPPONENT_TURN
+    end
+
+    -- My turn, no tiles placed yet
+    if not hasPending then
+        if isFirstWord then
+            return C.WORDS_HINT_STATE.FIRST_MOVE
+        end
+        return C.WORDS_HINT_STATE.PLACE_TILES
+    end
+
+    -- Tiles placed - validate the word
+    local word = self:GetPendingWord()
+    local direction = self.dragState.placementDirection or "H"
+    local horizontal = (direction == "H")
+
+    -- Get start position
+    local sorted = {}
+    for _, p in ipairs(pending) do
+        table.insert(sorted, p)
+    end
+    if horizontal then
+        table.sort(sorted, function(a, b) return a.col < b.col end)
+    else
+        table.sort(sorted, function(a, b) return a.row < b.row end)
+    end
+    local startRow, startCol = sorted[1].row, sorted[1].col
+
+    -- Check dictionary
+    if not self.WordDictionary:IsValidWord(word) then
+        return C.WORDS_HINT_STATE.INVALID_WORD
+    end
+
+    -- Check placement rules
+    local canPlace, errorMsg = state.board:CanPlaceWord(word, startRow, startCol, horizontal, isFirstWord)
+    if not canPlace then
+        if errorMsg and errorMsg:find("center") then
+            return C.WORDS_HINT_STATE.MUST_COVER_CENTER
+        elseif errorMsg and errorMsg:find("connect") then
+            return C.WORDS_HINT_STATE.NOT_CONNECTED
+        end
+        -- Generic keep placing
+        return C.WORDS_HINT_STATE.KEEP_PLACING
+    end
+
+    -- Valid word, ready to play
+    return C.WORDS_HINT_STATE.READY_TO_PLAY
+end
+
+--[[
+    Get current step number (1-3) based on hint state
+    1 = Place Tiles, 2 = Form Word, 3 = Play
+]]
+function WordGame:GetCurrentStep(gameId)
+    local C = HopeAddon.Constants
+    local hintState = self:GetHintState(gameId)
+
+    if not hintState then return 0 end
+
+    -- Step 1: Place tiles
+    if hintState == C.WORDS_HINT_STATE.FIRST_MOVE or
+       hintState == C.WORDS_HINT_STATE.PLACE_TILES then
+        return 1
+    end
+
+    -- Step 2: Form word (tiles placed but not valid/ready)
+    if hintState == C.WORDS_HINT_STATE.KEEP_PLACING or
+       hintState == C.WORDS_HINT_STATE.INVALID_WORD or
+       hintState == C.WORDS_HINT_STATE.MUST_COVER_CENTER or
+       hintState == C.WORDS_HINT_STATE.NOT_CONNECTED then
+        return 2
+    end
+
+    -- Step 3: Play (word is valid, ready to submit)
+    if hintState == C.WORDS_HINT_STATE.READY_TO_PLAY then
+        return 3
+    end
+
+    -- Not your turn or game over
+    return 0
+end
+
+--[[
+    Get the contextual hint message based on current state
+    @return string - The hint message to display
+]]
+function WordGame:GetHintMessage(gameId)
+    local game = self.games[gameId]
+    if not game then return "" end
+
+    local C = HopeAddon.Constants
+    local hintState = self:GetHintState(gameId)
+
+    if not hintState then return "" end
+
+    local msgs = C.WORDS_HINT_MESSAGES
+    local pending = self.dragState.pendingPlacements
+    local word = self:GetPendingWord()
+
+    -- Messages with format strings
+    if hintState == C.WORDS_HINT_STATE.READY_TO_PLAY then
+        return string.format(msgs.WORD_READY or "%s looks good! Click PLAY", word)
+    elseif hintState == C.WORDS_HINT_STATE.INVALID_WORD then
+        return string.format(msgs.INVALID_WORD or "%s is not in the dictionary", word)
+    elseif hintState == C.WORDS_HINT_STATE.OPPONENT_TURN then
+        local opponent = game.player1 == UnitName("player") and game.player2 or game.player1
+        return string.format(msgs.OPPONENT_TURN or "Waiting for %s...", opponent)
+    end
+
+    -- Simple messages
+    return msgs[hintState] or ""
 end
 
 --[[
@@ -2680,6 +3128,9 @@ function WordGame:AddPendingTile(gameId, row, col, letter, rackIndex)
     self:UpdateTileRack(gameId)
     self:UpdateLiveScore(gameId)
     self:UpdateButtonBar(gameId)
+
+    -- Update hints when tiles change
+    self:UpdateHints(gameId)
 end
 
 --[[
@@ -2705,6 +3156,9 @@ function WordGame:RemovePendingTile(gameId, row, col)
     self:UpdateTileRack(gameId)
     self:UpdateLiveScore(gameId)
     self:UpdateButtonBar(gameId)
+
+    -- Update hints when tiles change
+    self:UpdateHints(gameId)
 end
 
 --[[
@@ -3547,9 +4001,15 @@ function WordGame:ShowGameOverScreen(gameId)
     -- Winner announcement
     local winnerText = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     winnerText:SetPoint("TOP", title, "BOTTOM", 0, -25)
+    local playerName = UnitName("player")
     if winner then
-        winnerText:SetText("|TInterface\\Icons\\Achievement_Reputation_08:20:20|t " .. winner .. " WINS!")
+        winnerText:SetText("|TInterface\\Icons\\INV_Crown_01:20:20|t " .. winner .. " WINS!")  -- TBC compatible
         winnerText:SetTextColor(1, 0.84, 0)
+
+        -- Add persistent pulsing glow if player won
+        if winner == playerName and HopeAddon.Effects and HopeAddon.Effects.CreatePulsingGlow then
+            panel.victoryGlow = HopeAddon.Effects:CreatePulsingGlow(panel, "FEL_GREEN", 0.7)
+        end
     else
         winnerText:SetText("IT'S A TIE!")
         winnerText:SetTextColor(0.8, 0.8, 0.8)
@@ -3646,6 +4106,10 @@ function WordGame:ShowGameOverScreen(gameId)
     closeBtnText:SetTextColor(1, 0.84, 0)
 
     closeBtn:SetScript("OnClick", function()
+        -- Clean up victory glow before hiding
+        if HopeAddon.Effects then
+            HopeAddon.Effects:StopGlowsOnParent(panel)
+        end
         overlay:Hide()
         if ui.window then
             ui.window:Hide()
