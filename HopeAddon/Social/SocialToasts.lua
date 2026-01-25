@@ -32,11 +32,6 @@ local TOAST_TYPES = {
         color = { 0, 1, 0 },
         sound = "notification",
     },
-    companion_nearby = {
-        icon = "Interface\\Icons\\INV_Misc_GroupLooking",
-        color = { 0, 0.75, 1 },
-        sound = "notification",
-    },
     companion_request = {
         icon = "Interface\\Icons\\Spell_Holy_PrayerOfHealing",
         color = { 1, 0.84, 0 },
@@ -47,14 +42,9 @@ local TOAST_TYPES = {
         color = { 1, 0.84, 0 },
         sound = "click",
     },
-    companion_lfrp = {
-        icon = "Interface\\Icons\\INV_ValentinePerfumeBottle",
-        color = { 1, 0.2, 0.8 },
-        sound = "notification",
-    },
-    fellow_discovered = {
-        icon = "Interface\\Icons\\Spell_Arcane_PortalShattrath",
-        color = { 0.2, 1, 0.2 },
+    loot_shared = {
+        icon = "Interface\\Icons\\INV_Misc_Bag_10_Green",
+        color = { 0.5, 1, 0.5 },
         sound = "notification",
     },
     -- Romance toasts
@@ -199,18 +189,14 @@ function SocialToasts:Show(toastType, playerName, customMessage)
     if not message then
         if toastType == "companion_online" then
             message = "|cFF00FF00" .. playerName .. "|r is online"
-        elseif toastType == "companion_nearby" then
-            message = "|cFF00BFFF" .. playerName .. "|r is in your zone"
         elseif toastType == "companion_request" then
             message = "|cFFFFD700" .. playerName .. "|r wants to be companions!"
         elseif toastType == "mug_received" then
             message = "|cFFFFD700" .. playerName .. "|r raised a mug to you!"
-        elseif toastType == "companion_lfrp" then
-            message = "|cFFFF33CC" .. playerName .. "|r is Looking for RP"
-        elseif toastType == "fellow_discovered" then
-            message = "|cFF00FF00" .. playerName .. "|r discovered nearby!"
+        elseif toastType == "loot_shared" then
+            message = customMessage or "Loot shared!"
         else
-            message = playerName
+            message = playerName or customMessage or ""
         end
     end
     frame.text:SetText(message)

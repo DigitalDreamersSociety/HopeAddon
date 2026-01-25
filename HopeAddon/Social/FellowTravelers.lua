@@ -79,6 +79,49 @@ local function SafeSendAddonMessage(prefix, msg, channel, target)
     end
 end
 
+-- Check if player is in an instance (dungeon, raid instance, battleground, arena)
+-- When in an instance, we should use INSTANCE_CHAT instead of RAID/PARTY
+-- This is available in TBC Classic 2.5+ and prevents "You are not in a raid group" spam
+local function IsInInstanceGroup()
+    -- IsInInstance() returns: inInstance, instanceType
+    -- instanceType: "none", "pvp" (battleground), "arena", "party" (dungeon), "raid"
+    local inInstance, instanceType = IsInInstance()
+    if not inInstance then return false end
+    -- Return true for battlegrounds, arenas, and dungeons where INSTANCE_CHAT should be used
+    return instanceType == "pvp" or instanceType == "arena" or instanceType == "party"
+end
+
+-- Check if player is in a REAL raid (not a battleground raid)
+-- In battlegrounds, IsInRaid() returns true but SendAddonMessage to "RAID" can fail
+-- GetRealNumRaidMembers() returns 0 in BGs but the actual raid size outside BGs
+-- This prevents "You are not in a raid group" spam when entering/leaving BGs
+local function IsInRealRaid()
+    -- First check: if we're in a BG/arena/dungeon instance, we're NOT in a "real" raid
+    if IsInInstanceGroup() then
+        return false
+    end
+    -- GetRealNumRaidMembers exists in TBC Classic and returns 0 in BGs
+    if GetRealNumRaidMembers then
+        return GetRealNumRaidMembers() > 0
+    end
+    -- Fallback for compatibility (shouldn't hit in TBC 2.4.3)
+    return IsInRaid()
+end
+
+-- Check if player is in a REAL party (not a battleground party)
+local function IsInRealParty()
+    -- First check: if we're in a BG/arena/dungeon instance, we're NOT in a "real" party
+    if IsInInstanceGroup() then
+        return false
+    end
+    -- GetRealNumPartyMembers exists in TBC Classic and returns 0 in BGs
+    if GetRealNumPartyMembers then
+        return GetRealNumPartyMembers() > 0
+    end
+    -- Fallback
+    return IsInGroup() and not IsInRaid()
+end
+
 -- Escape special Lua pattern characters for safe use in gsub
 local function EscapePattern(str)
     if not str then return "" end
@@ -253,19 +296,28 @@ function FellowTravelers:BroadcastPresence()
     local msg = string.format("%s:%d:%s%s", MSG_PING, PROTOCOL_VERSION, zone, locStr)
 
     -- Send to different channels based on context
-    local inRaid = IsInRaid()
-    if IsInGroup() then
-        local channel = inRaid and "RAID" or "PARTY"
-        SafeSendAddonMessage(ADDON_PREFIX, msg, channel)
+    -- Priority: INSTANCE_CHAT (for BGs/dungeons) > RAID > PARTY > GUILD > YELL
+    -- Using INSTANCE_CHAT in instances avoids "You are not in a raid group" spam
+    local inInstance = IsInInstanceGroup()
+    local inRealRaid = IsInRealRaid()
+    local inRealParty = IsInRealParty()
+
+    if inInstance then
+        -- In battleground, arena, or dungeon - use INSTANCE_CHAT
+        SafeSendAddonMessage(ADDON_PREFIX, msg, "INSTANCE_CHAT")
+    elseif inRealRaid then
+        SafeSendAddonMessage(ADDON_PREFIX, msg, "RAID")
+    elseif inRealParty then
+        SafeSendAddonMessage(ADDON_PREFIX, msg, "PARTY")
     end
 
     if IsInGuild() then
         SafeSendAddonMessage(ADDON_PREFIX, msg, "GUILD")
     end
 
-    -- Yell for nearby non-grouped players (skip when in raid - redundant and reduces spam)
+    -- Yell for nearby non-grouped players (skip when in instance or real raid - redundant)
     -- Only YELL every other broadcast (every 30s) to reduce throttle risk in busy areas
-    if not inRaid then
+    if not inInstance and not inRealRaid then
         self.yellCounter = (self.yellCounter or 0) + 1
         if self.yellCounter % 2 == 0 then
             SafeSendAddonMessage(ADDON_PREFIX, msg, "YELL")
@@ -296,18 +348,27 @@ function FellowTravelers:BroadcastMessage(msg)
     if not settings or not settings.enabled then return end
 
     -- Send to different channels based on context
-    local inRaid = IsInRaid()
-    if IsInGroup() then
-        local channel = inRaid and "RAID" or "PARTY"
-        SafeSendAddonMessage(ADDON_PREFIX, msg, channel)
+    -- Priority: INSTANCE_CHAT (for BGs/dungeons) > RAID > PARTY > GUILD > YELL
+    -- Using INSTANCE_CHAT in instances avoids "You are not in a raid group" spam
+    local inInstance = IsInInstanceGroup()
+    local inRealRaid = IsInRealRaid()
+    local inRealParty = IsInRealParty()
+
+    if inInstance then
+        -- In battleground, arena, or dungeon - use INSTANCE_CHAT
+        SafeSendAddonMessage(ADDON_PREFIX, msg, "INSTANCE_CHAT")
+    elseif inRealRaid then
+        SafeSendAddonMessage(ADDON_PREFIX, msg, "RAID")
+    elseif inRealParty then
+        SafeSendAddonMessage(ADDON_PREFIX, msg, "PARTY")
     end
 
     if IsInGuild() then
         SafeSendAddonMessage(ADDON_PREFIX, msg, "GUILD")
     end
 
-    -- YELL for nearby non-grouped players (skip when in raid)
-    if not inRaid then
+    -- YELL for nearby non-grouped players (skip when in instance or real raid)
+    if not inInstance and not inRealRaid then
         SafeSendAddonMessage(ADDON_PREFIX, msg, "YELL")
     end
 
@@ -1088,25 +1149,6 @@ function FellowTravelers:OnPartyChanged()
 
     -- Update last known party
     self.lastKnownParty = currentParty
-
-    -- Notify TravelerIcons if there are new members
-    if #newMembers > 0 and HopeAddon.TravelerIcons then
-        HopeAddon.TravelerIcons:OnGroupFormed(newMembers)
-    end
-
-    -- Send immediate PING to party channel when new members join (bypass scheduler)
-    -- This ensures fast Fellow detection for the party challenge button
-    if #newMembers > 0 and IsInGroup() then
-        local inRaid = IsInRaid()
-        local channel = inRaid and "RAID" or "PARTY"
-        local zone = GetZoneText() or "Unknown"
-        local msg = string.format("%s:%d:%s", MSG_PING, PROTOCOL_VERSION, zone)
-        SafeSendAddonMessage(ADDON_PREFIX, msg, channel)
-        HopeAddon:Debug("Immediate party PING sent for", #newMembers, "new members")
-    end
-
-    -- Broadcast presence to new group (uses deduplication)
-    ScheduleBroadcast(1)
 end
 
 function FellowTravelers:OnZoneChanged()
@@ -1205,16 +1247,6 @@ function FellowTravelers:UpdateKnownTraveler(name, class, level, isNewGroup)
     if isNewGroup then
         travelers[name].stats.groupCount = (travelers[name].stats.groupCount or 0) + 1
         HopeAddon:Debug("Group count with", name, ":", travelers[name].stats.groupCount)
-
-        -- Notify TravelerIcons if first group with a Fellow Traveler (addon user)
-        if isFirstGroup and HopeAddon.TravelerIcons and self:IsFellow(name) then
-            HopeAddon.TravelerIcons:AwardIcon(name, "first_friends", { zone = GetZoneText() })
-        end
-
-        -- Check group count milestones
-        if HopeAddon.TravelerIcons then
-            HopeAddon.TravelerIcons:CheckGroupCountIcons(name)
-        end
     end
 end
 

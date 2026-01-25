@@ -229,44 +229,6 @@ function TravelerIcons:OnBossKill(raidKey, bossId, partyMembers)
     end
 end
 
---[[
-    Handle group formed/joined - award first group icon
-    @param partyMembers table
-]]
-function TravelerIcons:OnGroupFormed(partyMembers)
-    if not partyMembers or #partyMembers == 0 then return end
-
-    local context = {
-        zone = GetZoneText(),
-    }
-
-    for _, member in ipairs(partyMembers) do
-        local name = member.name
-
-        -- Check for first group icon
-        local travelers = HopeAddon.charDb.travelers.known
-        local traveler = travelers[name]
-
-        if traveler then
-            -- Ensure stats exist
-            if not traveler.stats then
-                traveler.stats = {
-                    groupCount = 0,
-                    bossKillsTogether = 0,
-                }
-            end
-
-            -- Award first_friends on first group with a Fellow Traveler (addon user)
-            if traveler.stats.groupCount == 1 and HopeAddon.FellowTravelers and HopeAddon.FellowTravelers:IsFellow(name) then
-                self:AwardIcon(name, "first_friends", context)
-            end
-
-            -- Check group count milestones
-            self:CheckGroupCountIcons(name)
-        end
-    end
-end
-
 --============================================================
 -- ICON CHECK FUNCTIONS
 --============================================================
@@ -329,29 +291,6 @@ function TravelerIcons:CheckSocialMilestones(travelerName)
     -- Veteran's Bond (100 kills)
     if bossKills >= 100 then
         self:AwardIcon(travelerName, "veterans_bond", context)
-    end
-end
-
---[[
-    Check and award group count icons
-]]
-function TravelerIcons:CheckGroupCountIcons(travelerName)
-    local travelers = HopeAddon.charDb.travelers.known
-    local traveler = travelers[travelerName]
-
-    if not traveler or not traveler.stats then return end
-
-    local groupCount = traveler.stats.groupCount or 0
-    local context = { groupCount = groupCount }
-
-    -- Frequent Allies (10 groups)
-    if groupCount >= 10 then
-        self:AwardIcon(travelerName, "frequent_allies", context)
-    end
-
-    -- Trusted Companions (50 groups)
-    if groupCount >= 50 then
-        self:AwardIcon(travelerName, "trusted_companions", context)
     end
 end
 

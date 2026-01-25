@@ -78,7 +78,7 @@ HopeAddon/
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Journal UI | ✅ COMPLETE | 7 tabs: Journey, Reputation, Raids, Attunements, Games, Social, Stats |
+| Journal UI | ✅ COMPLETE | 7 tabs: Journey, Reputation, Raids, Attunements, Games, Social, Armory |
 | Timeline | ✅ COMPLETE | Chronological entries, milestone progress bar |
 | Milestones | ✅ COMPLETE | Level-based achievements (5-70), auto-triggers, shown in Journey timeline |
 | Attunements | ✅ COMPLETE | All 6 chains (Kara, SSC, TK, Hyjal, BT, Cipher) |
@@ -105,6 +105,7 @@ HopeAddon/
 | Social Toasts | ✅ COMPLETE | Non-intrusive notifications for social events |
 | Leveling Gear Guide | ✅ COMPLETE | Level 60-67 gear recommendations by role (dungeons + quests) |
 | Romance System | ✅ COMPLETE | "Azeroth Relationship Status" - one exclusive partner, public status, breakup timeline events |
+| Armory Tab | 🔧 IN PROGRESS | T4 gear upgrade advisor - UI exists, needs fixes (see ARMORY_TAB_FIXES.md) |
 
 ---
 
@@ -2062,6 +2063,113 @@ board = {
 ## Recent Changes
 
 See [CHANGELOG.md](CHANGELOG.md) for historical bug fixes (Phases 5-13).
+
+### Phase 57: Transmog Tab Removal (2026-01-25)
+
+**Goal:** Remove the redundant Transmog tab entirely. The Armory tab provides gear upgrade recommendations and the Transmog preview was a separate feature that complicated the codebase.
+
+**Decision:** Per ARMORY_TAB_UI_PLAN.md "Option A: Replace" - the Armory tab focuses on gear upgrades while Transmog functionality was removed to simplify the addon.
+
+**Changes Made:**
+
+| File | Lines Removed | Description |
+|------|---------------|-------------|
+| `Journal/Journal.lua` | ~1,105 | Removed tab registration, routing, state tables, 18 functions |
+| `Core/Core.lua` | ~20 | Removed charDb.transmog defaults and migration code |
+| `Core/Constants.lua` | ~750 | Removed TIER_SETS, LIGHTING_PRESETS, TRANSMOG_UI, helper functions |
+
+**Migration:** Users with `lastTab = "transmog"` are automatically redirected to "armory" tab.
+
+**Tab Count:** Now 7 tabs: Journey, Reputation, Raids, Attunements, Games, Social, Armory
+
+**Net Result:** ~2,000 lines of code removed, cleaner codebase focused on core functionality.
+
+### Phase 55: INSTANCE_CHAT for Battlegrounds (2026-01-24)
+
+**Goal:** Fix "You are not in a raid group" error spam in battlegrounds by using `INSTANCE_CHAT` channel instead of `RAID`/`PARTY` when inside instances.
+
+**Root Cause:** In TBC Classic battlegrounds (which are cross-realm), `IsInRaid()` returns `true` for the battleground raid group, but `SendAddonMessage(..., "RAID")` fails because BG raids are handled differently by the client. The "You are not in a raid group" is a **client UI error message**, not a Lua error, so `pcall` cannot suppress it.
+
+**Research Findings:**
+- According to [Warcraft Wiki](https://warcraft.wiki.gg/wiki/API_C_ChatInfo.SendAddonMessage), `INSTANCE_CHAT` is available in both Retail and Classic
+- `INSTANCE_CHAT` is the proper channel for dungeons, battlegrounds, and arenas
+- Original TBC (2007) used `BATTLEGROUND` channel, but it was replaced by `INSTANCE_CHAT` in Patch 5.1.0
+- TBC Classic 2.5.x uses the modern API, so `INSTANCE_CHAT` is available
+- Reference: [WoWpedia SendChatMessage](https://wowpedia.fandom.com/wiki/API_SendChatMessage), [WoWWiki UnitInBattleground](https://wowwiki-archive.fandom.com/wiki/API_UnitInBattleground)
+
+**Solution:** Use `IsInInstance()` to detect when player is in a battleground, arena, or dungeon, then use `INSTANCE_CHAT` channel for addon communication.
+
+**New Helper Function Added (FellowTravelers.lua:82-91):**
+```lua
+-- Check if player is in an instance where INSTANCE_CHAT should be used
+local function IsInInstanceGroup()
+    local inInstance, instanceType = IsInInstance()
+    if not inInstance then return false end
+    -- Return true for battlegrounds, arenas, and dungeons
+    return instanceType == "pvp" or instanceType == "arena" or instanceType == "party"
+end
+```
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `Social/FellowTravelers.lua` | Added `IsInInstanceGroup()` helper; updated `IsInRealRaid()` and `IsInRealParty()` to return false when in instance; updated `BroadcastPresence()` and `BroadcastMessage()` to use `INSTANCE_CHAT` when in instance |
+
+**TBC Classic API Reference:**
+- `IsInInstance()` - Returns (inInstance, instanceType) where instanceType is "none", "pvp", "arena", "party", "raid"
+- `INSTANCE_CHAT` - SendAddonMessage channel for all instance types (dungeons, BGs, arenas)
+- `GetRealNumRaidMembers()` - Returns raid size excluding BG raids (0 in BGs)
+- `GetRealNumPartyMembers()` - Returns party size excluding BG parties (0 in BGs)
+
+**Channel Selection Logic:**
+```
+IsInInstanceGroup() = true  → INSTANCE_CHAT (battlegrounds, arenas, dungeons)
+IsInRealRaid() = true       → RAID (regular raid groups)
+IsInRealParty() = true      → PARTY (regular party groups)
+IsInGuild() = true          → GUILD (always)
+Not in instance/raid        → YELL (every 30s for nearby players)
+```
+
+**Behavior Change:**
+- In battlegrounds/arenas/dungeons: Uses `INSTANCE_CHAT` channel (no more error spam)
+- In regular raids: Uses `RAID` channel as before
+- In regular parties: Uses `PARTY` channel as before
+- YELL is skipped when in instances (redundant since INSTANCE_CHAT covers the group)
+
+### Phase 54: Remove Immediate Party PING and Dead Code Cleanup (2026-01-24)
+
+**Goal:** Fix "You are not in a raid group" error that occurred when joining battlegrounds/raids by removing the immediate PING on party roster change. Also clean up all related dead code.
+
+**Root Cause:** The `OnPartyChanged()` function sent an immediate PING to PARTY/RAID channel whenever group roster changed. During battleground transitions, this triggered the "You are not in a raid group" error even with pcall protection (the error was coming from the WoW client, not Lua).
+
+**Removed Features:**
+1. **Immediate party PING** - No longer sends PING when someone joins group (regular 15s broadcast still works)
+2. **`first_friends` icon** - Removed icon awarded on first group with Fellow Traveler
+3. **`OnGroupFormed()` function** - Removed from TravelerIcons module
+4. **`CheckGroupCountIcons()` function** - Removed (was never called)
+5. **`frequent_allies` icon** - Removed (was never awarded)
+6. **`trusted_companions` icon** - Removed (was never awarded)
+7. **Dead toast types** - Removed `companion_nearby`, `companion_lfrp`, `fellow_discovered` (never triggered)
+8. **Added missing `loot_shared` toast** - Was being called but had no definition
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `Social/FellowTravelers.lua` | Removed immediate PING code from OnPartyChanged(), removed first_friends award code |
+| `Social/TravelerIcons.lua` | Removed OnGroupFormed() and CheckGroupCountIcons() functions |
+| `Social/SocialToasts.lua` | Removed 3 dead toast types, added loot_shared definition |
+| `Core/Constants.lua` | Removed first_friends, frequent_allies, trusted_companions icons |
+
+**Fellow Traveler detection still works** via the regular 15-second broadcast cycle.
+
+**What Still Works:**
+- `companion_online` toast (when companion comes back online)
+- `companion_request` toast (when someone requests to be companion)
+- `mug_received` toast (when someone raises a mug)
+- `loot_shared` toast (when you share loot)
+- All romance toasts
+- `groupCount` stat tracking (displayed in UI)
+- `bossKillsTogether` stat tracking (used for boss icons)
 
 ### Phase 53: SafeSendAddonMessage pcall Protection (2026-01-23)
 
@@ -4223,6 +4331,29 @@ end)
 
 ## Development Priorities
 
+### HIGH PRIORITY: Armory Tab Bug Fixes
+**Status:** 🔧 IN PROGRESS - UI exists but has critical issues
+**Fix Document:** `HopeAddon/ARMORY_TAB_FIXES.md`
+
+The Armory Tab UI structure is complete but has several bugs preventing proper use:
+
+**Critical Issues (C1-C4):**
+- C1: T5/T6 gear database empty (only T4 populated)
+- C2: Paperdoll slot positioning broken (missing POSITIONS table)
+- C3: ARMORY_SLOT_BUTTON.SLOTS table missing (wrong path reference)
+- C4: STATE_COLORS table missing
+
+**High Priority Issues (H1-H6):**
+- H1: Upgrade cards not using frame pool (memory leaks)
+- H2: Detail panel content not released to pools
+- H3: No item tooltip on hover
+- H4: Model frame not showing equipment preview
+- H5: Spec dropdown not auto-detecting current spec
+- H6: Scroll content height not dynamic
+
+See `ARMORY_TAB_FIXES.md` for full issue list and fix instructions.
+
+### Other Priorities
 1. **Medium:** Implement CheckAttunementIcons for shared attunement icons
 2. **Low:** Add milestone detail modal (clickable milestone cards)
 3. **Low:** Create dedicated settings panel in journal UI

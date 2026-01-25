@@ -1401,6 +1401,14 @@ function HopeAddon:GetDefaultCharDB()
             -- Relationship types (stored per player)
             relationshipTypes = {},  -- [playerName] = "ALLY" | "FRIEND" | etc.
         },
+
+        -- Armory Tab (Gear Upgrade Advisor)
+        armory = {
+            selectedTier = 4,           -- Current tier (4, 5, or 6)
+            selectedSpec = nil,         -- Spec index (1-3) or nil
+            wishlist = {},              -- [itemId] = true for wishlisted items
+            expandedSections = {},      -- [sectionId] = bool for collapsed state
+        },
     }
 end
 
@@ -1868,6 +1876,14 @@ SlashCmdList["HOPE"] = function(msg)
         if minimapBtn and minimapBtn.Toggle then
             minimapBtn:Toggle()
         end
+    elseif cmd == "armory" then
+        -- Open journal to Armory tab (gear upgrade advisor)
+        if HopeAddon.Journal and HopeAddon.Journal.mainFrame then
+            HopeAddon.Journal:ShowMainFrame()
+            HopeAddon.Journal:SelectTab("armory")
+        else
+            HopeAddon:Print("Journal not loaded yet!")
+        end
     else
         HopeAddon:Print("Commands:")
         HopeAddon:Print("  /hope - Open journal")
@@ -1875,6 +1891,7 @@ SlashCmdList["HOPE"] = function(msg)
         HopeAddon:Print("  /hope stats - Show statistics")
         HopeAddon:Print("  /hope sound - Toggle sounds")
         HopeAddon:Print("  /hope minimap - Toggle minimap button")
+        HopeAddon:Print("  /hope armory - Open gear upgrade advisor")
         HopeAddon:Print("  /hope tetris [player] - Start Tetris Battle (local or vs player)")
         HopeAddon:Print("  /hope pong [player] - Start Pong (local or vs player)")
         HopeAddon:Print("  /hope deathroll [player] - Start Death Roll (local or vs player)")

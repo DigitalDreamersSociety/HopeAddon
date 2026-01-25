@@ -3,6 +3,7 @@
 ## Notes: Your TBC Journey Journal
 ## Author: Hope Guild
 ## Version: 1.0.0
+## IconTexture: Interface\Icons\INV_Misc_Book_09
 ## SavedVariables: HopeAddonDB
 ## SavedVariablesPerCharacter: HopeAddonCharDB
 

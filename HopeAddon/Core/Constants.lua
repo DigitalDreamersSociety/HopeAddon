@@ -2662,33 +2662,6 @@ C.TRAVELER_ICONS = {
         category = "social",
         trigger = { type = "time_together", hours = 100 },
     },
-    first_friends = {
-        id = "first_friends",
-        name = "First Friends",
-        description = "Grouped together for the first time",
-        icon = "INV_ValentinesCard01",
-        quality = "UNCOMMON",
-        category = "social",
-        trigger = { type = "first_group" },
-    },
-    frequent_allies = {
-        id = "frequent_allies",
-        name = "Frequent Allies",
-        description = "Grouped together 10+ times",
-        icon = "INV_Misc_GroupLooking",
-        quality = "UNCOMMON",
-        category = "social",
-        trigger = { type = "group_count", count = 10 },
-    },
-    trusted_companions = {
-        id = "trusted_companions",
-        name = "Trusted Companions",
-        description = "Grouped together 50+ times",
-        icon = "Ability_Rogue_Sprint",
-        quality = "RARE",
-        category = "social",
-        trigger = { type = "group_count", count = 50 },
-    },
 }
 
 -- Build reverse lookup: trigger type -> icon list
@@ -5199,6 +5172,1114 @@ C.SOCIAL_DATA_DEFAULTS = {
         FellowDiscovered = true,
     },
 }
+
+--============================================================
+-- ARMORY TAB CONSTANTS
+--============================================================
+
+-- Main container
+C.ARMORY_CONTAINER = {
+    WIDTH = "MATCH_PARENT",
+    HEIGHT = "DYNAMIC",
+    MIN_HEIGHT = 600,
+    PADDING = 15,
+    MARGIN_TOP = 0,
+    MARGIN_BOTTOM = 20,
+}
+
+-- Tier bar
+C.ARMORY_TIER_BAR = {
+    HEIGHT = 50,
+    WIDTH = "MATCH_PARENT",
+    ANCHOR = "TOPLEFT",
+    OFFSET_X = 0,
+    OFFSET_Y = 0,
+    PADDING_H = 15,
+    PADDING_V = 7,
+    BACKDROP = {
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 12,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    },
+    BG_COLOR = { r = 0.08, g = 0.08, b = 0.08, a = 0.95 },
+    BORDER_COLOR = { r = 0.4, g = 0.35, b = 0.25, a = 1 },
+    TIER_BUTTONS_LEFT = 15,
+    SPEC_DROPDOWN_RIGHT = -15,
+}
+
+-- Tier button
+C.ARMORY_TIER_BUTTON = {
+    WIDTH = 100,
+    HEIGHT = 36,
+    GAP = 12,
+    FIRST_OFFSET = 15,
+    FONT = "GameFontNormal",
+    FONT_SIZE = 12,
+    TIERS = {
+        [4] = { label = "T4", sublabel = "Phase 1", color = "FEL_GREEN", raids = "Kara, Gruul, Mag" },
+        [5] = { label = "T5", sublabel = "Phase 2", color = "SKY_BLUE", raids = "SSC, TK" },
+        [6] = { label = "T6", sublabel = "Phase 3", color = "HELLFIRE_RED", raids = "Hyjal, BT, SWP" },
+    },
+    STATES = {
+        active = { bgAlpha = 0.4, borderAlpha = 1.0, textAlpha = 1.0, showUnderline = true, underlineHeight = 3 },
+        inactive = { bgAlpha = 0.1, borderAlpha = 0.5, textAlpha = 0.6, showUnderline = false },
+        hover = { bgAlpha = 0.25, borderAlpha = 0.8, textAlpha = 0.9, showUnderline = true, underlineHeight = 2 },
+    },
+}
+
+-- Spec dropdown
+C.ARMORY_SPEC_DROPDOWN = {
+    WIDTH = 150,
+    HEIGHT = 30,
+    ANCHOR = "RIGHT",
+    OFFSET_X = -15,
+    OFFSET_Y = 0,
+    MENU_WIDTH = 140,
+}
+
+-- Paperdoll
+C.ARMORY_PAPERDOLL = {
+    WIDTH = 300,
+    HEIGHT = "FILL_HEIGHT",
+    ANCHOR = "TOPLEFT",
+    OFFSET_X = 0,
+    OFFSET_Y = -50,
+    MODEL_HEIGHT = 280,
+    SLOTS_HEIGHT = 280,
+    BACKDROP = {
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 12,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 },
+    },
+    BG_COLOR = { r = 0.05, g = 0.05, b = 0.05, a = 0.9 },
+    BORDER_COLOR = { r = 0.3, g = 0.3, b = 0.3, a = 1 },
+}
+
+-- Model frame
+C.ARMORY_MODEL_FRAME = {
+    WIDTH = 280,
+    HEIGHT = 260,
+    ANCHOR = "TOP",
+    OFFSET_X = 0,
+    OFFSET_Y = -10,
+    DEFAULT_ROTATION = 0,
+    ROTATION_SPEED = 0.01,
+    DEFAULT_CAMERA = 0,
+    BACKGROUND_COLOR = { r = 0.02, g = 0.02, b = 0.02, a = 1 },
+    LIGHTING = {
+        ambient = { r = 0.4, g = 0.4, b = 0.4 },
+        diffuse = { r = 1.0, g = 0.95, b = 0.9 },
+    },
+}
+
+-- Slots container
+C.ARMORY_SLOTS_CONTAINER = {
+    WIDTH = 280,
+    HEIGHT = 260,
+    ANCHOR = "TOP",
+    OFFSET_X = 0,
+    OFFSET_Y = -280,
+    SLOT_SIZE = 44,
+    SLOT_GAP = 6,
+    COLUMN_GAP = 8,
+}
+
+-- Slot button
+C.ARMORY_SLOT_BUTTON = {
+    SIZE = 44,
+    ICON_SIZE = 36,
+    ICON_INSET = 4,
+    INDICATOR_SIZE = 16,
+    INDICATOR_OFFSET = { x = 2, y = -2 },
+    LABEL_HEIGHT = 12,
+    LABEL_FONT = "GameFontNormalSmall",
+    SLOTS = {
+        head      = { displayName = "HEAD",  slotId = 1 },
+        neck      = { displayName = "NECK",  slotId = 2 },
+        shoulders = { displayName = "SHLD",  slotId = 3 },
+        back      = { displayName = "BACK",  slotId = 15 },
+        chest     = { displayName = "CHEST", slotId = 5 },
+        wrist     = { displayName = "WRIST", slotId = 9 },
+        hands     = { displayName = "HANDS", slotId = 10 },
+        waist     = { displayName = "WAIST", slotId = 6 },
+        legs      = { displayName = "LEGS",  slotId = 7 },
+        feet      = { displayName = "FEET",  slotId = 8 },
+        ring1     = { displayName = "RING",  slotId = 11 },
+        ring2     = { displayName = "RING",  slotId = 12 },
+        trinket1  = { displayName = "TRNK",  slotId = 13 },
+        trinket2  = { displayName = "TRNK",  slotId = 14 },
+        mainhand  = { displayName = "MH",    slotId = 16 },
+        offhand   = { displayName = "OH",    slotId = 17 },
+        ranged    = { displayName = "RNG",   slotId = 18 },
+    },
+    POSITIONS = {
+        head      = { anchor = "TOPLEFT",     x = 10,   y = -10 },
+        shoulders = { anchor = "TOPLEFT",     x = 10,   y = -60 },
+        chest     = { anchor = "TOPLEFT",     x = 10,   y = -110 },
+        waist     = { anchor = "TOPLEFT",     x = 10,   y = -160 },
+        legs      = { anchor = "TOPLEFT",     x = 10,   y = -210 },
+        neck      = { anchor = "TOPRIGHT",    x = -10,  y = -10 },
+        back      = { anchor = "TOPRIGHT",    x = -10,  y = -60 },
+        wrist     = { anchor = "TOPRIGHT",    x = -10,  y = -110 },
+        hands     = { anchor = "TOPRIGHT",    x = -10,  y = -160 },
+        feet      = { anchor = "TOPRIGHT",    x = -10,  y = -210 },
+        ring1     = { anchor = "BOTTOMLEFT",  x = 10,   y = 10 },
+        ring2     = { anchor = "BOTTOMLEFT",  x = 60,   y = 10 },
+        trinket1  = { anchor = "BOTTOMLEFT",  x = 110,  y = 10 },
+        trinket2  = { anchor = "BOTTOMLEFT",  x = 160,  y = 10 },
+        mainhand  = { anchor = "BOTTOMRIGHT", x = -110, y = 10 },
+        offhand   = { anchor = "BOTTOMRIGHT", x = -60,  y = 10 },
+        ranged    = { anchor = "BOTTOMRIGHT", x = -10,  y = 10 },
+    },
+    STATE_COLORS = {
+        empty     = { border = "GREY",         indicator = nil },
+        equipped  = { border = "ITEM_QUALITY", indicator = nil },
+        bis       = { border = "GOLD_BRIGHT",  indicator = "GOLD_BRIGHT" },
+        ok        = { border = "FEL_GREEN",    indicator = "FEL_GREEN" },
+        minor     = { border = "FEL_GREEN",    indicator = "FEL_GREEN" },
+        upgrade   = { border = "GOLD_BRIGHT",  indicator = "GOLD_BRIGHT" },
+        major     = { border = "HELLFIRE_RED", indicator = "HELLFIRE_RED" },
+        selected  = { border = "ARCANE_PURPLE",indicator = nil },
+        wishlisted= { border = "EPIC_PURPLE",  indicator = "EPIC_PURPLE" },
+    },
+    INDICATOR_ICONS = {
+        bis       = { icon = "Interface\\RAIDFRAME\\ReadyCheck-Ready", symbol = "★" },
+        ok        = { icon = "Interface\\RAIDFRAME\\ReadyCheck-Ready", symbol = "✓" },
+        minor     = { icon = "Interface\\BUTTONS\\UI-MicroStream-Green", symbol = "↑" },
+        upgrade   = { icon = "Interface\\BUTTONS\\UI-MicroStream-Yellow", symbol = "↑↑" },
+        major     = { icon = "Interface\\DialogFrame\\UI-Dialog-Icon-AlertNew", symbol = "!!" },
+        wishlisted= { icon = "Interface\\BUTTONS\\UI-GroupLoot-Coin-Up", symbol = "♥" },
+        tier      = { icon = "Interface\\ICONS\\INV_Misc_Token_SoulTrader", symbol = "T" },
+    },
+}
+
+-- Slot placeholder icons
+C.ARMORY_SLOT_PLACEHOLDER_ICONS = {
+    head      = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Head",
+    neck      = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Neck",
+    shoulders = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Shoulder",
+    back      = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Chest",
+    chest     = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Chest",
+    wrist     = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Wrists",
+    hands     = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Hands",
+    waist     = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Waist",
+    legs      = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Legs",
+    feet      = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Feet",
+    ring1     = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Finger",
+    ring2     = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Finger",
+    trinket1  = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Trinket",
+    trinket2  = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Trinket",
+    mainhand  = "Interface\\PaperDoll\\UI-PaperDoll-Slot-MainHand",
+    offhand   = "Interface\\PaperDoll\\UI-PaperDoll-Slot-SecondaryHand",
+    ranged    = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Ranged",
+}
+
+-- Detail panel
+C.ARMORY_DETAIL_PANEL = {
+    WIDTH = "FILL_REMAINING",
+    MIN_WIDTH = 350,
+    HEIGHT = "MATCH_PAPERDOLL",
+    ANCHOR = "TOPRIGHT",
+    OFFSET_X = 0,
+    OFFSET_Y = -50,
+    HEADER_HEIGHT = 45,
+    FOOTER_HEIGHT = 40,
+    CONTENT_PADDING = 12,
+    BACKDROP = {
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 12,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 },
+    },
+    BG_COLOR = { r = 0.05, g = 0.05, b = 0.05, a = 0.95 },
+    BORDER_COLOR = { r = 0.4, g = 0.35, b = 0.25, a = 1 },
+}
+
+-- Detail header
+C.ARMORY_DETAIL_HEADER = {
+    HEIGHT = 45,
+    TITLE_FONT = "GameFontNormalLarge",
+    TITLE_OFFSET = { x = 15, y = -12 },
+    SUBTITLE_FONT = "GameFontNormalSmall",
+    SUBTITLE_OFFSET = { x = 15, y = -28 },
+    CLOSE_BUTTON_SIZE = 24,
+    CLOSE_BUTTON_OFFSET = { x = -10, y = 0 },
+    DIVIDER_HEIGHT = 2,
+    DIVIDER_COLOR = { r = 0.3, g = 0.3, b = 0.3, a = 1 },
+}
+
+-- Detail scroll
+C.ARMORY_DETAIL_SCROLL = {
+    PADDING_LEFT = 5,
+    PADDING_RIGHT = 5,
+    PADDING_TOP = 50,
+    PADDING_BOTTOM = 45,
+    SCROLLBAR_WIDTH = 16,
+    SCROLLBAR_OFFSET = -2,
+    CONTENT_PADDING = 10,
+}
+
+-- Scroll content
+C.ARMORY_SCROLL_CONTENT = {
+    CARD_SPACING = 8,
+    SECTION_SPACING = 15,
+    EMPTY_TEXT = "Click on an equipment slot to see upgrade recommendations.",
+    EMPTY_TEXT_COLOR = { r = 0.6, g = 0.6, b = 0.6, a = 1 },
+}
+
+-- Equipped card
+C.ARMORY_EQUIPPED_CARD = {
+    HEIGHT = 80,
+    WIDTH = "MATCH_PARENT",
+    PADDING = 12,
+    ICON_SIZE = 44,
+    TITLE_OFFSET = { x = 60, y = -12 },
+    ILEVEL_OFFSET = { x = 60, y = -28 },
+    STATS_OFFSET = { x = 60, y = -44 },
+    BACKDROP = {
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 10,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    },
+    BG_COLOR = { r = 0.15, g = 0.15, b = 0.15, a = 0.95 },
+    HEADER_TEXT = "CURRENTLY EQUIPPED",
+    HEADER_COLOR = { r = 0.7, g = 0.7, b = 0.7, a = 1 },
+}
+
+-- Upgrade section
+C.ARMORY_UPGRADE_SECTION = {
+    SECTIONS = {
+        { id = "t4_upgrades", label = "T4 UPGRADES",       color = "FEL_GREEN",    defaultExpanded = true },
+        { id = "badge",       label = "BADGE OF JUSTICE",  color = "GOLD_BRIGHT",  defaultExpanded = false },
+        { id = "heroic",      label = "HEROIC DUNGEONS",   color = "SKY_BLUE",     defaultExpanded = false },
+        { id = "rep",         label = "REPUTATION",        color = "ARCANE_PURPLE",defaultExpanded = false },
+        { id = "crafted",     label = "CRAFTED GEAR",      color = "BRONZE",       defaultExpanded = false },
+    },
+    HEADER_HEIGHT = 28,
+    HEADER_PADDING = 8,
+    HEADER_FONT = "GameFontNormal",
+    ARROW_SIZE = 16,
+    ARROW_EXPANDED = "Interface\\Buttons\\UI-MinusButton-Up",
+    ARROW_COLLAPSED = "Interface\\Buttons\\UI-PlusButton-Up",
+    CONTENT_PADDING = 8,
+    CARD_SPACING = 6,
+}
+
+-- Detail footer
+C.ARMORY_DETAIL_FOOTER = {
+    HEIGHT = 40,
+    PADDING_H = 10,
+    PADDING_V = 5,
+    BUTTON_WIDTH = 100,
+    BUTTON_HEIGHT = 28,
+    BUTTON_GAP = 10,
+    DIVIDER_HEIGHT = 2,
+    DIVIDER_COLOR = { r = 0.3, g = 0.3, b = 0.3, a = 1 },
+    BUTTONS = {
+        { id = "addWishlist", label = "Add to Wishlist", color = "EPIC_PURPLE", position = "LEFT" },
+        { id = "close",       label = "Close",           color = "GREY",        position = "RIGHT" },
+    },
+}
+
+-- Main footer
+C.ARMORY_FOOTER = {
+    HEIGHT = 35,
+    ANCHOR = "BOTTOMLEFT",
+    OFFSET_Y = 0,
+    PADDING_H = 15,
+    STAT_GAP = 30,
+    STATS = {
+        { id = "avgIlvl",       label = "Avg iLvl:",    format = "%d" },
+        { id = "upgradesAvail", label = "Upgrades:",    format = "%d slots" },
+        { id = "wishlisted",    label = "Wishlisted:",  format = "%d items" },
+    },
+    BACKDROP = {
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 12,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    },
+    BG_COLOR = { r = 0.06, g = 0.06, b = 0.06, a = 0.95 },
+    BORDER_COLOR = { r = 0.3, g = 0.3, b = 0.3, a = 1 },
+    LABEL_COLOR = { r = 0.6, g = 0.6, b = 0.6, a = 1 },
+    VALUE_COLOR = { r = 1, g = 0.84, b = 0, a = 1 },
+}
+
+-- Upgrade card (pooled)
+C.ARMORY_UPGRADE_CARD = {
+    HEIGHT = 75,
+    WIDTH = "MATCH_PARENT",
+    PADDING = 10,
+    ICON_SIZE = 44,
+    ICON_OFFSET = { x = 10, y = -15 },
+    RANK_OFFSET = { x = 10, y = -8 },
+    NAME_OFFSET = { x = 64, y = -12 },
+    ILEVEL_OFFSET = { x = 64, y = -28 },
+    STATS_OFFSET = { x = 64, y = -44 },
+    SOURCE_OFFSET = { x = 64, y = -60 },
+    UPGRADE_BADGE_OFFSET = { x = -10, y = -12 },
+    WISHLIST_OFFSET = { x = -10, y = -45 },
+    RANK_BADGE_WIDTH = 45,
+    RANK_BADGE_HEIGHT = 18,
+    RANK_COLORS = {
+        BEST = { bg = { r = 1, g = 0.84, b = 0 }, text = { r = 0.1, g = 0.1, b = 0.1 } },
+        ALT  = { bg = { r = 0.5, g = 0.5, b = 0.5 }, text = { r = 1, g = 1, b = 1 } },
+    },
+    UPGRADE_BADGE_WIDTH = 50,
+    UPGRADE_BADGE_HEIGHT = 20,
+    WISHLIST_SIZE = 24,
+    WISHLIST_ICON_ON = "Interface\\ICONS\\INV_ValentinesCard02",
+    WISHLIST_ICON_OFF = "Interface\\ICONS\\INV_ValentinesCard01",
+    BACKDROP = {
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 10,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    },
+    BG_COLOR = { r = 0.1, g = 0.1, b = 0.1, a = 0.9 },
+    BG_COLOR_BEST = { r = 0.15, g = 0.12, b = 0.05, a = 0.9 },
+    BORDER_COLOR = { r = 0.4, g = 0.4, b = 0.4, a = 1 },
+    BORDER_COLOR_BEST = { r = 1, g = 0.84, b = 0, a = 1 },
+}
+
+-- Section header (pooled)
+C.ARMORY_SECTION_HEADER = {
+    HEIGHT = 28,
+    WIDTH = "MATCH_PARENT",
+    PADDING_H = 10,
+    ARROW_SIZE = 16,
+    ICON_SIZE = 20,
+    GAP = 8,
+    ARROW_EXPANDED = "Interface\\Buttons\\UI-MinusButton-Up",
+    ARROW_COLLAPSED = "Interface\\Buttons\\UI-PlusButton-Up",
+    FONT = "GameFontNormal",
+    COUNT_FONT = "GameFontNormalSmall",
+    COUNT_COLOR = { r = 0.6, g = 0.6, b = 0.6, a = 1 },
+    BACKDROP = {
+        bgFile = "Interface\\BUTTONS\\WHITE8X8",
+        edgeFile = nil,
+    },
+    BG_ALPHA = 0.2,
+}
+
+-- Margins system
+C.ARMORY_MARGINS = {
+    CONTAINER_PADDING = 15,
+    SECTION_SPACING = 20,
+    SUBSECTION_SPACING = 12,
+    COMPONENT_GAP_SM = 4,
+    COMPONENT_GAP_MD = 8,
+    COMPONENT_GAP_LG = 16,
+    CARD_PADDING = 12,
+    CARD_MARGIN = 8,
+    CARD_BORDER = 2,
+    HEADER_MARGIN_TOP = 16,
+    HEADER_MARGIN_BOTTOM = 8,
+    BUTTON_PADDING_H = 12,
+    BUTTON_PADDING_V = 6,
+    BUTTON_SPACING = 8,
+    TIER_BAR_PADDING = 10,
+    TIER_BUTTON_GAP = 12,
+    DETAIL_HEADER_HEIGHT = 40,
+    DETAIL_CONTENT_PADDING = 15,
+    DETAIL_SCROLL_WIDTH = 16,
+    FOOTER_PADDING = 10,
+}
+
+-- WoW Assets for Armory
+C.ARMORY_ASSETS = {
+    BACKGROUNDS = {
+        DARK_PANEL = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+        TOOLTIP = "Interface\\Tooltips\\UI-Tooltip-Background",
+        PARCHMENT = "Interface\\QUESTFRAME\\QuestBG",
+    },
+    BORDERS = {
+        TOOLTIP = "Interface\\Tooltips\\UI-Tooltip-Border",
+        GOLD = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
+    },
+    GLOWS = {
+        ACTION_BUTTON = "Interface\\BUTTONS\\UI-ActionButton-Border",
+        GLOW = "Interface\\BUTTONS\\CheckButtonGlow",
+    },
+    QUALITY_FRAMES = {
+        UNCOMMON = "Interface\\Common\\WhiteIconFrame",
+        RARE = "Interface\\Common\\WhiteIconFrame",
+        EPIC = "Interface\\Common\\WhiteIconFrame",
+        LEGENDARY = "Interface\\Common\\WhiteIconFrame",
+    },
+    SOURCE_ICONS = {
+        raid = "Interface\\ICONS\\INV_Misc_Head_Dragon_01",
+        heroic = "Interface\\ICONS\\Spell_Holy_SealOfBlood",
+        badge = "Interface\\ICONS\\Spell_Holy_ChampionsBond",
+        rep = "Interface\\ICONS\\INV_Misc_Token_argentdawn",
+        crafted = "Interface\\ICONS\\Trade_BlackSmithing",
+    },
+}
+
+--============================================================
+-- ARMORY TAB: GEAR DATABASE (T4 BiS Recommendations)
+--============================================================
+
+-- Tier definitions with metadata
+C.ARMORY_TIERS = {
+    [4] = {
+        name = "Phase 1 (T4)",
+        content = "Karazhan, Gruul, Magtheridon, Heroics",
+        color = "FEL_GREEN",
+        raids = { "karazhan", "gruul", "magtheridon" },
+    },
+    [5] = {
+        name = "Phase 2 (T5)",
+        content = "SSC, Tempest Keep",
+        color = "SKY_BLUE",
+        raids = { "ssc", "tk" },
+    },
+    [6] = {
+        name = "Phase 3 (T6)",
+        content = "Hyjal, Black Temple, Sunwell",
+        color = "HELLFIRE_RED",
+        raids = { "hyjal", "bt", "sunwell" },
+    },
+}
+
+-- Source type display info
+C.ARMORY_SOURCE_TYPES = {
+    raid = { color = "EPIC_PURPLE", icon = "Achievement_Dungeon_Karazhan", label = "Raid Drop" },
+    heroic = { color = "RARE_BLUE", icon = "INV_Misc_Key_10", label = "Heroic Dungeon" },
+    badge = { color = "GOLD_BRIGHT", icon = "Spell_Holy_ChampionsBond", label = "Badge of Justice" },
+    rep = { color = "FEL_GREEN", icon = "INV_Misc_Token_Argentdawn", label = "Reputation" },
+    crafted = { color = "BRONZE", icon = "Trade_BlackSmithing", label = "Crafted" },
+    pvp = { color = "HELLFIRE_RED", icon = "INV_Jewelry_TrinketPVP_01", label = "PvP" },
+    world = { color = "LEGENDARY_ORANGE", icon = "INV_Misc_Head_Dragon_01", label = "World Boss" },
+    quest = { color = "UNCOMMON_GREEN", icon = "INV_Misc_Book_07", label = "Quest Reward" },
+    dungeon = { color = "RARE_BLUE", icon = "INV_Misc_Key_03", label = "Dungeon" },
+}
+
+-- Equipment slot definitions for UI layout
+C.ARMORY_SLOTS = {
+    -- Left column (armor)
+    { id = "head",      slotId = 1,  label = "Head",      position = { anchor = "TOPLEFT", x = 20, y = -60 } },
+    { id = "shoulders", slotId = 3,  label = "Shoulders", position = { anchor = "TOPLEFT", x = 20, y = -120 } },
+    { id = "chest",     slotId = 5,  label = "Chest",     position = { anchor = "TOPLEFT", x = 20, y = -180 } },
+    { id = "waist",     slotId = 6,  label = "Waist",     position = { anchor = "TOPLEFT", x = 20, y = -240 } },
+    { id = "legs",      slotId = 7,  label = "Legs",      position = { anchor = "TOPLEFT", x = 20, y = -300 } },
+
+    -- Right column (accessories)
+    { id = "neck",      slotId = 2,  label = "Neck",      position = { anchor = "TOPRIGHT", x = -20, y = -60 } },
+    { id = "back",      slotId = 15, label = "Back",      position = { anchor = "TOPRIGHT", x = -20, y = -120 } },
+    { id = "wrist",     slotId = 9,  label = "Wrist",     position = { anchor = "TOPRIGHT", x = -20, y = -180 } },
+    { id = "hands",     slotId = 10, label = "Hands",     position = { anchor = "TOPRIGHT", x = -20, y = -240 } },
+    { id = "feet",      slotId = 8,  label = "Feet",      position = { anchor = "TOPRIGHT", x = -20, y = -300 } },
+
+    -- Bottom row (jewelry, weapons)
+    { id = "ring1",     slotId = 11, label = "Ring",      position = { anchor = "BOTTOM", x = -180, y = 80 } },
+    { id = "ring2",     slotId = 12, label = "Ring",      position = { anchor = "BOTTOM", x = -120, y = 80 } },
+    { id = "trinket1",  slotId = 13, label = "Trinket",   position = { anchor = "BOTTOM", x = -60, y = 80 } },
+    { id = "trinket2",  slotId = 14, label = "Trinket",   position = { anchor = "BOTTOM", x = 0, y = 80 } },
+    { id = "mainhand",  slotId = 16, label = "Main Hand", position = { anchor = "BOTTOM", x = 60, y = 80 } },
+    { id = "offhand",   slotId = 17, label = "Off Hand",  position = { anchor = "BOTTOM", x = 120, y = 80 } },
+    { id = "ranged",    slotId = 18, label = "Ranged",    position = { anchor = "BOTTOM", x = 180, y = 80 } },
+}
+
+-- Role definitions
+C.ARMORY_ROLES = {
+    tank = { name = "Tank", icon = "INV_Shield_06", color = "SKY_BLUE", stats = "Stamina, Defense, Dodge, Parry" },
+    healer = { name = "Healer", icon = "Spell_Holy_FlashHeal", color = "FEL_GREEN", stats = "+Healing, MP5, Intellect" },
+    melee_dps = { name = "Melee DPS", icon = "Ability_DualWield", color = "HELLFIRE_RED", stats = "AP, Hit, Crit, Expertise" },
+    ranged_dps = { name = "Ranged DPS", icon = "INV_Weapon_Bow_07", color = "GOLD_BRIGHT", stats = "Agility, AP, Hit, Crit" },
+    caster_dps = { name = "Caster DPS", icon = "Spell_Fire_FelFire", color = "ARCANE_PURPLE", stats = "Spell Power, Hit, Crit" },
+}
+
+-- Quality colors for item borders
+C.ARMORY_QUALITY_COLORS = {
+    poor = { r = 0.62, g = 0.62, b = 0.62 },      -- Grey
+    common = { r = 1, g = 1, b = 1 },             -- White
+    uncommon = { r = 0.12, g = 1, b = 0 },        -- Green
+    rare = { r = 0, g = 0.44, b = 0.87 },         -- Blue
+    epic = { r = 0.64, g = 0.21, b = 0.93 },      -- Purple
+    legendary = { r = 1, g = 0.5, b = 0 },        -- Orange
+}
+
+-- Main gear database
+-- Structure: [tier][role][slot] = { best = {...}, alternatives = {...} }
+C.ARMORY_GEAR_DATABASE = {
+    -------------------------------------------------
+    -- TIER 4 (Phase 1): Karazhan, Gruul, Magtheridon
+    -------------------------------------------------
+    [4] = {
+        --===========================================
+        -- TANK ROLE
+        --===========================================
+        ["tank"] = {
+            ["head"] = {
+                best = {
+                    itemId = 29011, name = "Warbringer Greathelm",
+                    icon = "INV_Helmet_70", quality = "epic", iLvl = 120,
+                    stats = "+43 Str, +45 Sta, +32 Def Rating",
+                    source = "Prince Malchezaar", sourceType = "raid", sourceDetail = "Karazhan",
+                },
+                alternatives = {
+                    { itemId = 32083, name = "Faceguard of Determination", icon = "INV_Helmet_71", quality = "epic", iLvl = 115, stats = "+40 Sta, +30 Def", source = "G'eras", sourceType = "badge", badgeCost = 50 },
+                    { itemId = 23519, name = "Felsteel Helm", icon = "INV_Helmet_25", quality = "rare", iLvl = 105, stats = "+25 Sta, +22 Def", source = "Blacksmithing", sourceType = "crafted" },
+                },
+            },
+            ["neck"] = {
+                best = { itemId = 29386, name = "Necklace of the Juggernaut", icon = "INV_Jewelry_Necklace_36", quality = "epic", iLvl = 110, stats = "+30 Sta, +21 Def", source = "G'eras", sourceType = "badge", badgeCost = 25 },
+                alternatives = {
+                    { itemId = 28244, name = "Barbed Choker of Discipline", icon = "INV_Jewelry_Necklace_29", quality = "rare", iLvl = 115, stats = "+27 Sta, +18 Def", source = "Heroic Shattered Halls", sourceType = "heroic" },
+                },
+            },
+            ["shoulders"] = {
+                best = { itemId = 29023, name = "Warbringer Shoulderplates", icon = "INV_Shoulder_29", quality = "epic", iLvl = 120, stats = "+33 Str, +36 Sta, +23 Def", source = "High King Maulgar", sourceType = "raid", sourceDetail = "Gruul's Lair" },
+                alternatives = {
+                    { itemId = 27739, name = "Spaulders of the Righteous", icon = "INV_Shoulder_28", quality = "rare", iLvl = 115, stats = "+27 Sta, +21 Def", source = "Warp Splinter", sourceType = "heroic", sourceDetail = "Heroic Botanica" },
+                },
+            },
+            ["back"] = {
+                best = { itemId = 28672, name = "Drape of the Dark Reavers", icon = "INV_Misc_Cape_19", quality = "epic", iLvl = 115, stats = "+24 Sta, +20 Hit", source = "Shade of Aran", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 27804, name = "Devilshark Cape", icon = "INV_Misc_Cape_17", quality = "rare", iLvl = 115, stats = "+22 Sta, +18 Def", source = "Warlord Kalithresh", sourceType = "heroic", sourceDetail = "Heroic Steamvault" },
+                },
+            },
+            ["chest"] = {
+                best = { itemId = 29012, name = "Warbringer Chestguard", icon = "INV_Chest_Plate16", quality = "epic", iLvl = 120, stats = "+43 Str, +54 Sta, +32 Def", source = "Magtheridon", sourceType = "raid", sourceDetail = "Magtheridon's Lair" },
+                alternatives = {
+                    { itemId = 27440, name = "Jade-Skull Breastplate", icon = "INV_Chest_Plate11", quality = "rare", iLvl = 115, stats = "+36 Sta, +26 Def", source = "Swamplord Musel'ek", sourceType = "heroic", sourceDetail = "Heroic Underbog" },
+                },
+            },
+            ["wrist"] = {
+                best = { itemId = 28996, name = "Bracers of the Green Fortress", icon = "INV_Bracer_19", quality = "epic", iLvl = 115, stats = "+30 Sta, +23 Def", source = "Blacksmithing", sourceType = "crafted" },
+                alternatives = {
+                    { itemId = 29463, name = "Sha'tari Wrought Armguards", icon = "INV_Bracer_17", quality = "rare", iLvl = 110, stats = "+24 Sta, +18 Def", source = "Sha'tar Exalted", sourceType = "rep", repFaction = "The Sha'tar", repStanding = "Exalted" },
+                },
+            },
+            ["hands"] = {
+                best = { itemId = 30741, name = "Topaz-Studded Battlegrips", icon = "INV_Gauntlets_27", quality = "epic", iLvl = 115, stats = "+33 Sta, +25 Def", source = "Doom Lord Kazzak", sourceType = "world" },
+                alternatives = {
+                    { itemId = 27475, name = "Gauntlets of the Bold", icon = "INV_Gauntlets_26", quality = "rare", iLvl = 115, stats = "+27 Sta, +21 Def", source = "Warchief Kargath", sourceType = "heroic", sourceDetail = "Heroic Shattered Halls" },
+                },
+            },
+            ["waist"] = {
+                best = { itemId = 28995, name = "Girdle of the Immovable", icon = "INV_Belt_13", quality = "epic", iLvl = 115, stats = "+33 Sta, +25 Def", source = "Blacksmithing", sourceType = "crafted" },
+                alternatives = {
+                    { itemId = 27672, name = "Girdle of Valorous Deeds", icon = "INV_Belt_12", quality = "rare", iLvl = 115, stats = "+27 Sta, +21 Def", source = "Exarch Maladaar", sourceType = "heroic", sourceDetail = "Heroic Auchenai Crypts" },
+                },
+            },
+            ["legs"] = {
+                best = { itemId = 28621, name = "Wrynn Dynasty Greaves", icon = "INV_Pants_Plate_17", quality = "epic", iLvl = 115, stats = "+45 Sta, +34 Def", source = "Nightbane", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 25687, name = "Clefthoof Hide Leggings", icon = "INV_Pants_Leather_09", quality = "rare", iLvl = 109, stats = "+36 Sta, High threat", source = "Leatherworking", sourceType = "crafted" },
+                },
+            },
+            ["feet"] = {
+                best = { itemId = 28747, name = "Battlescar Boots", icon = "INV_Boots_Chain_08", quality = "epic", iLvl = 115, stats = "+30 Sta, +23 Def", source = "Chess Event", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 27813, name = "Boots of the Colossus", icon = "INV_Boots_Chain_07", quality = "rare", iLvl = 115, stats = "+27 Sta, +20 Def", source = "Pandemonius", sourceType = "heroic", sourceDetail = "Heroic Mana-Tombs" },
+                },
+            },
+            ["ring1"] = {
+                best = { itemId = 29279, name = "Violet Signet of the Great Protector", icon = "INV_Jewelry_Ring_62", quality = "epic", iLvl = 115, stats = "+27 Sta, +21 Def", source = "Violet Eye Exalted", sourceType = "rep", repFaction = "The Violet Eye", repStanding = "Exalted" },
+                alternatives = {
+                    { itemId = 27822, name = "Crystal Band of Valor", icon = "INV_Jewelry_Ring_58", quality = "rare", iLvl = 115, stats = "+22 Sta, +17 Def", source = "Nexus-Prince Shaffar", sourceType = "heroic", sourceDetail = "Heroic Mana-Tombs" },
+                },
+            },
+            ["ring2"] = {
+                best = { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_63", quality = "epic", iLvl = 110, stats = "+24 Sta, +18 Hit", source = "Lower City Exalted", sourceType = "rep", repFaction = "Lower City", repStanding = "Exalted" },
+                alternatives = {
+                    { itemId = 28407, name = "Elementium Band of the Sentry", icon = "INV_Jewelry_Ring_60", quality = "rare", iLvl = 110, stats = "+21 Sta, +15 Def", source = "Arcatraz Key Quest", sourceType = "quest" },
+                },
+            },
+            ["trinket1"] = {
+                best = { itemId = 28528, name = "Moroes' Lucky Pocket Watch", icon = "INV_Misc_PocketWatch_02", quality = "epic", iLvl = 115, stats = "+Dodge on use", source = "Moroes", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 27891, name = "Adamantine Figurine", icon = "INV_Misc_Statue_01", quality = "rare", iLvl = 110, stats = "+Armor on use", source = "Blackheart the Inciter", sourceType = "heroic", sourceDetail = "Heroic Shadow Labyrinth" },
+                },
+            },
+            ["trinket2"] = {
+                best = { itemId = 28121, name = "Icon of Unyielding Courage", icon = "INV_Jewelry_Talisman_07", quality = "rare", iLvl = 110, stats = "+Hit, +Dodge proc", source = "Keli'dan the Breaker", sourceType = "heroic", sourceDetail = "Heroic Blood Furnace" },
+                alternatives = {
+                    { itemId = 23836, name = "Goblin Rocket Launcher", icon = "INV_Gizmo_RocketLauncher", quality = "rare", iLvl = 109, stats = "+Stamina, damage", source = "Engineering", sourceType = "crafted" },
+                },
+            },
+            ["mainhand"] = {
+                best = { itemId = 28749, name = "King's Defender", icon = "INV_Sword_58", quality = "epic", iLvl = 115, stats = "+Str, +Sta, +Def", source = "Chess Event", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 29362, name = "The Sun Eater", icon = "INV_Sword_57", quality = "epic", iLvl = 110, stats = "+Avoidance proc", source = "Pathaleon the Calculator", sourceType = "heroic", sourceDetail = "Heroic Mechanar" },
+                    { itemId = 28189, name = "Latro's Shifting Sword", icon = "INV_Sword_56", quality = "epic", iLvl = 115, stats = "+Hit, high threat", source = "Aeonus", sourceType = "dungeon", sourceDetail = "Black Morass" },
+                },
+            },
+            ["offhand"] = {
+                best = { itemId = 28825, name = "Aldori Legacy Defender", icon = "INV_Shield_31", quality = "epic", iLvl = 120, stats = "+Block, gem socket", source = "Gruul the Dragonkiller", sourceType = "raid", sourceDetail = "Gruul's Lair" },
+                alternatives = {
+                    { itemId = 28316, name = "Aegis of the Sunbird", icon = "INV_Shield_30", quality = "rare", iLvl = 115, stats = "+Block, +Sta", source = "Al'ar Trash", sourceType = "raid", sourceDetail = "Tempest Keep" },
+                    { itemId = 27887, name = "Platinum Shield of the Valorous", icon = "INV_Shield_29", quality = "rare", iLvl = 115, stats = "+Block, +Def", source = "Warlord Kalithresh", sourceType = "heroic", sourceDetail = "Heroic Steamvault" },
+                },
+            },
+            ["ranged"] = {
+                best = { itemId = 30724, name = "Barrel-Blade Longrifle", icon = "INV_Weapon_Rifle_23", quality = "epic", iLvl = 115, stats = "+Sta, +Crit", source = "Doomwalker", sourceType = "world" },
+                alternatives = {
+                    { itemId = 29115, name = "Consortium Blaster", icon = "INV_Weapon_Rifle_22", quality = "rare", iLvl = 105, stats = "+Sta", source = "Consortium Exalted", sourceType = "rep", repFaction = "The Consortium", repStanding = "Exalted" },
+                },
+            },
+        },
+
+        --===========================================
+        -- HEALER ROLE
+        --===========================================
+        ["healer"] = {
+            ["head"] = {
+                best = { itemId = 29061, name = "Justicar Diadem", icon = "INV_Helmet_15", quality = "epic", iLvl = 120, stats = "+33 Int, +32 Sta, +75 Healing", source = "Prince Malchezaar", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 28413, name = "Hallowed Crown", icon = "INV_Helmet_14", quality = "rare", iLvl = 112, stats = "+28 Int, +66 Healing", source = "Harbinger Skyriss", sourceType = "heroic", sourceDetail = "Heroic Arcatraz" },
+                },
+            },
+            ["neck"] = {
+                best = { itemId = 28609, name = "Emberspur Talisman", icon = "INV_Jewelry_Necklace_37", quality = "epic", iLvl = 115, stats = "+22 Int, +51 Healing", source = "Nightbane", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 27508, name = "Natasha's Guardian Cord", icon = "INV_Jewelry_Necklace_36", quality = "rare", iLvl = 109, stats = "+18 Int, +44 Healing", source = "Quest: The Master's Terrace", sourceType = "quest" },
+                },
+            },
+            ["shoulders"] = {
+                best = { itemId = 29064, name = "Justicar Pauldrons", icon = "INV_Shoulder_22", quality = "epic", iLvl = 120, stats = "+25 Int, +24 Sta, +62 Healing", source = "High King Maulgar", sourceType = "raid", sourceDetail = "Gruul's Lair" },
+                alternatives = {
+                    { itemId = 27775, name = "Hallowed Pauldrons", icon = "INV_Shoulder_21", quality = "rare", iLvl = 115, stats = "+21 Int, +51 Healing", source = "Warlord Kalithresh", sourceType = "heroic", sourceDetail = "Heroic Steamvault" },
+                },
+            },
+            ["back"] = {
+                best = { itemId = 28765, name = "Stainless Cloak of the Pure Hearted", icon = "INV_Misc_Cape_18", quality = "epic", iLvl = 115, stats = "+18 Int, +46 Healing", source = "Prince Malchezaar", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 31329, name = "Lifegiving Cloak", icon = "INV_Misc_Cape_17", quality = "epic", iLvl = 110, stats = "+15 Int, +40 Healing", source = "World Drop", sourceType = "crafted" },
+                },
+            },
+            ["chest"] = {
+                best = { itemId = 29062, name = "Justicar Chestpiece", icon = "INV_Chest_Plate15", quality = "epic", iLvl = 120, stats = "+33 Int, +37 Sta, +84 Healing", source = "Magtheridon", sourceType = "raid", sourceDetail = "Magtheridon's Lair" },
+                alternatives = {
+                    { itemId = 29522, name = "Windhawk Hauberk", icon = "INV_Chest_Leather_03", quality = "epic", iLvl = 110, stats = "+27 Int, +73 Healing, MP5", source = "Tribal Leatherworking", sourceType = "crafted" },
+                },
+            },
+            ["wrist"] = {
+                best = { itemId = 23539, name = "Blessed Bracers", icon = "INV_Bracer_12", quality = "epic", iLvl = 100, stats = "+18 Int, +46 Healing", source = "Blacksmithing", sourceType = "crafted" },
+                alternatives = {
+                    { itemId = 29183, name = "Bindings of the Timewalker", icon = "INV_Bracer_11", quality = "rare", iLvl = 110, stats = "+15 Int, +40 Healing", source = "Keepers of Time Exalted", sourceType = "rep", repFaction = "Keepers of Time", repStanding = "Exalted" },
+                },
+            },
+            ["hands"] = {
+                best = { itemId = 28505, name = "Gauntlets of Renewed Hope", icon = "INV_Gauntlets_25", quality = "epic", iLvl = 115, stats = "+22 Int, +55 Healing", source = "Attumen the Huntsman", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 27465, name = "Prismatic Mittens of Mending", icon = "INV_Gauntlets_24", quality = "rare", iLvl = 115, stats = "+18 Int, +48 Healing", source = "Aeonus", sourceType = "dungeon", sourceDetail = "Black Morass" },
+                },
+            },
+            ["waist"] = {
+                best = { itemId = 21873, name = "Primal Mooncloth Belt", icon = "INV_Belt_14", quality = "epic", iLvl = 110, stats = "+22 Int, +57 Healing, MP5", source = "Mooncloth Tailoring", sourceType = "crafted" },
+                alternatives = {
+                    { itemId = 27542, name = "Cord of Sanctification", icon = "INV_Belt_13", quality = "rare", iLvl = 112, stats = "+18 Int, +48 Healing", source = "Quest: Deathblow to the Legion", sourceType = "quest" },
+                },
+            },
+            ["legs"] = {
+                best = { itemId = 28748, name = "Legplates of the Innocent", icon = "INV_Pants_Plate_18", quality = "epic", iLvl = 115, stats = "+28 Int, +68 Healing", source = "Chess Event", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 30727, name = "Gilded Trousers of Benediction", icon = "INV_Pants_Plate_17", quality = "epic", iLvl = 115, stats = "+25 Int, +62 Healing", source = "Doom Lord Kazzak", sourceType = "world" },
+                },
+            },
+            ["feet"] = {
+                best = { itemId = 28752, name = "Forestlord Striders", icon = "INV_Boots_Cloth_12", quality = "epic", iLvl = 115, stats = "+22 Int, +55 Healing", source = "Chess Event", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 27411, name = "Jeweled Boots of Sanctification", icon = "INV_Boots_Cloth_11", quality = "rare", iLvl = 112, stats = "+18 Int, +48 Healing", source = "Quest: The Soul Devices", sourceType = "quest" },
+                },
+            },
+            ["ring1"] = {
+                best = { itemId = 28763, name = "Jade Ring of the Everliving", icon = "INV_Jewelry_Ring_61", quality = "epic", iLvl = 115, stats = "+22 Int, +51 Healing", source = "Prince Malchezaar", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 29814, name = "Celestial Jewel Ring", icon = "INV_Jewelry_Ring_60", quality = "rare", iLvl = 105, stats = "+18 Int, +40 Healing", source = "Quest: A Fate Worse Than Death", sourceType = "quest" },
+                },
+            },
+            ["ring2"] = {
+                best = { itemId = 28790, name = "Naaru Lightwarden's Band", icon = "INV_Jewelry_Ring_62", quality = "epic", iLvl = 115, stats = "+20 Int, +46 Healing", source = "Magtheridon Quest", sourceType = "quest", sourceDetail = "Trial of the Naaru" },
+                alternatives = {
+                    { itemId = 30736, name = "Ring of Flowing Light", icon = "INV_Jewelry_Ring_63", quality = "epic", iLvl = 115, stats = "+18 Int, +42 Healing", source = "Doom Lord Kazzak", sourceType = "world" },
+                },
+            },
+            ["trinket1"] = {
+                best = { itemId = 29376, name = "Essence of the Martyr", icon = "INV_Jewelry_Talisman_12", quality = "epic", iLvl = 110, stats = "+Healing on use", source = "G'eras", sourceType = "badge", badgeCost = 41 },
+                alternatives = {
+                    { itemId = 28823, name = "Lower City Prayerbook", icon = "INV_Misc_Book_09", quality = "rare", iLvl = 110, stats = "+Healing on use", source = "Lower City Exalted", sourceType = "rep", repFaction = "Lower City", repStanding = "Exalted" },
+                },
+            },
+            ["trinket2"] = {
+                best = { itemId = 28590, name = "Ribbon of Sacrifice", icon = "INV_Misc_QirajiCrystal_04", quality = "epic", iLvl = 115, stats = "+Healing proc", source = "Opera Event", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 27770, name = "Bangle of Endless Blessings", icon = "INV_Jewelry_Talisman_11", quality = "rare", iLvl = 115, stats = "+MP5 proc", source = "Harbinger Skyriss", sourceType = "heroic", sourceDetail = "Heroic Arcatraz" },
+                },
+            },
+            ["mainhand"] = {
+                best = { itemId = 28771, name = "Light's Justice", icon = "INV_Mace_51", quality = "epic", iLvl = 115, stats = "+22 Int, +59 Healing", source = "Prince Malchezaar", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 29175, name = "Gavel of Pure Light", icon = "INV_Mace_50", quality = "epic", iLvl = 110, stats = "+18 Int, +51 Healing", source = "Sha'tar Exalted", sourceType = "rep", repFaction = "The Sha'tar", repStanding = "Exalted" },
+                },
+            },
+            ["offhand"] = {
+                best = { itemId = 29458, name = "Aegis of the Vindicator", icon = "INV_Shield_32", quality = "epic", iLvl = 120, stats = "+18 Int, +48 Healing", source = "Magtheridon", sourceType = "raid", sourceDetail = "Magtheridon's Lair" },
+                alternatives = {
+                    { itemId = 27477, name = "Faol's Signet of Cleansing", icon = "INV_Jewelry_Talisman_10", quality = "rare", iLvl = 115, stats = "+15 Int, +40 Healing", source = "Murmur", sourceType = "heroic", sourceDetail = "Heroic Shadow Labyrinth" },
+                },
+            },
+            ["ranged"] = {
+                best = { itemId = 28592, name = "Libram of Souls Redeemed", icon = "INV_Relics_LibramofHope", quality = "epic", iLvl = 115, stats = "+Healing to Flash of Light", source = "Opera Event", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 28296, name = "Libram of Mending", icon = "INV_Relics_LibramofGrace", quality = "rare", iLvl = 100, stats = "+Healing", source = "Badge Vendor", sourceType = "badge", badgeCost = 15 },
+                },
+            },
+        },
+
+        --===========================================
+        -- MELEE DPS ROLE
+        --===========================================
+        ["melee_dps"] = {
+            ["head"] = {
+                best = { itemId = 29044, name = "Netherblade Facemask", icon = "INV_Helmet_24", quality = "epic", iLvl = 120, stats = "+35 Agi, +30 Sta, +28 Hit", source = "Netherspite", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 28224, name = "Wastewalker Helm", icon = "INV_Helmet_23", quality = "rare", iLvl = 115, stats = "+30 Agi, +25 Sta", source = "Epoch Hunter", sourceType = "heroic", sourceDetail = "Heroic Old Hillsbrad" },
+                },
+            },
+            ["neck"] = {
+                best = { itemId = 29381, name = "Choker of Vile Intent", icon = "INV_Jewelry_Necklace_38", quality = "epic", iLvl = 110, stats = "+22 Agi, +22 Hit", source = "G'eras", sourceType = "badge", badgeCost = 25 },
+                alternatives = {
+                    { itemId = 24114, name = "Braided Eternium Chain", icon = "INV_Jewelry_Necklace_37", quality = "rare", iLvl = 100, stats = "+18 Agi, Party Crit buff", source = "Jewelcrafting", sourceType = "crafted" },
+                },
+            },
+            ["shoulders"] = {
+                best = { itemId = 27797, name = "Wastewalker Shoulderpads", icon = "INV_Shoulder_23", quality = "rare", iLvl = 115, stats = "+27 Agi, +25 Sta", source = "Avatar of the Martyred", sourceType = "heroic", sourceDetail = "Heroic Auchenai Crypts" },
+                alternatives = {
+                    { itemId = 27776, name = "Shoulderpads of Assassination", icon = "INV_Shoulder_22", quality = "rare", iLvl = 115, stats = "+24 Agi, +22 Sta", source = "Warlord Kalithresh", sourceType = "heroic", sourceDetail = "Heroic Steamvault" },
+                },
+            },
+            ["back"] = {
+                best = { itemId = 28672, name = "Drape of the Dark Reavers", icon = "INV_Misc_Cape_19", quality = "epic", iLvl = 115, stats = "+24 Agi, +20 Hit", source = "Shade of Aran", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 27878, name = "Auchenai Death Shroud", icon = "INV_Misc_Cape_18", quality = "rare", iLvl = 115, stats = "+20 Agi, +18 Sta", source = "Exarch Maladaar", sourceType = "heroic", sourceDetail = "Heroic Auchenai Crypts" },
+                },
+            },
+            ["chest"] = {
+                best = { itemId = 29045, name = "Netherblade Chestpiece", icon = "INV_Chest_Leather_03", quality = "epic", iLvl = 120, stats = "+40 Agi, +36 Sta", source = "Magtheridon", sourceType = "raid", sourceDetail = "Magtheridon's Lair" },
+                alternatives = {
+                    { itemId = 30730, name = "Terrorweave Tunic", icon = "INV_Chest_Leather_02", quality = "epic", iLvl = 115, stats = "+35 Agi, +30 Sta", source = "Doomwalker", sourceType = "world" },
+                },
+            },
+            ["wrist"] = {
+                best = { itemId = 29246, name = "Nightfall Wristguards", icon = "INV_Bracer_15", quality = "rare", iLvl = 110, stats = "+22 Agi, +20 Sta", source = "Epoch Hunter", sourceType = "heroic", sourceDetail = "Heroic Old Hillsbrad" },
+                alternatives = {
+                    { itemId = 27817, name = "Stealther's Helmet of Second Sight", icon = "INV_Bracer_14", quality = "rare", iLvl = 109, stats = "+20 Agi, +18 Sta", source = "Quest: Teron Gorefiend, I Am...", sourceType = "quest" },
+                },
+            },
+            ["hands"] = {
+                best = { itemId = 27531, name = "Wastewalker Gloves", icon = "INV_Gauntlets_23", quality = "rare", iLvl = 115, stats = "+27 Agi, +25 Sta, +18 Hit", source = "Warchief Kargath Bladefist", sourceType = "heroic", sourceDetail = "Heroic Shattered Halls" },
+                alternatives = {
+                    { itemId = 30644, name = "Grips of Deftness", icon = "INV_Gauntlets_22", quality = "epic", iLvl = 115, stats = "+25 Agi, +22 Sta", source = "Karazhan Trash", sourceType = "raid", sourceDetail = "Karazhan" },
+                },
+            },
+            ["waist"] = {
+                best = { itemId = 29247, name = "Girdle of the Deathdealer", icon = "INV_Belt_15", quality = "rare", iLvl = 110, stats = "+24 Agi, +22 Sta, +18 Hit", source = "Aeonus", sourceType = "heroic", sourceDetail = "Heroic Black Morass" },
+                alternatives = {
+                    { itemId = 27911, name = "Nethershard Girdle", icon = "INV_Belt_14", quality = "rare", iLvl = 109, stats = "+21 Agi, +20 Sta", source = "Quest: Shutting Down Manaforge B'naar", sourceType = "quest" },
+                },
+            },
+            ["legs"] = {
+                best = { itemId = 28741, name = "Skulker's Greaves", icon = "INV_Pants_Leather_17", quality = "epic", iLvl = 115, stats = "+35 Agi, +32 Sta", source = "Netherspite", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 29046, name = "Netherblade Breeches", icon = "INV_Pants_Leather_16", quality = "epic", iLvl = 120, stats = "+38 Agi, +34 Sta", source = "Gruul the Dragonkiller", sourceType = "raid", sourceDetail = "Gruul's Lair" },
+                },
+            },
+            ["feet"] = {
+                best = { itemId = 28545, name = "Edgewalker Longboots", icon = "INV_Boots_Chain_09", quality = "epic", iLvl = 115, stats = "+27 Agi, +25 Sta, +18 Hit", source = "Moroes", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 27867, name = "Boots of the Unjust", icon = "INV_Boots_Chain_08", quality = "rare", iLvl = 115, stats = "+24 Agi, +22 Sta", source = "Blackheart the Inciter", sourceType = "heroic", sourceDetail = "Heroic Shadow Labyrinth" },
+                },
+            },
+            ["ring1"] = {
+                best = { itemId = 28757, name = "Ring of a Thousand Marks", icon = "INV_Jewelry_Ring_64", quality = "epic", iLvl = 115, stats = "+24 Agi, +22 Sta", source = "Prince Malchezaar", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 29283, name = "Violet Signet of the Master Assassin", icon = "INV_Jewelry_Ring_63", quality = "epic", iLvl = 115, stats = "+22 Agi, +20 Sta", source = "Violet Eye Exalted", sourceType = "rep", repFaction = "The Violet Eye", repStanding = "Exalted" },
+                },
+            },
+            ["ring2"] = {
+                best = { itemId = 28649, name = "Garona's Signet Ring", icon = "INV_Jewelry_Ring_65", quality = "epic", iLvl = 115, stats = "+22 Agi, +20 Hit", source = "The Curator", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 30738, name = "Ring of Reciprocity", icon = "INV_Jewelry_Ring_64", quality = "epic", iLvl = 115, stats = "+20 Agi, +18 Sta", source = "Doom Lord Kazzak", sourceType = "world" },
+                },
+            },
+            ["trinket1"] = {
+                best = { itemId = 28830, name = "Dragonspine Trophy", icon = "INV_Misc_MonsterScales_15", quality = "epic", iLvl = 125, stats = "+40 AP, Haste proc", source = "Gruul the Dragonkiller", sourceType = "raid", sourceDetail = "Gruul's Lair" },
+                alternatives = {
+                    { itemId = 23206, name = "Mark of the Champion", icon = "INV_Jewelry_Talisman_13", quality = "epic", iLvl = 110, stats = "+AP vs Undead/Demons", source = "Kel'Thuzad", sourceType = "raid", sourceDetail = "Naxxramas" },
+                },
+            },
+            ["trinket2"] = {
+                best = { itemId = 29383, name = "Bloodlust Brooch", icon = "INV_Jewelry_Talisman_14", quality = "epic", iLvl = 110, stats = "+AP on use", source = "G'eras", sourceType = "badge", badgeCost = 41 },
+                alternatives = {
+                    { itemId = 28288, name = "Abacus of Violent Odds", icon = "INV_Misc_Gear_03", quality = "rare", iLvl = 115, stats = "+Haste on use", source = "Pathaleon the Calculator", sourceType = "heroic", sourceDetail = "Heroic Mechanar" },
+                },
+            },
+            ["mainhand"] = {
+                best = { itemId = 28438, name = "Dragonmaw", icon = "INV_Sword_59", quality = "epic", iLvl = 115, stats = "+Str, +Agi", source = "Blacksmithing", sourceType = "crafted" },
+                alternatives = {
+                    { itemId = 28295, name = "Gladiator's Slicer", icon = "INV_Sword_58", quality = "epic", iLvl = 115, stats = "+Sta, +Crit", source = "Arena Season 1", sourceType = "pvp" },
+                    { itemId = 31332, name = "Blinkstrike", icon = "INV_Sword_57", quality = "epic", iLvl = 115, stats = "+Agi, Teleport proc", source = "World Drop", sourceType = "crafted" },
+                },
+            },
+            ["offhand"] = {
+                best = { itemId = 28189, name = "Latro's Shifting Sword", icon = "INV_Sword_56", quality = "epic", iLvl = 115, stats = "+Agi, +Hit", source = "Aeonus", sourceType = "dungeon", sourceDetail = "Black Morass" },
+                alternatives = {
+                    { itemId = 28307, name = "Gladiator's Quickblade", icon = "INV_Sword_55", quality = "epic", iLvl = 115, stats = "+Sta, +Crit", source = "Arena Season 1", sourceType = "pvp" },
+                },
+            },
+            ["ranged"] = {
+                best = { itemId = 28772, name = "Sunfury Bow of the Phoenix", icon = "INV_Weapon_Bow_26", quality = "epic", iLvl = 115, stats = "+Agi, +Crit", source = "Prince Malchezaar", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 29151, name = "Veteran's Musket", icon = "INV_Weapon_Rifle_24", quality = "rare", iLvl = 100, stats = "+Agi", source = "Honor Hold Exalted", sourceType = "rep", repFaction = "Honor Hold", repStanding = "Exalted" },
+                    { itemId = 29152, name = "Marksman's Bow", icon = "INV_Weapon_Bow_25", quality = "rare", iLvl = 100, stats = "+Agi", source = "Thrallmar Exalted", sourceType = "rep", repFaction = "Thrallmar", repStanding = "Exalted" },
+                },
+            },
+        },
+
+        --===========================================
+        -- RANGED DPS ROLE (Hunter)
+        --===========================================
+        ["ranged_dps"] = {
+            ["head"] = {
+                best = { itemId = 28275, name = "Beast Lord Helm", icon = "INV_Helmet_22", quality = "rare", iLvl = 115, stats = "+30 Agi, +28 Sta, +50 AP", source = "Pathaleon the Calculator", sourceType = "dungeon", sourceDetail = "The Mechanar" },
+                alternatives = {
+                    { itemId = 28224, name = "Wastewalker Helm", icon = "INV_Helmet_21", quality = "rare", iLvl = 115, stats = "+27 Agi, +25 Sta", source = "Epoch Hunter", sourceType = "heroic", sourceDetail = "Heroic Old Hillsbrad" },
+                },
+            },
+            ["neck"] = {
+                best = { itemId = 29381, name = "Choker of Vile Intent", icon = "INV_Jewelry_Necklace_38", quality = "epic", iLvl = 110, stats = "+22 Agi, +22 Hit", source = "G'eras", sourceType = "badge", badgeCost = 25 },
+                alternatives = {
+                    { itemId = 27779, name = "Traitor's Noose", icon = "INV_Jewelry_Necklace_37", quality = "rare", iLvl = 112, stats = "+20 Agi, +18 Sta", source = "Exarch Maladaar", sourceType = "heroic", sourceDetail = "Heroic Auchenai Crypts" },
+                },
+            },
+            ["shoulders"] = {
+                best = { itemId = 27801, name = "Beast Lord Mantle", icon = "INV_Shoulder_20", quality = "rare", iLvl = 115, stats = "+25 Agi, +24 Sta, +38 AP", source = "Warlord Kalithresh", sourceType = "dungeon", sourceDetail = "The Steamvault" },
+                alternatives = {
+                    { itemId = 27797, name = "Wastewalker Shoulderpads", icon = "INV_Shoulder_19", quality = "rare", iLvl = 115, stats = "+24 Agi, +22 Sta", source = "Avatar of the Martyred", sourceType = "heroic", sourceDetail = "Heroic Auchenai Crypts" },
+                },
+            },
+            ["back"] = {
+                best = { itemId = 24259, name = "Vengeance Wrap", icon = "INV_Misc_Cape_16", quality = "rare", iLvl = 105, stats = "+20 Agi, +40 AP", source = "Tailoring", sourceType = "crafted" },
+                alternatives = {
+                    { itemId = 28672, name = "Drape of the Dark Reavers", icon = "INV_Misc_Cape_15", quality = "epic", iLvl = 115, stats = "+24 Agi, +20 Hit", source = "Shade of Aran", sourceType = "raid", sourceDetail = "Karazhan" },
+                },
+            },
+            ["chest"] = {
+                best = { itemId = 28228, name = "Beast Lord Cuirass", icon = "INV_Chest_Chain_15", quality = "rare", iLvl = 115, stats = "+33 Agi, +30 Sta, +60 AP", source = "Warp Splinter", sourceType = "dungeon", sourceDetail = "The Botanica" },
+                alternatives = {
+                    { itemId = 29525, name = "Primalstrike Vest", icon = "INV_Chest_Leather_04", quality = "epic", iLvl = 110, stats = "+30 Agi, +100 AP", source = "Leatherworking", sourceType = "crafted" },
+                },
+            },
+            ["wrist"] = {
+                best = { itemId = 29246, name = "Nightfall Wristguards", icon = "INV_Bracer_15", quality = "rare", iLvl = 110, stats = "+22 Agi, +20 Sta", source = "Epoch Hunter", sourceType = "heroic", sourceDetail = "Heroic Old Hillsbrad" },
+                alternatives = {
+                    { itemId = 29527, name = "Primalstrike Bracers", icon = "INV_Bracer_14", quality = "epic", iLvl = 110, stats = "+20 Agi, +60 AP", source = "Leatherworking", sourceType = "crafted" },
+                },
+            },
+            ["hands"] = {
+                best = { itemId = 27474, name = "Beast Lord Handguards", icon = "INV_Gauntlets_21", quality = "rare", iLvl = 115, stats = "+25 Agi, +24 Sta, +44 AP", source = "Warchief Kargath Bladefist", sourceType = "dungeon", sourceDetail = "The Shattered Halls" },
+                alternatives = {
+                    { itemId = 27531, name = "Wastewalker Gloves", icon = "INV_Gauntlets_20", quality = "rare", iLvl = 115, stats = "+24 Agi, +22 Sta, +18 Hit", source = "Warchief Kargath Bladefist", sourceType = "heroic", sourceDetail = "Heroic Shattered Halls" },
+                },
+            },
+            ["waist"] = {
+                best = { itemId = 28828, name = "Gronn-Stitched Girdle", icon = "INV_Belt_16", quality = "epic", iLvl = 120, stats = "+30 Agi, +28 Sta, +64 AP", source = "Gruul the Dragonkiller", sourceType = "raid", sourceDetail = "Gruul's Lair" },
+                alternatives = {
+                    { itemId = 29247, name = "Girdle of the Deathdealer", icon = "INV_Belt_15", quality = "rare", iLvl = 110, stats = "+24 Agi, +22 Sta, +18 Hit", source = "Aeonus", sourceType = "heroic", sourceDetail = "Heroic Black Morass" },
+                },
+            },
+            ["legs"] = {
+                best = { itemId = 30739, name = "Scaled Greaves of the Marksman", icon = "INV_Pants_Mail_15", quality = "epic", iLvl = 115, stats = "+35 Agi, +32 Sta, +76 AP", source = "Doom Lord Kazzak", sourceType = "world" },
+                alternatives = {
+                    { itemId = 28594, name = "Leggings of the Pursuit", icon = "INV_Pants_Mail_14", quality = "epic", iLvl = 115, stats = "+30 Agi, +28 Sta", source = "Opera Event", sourceType = "raid", sourceDetail = "Karazhan" },
+                },
+            },
+            ["feet"] = {
+                best = { itemId = 28545, name = "Edgewalker Longboots", icon = "INV_Boots_Chain_09", quality = "epic", iLvl = 115, stats = "+27 Agi, +25 Sta, +18 Hit", source = "Moroes", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 27814, name = "Fel Leather Boots", icon = "INV_Boots_08", quality = "rare", iLvl = 100, stats = "+20 Hit Rating", source = "Leatherworking", sourceType = "crafted" },
+                },
+            },
+            ["ring1"] = {
+                best = { itemId = 28757, name = "Ring of a Thousand Marks", icon = "INV_Jewelry_Ring_64", quality = "epic", iLvl = 115, stats = "+24 Agi, +22 Sta", source = "Prince Malchezaar", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 28791, name = "Ring of the Recalcitrant", icon = "INV_Jewelry_Ring_63", quality = "epic", iLvl = 115, stats = "+22 Agi, +20 Sta", source = "Magtheridon Quest", sourceType = "quest" },
+                },
+            },
+            ["ring2"] = {
+                best = { itemId = 28649, name = "Garona's Signet Ring", icon = "INV_Jewelry_Ring_65", quality = "epic", iLvl = 115, stats = "+22 Agi, +20 Hit", source = "The Curator", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 29283, name = "Violet Signet of the Master Assassin", icon = "INV_Jewelry_Ring_64", quality = "epic", iLvl = 115, stats = "+20 Agi, +18 Sta", source = "Violet Eye Exalted", sourceType = "rep", repFaction = "The Violet Eye", repStanding = "Exalted" },
+                },
+            },
+            ["trinket1"] = {
+                best = { itemId = 28830, name = "Dragonspine Trophy", icon = "INV_Misc_MonsterScales_15", quality = "epic", iLvl = 125, stats = "+40 AP, Haste proc", source = "Gruul the Dragonkiller", sourceType = "raid", sourceDetail = "Gruul's Lair" },
+                alternatives = {
+                    { itemId = 28034, name = "Hourglass of the Unraveller", icon = "INV_Misc_PocketWatch_01", quality = "rare", iLvl = 115, stats = "+Crit proc", source = "Temporus", sourceType = "heroic", sourceDetail = "Heroic Black Morass" },
+                },
+            },
+            ["trinket2"] = {
+                best = { itemId = 29383, name = "Bloodlust Brooch", icon = "INV_Jewelry_Talisman_14", quality = "epic", iLvl = 110, stats = "+AP on use", source = "G'eras", sourceType = "badge", badgeCost = 41 },
+                alternatives = {
+                    { itemId = 28288, name = "Abacus of Violent Odds", icon = "INV_Misc_Gear_03", quality = "rare", iLvl = 115, stats = "+Haste on use", source = "Pathaleon the Calculator", sourceType = "heroic", sourceDetail = "Heroic Mechanar" },
+                },
+            },
+            ["mainhand"] = {
+                best = { itemId = 27846, name = "Claw of the Watcher", icon = "INV_Weapon_Hand_11", quality = "rare", iLvl = 110, stats = "+Agi, stat stick", source = "Shirrak the Dead Watcher", sourceType = "heroic", sourceDetail = "Heroic Auchenai Crypts" },
+                alternatives = {
+                    { itemId = 28572, name = "Blade of the Unrequited", icon = "INV_Sword_54", quality = "epic", iLvl = 115, stats = "+Agi, stat stick", source = "Opera Event", sourceType = "raid", sourceDetail = "Karazhan" },
+                },
+            },
+            ["offhand"] = {
+                best = { itemId = 28572, name = "Blade of the Unrequited", icon = "INV_Sword_54", quality = "epic", iLvl = 115, stats = "+Agi, stat stick", source = "Opera Event", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 27846, name = "Claw of the Watcher", icon = "INV_Weapon_Hand_11", quality = "rare", iLvl = 110, stats = "+Agi, stat stick", source = "Shirrak the Dead Watcher", sourceType = "heroic", sourceDetail = "Heroic Auchenai Crypts" },
+                },
+            },
+            ["ranged"] = {
+                best = { itemId = 28772, name = "Sunfury Bow of the Phoenix", icon = "INV_Weapon_Bow_26", quality = "epic", iLvl = 115, stats = "+High DPS, +Agi", source = "Prince Malchezaar", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 30724, name = "Barrel-Blade Longrifle", icon = "INV_Weapon_Rifle_23", quality = "epic", iLvl = 115, stats = "+Sta, +Crit", source = "Doomwalker", sourceType = "world" },
+                },
+            },
+        },
+
+        --===========================================
+        -- CASTER DPS ROLE
+        --===========================================
+        ["caster_dps"] = {
+            ["head"] = {
+                best = { itemId = 28963, name = "Voidheart Crown", icon = "INV_Helmet_30", quality = "epic", iLvl = 120, stats = "+30 Sta, +30 Int, +40 Spell Dmg", source = "Prince Malchezaar", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 24266, name = "Spellstrike Hood", icon = "INV_Helmet_29", quality = "epic", iLvl = 105, stats = "+25 Int, +46 Spell Dmg, +16 Hit", source = "Tailoring (BoE)", sourceType = "crafted" },
+                },
+            },
+            ["neck"] = {
+                best = { itemId = 28762, name = "Adornment of Stolen Souls", icon = "INV_Jewelry_Necklace_39", quality = "epic", iLvl = 115, stats = "+18 Sta, +18 Int, +28 Spell Dmg", source = "Prince Malchezaar", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 28530, name = "Brooch of Unquenchable Fury", icon = "INV_Jewelry_Necklace_38", quality = "epic", iLvl = 115, stats = "+15 Int, +23 Spell Dmg, +10 Hit", source = "Moroes", sourceType = "raid", sourceDetail = "Karazhan" },
+                },
+            },
+            ["shoulders"] = {
+                best = { itemId = 28967, name = "Voidheart Mantle", icon = "INV_Shoulder_27", quality = "epic", iLvl = 120, stats = "+22 Sta, +25 Int, +32 Spell Dmg", source = "High King Maulgar", sourceType = "raid", sourceDetail = "Gruul's Lair" },
+                alternatives = {
+                    { itemId = 21869, name = "Frozen Shadoweave Shoulders", icon = "INV_Shoulder_26", quality = "epic", iLvl = 100, stats = "+18 Sta, +30 Shadow/Frost Dmg", source = "Shadoweave Tailoring", sourceType = "crafted" },
+                },
+            },
+            ["back"] = {
+                best = { itemId = 28766, name = "Ruby Drape of the Mysticant", icon = "INV_Misc_Cape_20", quality = "epic", iLvl = 115, stats = "+15 Sta, +16 Int, +26 Spell Dmg, +8 Hit", source = "Prince Malchezaar", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 30735, name = "Ancient Spellcloak of the Highborne", icon = "INV_Misc_Cape_19", quality = "epic", iLvl = 115, stats = "+18 Sta, +23 Spell Dmg", source = "Doom Lord Kazzak", sourceType = "world" },
+                },
+            },
+            ["chest"] = {
+                best = { itemId = 21848, name = "Spellfire Robe", icon = "INV_Chest_Cloth_43", quality = "epic", iLvl = 100, stats = "+25 Int, +50 Fire Dmg, +Intellect", source = "Spellfire Tailoring", sourceType = "crafted" },
+                alternatives = {
+                    { itemId = 28964, name = "Voidheart Robe", icon = "INV_Chest_Cloth_42", quality = "epic", iLvl = 120, stats = "+33 Sta, +30 Int, +42 Spell Dmg", source = "Magtheridon", sourceType = "raid", sourceDetail = "Magtheridon's Lair" },
+                    { itemId = 21871, name = "Frozen Shadoweave Robe", icon = "INV_Chest_Cloth_41", quality = "epic", iLvl = 100, stats = "+25 Sta, +45 Shadow/Frost Dmg", source = "Shadoweave Tailoring", sourceType = "crafted" },
+                },
+            },
+            ["wrist"] = {
+                best = { itemId = 24250, name = "Bracers of Havok", icon = "INV_Bracer_07", quality = "epic", iLvl = 105, stats = "+15 Sta, +15 Int, +30 Spell Dmg, Socket", source = "Tailoring (BoE)", sourceType = "crafted" },
+                alternatives = {
+                    { itemId = 27462, name = "Crimson Bracers of Gloom", icon = "INV_Bracer_06", quality = "rare", iLvl = 115, stats = "+12 Sta, +25 Spell Dmg", source = "Murmur", sourceType = "heroic", sourceDetail = "Heroic Shadow Labyrinth" },
+                },
+            },
+            ["hands"] = {
+                best = { itemId = 21847, name = "Spellfire Gloves", icon = "INV_Gauntlets_19", quality = "epic", iLvl = 100, stats = "+20 Int, +35 Fire Dmg", source = "Spellfire Tailoring", sourceType = "crafted" },
+                alternatives = {
+                    { itemId = 28968, name = "Voidheart Gloves", icon = "INV_Gauntlets_18", quality = "epic", iLvl = 120, stats = "+25 Sta, +22 Int, +28 Spell Dmg", source = "The Curator", sourceType = "raid", sourceDetail = "Karazhan" },
+                },
+            },
+            ["waist"] = {
+                best = { itemId = 21846, name = "Spellfire Belt", icon = "INV_Belt_18", quality = "epic", iLvl = 100, stats = "+18 Int, +32 Fire Dmg", source = "Spellfire Tailoring", sourceType = "crafted" },
+                alternatives = {
+                    { itemId = 24256, name = "Girdle of Ruination", icon = "INV_Belt_17", quality = "epic", iLvl = 105, stats = "+22 Sta, +28 Spell Dmg, +18 Crit", source = "Tailoring (BoE)", sourceType = "crafted" },
+                },
+            },
+            ["legs"] = {
+                best = { itemId = 24262, name = "Spellstrike Pants", icon = "INV_Pants_Cloth_17", quality = "epic", iLvl = 105, stats = "+25 Sta, +46 Spell Dmg, +26 Hit, +26 Crit", source = "Tailoring (BoE)", sourceType = "crafted" },
+                alternatives = {
+                    { itemId = 28966, name = "Voidheart Leggings", icon = "INV_Pants_Cloth_16", quality = "epic", iLvl = 120, stats = "+33 Sta, +28 Int, +36 Spell Dmg", source = "Gruul the Dragonkiller", sourceType = "raid", sourceDetail = "Gruul's Lair" },
+                },
+            },
+            ["feet"] = {
+                best = { itemId = 21870, name = "Frozen Shadoweave Boots", icon = "INV_Boots_Cloth_13", quality = "epic", iLvl = 100, stats = "+20 Sta, +35 Shadow/Frost Dmg", source = "Shadoweave Tailoring", sourceType = "crafted" },
+                alternatives = {
+                    { itemId = 28517, name = "Boots of Foretelling", icon = "INV_Boots_Cloth_12", quality = "epic", iLvl = 115, stats = "+22 Sta, +25 Spell Dmg, +18 Hit", source = "Maiden of Virtue", sourceType = "raid", sourceDetail = "Karazhan" },
+                },
+            },
+            ["ring1"] = {
+                best = { itemId = 28753, name = "Ring of Recurrence", icon = "INV_Jewelry_Ring_66", quality = "epic", iLvl = 115, stats = "+18 Sta, +22 Spell Dmg, +14 Crit", source = "Chess Event", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 28793, name = "Band of Crimson Fury", icon = "INV_Jewelry_Ring_65", quality = "epic", iLvl = 115, stats = "+15 Sta, +20 Spell Dmg, +10 Hit", source = "Magtheridon Quest", sourceType = "quest" },
+                },
+            },
+            ["ring2"] = {
+                best = { itemId = 29287, name = "Violet Signet of the Archmage", icon = "INV_Jewelry_Ring_67", quality = "epic", iLvl = 115, stats = "+18 Sta, +24 Spell Dmg", source = "Violet Eye Exalted", sourceType = "rep", repFaction = "The Violet Eye", repStanding = "Exalted" },
+                alternatives = {
+                    { itemId = 29172, name = "Ashyen's Gift", icon = "INV_Jewelry_Ring_66", quality = "epic", iLvl = 110, stats = "+15 Sta, +20 Spell Dmg, +10 Hit", source = "Cenarion Expedition Exalted", sourceType = "rep", repFaction = "Cenarion Expedition", repStanding = "Exalted" },
+                },
+            },
+            ["trinket1"] = {
+                best = { itemId = 27683, name = "Quagmirran's Eye", icon = "INV_Misc_Eye_01", quality = "rare", iLvl = 110, stats = "+Spell Haste proc", source = "Quagmirran", sourceType = "heroic", sourceDetail = "Heroic Slave Pens" },
+                alternatives = {
+                    { itemId = 29132, name = "Scryer's Bloodgem", icon = "INV_Jewelry_Talisman_15", quality = "rare", iLvl = 105, stats = "+Spell Dmg on use", source = "Scryers Revered", sourceType = "rep", repFaction = "The Scryers", repStanding = "Revered" },
+                },
+            },
+            ["trinket2"] = {
+                best = { itemId = 29370, name = "Icon of the Silver Crescent", icon = "INV_Jewelry_Talisman_16", quality = "epic", iLvl = 110, stats = "+Spell Dmg on use", source = "G'eras", sourceType = "badge", badgeCost = 41 },
+                alternatives = {
+                    { itemId = 28789, name = "Eye of Magtheridon", icon = "INV_Misc_Eye_02", quality = "epic", iLvl = 120, stats = "+Spell Dmg, +Spell Power proc", source = "Magtheridon", sourceType = "raid", sourceDetail = "Magtheridon's Lair" },
+                },
+            },
+            ["mainhand"] = {
+                best = { itemId = 28770, name = "Nathrezim Mindblade", icon = "INV_Sword_61", quality = "epic", iLvl = 115, stats = "+22 Sta, +21 Int, +35 Spell Dmg", source = "Prince Malchezaar", sourceType = "raid", sourceDetail = "Karazhan" },
+                alternatives = {
+                    { itemId = 30723, name = "Talon of the Tempest", icon = "INV_Sword_60", quality = "epic", iLvl = 115, stats = "+20 Sta, +32 Spell Dmg", source = "Doomwalker", sourceType = "world" },
+                },
+            },
+            ["offhand"] = {
+                best = { itemId = 29270, name = "Flametongue Seal", icon = "INV_Misc_Orb_05", quality = "epic", iLvl = 110, stats = "+12 Sta, +23 Fire Dmg", source = "G'eras", sourceType = "badge", badgeCost = 25 },
+                alternatives = {
+                    { itemId = 29273, name = "Khadgar's Knapsack", icon = "INV_Misc_Bag_10", quality = "epic", iLvl = 110, stats = "+15 Sta, +20 Spell Dmg", source = "G'eras", sourceType = "badge", badgeCost = 25 },
+                },
+            },
+            ["ranged"] = {
+                best = { itemId = 28783, name = "Eredar Wand of Obliteration", icon = "INV_Wand_22", quality = "epic", iLvl = 120, stats = "+15 Sta, +12 Spell Dmg", source = "Magtheridon", sourceType = "raid", sourceDetail = "Magtheridon's Lair" },
+                alternatives = {
+                    { itemId = 28673, name = "Tirisfal Wand of Ascendancy", icon = "INV_Wand_21", quality = "epic", iLvl = 115, stats = "+12 Sta, +10 Spell Dmg, +8 Hit", source = "Shade of Aran", sourceType = "raid", sourceDetail = "Karazhan" },
+                },
+            },
+        },
+    },
+
+    -- T5 and T6 placeholder for future expansion
+    [5] = {},
+    [6] = {},
+}
+
+-- Helper function to get gear for a slot/role/tier
+function C:GetArmoryGear(tier, role, slot)
+    if not C.ARMORY_GEAR_DATABASE[tier] then return nil end
+    if not C.ARMORY_GEAR_DATABASE[tier][role] then return nil end
+    return C.ARMORY_GEAR_DATABASE[tier][role][slot]
+end
+
+-- Helper function to get all slots for a role/tier
+function C:GetArmorySlots(tier, role)
+    if not C.ARMORY_GEAR_DATABASE[tier] then return {} end
+    if not C.ARMORY_GEAR_DATABASE[tier][role] then return {} end
+    return C.ARMORY_GEAR_DATABASE[tier][role]
+end
 
 -- Build the boss name lookup table now that all boss data is defined
 C:BuildBossNameLookup()
