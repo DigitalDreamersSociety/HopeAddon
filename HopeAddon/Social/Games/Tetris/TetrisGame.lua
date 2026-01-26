@@ -262,6 +262,10 @@ function TetrisGame:OnStart(gameId)
     local state = game.data.state
 
     -- Initialize piece queues for all boards
+    if not state.boards then
+        HopeAddon:Debug("TetrisGame:OnStart - No boards initialized!")
+        return
+    end
     for playerNum, board in pairs(state.boards) do
         self:RefillBag(board)
         for i = 1, 3 do

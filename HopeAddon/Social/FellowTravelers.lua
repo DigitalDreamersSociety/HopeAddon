@@ -247,9 +247,12 @@ function FellowTravelers:Initialize()
 
     -- Periodic broadcast for continuous discovery of nearby addon users
     -- This is the key fix - without this, players only discover each other on login/zone change
-    self.broadcastTicker = HopeAddon.Timer:NewTicker(BROADCAST_INTERVAL, function()
+    local ticker = HopeAddon.Timer:NewTicker(BROADCAST_INTERVAL, function()
         FellowTravelers:BroadcastPresence()
     end)
+    if ticker then
+        self.broadcastTicker = ticker
+    end
 
     HopeAddon:Debug("FellowTravelers module initialized with addon communication")
 end

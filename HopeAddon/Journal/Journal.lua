@@ -143,6 +143,7 @@ function Journal:OnEnable()
     self:CreateCollapsibleSectionPool()
     self:CreateBossInfoPool()
     self:CreateGameCardPool()
+    self:CreateUpgradeCardPool()
     self:CreateMainFrame()
     self:RegisterEvents()
 
@@ -226,6 +227,10 @@ function Journal:OnDisable()
     if self.gameCardPool then
         self.gameCardPool:Destroy()
         self.gameCardPool = nil
+    end
+    if self.upgradeCardPool then
+        self.upgradeCardPool:Destroy()
+        self.upgradeCardPool = nil
     end
 
     -- Cleanup new activities banner
@@ -456,6 +461,11 @@ function Journal:CreateCardPool()
             card.milestoneFrame:SetParent(nil)
             card.milestoneFrame = nil
         end
+        -- Clean up standing progress text (created in CreateReputationCard)
+        if card.standingProgress then
+            card.standingProgress:SetText("")
+            card.standingProgress:Hide()
+        end
         card._pooled = true
         card._poolType = nil  -- Clear pool type on reset
     end
@@ -603,6 +613,254 @@ function Journal:CreateGameCardPool()
     end
 
     self.gameCardPool = HopeAddon.FramePool:NewNamed("GameCards", createFunc, resetFunc)
+end
+
+--[[
+    Create upgrade card frame pool for reputation tab upgrade items
+    Reuses frames instead of creating new ones each tab switch
+]]
+function Journal:CreateUpgradeCardPool()
+    local C = HopeAddon.Constants
+    local CARD_HEIGHT = 85
+    local ICON_SIZE = 32
+
+    local createFunc = function()
+        local card = CreateBackdropFrame("Frame", nil, UIParent, "BackdropTemplate")
+        card:SetHeight(CARD_HEIGHT)
+        HopeAddon.Components:ApplyBackdrop(card, "TOOLTIP")
+        card:EnableMouse(true)
+        card:Hide()
+
+        -- Pre-create all elements
+        card.icon = card:CreateTexture(nil, "ARTWORK")
+        card.icon:SetSize(ICON_SIZE, ICON_SIZE)
+        card.icon:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -10)
+        card.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+        card.iconBorder = card:CreateTexture(nil, "OVERLAY")
+        card.iconBorder:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
+        card.iconBorder:SetBlendMode("ADD")
+        card.iconBorder:SetPoint("CENTER", card.icon, "CENTER")
+        card.iconBorder:SetSize(ICON_SIZE + 12, ICON_SIZE + 12)
+
+        card.nameText = card:CreateFontString(nil, "OVERLAY")
+        card.nameText:SetFont(HopeAddon.assets.fonts.HEADER, 12, "")
+        card.nameText:SetPoint("TOPLEFT", card.icon, "TOPRIGHT", 10, -2)
+
+        card.statsText = card:CreateFontString(nil, "OVERLAY")
+        card.statsText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+        card.statsText:SetPoint("TOPLEFT", card.nameText, "BOTTOMLEFT", 0, -2)
+
+        card.factionText = card:CreateFontString(nil, "OVERLAY")
+        card.factionText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
+        card.factionText:SetPoint("TOPLEFT", card.statsText, "BOTTOMLEFT", 0, -2)
+
+        card.statusBadge = card:CreateFontString(nil, "OVERLAY")
+        card.statusBadge:SetFont(HopeAddon.assets.fonts.HEADER, 10, "OUTLINE")
+        card.statusBadge:SetPoint("TOPRIGHT", card, "TOPRIGHT", -10, -10)
+
+        card.standingLabel = card:CreateFontString(nil, "OVERLAY")
+        card.standingLabel:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
+
+        return card
+    end
+
+    local resetFunc = function(card)
+        card:Hide()
+        card:ClearAllPoints()
+        card:SetParent(nil)
+        card:SetAlpha(1.0)
+        card:SetBackdropBorderColor(0.5, 0.5, 0.5, 1)
+
+        -- Reset icon
+        card.icon:SetTexture(nil)
+        card.icon:SetDesaturated(false)
+        card.icon:SetVertexColor(1, 1, 1)
+        card.iconBorder:SetVertexColor(1, 1, 1, 0.8)
+
+        -- Reset text
+        card.nameText:SetText("")
+        card.statsText:SetText("")
+        card.factionText:SetText("")
+        card.statusBadge:SetText("")
+        card.standingLabel:SetText("")
+
+        -- Clear scripts
+        card:SetScript("OnEnter", nil)
+        card:SetScript("OnLeave", nil)
+
+        -- Clean up progress bar if exists
+        if card.progressBar then
+            card.progressBar:Hide()
+            card.progressBar:SetParent(nil)
+            card.progressBar = nil
+        end
+
+        -- Clear stored data
+        card.itemData = nil
+        card.factionProgress = nil
+
+        card._pooled = true
+        card._componentType = "upgradeCard"
+    end
+
+    self.upgradeCardPool = HopeAddon.FramePool:NewNamed("UpgradeCards", createFunc, resetFunc)
+end
+
+--[[
+    Acquire and configure an upgrade card from the pool
+    @param parent Frame - Parent to attach to
+    @param itemData table - Item data from CLASS_SPEC_LOOT_HOTLIST
+    @param factionProgress table - Faction progress data {standingId, standingName, current, max}
+    @return Frame - Configured pooled upgrade card
+]]
+function Journal:AcquireUpgradeCard(parent, itemData, factionProgress)
+    if not self.upgradeCardPool then
+        HopeAddon:Debug("WARN: AcquireUpgradeCard called but upgradeCardPool is nil")
+        return nil
+    end
+
+    local C = HopeAddon.Constants
+    local Components = HopeAddon.Components
+    local card = self.upgradeCardPool:Acquire()
+
+    card:SetParent(parent)
+    card:SetWidth(parent:GetWidth() > 0 and parent:GetWidth() - 20 or 400)
+    card._pooled = true
+    card._componentType = "upgradeCard"
+
+    -- Store data for tooltip
+    card.itemData = itemData
+    card.factionProgress = factionProgress
+
+    -- Quality color
+    local qualityColor = C.ITEM_QUALITY_COLORS and C.ITEM_QUALITY_COLORS[itemData.quality]
+    if not qualityColor then
+        qualityColor = { r = 1, g = 1, b = 1 }
+    end
+    card:SetBackdropBorderColor(qualityColor.r, qualityColor.g, qualityColor.b, 1)
+
+    -- Icon
+    card.icon:SetTexture("Interface\\Icons\\" .. (itemData.icon or "INV_Misc_QuestionMark"))
+    card.iconBorder:SetVertexColor(qualityColor.r, qualityColor.g, qualityColor.b, 0.8)
+
+    -- Item name
+    card.nameText:SetText(itemData.name or "Unknown Item")
+    card.nameText:SetTextColor(qualityColor.r, qualityColor.g, qualityColor.b)
+
+    -- Stats
+    card.statsText:SetText((itemData.slot or "Unknown") .. " - " .. (itemData.stats or ""))
+    card.statsText:SetTextColor(0.8, 0.8, 0.8)
+
+    -- Determine if this is a non-rep item
+    local isNonRepItem = factionProgress.isNonRepItem or not itemData.faction
+    local standingNames = {"Hated", "Hostile", "Unfriendly", "Neutral", "Friendly", "Honored", "Revered", "Exalted"}
+    local reqStanding = itemData.standing or 8
+    local currentStanding = factionProgress.standingId or 4
+    local isObtainable = isNonRepItem or currentStanding >= reqStanding
+
+    -- Faction/Source text
+    if isNonRepItem then
+        -- Non-rep item - show source instead of faction
+        card.factionText:SetText(itemData.source or "Available")
+        card.factionText:SetTextColor(0.6, 0.8, 1)  -- Light blue for non-rep sources
+    else
+        -- Rep-based item
+        card.factionText:SetText((itemData.faction or "Unknown") .. " @ " .. (standingNames[reqStanding] or "Unknown"))
+        if isObtainable then
+            card.factionText:SetTextColor(0, 1, 0)
+        else
+            card.factionText:SetTextColor(1, 0.6, 0)
+        end
+    end
+
+    -- Status badge
+    if isNonRepItem then
+        card.statusBadge:SetText("|cFF88CCFFAVAILABLE|r")
+    elseif isObtainable then
+        card.statusBadge:SetText("|cFF00FF00BUY NOW|r")
+    else
+        local totalNeeded = Components:GetTotalRepForStanding(reqStanding)
+        local totalEarned = Components:GetTotalRepForStanding(currentStanding)
+        if factionProgress.max and factionProgress.max > 0 then
+            totalEarned = totalEarned + factionProgress.current
+        end
+        local progress = totalNeeded > 0 and math.floor((totalEarned / totalNeeded) * 100) or 0
+        card.statusBadge:SetText(progress .. "%")
+        card.statusBadge:SetTextColor(1, 0.8, 0)
+    end
+
+    -- Progress bar (only for rep items)
+    local ICON_SIZE = 32
+    local barWidth = card:GetWidth() - ICON_SIZE - 60
+
+    if isNonRepItem then
+        -- No progress bar for non-rep items - use standing label for source type
+        if card.progressBar then
+            card.progressBar:Hide()
+        end
+        card.standingLabel:ClearAllPoints()
+        card.standingLabel:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", ICON_SIZE + 20, 10)
+        -- Show source type (dungeon/badge/crafted)
+        local sourceType = itemData.sourceType or "item"
+        local sourceTypeLabels = {
+            dungeon = "Dungeon Drop",
+            badge = "Badge Vendor",
+            crafted = "Crafted",
+            quest = "Quest Reward",
+        }
+        card.standingLabel:SetText(sourceTypeLabels[sourceType] or sourceType)
+        card.standingLabel:SetTextColor(0.6, 0.8, 1)
+    else
+        -- Rep item - show progress bar
+        local progressBar = Components:CreateProgressBar(card, barWidth, 10)
+        progressBar:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", ICON_SIZE + 20, 8)
+        card.progressBar = progressBar
+
+        -- Set progress
+        local progress = 0
+        if factionProgress.max and factionProgress.max > 0 then
+            progress = factionProgress.current / factionProgress.max
+        end
+        progressBar:SetProgress(progress)
+
+        -- Standing label
+        card.standingLabel:ClearAllPoints()
+        card.standingLabel:SetPoint("LEFT", progressBar, "RIGHT", 6, 0)
+        card.standingLabel:SetText(factionProgress.standingName or "Neutral")
+        card.standingLabel:SetTextColor(0.7, 0.7, 0.7)
+    end
+
+    -- Grey out icon if not obtainable
+    if not isObtainable then
+        card.icon:SetDesaturated(true)
+        card.icon:SetVertexColor(0.7, 0.7, 0.7)
+    end
+
+    -- Tooltip
+    card:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        if self.itemData and self.itemData.itemId then
+            GameTooltip:SetHyperlink("item:" .. self.itemData.itemId)
+        else
+            GameTooltip:AddLine(self.itemData and self.itemData.name or "Unknown", qualityColor.r, qualityColor.g, qualityColor.b)
+        end
+        GameTooltip:AddLine(" ")
+        if isNonRepItem then
+            GameTooltip:AddLine("Source: " .. (itemData.source or "Unknown"), 0.6, 0.8, 1)
+        elseif isObtainable then
+            GameTooltip:AddLine("Available for purchase!", 0, 1, 0)
+        else
+            GameTooltip:AddLine("Requires: " .. (standingNames[reqStanding] or "Unknown"), 1, 0.5, 0)
+        end
+        GameTooltip:Show()
+        if HopeAddon.Sounds then HopeAddon.Sounds:PlayHover() end
+    end)
+    card:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
+    return card
 end
 
 --[[
@@ -1034,7 +1292,10 @@ function Journal:SelectTab(tabId)
     self:HideArmoryTab()
 
     -- 5. Clear and repopulate content (pass containerPool for pooled frame release)
-    self.mainFrame.scrollContainer:ClearEntries(self.containerPool)
+    -- Skip for armory tab - it uses fixed layout in contentArea, not scrollContainer
+    if tabId ~= "armory" then
+        self.mainFrame.scrollContainer:ClearEntries(self.containerPool)
+    end
 
     -- Migration: old "directory" tab now split into "games" and "social"
     if tabId == "directory" then
@@ -1072,17 +1333,17 @@ function Journal:SelectTab(tabId)
         end)
         if not success then
             HopeAddon:Print("|cFFFF0000Armory Tab Error:|r " .. tostring(err))
-            -- Show error in UI for debugging
-            local scrollContainer = self.mainFrame.scrollContainer
-            if scrollContainer and scrollContainer.content then
-                local errorFrame = CreateFrame("Frame", nil, scrollContainer.content)
-                errorFrame:SetSize(scrollContainer.content:GetWidth() - 20, 100)
-                errorFrame:SetPoint("TOP", scrollContainer.content, "TOP", 0, -20)
+            -- Show error in UI for debugging (use contentArea since armory uses fixed layout)
+            local contentArea = self.mainFrame.contentArea
+            if contentArea then
+                local errorFrame = CreateFrame("Frame", nil, contentArea)
+                errorFrame:SetSize(contentArea:GetWidth() - 20, 100)
+                errorFrame:SetPoint("TOP", contentArea, "TOP", 0, -20)
                 local errorText = errorFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
                 errorText:SetPoint("CENTER")
                 errorText:SetText("|cFFFF0000Error loading Armory:|r\n\n" .. tostring(err))
                 errorText:SetJustifyH("CENTER")
-                scrollContainer:AddEntry(errorFrame)
+                errorFrame:Show()
             end
         end
     end
@@ -2977,6 +3238,9 @@ function Journal:PopulateReputation()
     local header = self:CreateSectionHeader("FACTION STANDING", "ARCANE_PURPLE", "Your reputation across Outland")
     self.mainFrame.scrollContainer:AddEntry(header)
 
+    -- Add recommended upgrades section at top (spec-specific rep items)
+    self:CreateRecommendedUpgradesSection()
+
     -- Check for Aldor/Scryers choice
     local choice = HopeAddon.charDb.reputation and HopeAddon.charDb.reputation.aldorScryerChoice
     if choice then
@@ -3033,148 +3297,114 @@ function Journal:PopulateReputation()
     end
 end
 
--- Get the best reputation item for a faction based on player's class/spec
-function Journal:GetBestRepItemForFaction(factionName)
+--[[
+    CreateRecommendedUpgradesSection - Shows spec-appropriate rep items sorted by obtainability
+    Displays at top of Reputation tab, before faction categories
+]]
+function Journal:CreateRecommendedUpgradesSection()
     local C = HopeAddon.Constants
+    local Components = HopeAddon.Components
+    local Reputation = HopeAddon:GetModule("Reputation")
+    local Data = HopeAddon.ReputationData
 
-    -- Get player's class and spec
+    -- Get player spec info
     local _, classToken = UnitClass("player")
     local specName, specTab = HopeAddon:GetPlayerSpec()
-
-    -- Default to spec 1 if detection fails
     if not specTab or specTab < 1 then specTab = 1 end
 
-    -- Look up items in CLASS_SPEC_LOOT_HOTLIST
+    -- Get rep items for this spec
     local classData = C.CLASS_SPEC_LOOT_HOTLIST and C.CLASS_SPEC_LOOT_HOTLIST[classToken]
-    if not classData then return nil end
+    if not classData then return end
 
     local specData = classData[specTab]
-    if not specData or not specData.rep then return nil end
+    if not specData or not specData.rep or #specData.rep == 0 then return end
 
-    -- Find best item from this faction (prefer higher standing requirement = better item)
-    local bestItem = nil
+    -- Build items with faction progress data
+    local items = {}
     for _, item in ipairs(specData.rep) do
-        if item.faction == factionName then
-            if not bestItem or (item.standing or 0) > (bestItem.standing or 0) then
-                bestItem = item
+        local standingId = 4  -- Default neutral
+        local standingName = "Neutral"
+        local current, max = 0, 0
+        local isObtainable = false
+        local priority = 0
+        local isNonRepItem = not item.faction  -- Track if this is a non-rep item
+
+        if item.faction then
+            -- Rep-based item - calculate faction progress
+            if Reputation then
+                local cached = Reputation:GetFactionStanding(item.faction)
+                if cached then
+                    standingId = cached.standingId or 4
+                end
+                local curr, mx, _ = Reputation:GetProgressInStanding(item.faction)
+                if curr then current = curr end
+                if mx then max = mx end
+
+                -- Get standing name
+                if Data then
+                    local standingInfo = Data:GetStandingInfo(standingId)
+                    standingName = standingInfo and standingInfo.name or "Unknown"
+                end
             end
-        end
-    end
 
-    return bestItem
-end
+            local requiredStanding = item.standing or 8
+            isObtainable = standingId >= requiredStanding
 
--- Get ALL reputation items for a faction grouped by standing
--- Returns: { [standingId] = item } table with one item per standing
-function Journal:GetRepItemsByStanding(factionName)
-    local C = HopeAddon.Constants
-
-    -- Get player's class and spec
-    local _, classToken = UnitClass("player")
-    local _, specTab = HopeAddon:GetPlayerSpec()
-
-    -- Default to spec 1 if detection fails
-    if not specTab or specTab < 1 then specTab = 1 end
-
-    -- Look up items in CLASS_SPEC_LOOT_HOTLIST
-    local classData = C.CLASS_SPEC_LOOT_HOTLIST and C.CLASS_SPEC_LOOT_HOTLIST[classToken]
-    if not classData then return {} end
-
-    local specData = classData[specTab]
-    if not specData or not specData.rep then return {} end
-
-    -- Group items by standing for this faction
-    local itemsByStanding = {}
-    for _, item in ipairs(specData.rep) do
-        if item.faction == factionName and item.standing then
-            -- Keep the best quality item if multiple at same standing
-            if not itemsByStanding[item.standing] or
-               (item.quality or 0) > (itemsByStanding[item.standing].quality or 0) then
-                itemsByStanding[item.standing] = item
+            -- Calculate priority (lower = show first)
+            -- Obtainable items first, then sort by how close to requirement
+            if isObtainable then
+                priority = 0  -- Already obtainable - top priority
+            else
+                -- Closer to requirement = lower priority number
+                priority = (requiredStanding - standingId) * 1000 - current
             end
-        end
-    end
-
-    return itemsByStanding
-end
-
--- Create a clickable item icon link for reputation rewards
-function Journal:CreateRepItemLink(card, reputationBar, item, currentStanding)
-    local C = HopeAddon.Constants
-
-    local itemFrame = CreateFrame("Button", nil, card)
-    itemFrame:SetSize(24, 24)
-    itemFrame:SetPoint("LEFT", reputationBar, "RIGHT", 8, 0)
-
-    -- Item icon
-    local icon = itemFrame:CreateTexture(nil, "ARTWORK")
-    icon:SetAllPoints()
-    icon:SetTexture("Interface\\Icons\\" .. item.icon)
-    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-
-    -- Quality border color
-    local qualityColor = C.ITEM_QUALITY_COLORS[item.quality] or C.ITEM_QUALITY_COLORS.common
-
-    local border = itemFrame:CreateTexture(nil, "OVERLAY")
-    border:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
-    border:SetBlendMode("ADD")
-    border:SetPoint("CENTER", itemFrame, "CENTER", 0, 0)
-    border:SetSize(36, 36)
-    border:SetVertexColor(qualityColor.r, qualityColor.g, qualityColor.b)
-
-    -- Grey out if standing not met
-    local requiredStanding = item.standing or 8
-    if currentStanding < requiredStanding then
-        icon:SetDesaturated(true)
-        icon:SetVertexColor(0.5, 0.5, 0.5)
-        border:SetVertexColor(0.4, 0.4, 0.4)
-    end
-
-    -- Tooltip on hover
-    itemFrame:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetHyperlink("item:" .. item.itemId)
-        GameTooltip:AddLine(" ")
-        if currentStanding >= requiredStanding then
-            GameTooltip:AddLine("You can purchase this!", 0, 1, 0)
         else
-            local standingNames = {"Hated", "Hostile", "Unfriendly", "Neutral", "Friendly", "Honored", "Revered", "Exalted"}
-            GameTooltip:AddLine("Requires: " .. (standingNames[requiredStanding] or "Unknown"), 1, 0.5, 0)
+            -- Non-rep item (dungeon/badge/crafted) - always available
+            standingId = 8  -- Treat as max standing for display
+            standingName = item.source or "Available"
+            isObtainable = true
+            priority = 1  -- Show after obtainable rep items
         end
-        GameTooltip:Show()
-        HopeAddon.Sounds:PlayHover()
-    end)
-    itemFrame:SetScript("OnLeave", function(self)
-        GameTooltip:Hide()
-    end)
 
-    -- Click to print item info
-    itemFrame:SetScript("OnClick", function(self)
-        local colorHex = string.format("%02X%02X%02X", qualityColor.r * 255, qualityColor.g * 255, qualityColor.b * 255)
-        HopeAddon:Print("|cFF" .. colorHex .. "[" .. item.name .. "]|r - " .. item.stats)
-        HopeAddon.Sounds:PlayClick()
-    end)
+        table.insert(items, {
+            item = item,
+            factionProgress = {
+                standingId = standingId,
+                standingName = standingName,
+                current = current,
+                max = max,
+                isNonRepItem = isNonRepItem,
+            },
+            isObtainable = isObtainable,
+            priority = priority,
+        })
+    end
 
-    return itemFrame
+    -- Sort by priority (obtainable first, then closest to requirement)
+    table.sort(items, function(a, b) return a.priority < b.priority end)
+
+    -- Category header (smaller, under main FACTION STANDING header)
+    local headerText = string.format("RECOMMENDED UPGRADES (%s)", specName or "Your Spec")
+    local header = self:CreateCategoryHeader(headerText, "GOLD_BRIGHT")
+    self.mainFrame.scrollContainer:AddEntry(header)
+
+    -- Create item cards using pool (show all, typically 3)
+    for _, itemData in ipairs(items) do
+        local card = self:AcquireUpgradeCard(
+            self.mainFrame.scrollContainer.content,
+            itemData.item,
+            itemData.factionProgress
+        )
+        self.mainFrame.scrollContainer:AddEntry(card)
+    end
+
+    -- Spacer before faction categories
+    local spacer = self:CreateSpacer(20)
+    self.mainFrame.scrollContainer:AddEntry(spacer)
 end
 
--- Fallback standing label for factions without items in the hotlist
-function Journal:CreateStandingLabel(card, reputationBar, standingName, standingId)
-    local label = card:CreateFontString(nil, "OVERLAY")
-    label:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
-    label:SetPoint("LEFT", reputationBar, "RIGHT", 8, 0)
-    label:SetText(standingName)
-
-    -- Color by standing
-    local standingColors = {
-        [1] = {0.5, 0.5, 0.5}, [2] = {0.5, 0.5, 0.5}, [3] = {0.5, 0.5, 0.5}, [4] = {0.5, 0.5, 0.5},
-        [5] = {0, 0.8, 0}, [6] = {0, 0.6, 0.8}, [7] = {0, 0.4, 0.8}, [8] = {0.6, 0.2, 1}
-    }
-    local c = standingColors[standingId] or {0.5, 0.5, 0.5}
-    label:SetTextColor(c[1], c[2], c[3])
-
-    return label
-end
+-- NOTE: GetBestRepItemForFaction, GetRepItemsByStanding, CreateRepItemLink, and CreateStandingLabel
+-- were removed in Reputation tab restructure. Items now displayed via CreateRecommendedUpgradesSection.
 
 function Journal:CreateReputationCard(info)
     local Components = HopeAddon.Components
@@ -3236,9 +3466,8 @@ function Journal:CreateReputationCard(info)
         end
     end
 
-    -- Create card (taller for progress bar + item icons)
-    local needsProgressBar = not info.isSpecial and info.data
-    local cardHeight = needsProgressBar and 140 or 80  -- Extra height for bar + icons + labels
+    -- Create card - simplified height (no segmented bar with icons)
+    local cardHeight = 85
 
     local card = self:AcquireCard(self.mainFrame.scrollContainer.content, {
         icon = icon,
@@ -3253,39 +3482,56 @@ function Journal:CreateReputationCard(info)
     card.defaultBorderColor = {r, g, b, 1}
 
     -- Grey out border for "not started" factions
-    if not info.isSpecial and standingId <= 4 and current == 0 and (max == 0 or max == nil) then
+    local notStarted = not info.isSpecial and standingId <= 4 and current == 0 and (max == 0 or max == nil)
+    if notStarted then
         card:SetBackdropBorderColor(0.4, 0.4, 0.4, 0.8)
         card.defaultBorderColor = {0.4, 0.4, 0.4, 0.8}
     end
 
-    -- Add segmented progress bar for regular factions
-    if needsProgressBar then
-        -- Calculate bar width: card width - icon - margins - badge space
-        local barWidth = card:GetWidth() - Components.ICON_SIZE_STANDARD - 3 * Components.MARGIN_NORMAL - 60
+    -- Add simple inline progress bar and standing badge for regular factions
+    if not info.isSpecial and info.data then
+        -- Reuse timestamp slot for standing badge (top right)
+        card.timestamp:ClearAllPoints()
+        card.timestamp:SetFont(HopeAddon.assets.fonts.BODY, 10, "OUTLINE")
+        card.timestamp:SetPoint("TOPRIGHT", card, "TOPRIGHT", -10, -10)
+        card.timestamp:SetText(standingName)
+        card.timestamp:SetTextColor(r, g, b)
 
-        -- Create the new segmented reputation bar (includes icons above and labels below)
-        local repBar = Components:CreateSegmentedReputationBar(card, barWidth, 14)
-        repBar:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT",
-            Components.ICON_SIZE_STANDARD + 2 * Components.MARGIN_NORMAL, 4)
+        -- Progress percentage (below badge) - reuse or create once
+        local progressPct = 0
+        if max and max > 0 then
+            progressPct = math.floor((current / max) * 100)
+        end
 
-        -- Calculate progress within current standing (0-1)
+        if not card.standingProgress then
+            card.standingProgress = card:CreateFontString(nil, "OVERLAY")
+        end
+        card.standingProgress:ClearAllPoints()
+        card.standingProgress:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
+        card.standingProgress:SetPoint("TOP", card.timestamp, "BOTTOM", 0, -2)
+        card.standingProgress:SetText(progressPct .. "%")
+        card.standingProgress:SetTextColor(0.7, 0.7, 0.7)
+        card.standingProgress:Show()
+
+        -- Simple progress bar at bottom
+        local barWidth = card:GetWidth() - Components.ICON_SIZE_STANDARD - 60
+        local progressBar = Components:CreateProgressBar(card, barWidth, 8)
+        progressBar:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT",
+            Components.ICON_SIZE_STANDARD + 2 * Components.MARGIN_NORMAL, 8)
+
+        -- Set progress bar color based on standing
+        if progressBar.fill then
+            progressBar.fill:SetVertexColor(r, g, b)
+        end
+
+        -- Calculate progress (0-1)
         local progress = 0
         if max and max > 0 then
             progress = current / max
         end
+        progressBar:SetProgress(progress)
 
-        -- Set the standing
-        repBar:SetStanding(standingId, progress)
-        card.reputationBar = repBar
-
-        -- Get items by standing and add icons above each segment
-        local itemsByStanding = self:GetRepItemsByStanding(info.name)
-        for standing = 5, 8 do
-            local item = itemsByStanding[standing]
-            if item then
-                repBar:SetItemIcon(standing, item, standingId)
-            end
-        end
+        card.reputationBar = progressBar
     end
 
     -- Add golden glow for Exalted
@@ -6933,7 +7179,7 @@ function Journal:PopulateSocialFeed()
             -- Group header
             local header = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
             header:SetPoint("TOPLEFT", content, "TOPLEFT", 8, yOffset - 8)
-            header:SetText("─── " .. group.label .. " ───")
+            header:SetText("--- " .. group.label .. " ---")
             header:SetTextColor(0.5, 0.5, 0.5)
             self:TrackSocialRegion(header)
             yOffset = yOffset - 24
@@ -9053,25 +9299,34 @@ end
 
 Journal.armoryUI = {
     container = nil,
-    tierBar = nil,
-    tierButtons = {},
+    phaseBar = nil,        -- Slim phase selector bar (was tierBar)
+    phaseButtons = {},     -- Phase 1-5 buttons (was tierButtons)
     specDropdown = nil,
-    paperdoll = nil,
+    characterView = nil,   -- Centered character view (replaces paperdoll + detailPanel)
     modelFrame = nil,
     slotsContainer = nil,
     slotButtons = {},
-    detailPanel = nil,
-    equippedCard = nil,
+    infoCards = {},        -- Slot info cards (iLvl + upgrade arrow)
+    gearPopup = nil,       -- Floating gear popup (replaces detailPanel)
     footer = nil,
 }
 
 Journal.armoryState = {
-    selectedTier = 4,
+    selectedPhase = 1,  -- Phase 1-5 (replaces selectedTier 4-6)
     selectedSpec = nil,
     selectedSlot = nil,
+    popupVisible = false,  -- Track if gear popup is open
     expandedSections = {},
     slotStatuses = {},
     wishlist = {},
+    -- Gear popup state (Phase 60 redesign)
+    popup = {
+        activeFilter = "all",       -- Current filter: "all" or source key from SOURCE_GROUPS
+        expandedGroups = {},        -- { [sourceKey] = true/false } - which groups are expanded
+        sortOrder = "bis",          -- "bis" (default), "ilvl", "source"
+        lastSlot = nil,             -- Last slot clicked for popup
+        acquiredItems = {},         -- Cache of { [itemId] = true } for owned items
+    },
 }
 
 Journal.armoryPools = {
@@ -9080,6 +9335,12 @@ Journal.armoryPools = {
     statRow = nil,
     sourceTag = nil,
     wishlistBtn = nil,
+    infoCard = nil,         -- Slot info cards (iLvl + upgrade arrow)
+    -- Gear popup pools (Phase 60 redesign)
+    bisCard = nil,          -- Featured BiS item card
+    popupItemRow = nil,     -- Alternative item rows in popup
+    groupHeader = nil,      -- Collapsible group headers
+    filterBtn = nil,        -- Source filter buttons
 }
 
 
@@ -9099,9 +9360,17 @@ function Journal:PopulateArmory()
     end
     HopeAddon:Debug("PopulateArmory: scrollContainer OK")
 
-    -- Clear existing content
-    scrollContainer:ClearEntries(self.containerPool)
-    HopeAddon:Debug("PopulateArmory: Cleared entries")
+    -- Hide entire scroll container - Armory uses fixed layout, no scrolling needed
+    -- Must hide the whole container (not just scroll bar) to prevent it blocking mouse input
+    scrollContainer:Hide()
+
+    -- Ensure charDb.armory exists early (defensive)
+    if HopeAddon.charDb then
+        HopeAddon.charDb.armory = HopeAddon.charDb.armory or {}
+    end
+
+    -- Don't clear scrollContainer entries - Armory uses fixed layout parented to contentArea
+    HopeAddon:Debug("PopulateArmory: Using fixed layout (no scroll)")
 
     -- Create pools if needed
     if not self.armoryPools.upgradeCard then
@@ -9112,11 +9381,19 @@ function Journal:PopulateArmory()
 
     -- Load saved state
     local savedState = HopeAddon.charDb.armory or {}
-    self.armoryState.selectedTier = savedState.selectedTier or 4
+    -- Migration: convert old selectedTier (4-6) to selectedPhase (1-3), or use new selectedPhase
+    if savedState.selectedPhase then
+        self.armoryState.selectedPhase = savedState.selectedPhase
+    elseif savedState.selectedTier then
+        -- Migrate: T4=Phase1, T5=Phase2, T6=Phase3
+        self.armoryState.selectedPhase = savedState.selectedTier - 3
+    else
+        self.armoryState.selectedPhase = 1
+    end
     self.armoryState.selectedSpec = savedState.selectedSpec
     self.armoryState.wishlist = savedState.wishlist or {}
     self.armoryState.expandedSections = savedState.expandedSections or {}
-    HopeAddon:Debug("PopulateArmory: State loaded")
+    HopeAddon:Debug("PopulateArmory: State loaded, phase=" .. self.armoryState.selectedPhase)
 
     -- Create container structure
     HopeAddon:Debug("PopulateArmory: Creating container")
@@ -9127,6 +9404,11 @@ function Journal:PopulateArmory()
     HopeAddon:Debug("PopulateArmory: Refreshing slot data")
     self:RefreshArmorySlotData()
     HopeAddon:Debug("PopulateArmory: Slot data refreshed")
+
+    -- Create info cards for equipped slots (iLvl + upgrade arrows)
+    HopeAddon:Debug("PopulateArmory: Updating info cards")
+    self:UpdateArmoryInfoCards()
+    HopeAddon:Debug("PopulateArmory: Info cards updated")
 
     -- Update footer stats
     HopeAddon:Debug("PopulateArmory: Updating footer")
@@ -9141,10 +9423,32 @@ end
 function Journal:HideArmoryTab()
     -- Save current state
     if self.armoryState and HopeAddon.charDb and HopeAddon.charDb.armory then
-        HopeAddon.charDb.armory.selectedTier = self.armoryState.selectedTier
+        HopeAddon.charDb.armory.selectedPhase = self.armoryState.selectedPhase
         HopeAddon.charDb.armory.selectedSpec = self.armoryState.selectedSpec
         HopeAddon.charDb.armory.wishlist = self.armoryState.wishlist
         HopeAddon.charDb.armory.expandedSections = self.armoryState.expandedSections
+    end
+
+    -- Hide gear popup if visible
+    if self.armoryState and self.armoryState.popupVisible then
+        self:HideArmoryGearPopup()
+    end
+
+    -- Ensure click-away handler is unregistered
+    self:UnregisterArmoryClickAwayHandler()
+
+    -- Restore scroll container visibility for other tabs
+    local scrollContainer = self.mainFrame and self.mainFrame.scrollContainer
+    if scrollContainer then
+        scrollContainer:Show()
+    end
+
+    -- Release info cards to pool
+    if self.armoryPools.infoCard then
+        self.armoryPools.infoCard:ReleaseAll()
+    end
+    if self.armoryUI then
+        self.armoryUI.infoCards = nil
     end
 
     -- Hide container (but don't destroy - we reuse it)
@@ -9164,23 +9468,361 @@ end
 ]]
 function Journal:CreateArmoryPools()
     local FramePool = HopeAddon.FramePool
+    local C = HopeAddon.Constants
 
     -- Upgrade card pool
-    self.armoryPools.upgradeCard = FramePool:Create(
-        "Frame",
-        nil,
-        "BackdropTemplate",
-        function(card) self:InitializeUpgradeCard(card) end,
+    self.armoryPools.upgradeCard = FramePool:New(
+        function()
+            local card = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
+            self:InitializeUpgradeCard(card)
+            return card
+        end,
         function(card) self:ResetUpgradeCard(card) end
     )
 
     -- Section header pool
-    self.armoryPools.sectionHeader = FramePool:Create(
-        "Frame",
-        nil,
-        "BackdropTemplate",
-        function(header) self:InitializeSectionHeader(header) end,
+    self.armoryPools.sectionHeader = FramePool:New(
+        function()
+            local header = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
+            self:InitializeSectionHeader(header)
+            return header
+        end,
         function(header) self:ResetSectionHeader(header) end
+    )
+
+    -- Slot info card pool (shows iLvl + upgrade arrow next to each slot)
+    local infoCardCfg = C.ARMORY_INFO_CARD
+    self.armoryPools.infoCard = FramePool:New(
+        function()
+            local card = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
+            card:SetSize(infoCardCfg.SIZE, infoCardCfg.SIZE)
+            card:SetBackdrop(infoCardCfg.BACKDROP)
+            card:SetBackdropColor(
+                infoCardCfg.BG_COLOR.r,
+                infoCardCfg.BG_COLOR.g,
+                infoCardCfg.BG_COLOR.b,
+                infoCardCfg.BG_COLOR.a
+            )
+            card:SetBackdropBorderColor(
+                infoCardCfg.BORDER_COLOR.r,
+                infoCardCfg.BORDER_COLOR.g,
+                infoCardCfg.BORDER_COLOR.b,
+                infoCardCfg.BORDER_COLOR.a
+            )
+
+            -- iLvl text (top half)
+            card.iLvlText = card:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+            card.iLvlText:SetPoint("TOP", 0, -6)
+            card.iLvlText:SetTextColor(1, 1, 1)
+
+            -- Arrow indicator (bottom half)
+            card.arrowText = card:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+            card.arrowText:SetPoint("BOTTOM", 0, 6)
+
+            -- Enable mouse for click passthrough
+            card:EnableMouse(true)
+
+            -- Highlight on hover
+            card:SetScript("OnEnter", function(self)
+                self:SetBackdropBorderColor(
+                    infoCardCfg.HIGHLIGHT_COLOR.r,
+                    infoCardCfg.HIGHLIGHT_COLOR.g,
+                    infoCardCfg.HIGHLIGHT_COLOR.b,
+                    infoCardCfg.HIGHLIGHT_COLOR.a
+                )
+                if HopeAddon.Sounds then HopeAddon.Sounds:PlayHover() end
+            end)
+            card:SetScript("OnLeave", function(self)
+                self:SetBackdropBorderColor(
+                    infoCardCfg.BORDER_COLOR.r,
+                    infoCardCfg.BORDER_COLOR.g,
+                    infoCardCfg.BORDER_COLOR.b,
+                    infoCardCfg.BORDER_COLOR.a
+                )
+            end)
+
+            return card
+        end,
+        function(card)
+            -- Reset function
+            card:Hide()
+            card:ClearAllPoints()
+            card:SetParent(UIParent)
+            card.iLvlText:SetText("")
+            card.arrowText:SetText("")
+            card.slotName = nil
+            card:SetScript("OnMouseDown", nil)
+        end
+    )
+
+    --======================================================================
+    -- GEAR POPUP POOLS (Phase 60 redesign)
+    --======================================================================
+
+    -- BiS Card pool - Featured item showcase at top of popup
+    self.armoryPools.bisCard = FramePool:New(
+        function()
+            local card = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
+            card:SetSize(C.ARMORY_GEAR_POPUP.WIDTH - (C.ARMORY_GEAR_POPUP.PADDING * 2), C.ARMORY_GEAR_POPUP.BIS_CARD.HEIGHT)
+
+            -- Gold border backdrop
+            card:SetBackdrop({
+                bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+                edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
+                edgeSize = 12,
+                insets = { left = 3, right = 3, top = 3, bottom = 3 },
+            })
+
+            -- Icon frame (larger for BiS)
+            card.icon = card:CreateTexture(nil, "ARTWORK")
+            card.icon:SetSize(C.ARMORY_GEAR_POPUP.BIS_CARD.ICON_SIZE, C.ARMORY_GEAR_POPUP.BIS_CARD.ICON_SIZE)
+            card.icon:SetPoint("LEFT", 12, 0)
+
+            -- Icon border (quality colored)
+            card.iconBorder = card:CreateTexture(nil, "OVERLAY")
+            card.iconBorder:SetSize(C.ARMORY_GEAR_POPUP.BIS_CARD.ICON_SIZE + 4, C.ARMORY_GEAR_POPUP.BIS_CARD.ICON_SIZE + 4)
+            card.iconBorder:SetPoint("CENTER", card.icon, "CENTER")
+            card.iconBorder:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
+            card.iconBorder:SetBlendMode("ADD")
+
+            -- BiS indicator star
+            card.bisIndicator = card:CreateTexture(nil, "OVERLAY")
+            card.bisIndicator:SetSize(20, 20)
+            card.bisIndicator:SetPoint("TOPLEFT", card.icon, "TOPLEFT", -6, 6)
+            card.bisIndicator:SetTexture("Interface\\COMMON\\ReputationStar")
+            card.bisIndicator:SetVertexColor(1, 0.84, 0)
+
+            -- Item name (larger font)
+            card.nameText = card:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+            card.nameText:SetPoint("TOPLEFT", card.icon, "TOPRIGHT", 12, -4)
+            card.nameText:SetPoint("RIGHT", card, "RIGHT", -12, 0)
+            card.nameText:SetJustifyH("LEFT")
+
+            -- Item level
+            card.iLevelText = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            card.iLevelText:SetPoint("TOPLEFT", card.nameText, "BOTTOMLEFT", 0, -2)
+            card.iLevelText:SetTextColor(0.7, 0.7, 0.7)
+
+            -- Source text
+            card.sourceText = card:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            card.sourceText:SetPoint("TOPLEFT", card.iLevelText, "BOTTOMLEFT", 0, -2)
+            card.sourceText:SetPoint("RIGHT", card, "RIGHT", -12, 0)
+            card.sourceText:SetJustifyH("LEFT")
+            card.sourceText:SetTextColor(0.6, 0.6, 0.6)
+
+            -- Try On button
+            card.tryOnBtn = CreateFrame("Button", nil, card, "BackdropTemplate")
+            card.tryOnBtn:SetSize(70, 22)
+            card.tryOnBtn:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -12, 10)
+            card.tryOnBtn:SetBackdrop({
+                bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+                edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+                edgeSize = 8,
+                insets = { left = 2, right = 2, top = 2, bottom = 2 },
+            })
+            card.tryOnBtn.text = card.tryOnBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            card.tryOnBtn.text:SetPoint("CENTER")
+            card.tryOnBtn.text:SetText("Try On")
+            card.tryOnBtn:SetScript("OnEnter", function(self)
+                self:SetBackdropBorderColor(1, 0.84, 0)
+                if HopeAddon.Sounds then HopeAddon.Sounds:PlayHover() end
+            end)
+            card.tryOnBtn:SetScript("OnLeave", function(self)
+                self:SetBackdropBorderColor(0.5, 0.5, 0.5)
+            end)
+
+            card:Hide()
+            return card
+        end,
+        function(card)
+            card:Hide()
+            card:ClearAllPoints()
+            card:SetParent(UIParent)
+            card.icon:SetTexture(nil)
+            card.iconBorder:SetVertexColor(1, 1, 1)
+            card.nameText:SetText("")
+            card.iLevelText:SetText("")
+            card.sourceText:SetText("")
+            card.tryOnBtn:SetScript("OnClick", nil)
+        end
+    )
+
+    -- Popup Item Row pool - Compact alternative item rows
+    self.armoryPools.popupItemRow = FramePool:New(
+        function()
+            local row = CreateFrame("Button", nil, UIParent, "BackdropTemplate")
+            row:SetSize(C.ARMORY_GEAR_POPUP.WIDTH - (C.ARMORY_GEAR_POPUP.PADDING * 2) - 20, C.ARMORY_GEAR_POPUP.ITEM_HEIGHT)
+
+            -- Hover highlight
+            row.highlight = row:CreateTexture(nil, "BACKGROUND")
+            row.highlight:SetAllPoints()
+            row.highlight:SetColorTexture(0.3, 0.3, 0.3, 0)
+
+            -- Icon
+            row.icon = row:CreateTexture(nil, "ARTWORK")
+            row.icon:SetSize(C.ARMORY_GEAR_POPUP.ITEM.ICON_SIZE, C.ARMORY_GEAR_POPUP.ITEM.ICON_SIZE)
+            row.icon:SetPoint("LEFT", 4, 0)
+
+            -- Icon border (quality colored)
+            row.iconBorder = row:CreateTexture(nil, "OVERLAY")
+            row.iconBorder:SetSize(C.ARMORY_GEAR_POPUP.ITEM.ICON_SIZE + 2, C.ARMORY_GEAR_POPUP.ITEM.ICON_SIZE + 2)
+            row.iconBorder:SetPoint("CENTER", row.icon, "CENTER")
+            row.iconBorder:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
+            row.iconBorder:SetBlendMode("ADD")
+
+            -- Item name
+            row.nameText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            row.nameText:SetPoint("TOPLEFT", row.icon, "TOPRIGHT", 8, -2)
+            row.nameText:SetPoint("RIGHT", row, "RIGHT", -60, 0)
+            row.nameText:SetJustifyH("LEFT")
+
+            -- Source text (below name)
+            row.sourceText = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            row.sourceText:SetPoint("TOPLEFT", row.nameText, "BOTTOMLEFT", 0, -1)
+            row.sourceText:SetPoint("RIGHT", row, "RIGHT", -60, 0)
+            row.sourceText:SetJustifyH("LEFT")
+            row.sourceText:SetTextColor(0.6, 0.6, 0.6)
+
+            -- iLevel on right
+            row.iLevelText = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            row.iLevelText:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+            row.iLevelText:SetTextColor(0.7, 0.7, 0.7)
+
+            -- Hover handlers
+            row:SetScript("OnEnter", function(self)
+                self.highlight:SetColorTexture(0.3, 0.3, 0.3, 0.3)
+                if HopeAddon.Sounds then HopeAddon.Sounds:PlayHover() end
+            end)
+            row:SetScript("OnLeave", function(self)
+                self.highlight:SetColorTexture(0.3, 0.3, 0.3, 0)
+            end)
+
+            row:Hide()
+            return row
+        end,
+        function(row)
+            row:Hide()
+            row:ClearAllPoints()
+            row:SetParent(UIParent)
+            row.highlight:SetColorTexture(0.3, 0.3, 0.3, 0)
+            row.icon:SetTexture(nil)
+            row.iconBorder:SetVertexColor(1, 1, 1)
+            row.nameText:SetText("")
+            row.sourceText:SetText("")
+            row.iLevelText:SetText("")
+            row:SetScript("OnClick", nil)
+        end
+    )
+
+    -- Group Header pool - Collapsible source group headers
+    self.armoryPools.groupHeader = FramePool:New(
+        function()
+            local header = CreateFrame("Button", nil, UIParent)
+            header:SetSize(C.ARMORY_GEAR_POPUP.WIDTH - (C.ARMORY_GEAR_POPUP.PADDING * 2) - 20, C.ARMORY_GEAR_POPUP.GROUP_HEADER.HEIGHT)
+
+            -- Background
+            header.bg = header:CreateTexture(nil, "BACKGROUND")
+            header.bg:SetAllPoints()
+            header.bg:SetColorTexture(0.15, 0.15, 0.15, 0.8)
+
+            -- Expand/collapse icon
+            header.expandIcon = header:CreateTexture(nil, "ARTWORK")
+            header.expandIcon:SetSize(C.ARMORY_GEAR_POPUP.GROUP_HEADER.ICON_SIZE, C.ARMORY_GEAR_POPUP.GROUP_HEADER.ICON_SIZE)
+            header.expandIcon:SetPoint("LEFT", 6, 0)
+
+            -- Source type icon
+            header.sourceIcon = header:CreateTexture(nil, "ARTWORK")
+            header.sourceIcon:SetSize(18, 18)
+            header.sourceIcon:SetPoint("LEFT", header.expandIcon, "RIGHT", 6, 0)
+
+            -- Group label text
+            header.labelText = header:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            header.labelText:SetPoint("LEFT", header.sourceIcon, "RIGHT", 6, 0)
+            header.labelText:SetJustifyH("LEFT")
+
+            -- Count text (right side)
+            header.countText = header:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            header.countText:SetPoint("RIGHT", header, "RIGHT", -8, 0)
+            header.countText:SetTextColor(0.6, 0.6, 0.6)
+
+            -- Hover effect
+            header:SetScript("OnEnter", function(self)
+                self.bg:SetColorTexture(0.2, 0.2, 0.2, 0.9)
+                if HopeAddon.Sounds then HopeAddon.Sounds:PlayHover() end
+            end)
+            header:SetScript("OnLeave", function(self)
+                self.bg:SetColorTexture(0.15, 0.15, 0.15, 0.8)
+            end)
+
+            header:Hide()
+            return header
+        end,
+        function(header)
+            header:Hide()
+            header:ClearAllPoints()
+            header:SetParent(UIParent)
+            header.bg:SetColorTexture(0.15, 0.15, 0.15, 0.8)
+            header.expandIcon:SetTexture(nil)
+            header.sourceIcon:SetTexture(nil)
+            header.labelText:SetText("")
+            header.countText:SetText("")
+            header:SetScript("OnClick", nil)
+            header.groupKey = nil
+            header.isExpanded = nil
+        end
+    )
+
+    -- Filter Button pool - Source type filter toggles
+    self.armoryPools.filterBtn = FramePool:New(
+        function()
+            local btn = CreateFrame("Button", nil, UIParent, "BackdropTemplate")
+            btn:SetSize(80, C.ARMORY_GEAR_POPUP.FILTER.BUTTON_HEIGHT)
+
+            btn:SetBackdrop({
+                bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+                edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+                edgeSize = 8,
+                insets = { left = 2, right = 2, top = 2, bottom = 2 },
+            })
+
+            -- Label text
+            btn.text = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            btn.text:SetPoint("CENTER")
+
+            -- Active state indicator
+            btn.activeIndicator = btn:CreateTexture(nil, "OVERLAY")
+            btn.activeIndicator:SetSize(6, 6)
+            btn.activeIndicator:SetPoint("TOPLEFT", btn, "TOPLEFT", 4, -4)
+            btn.activeIndicator:SetTexture("Interface\\COMMON\\Indicator-Green")
+            btn.activeIndicator:Hide()
+
+            -- Hover handlers
+            btn:SetScript("OnEnter", function(self)
+                if not self.isActive then
+                    self:SetBackdropBorderColor(0.8, 0.7, 0.2)
+                end
+                if HopeAddon.Sounds then HopeAddon.Sounds:PlayHover() end
+            end)
+            btn:SetScript("OnLeave", function(self)
+                if not self.isActive then
+                    self:SetBackdropBorderColor(0.5, 0.5, 0.5)
+                end
+            end)
+
+            btn:Hide()
+            return btn
+        end,
+        function(btn)
+            btn:Hide()
+            btn:ClearAllPoints()
+            btn:SetParent(UIParent)
+            btn.text:SetText("")
+            btn.activeIndicator:Hide()
+            btn.isActive = false
+            btn.filterKey = nil
+            btn:SetScript("OnClick", nil)
+            btn:SetBackdropBorderColor(0.5, 0.5, 0.5)
+        end
     )
 end
 
@@ -9189,49 +9831,44 @@ end
 ]]
 function Journal:CreateArmoryContainer()
     HopeAddon:Debug("CreateArmoryContainer: Starting")
-    local scrollContainer = self.mainFrame.scrollContainer
-    local parent = scrollContainer.content
+    -- Use contentArea directly for fixed layout (not scroll content)
+    local parent = self.mainFrame.contentArea
     local C = HopeAddon.Constants
 
     if not parent then
-        error("CreateArmoryContainer: scrollContainer.content is nil")
+        error("CreateArmoryContainer: contentArea is nil")
     end
-    HopeAddon:Debug("CreateArmoryContainer: parent OK")
+    HopeAddon:Debug("CreateArmoryContainer: parent OK (using contentArea for fixed layout)")
 
     -- Create or reuse container
     if not self.armoryUI.container then
         HopeAddon:Debug("CreateArmoryContainer: Creating new container frame")
         local container = CreateFrame("Frame", "HopeArmoryContainer", parent)
-        container:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, 0)
-        container:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, 0)
         self.armoryUI.container = container
     end
 
     local container = self.armoryUI.container
     container:SetParent(parent)
     container:ClearAllPoints()
+    -- Fixed layout: anchor to all four corners of contentArea
     container:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, 0)
     container:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, 0)
+    container:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", 0, 0)
+    container:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", 0, 0)
     container:Show()
-    HopeAddon:Debug("CreateArmoryContainer: Container setup complete")
+    HopeAddon:Debug("CreateArmoryContainer: Container setup complete (fixed anchors)")
 
-    -- Add to scroll container
-    scrollContainer:AddEntry(container)
-    HopeAddon:Debug("CreateArmoryContainer: Added to scroll")
+    -- No scroll container entry - fixed layout directly in contentArea
 
     -- Child creation (order matters)
-    HopeAddon:Debug("CreateArmoryContainer: Creating TierBar")
-    self:CreateArmoryTierBar()
-    HopeAddon:Debug("CreateArmoryContainer: Creating Paperdoll")
-    self:CreateArmoryPaperdoll()
-    HopeAddon:Debug("CreateArmoryContainer: Creating DetailPanel")
-    self:CreateArmoryDetailPanel()
+    HopeAddon:Debug("CreateArmoryContainer: Creating PhaseBar")
+    self:CreateArmoryPhaseBar()
+    HopeAddon:Debug("CreateArmoryContainer: Creating CharacterView")
+    self:CreateArmoryCharacterView()
     HopeAddon:Debug("CreateArmoryContainer: Creating Footer")
     self:CreateArmoryFooter()
 
-    -- Calculate total height
-    HopeAddon:Debug("CreateArmoryContainer: Recalculating height")
-    self:RecalculateArmoryHeight()
+    -- No height calculation needed - container fills contentArea via anchors
 
     HopeAddon:Debug("CreateArmoryContainer: Complete")
     return container
@@ -9240,149 +9877,180 @@ end
 --[[
     Create the tier selection bar with T4/T5/T6 buttons and spec dropdown
 ]]
-function Journal:CreateArmoryTierBar()
+function Journal:CreateArmoryPhaseBar()
     local container = self.armoryUI.container
-    local C = HopeAddon.Constants.ARMORY_TIER_BAR
+    local C = HopeAddon.Constants.ARMORY_PHASE_BAR
 
-    if not self.armoryUI.tierBar then
-        local tierBar = CreateFrame("Frame", "HopeArmoryTierBar", container, "BackdropTemplate")
-        tierBar:SetHeight(C.HEIGHT)
-        tierBar:SetPoint("TOPLEFT", container, "TOPLEFT", 0, 0)
-        tierBar:SetPoint("TOPRIGHT", container, "TOPRIGHT", 0, 0)
-        tierBar:SetBackdrop(C.BACKDROP)
-        tierBar:SetBackdropColor(C.BG_COLOR.r, C.BG_COLOR.g, C.BG_COLOR.b, C.BG_COLOR.a)
-        tierBar:SetBackdropBorderColor(C.BORDER_COLOR.r, C.BORDER_COLOR.g, C.BORDER_COLOR.b, C.BORDER_COLOR.a)
+    if not self.armoryUI.phaseBar then
+        local phaseBar = CreateFrame("Frame", "HopeArmoryPhaseBar", container, "BackdropTemplate")
+        phaseBar:SetHeight(C.HEIGHT)
+        phaseBar:SetPoint("TOPLEFT", container, "TOPLEFT", 0, 0)
+        phaseBar:SetPoint("TOPRIGHT", container, "TOPRIGHT", 0, 0)
+        phaseBar:SetBackdrop(C.BACKDROP)
+        phaseBar:SetBackdropColor(C.BG_COLOR.r, C.BG_COLOR.g, C.BG_COLOR.b, C.BG_COLOR.a)
+        phaseBar:SetBackdropBorderColor(C.BORDER_COLOR.r, C.BORDER_COLOR.g, C.BORDER_COLOR.b, C.BORDER_COLOR.a)
 
-        self.armoryUI.tierBar = tierBar
-        self.armoryUI.tierButtons = {}
+        -- "PHASE" label
+        local label = phaseBar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        label:SetPoint("LEFT", phaseBar, "LEFT", C.PADDING_H, 0)
+        label:SetText(C.LABEL_TEXT)
+        label:SetTextColor(0.7, 0.7, 0.7, 1)
+        phaseBar.label = label
+
+        self.armoryUI.phaseBar = phaseBar
+        self.armoryUI.phaseButtons = {}
     end
 
-    local tierBar = self.armoryUI.tierBar
-    tierBar:Show()
+    local phaseBar = self.armoryUI.phaseBar
+    phaseBar:Show()
 
-    -- Create tier buttons and spec dropdown
-    self:CreateArmoryTierButtons()
+    -- Create phase buttons and spec dropdown
+    self:CreateArmoryPhaseButtons()
     self:CreateArmorySpecDropdown()
 
-    return tierBar
+    return phaseBar
 end
 
 --[[
-    Create the T4/T5/T6 tier selection buttons
+    Create the Phase selection buttons (compact numbered buttons)
+    Note: Phase 4 (ZA catch-up raid) is skipped
 ]]
-function Journal:CreateArmoryTierButtons()
-    local tierBar = self.armoryUI.tierBar
-    local C = HopeAddon.Constants.ARMORY_TIER_BUTTON
+function Journal:CreateArmoryPhaseButtons()
+    local phaseBar = self.armoryUI.phaseBar
+    local C = HopeAddon.Constants.ARMORY_PHASE_BUTTON
 
-    for tier = 4, 6 do
-        local btnConfig = C.TIERS[tier]
+    -- Phases to show (all 5 phases)
+    local phasesToShow = { 1, 2, 3, 4, 5 }
 
-        if not self.armoryUI.tierButtons[tier] then
-            local btn = CreateFrame("Button", "HopeArmoryTier" .. tier .. "Button", tierBar, "BackdropTemplate")
+    for buttonIndex, phase in ipairs(phasesToShow) do
+        local phaseConfig = C.PHASES[phase]
+
+        if not self.armoryUI.phaseButtons[phase] then
+            local btn = CreateFrame("Button", "HopeArmoryPhase" .. phase .. "Button", phaseBar, "BackdropTemplate")
             btn:SetSize(C.WIDTH, C.HEIGHT)
 
-            -- Position: left to right with gaps
-            local xOffset = C.FIRST_OFFSET + (tier - 4) * (C.WIDTH + C.GAP)
-            btn:SetPoint("LEFT", tierBar, "LEFT", xOffset, 0)
+            -- Position: left to right after "PHASE" label with gaps (use buttonIndex for positioning)
+            local xOffset = C.FIRST_OFFSET + (buttonIndex - 1) * (C.WIDTH + C.GAP)
+            btn:SetPoint("LEFT", phaseBar, "LEFT", xOffset, 0)
 
             -- Backdrop
             btn:SetBackdrop({
                 bgFile = "Interface\\BUTTONS\\WHITE8X8",
                 edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-                edgeSize = 10,
-                insets = { left = 2, right = 2, top = 2, bottom = 2 },
+                edgeSize = 8,
+                insets = { left = 1, right = 1, top = 1, bottom = 1 },
             })
 
-            -- Text: Main label (T4, T5, T6)
+            -- Text: Phase number (1, 2, 3, 4, 5)
             local label = btn:CreateFontString(nil, "OVERLAY", C.FONT)
-            label:SetPoint("CENTER", btn, "CENTER", 0, 4)
-            label:SetText(btnConfig.label)
+            label:SetPoint("CENTER", btn, "CENTER", 0, 0)
+            label:SetText(phaseConfig.label)
             btn.label = label
 
-            -- Text: Sublabel (Phase 1, Phase 2, Phase 3)
-            local sublabel = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-            sublabel:SetPoint("TOP", label, "BOTTOM", 0, -1)
-            sublabel:SetText(btnConfig.sublabel)
-            sublabel:SetTextColor(0.7, 0.7, 0.7, 1)
-            btn.sublabel = sublabel
+            -- Glow texture (for active state)
+            local glow = btn:CreateTexture(nil, "OVERLAY")
+            glow:SetPoint("CENTER", btn, "CENTER", 0, 0)
+            glow:SetSize(C.WIDTH + 8, C.HEIGHT + 8)
+            glow:SetTexture("Interface\\BUTTONS\\UI-ActionButton-Border")
+            glow:SetBlendMode("ADD")
+            glow:SetAlpha(0.5)
+            glow:Hide()
+            btn.glow = glow
 
-            -- Underline (for active state)
-            local underline = btn:CreateTexture(nil, "OVERLAY")
-            underline:SetPoint("BOTTOMLEFT", btn, "BOTTOMLEFT", 4, 2)
-            underline:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", -4, 2)
-            underline:SetHeight(C.STATES.active.underlineHeight)
-            underline:SetTexture("Interface\\BUTTONS\\WHITE8X8")
-            underline:Hide()
-            btn.underline = underline
-
-            -- Store tier reference
-            btn.tier = tier
-            btn.tierColor = HopeAddon.colors[btnConfig.color]
+            -- Store phase reference
+            btn.phase = phase
+            btn.phaseColor = HopeAddon.colors[phaseConfig.color]
 
             -- Click handler
             btn:SetScript("OnClick", function()
                 if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
-                self:SelectArmoryTier(tier)
+                self:SelectArmoryPhase(phase)
             end)
 
-            -- Hover handlers
+            -- Hover handlers with enhanced tooltip
             btn:SetScript("OnEnter", function()
                 if HopeAddon.Sounds then HopeAddon.Sounds:PlayHover() end
-                self:SetTierButtonState(btn, "hover")
+                self:SetPhaseButtonState(btn, "hover")
                 GameTooltip:SetOwner(btn, "ANCHOR_BOTTOM")
-                GameTooltip:SetText(btnConfig.label .. ": " .. btnConfig.raids)
+
+                -- Title (gold)
+                GameTooltip:SetText(phaseConfig.tooltip, 1, 0.84, 0)
+
+                -- Raids in this phase (fel green header)
+                if phaseConfig.raids and #phaseConfig.raids > 0 then
+                    GameTooltip:AddLine(" ")
+                    GameTooltip:AddLine("Raid Content:", 0.2, 0.8, 0.2)
+                    for _, raid in ipairs(phaseConfig.raids) do
+                        GameTooltip:AddLine("  • " .. raid, 0.9, 0.9, 0.9)
+                    end
+                end
+
+                -- Gear sources (sky blue header)
+                if phaseConfig.gearSources and #phaseConfig.gearSources > 0 then
+                    GameTooltip:AddLine(" ")
+                    GameTooltip:AddLine("Gear Sources:", 0.3, 0.7, 1.0)
+                    for _, source in ipairs(phaseConfig.gearSources) do
+                        GameTooltip:AddLine("  • " .. source, 0.8, 0.8, 0.8)
+                    end
+                end
+
+                -- Recommended iLvl (grey)
+                if phaseConfig.recommendedILvl then
+                    GameTooltip:AddLine(" ")
+                    GameTooltip:AddLine("Recommended iLvl: " .. phaseConfig.recommendedILvl, 0.6, 0.6, 0.6)
+                end
+
                 GameTooltip:Show()
             end)
 
             btn:SetScript("OnLeave", function()
-                local state = (self.armoryState.selectedTier == tier) and "active" or "inactive"
-                self:SetTierButtonState(btn, state)
+                local state = (self.armoryState.selectedPhase == phase) and "active" or "inactive"
+                self:SetPhaseButtonState(btn, state)
                 GameTooltip:Hide()
             end)
 
-            self.armoryUI.tierButtons[tier] = btn
+            self.armoryUI.phaseButtons[phase] = btn
         end
 
         -- Set initial state
-        local state = (self.armoryState.selectedTier == tier) and "active" or "inactive"
-        self:SetTierButtonState(self.armoryUI.tierButtons[tier], state)
+        local state = (self.armoryState.selectedPhase == phase) and "active" or "inactive"
+        self:SetPhaseButtonState(self.armoryUI.phaseButtons[phase], state)
     end
 end
 
 --[[
-    Set visual state for tier button
+    Set visual state for phase button
 ]]
-function Journal:SetTierButtonState(btn, stateName)
-    local C = HopeAddon.Constants.ARMORY_TIER_BUTTON
+function Journal:SetPhaseButtonState(btn, stateName)
+    local C = HopeAddon.Constants.ARMORY_PHASE_BUTTON
     local state = C.STATES[stateName]
-    local tierColor = btn.tierColor or HopeAddon.colors.GOLD_BRIGHT
+    local phaseColor = btn.phaseColor or HopeAddon.colors.GOLD_BRIGHT
 
-    -- Background color (tier color at configured alpha)
+    -- Background color (phase color at configured alpha)
     btn:SetBackdropColor(
-        tierColor.r * 0.3,
-        tierColor.g * 0.3,
-        tierColor.b * 0.3,
+        phaseColor.r * 0.3,
+        phaseColor.g * 0.3,
+        phaseColor.b * 0.3,
         state.bgAlpha
     )
 
     -- Border color
     btn:SetBackdropBorderColor(
-        tierColor.r,
-        tierColor.g,
-        tierColor.b,
+        phaseColor.r,
+        phaseColor.g,
+        phaseColor.b,
         state.borderAlpha
     )
 
     -- Text color
-    btn.label:SetTextColor(tierColor.r, tierColor.g, tierColor.b, state.textAlpha)
+    btn.label:SetTextColor(phaseColor.r, phaseColor.g, phaseColor.b, state.textAlpha)
 
-    -- Underline
-    if state.showUnderline then
-        btn.underline:SetHeight(state.underlineHeight)
-        btn.underline:SetVertexColor(tierColor.r, tierColor.g, tierColor.b, 1)
-        btn.underline:Show()
-    else
-        btn.underline:Hide()
+    -- Glow (for active state)
+    if state.showGlow and btn.glow then
+        btn.glow:SetVertexColor(phaseColor.r, phaseColor.g, phaseColor.b, 0.5)
+        btn.glow:Show()
+    elseif btn.glow then
+        btn.glow:Hide()
     end
 end
 
@@ -9390,12 +10058,12 @@ end
     Create the spec selection dropdown
 ]]
 function Journal:CreateArmorySpecDropdown()
-    local tierBar = self.armoryUI.tierBar
+    local phaseBar = self.armoryUI.phaseBar
     local C = HopeAddon.Constants.ARMORY_SPEC_DROPDOWN
 
     if not self.armoryUI.specDropdown then
-        local dropdown = CreateFrame("Frame", "HopeArmorySpecDropdown", tierBar, "UIDropDownMenuTemplate")
-        dropdown:SetPoint(C.ANCHOR, tierBar, C.ANCHOR, C.OFFSET_X, C.OFFSET_Y)
+        local dropdown = CreateFrame("Frame", "HopeArmorySpecDropdown", phaseBar, "UIDropDownMenuTemplate")
+        dropdown:SetPoint(C.ANCHOR, phaseBar, C.ANCHOR, C.OFFSET_X, C.OFFSET_Y)
 
         UIDropDownMenu_SetWidth(dropdown, C.MENU_WIDTH)
 
@@ -9416,8 +10084,10 @@ end
 ]]
 function Journal:InitArmorySpecDropdownMenu(frame, level)
     -- Get specs for this class (1, 2, 3)
+    -- GetTalentTabInfo returns: id, name, description, iconTexture, pointsSpent, background
+    -- We need the name (2nd return value), not the id (1st)
     for specTab = 1, 3 do
-        local specName = select(1, GetTalentTabInfo(specTab))
+        local _, specName = GetTalentTabInfo(specTab)
         if specName and specName ~= "" then
             local info = UIDropDownMenu_CreateInfo()
             info.text = specName
@@ -9434,61 +10104,69 @@ function Journal:InitArmorySpecDropdownMenu(frame, level)
 end
 
 --[[
-    Create the paperdoll container with model and slot buttons
+    Create the centered character view container
+    This is a full-width container with model centered and slots symmetrically positioned
 ]]
-function Journal:CreateArmoryPaperdoll()
+function Journal:CreateArmoryCharacterView()
     local container = self.armoryUI.container
-    local C = HopeAddon.Constants.ARMORY_PAPERDOLL
-    local tierBarHeight = HopeAddon.Constants.ARMORY_TIER_BAR.HEIGHT
+    local C = HopeAddon.Constants.ARMORY_CHARACTER_VIEW
+    local phaseBarHeight = HopeAddon.Constants.ARMORY_PHASE_BAR.HEIGHT
 
-    if not self.armoryUI.paperdoll then
-        local paperdoll = CreateFrame("Frame", "HopeArmoryPaperdoll", container, "BackdropTemplate")
-        paperdoll:SetWidth(C.WIDTH)
-        paperdoll:SetPoint("TOPLEFT", container, "TOPLEFT", 0, -tierBarHeight)
-        paperdoll:SetBackdrop(C.BACKDROP)
-        paperdoll:SetBackdropColor(C.BG_COLOR.r, C.BG_COLOR.g, C.BG_COLOR.b, C.BG_COLOR.a)
-        paperdoll:SetBackdropBorderColor(C.BORDER_COLOR.r, C.BORDER_COLOR.g, C.BORDER_COLOR.b, C.BORDER_COLOR.a)
+    if not self.armoryUI.characterView then
+        local characterView = CreateFrame("Frame", "HopeArmoryCharacterView", container, "BackdropTemplate")
+        -- Full width, positioned below phase bar
+        characterView:SetPoint("TOPLEFT", container, "TOPLEFT", 0, -phaseBarHeight)
+        characterView:SetPoint("TOPRIGHT", container, "TOPRIGHT", 0, -phaseBarHeight)
+        characterView:SetBackdrop(C.BACKDROP)
+        characterView:SetBackdropColor(C.BG_COLOR.r, C.BG_COLOR.g, C.BG_COLOR.b, C.BG_COLOR.a)
+        characterView:SetBackdropBorderColor(C.BORDER_COLOR.r, C.BORDER_COLOR.g, C.BORDER_COLOR.b, C.BORDER_COLOR.a)
 
-        self.armoryUI.paperdoll = paperdoll
+        self.armoryUI.characterView = characterView
     end
 
-    local paperdoll = self.armoryUI.paperdoll
-    paperdoll:Show()
+    local characterView = self.armoryUI.characterView
+    characterView:Show()
 
-    -- Create child components
+    -- CRITICAL: Set height BEFORE creating children so they have valid parent dimensions
+    -- Compact height: 8 slots × 44px + weapons (54) + padding (10) = 380px
+    local compactHeight = HopeAddon.Constants.ARMORY_CHARACTER_VIEW.COMPACT_HEIGHT or 380
+    characterView:SetHeight(compactHeight)
+
+    -- Create child components - MODEL FIRST so weapons can anchor to it
     self:CreateArmoryModelFrame()
     self:CreateArmorySlotsContainer()
 
-    -- Set height based on children
-    paperdoll:SetHeight(C.MODEL_HEIGHT + C.SLOTS_HEIGHT + 20)
-
-    return paperdoll
+    return characterView
 end
 
 --[[
     Create the DressUpModel for character preview
+    Model is centered in the characterView between left and right slot columns
 ]]
 function Journal:CreateArmoryModelFrame()
-    local paperdoll = self.armoryUI.paperdoll
+    local characterView = self.armoryUI.characterView
     local C = HopeAddon.Constants.ARMORY_MODEL_FRAME
 
     if not self.armoryUI.modelFrame then
-        local modelFrame = CreateFrame("DressUpModel", "HopeArmoryModel", paperdoll)
+        local modelFrame = CreateFrame("DressUpModel", "HopeArmoryModel", characterView)
         modelFrame:SetSize(C.WIDTH, C.HEIGHT)
-        modelFrame:SetPoint(C.ANCHOR, paperdoll, C.ANCHOR, C.OFFSET_X, C.OFFSET_Y)
+        -- Center the model in the characterView
+        -- Model is positioned at TOP center of characterView
+        modelFrame:SetPoint("TOP", characterView, "TOP", 0, C.OFFSET_Y)
 
         -- Background
         local bg = modelFrame:CreateTexture(nil, "BACKGROUND")
         bg:SetAllPoints()
         bg:SetColorTexture(C.BACKGROUND_COLOR.r, C.BACKGROUND_COLOR.g, C.BACKGROUND_COLOR.b, C.BACKGROUND_COLOR.a)
 
-        -- Initialize model
+        -- Initialize model - show full character, not portrait zoom
         modelFrame:SetUnit("player")
         modelFrame:SetRotation(C.DEFAULT_ROTATION)
-        modelFrame:SetPortraitZoom(0.8)
+        modelFrame:SetPortraitZoom(0)  -- 0 = full body view, 1 = close-up face
 
-        -- Drag rotation
+        -- Drag rotation - use LOW strata so slot buttons (MEDIUM) receive clicks first
         modelFrame:EnableMouse(true)
+        modelFrame:SetFrameStrata("LOW")
         modelFrame:SetScript("OnMouseDown", function(self, button)
             if button == "LeftButton" then
                 self.isDragging = true
@@ -9522,22 +10200,34 @@ end
 
 --[[
     Create the container for all 17 equipment slot buttons
+    Spans the full characterView - slots positioned symmetrically around center
 ]]
 function Journal:CreateArmorySlotsContainer()
-    local paperdoll = self.armoryUI.paperdoll
+    local characterView = self.armoryUI.characterView
     local C = HopeAddon.Constants.ARMORY_SLOTS_CONTAINER
-    local modelHeight = HopeAddon.Constants.ARMORY_MODEL_FRAME.HEIGHT
 
     if not self.armoryUI.slotsContainer then
-        local slotsContainer = CreateFrame("Frame", "HopeArmorySlotsContainer", paperdoll)
-        slotsContainer:SetSize(C.WIDTH, C.HEIGHT)
-        slotsContainer:SetPoint("TOP", paperdoll, "TOP", C.OFFSET_X, -(modelHeight + 20))
+        local slotsContainer = CreateFrame("Frame", "HopeArmorySlotsContainer", characterView)
+        -- Span the full characterView area so slots can be positioned symmetrically
+        slotsContainer:SetPoint("TOPLEFT", characterView, "TOPLEFT", 0, 0)
+        slotsContainer:SetPoint("BOTTOMRIGHT", characterView, "BOTTOMRIGHT", 0, 0)
 
         self.armoryUI.slotsContainer = slotsContainer
         self.armoryUI.slotButtons = {}
     end
 
     local slotsContainer = self.armoryUI.slotsContainer
+
+    -- CRITICAL: Set frame level ABOVE the model frame so slots are clickable
+    -- CRITICAL: Set frame level and strata ABOVE the model frame so slots are clickable
+    -- Model frame renders at characterView level, slots need to be higher
+    local characterView = self.armoryUI.characterView
+    if characterView then
+        slotsContainer:SetFrameLevel(characterView:GetFrameLevel() + 10)
+        slotsContainer:SetFrameStrata("MEDIUM")
+        HopeAddon:Debug("CreateArmorySlotsContainer: Set frameLevel to", slotsContainer:GetFrameLevel(), "strata=MEDIUM")
+    end
+
     slotsContainer:Show()
 
     -- Create all slot buttons
@@ -9547,25 +10237,87 @@ function Journal:CreateArmorySlotsContainer()
 end
 
 --[[
-    Create all 17 equipment slot buttons
+    Create all equipment slot buttons (15 visible - shirt/tabard hidden)
+    Layout: Left column (armor), Right column (accessories), Bottom row (weapons below model)
+    Compact layout: 44px spacing, weapons anchor to model bottom not container
 ]]
 function Journal:CreateArmorySlotButtons()
     local slotsContainer = self.armoryUI.slotsContainer
     local C = HopeAddon.Constants.ARMORY_SLOT_BUTTON
+    local HIDDEN = HopeAddon.Constants.ARMORY_HIDDEN_SLOTS or {}
+
+    -- DEBUG: Validate constants loaded correctly
+    local slotCount = 0
+    if C.SLOTS then
+        for _ in pairs(C.SLOTS) do slotCount = slotCount + 1 end
+    end
+    HopeAddon:Debug("CreateArmorySlotButtons: SLOTS count =", slotCount)
+    HopeAddon:Debug("CreateArmorySlotButtons: POSITIONS exists =", C.POSITIONS ~= nil)
+    HopeAddon:Debug("CreateArmorySlotButtons: slotsContainer =", slotsContainer and "OK" or "NIL")
+    if slotsContainer then
+        HopeAddon:Debug("CreateArmorySlotButtons: container size =",
+            math.floor(slotsContainer:GetWidth() or 0), "x", math.floor(slotsContainer:GetHeight() or 0))
+        HopeAddon:Debug("CreateArmorySlotButtons: container frameLevel =", slotsContainer:GetFrameLevel())
+    end
+
+    local createdCount, shownCount, hiddenByConfig, hiddenNoPos = 0, 0, 0, 0
 
     for slotName, slotData in pairs(C.SLOTS) do
-        if not self.armoryUI.slotButtons[slotName] then
-            local btn = self:CreateSingleArmorySlotButton(slotsContainer, slotName, slotData)
-            self.armoryUI.slotButtons[slotName] = btn
-        end
+        createdCount = createdCount + 1
+        -- Skip cosmetic slots (shirt, tabard) - they have no BiS recommendations
+        if HIDDEN[slotName] then
+            hiddenByConfig = hiddenByConfig + 1
+            -- Hide if previously created
+            if self.armoryUI.slotButtons[slotName] then
+                self.armoryUI.slotButtons[slotName]:Hide()
+            end
+        else
+            if not self.armoryUI.slotButtons[slotName] then
+                local btn = self:CreateSingleArmorySlotButton(slotsContainer, slotName, slotData)
+                self.armoryUI.slotButtons[slotName] = btn
+            end
 
-        -- Position the button
-        local pos = C.POSITIONS[slotName]
-        local btn = self.armoryUI.slotButtons[slotName]
-        btn:ClearAllPoints()
-        btn:SetPoint(pos.anchor, slotsContainer, pos.anchor, pos.x, pos.y)
-        btn:Show()
+            -- Position the button using constants
+            local pos = C.POSITIONS and C.POSITIONS[slotName]
+            local btn = self.armoryUI.slotButtons[slotName]
+            btn:ClearAllPoints()
+
+            if pos then
+                if pos.anchor == "MODEL_BOTTOM" then
+                    -- Special handling: anchor weapons to model frame bottom
+                    local modelFrame = self.armoryUI.modelFrame
+                    if modelFrame then
+                        btn:SetPoint("TOP", modelFrame, "BOTTOM", pos.x, pos.y)
+                    else
+                        -- Fallback: anchor to characterView bottom with offset
+                        -- This handles edge case where model isn't created yet
+                        local characterView = self.armoryUI.characterView
+                        if characterView then
+                            HopeAddon:Debug("CreateArmorySlotButtons: Using characterView fallback for " .. slotName)
+                            btn:SetPoint("BOTTOM", characterView, "BOTTOM", pos.x, 10)
+                        else
+                            -- Ultimate fallback to slotsContainer
+                            HopeAddon:Debug("CreateArmorySlotButtons: Using slotsContainer fallback for " .. slotName)
+                            btn:SetPoint("TOP", slotsContainer, "TOP", pos.x, -290)
+                        end
+                    end
+                else
+                    -- Normal anchoring to slotsContainer
+                    btn:SetPoint(pos.anchor, slotsContainer, pos.anchor, pos.x, pos.y)
+                end
+                btn:Show()
+                shownCount = shownCount + 1
+            else
+                -- Fallback: hide unpositioned slots
+                hiddenNoPos = hiddenNoPos + 1
+                HopeAddon:Debug("CreateArmorySlotButtons: No position for slot " .. slotName)
+                btn:Hide()
+            end
+        end
     end
+
+    HopeAddon:Debug("CreateArmorySlotButtons: SUMMARY - created:", createdCount,
+        "shown:", shownCount, "hiddenConfig:", hiddenByConfig, "hiddenNoPos:", hiddenNoPos)
 end
 
 --[[
@@ -9576,6 +10328,10 @@ function Journal:CreateSingleArmorySlotButton(parent, slotName, slotData)
 
     local btn = CreateFrame("Button", "HopeArmorySlot_" .. slotName, parent, "BackdropTemplate")
     btn:SetSize(C.SIZE, C.SIZE)
+
+    -- CRITICAL: Set frame level above parent to ensure button is clickable
+    btn:SetFrameLevel(parent:GetFrameLevel() + 2)
+    btn:EnableMouse(true)
 
     -- Backdrop
     btn:SetBackdrop({
@@ -9685,186 +10441,166 @@ function Journal:CreateSingleArmorySlotButton(parent, slotName, slotData)
         self:OnArmorySlotLeave(btn)
     end)
 
+    HopeAddon:Debug("CreateSingleArmorySlotButton:", slotName,
+        "frameLevel=", btn:GetFrameLevel(),
+        "strata=", btn:GetFrameStrata(),
+        "parentLevel=", parent:GetFrameLevel())
+
     return btn
 end
 
---[[
-    Create the detail panel for showing upgrade recommendations
-]]
-function Journal:CreateArmoryDetailPanel()
-    local container = self.armoryUI.container
-    local paperdoll = self.armoryUI.paperdoll
-    local C = HopeAddon.Constants.ARMORY_DETAIL_PANEL
-    local tierBarHeight = HopeAddon.Constants.ARMORY_TIER_BAR.HEIGHT
-    local paperdollWidth = HopeAddon.Constants.ARMORY_PAPERDOLL.WIDTH
-
-    if not self.armoryUI.detailPanel then
-        local detailPanel = CreateFrame("Frame", "HopeArmoryDetailPanel", container, "BackdropTemplate")
-
-        -- Position: right of paperdoll, same height
-        detailPanel:SetPoint("TOPLEFT", container, "TOPLEFT", paperdollWidth + 10, -tierBarHeight)
-        detailPanel:SetPoint("TOPRIGHT", container, "TOPRIGHT", 0, -tierBarHeight)
-        detailPanel:SetPoint("BOTTOM", paperdoll, "BOTTOM", 0, 0)
-
-        detailPanel:SetBackdrop(C.BACKDROP)
-        detailPanel:SetBackdropColor(C.BG_COLOR.r, C.BG_COLOR.g, C.BG_COLOR.b, C.BG_COLOR.a)
-        detailPanel:SetBackdropBorderColor(C.BORDER_COLOR.r, C.BORDER_COLOR.g, C.BORDER_COLOR.b, C.BORDER_COLOR.a)
-
-        self.armoryUI.detailPanel = detailPanel
-    end
-
-    local detailPanel = self.armoryUI.detailPanel
-    detailPanel:Show()
-
-    -- Create child components
-    self:CreateArmoryDetailHeader()
-    self:CreateArmoryDetailScroll()
-    self:CreateArmoryDetailFooter()
-
-    return detailPanel
-end
+--============================================================================
+-- SLOT INFO CARDS (iLvl + upgrade arrow indicators)
+--============================================================================
 
 --[[
-    Create the detail panel header showing slot name and equipped item
+    Calculate average equipped item level across all equipped slots
+    Skips shirt (4) and tabard (19) slots
+    Returns 0 if no items equipped
 ]]
-function Journal:CreateArmoryDetailHeader()
-    local detailPanel = self.armoryUI.detailPanel
-    local C = HopeAddon.Constants.ARMORY_DETAIL_HEADER
+function Journal:GetAverageEquippedILvl()
+    local totalILvl = 0
+    local slotCount = 0
 
-    if not detailPanel.header then
-        local header = CreateFrame("Frame", nil, detailPanel)
-        header:SetHeight(C.HEIGHT)
-        header:SetPoint("TOPLEFT", detailPanel, "TOPLEFT", 0, 0)
-        header:SetPoint("TOPRIGHT", detailPanel, "TOPRIGHT", 0, 0)
-
-        -- Title text (slot name)
-        local title = header:CreateFontString(nil, "OVERLAY", C.TITLE_FONT)
-        title:SetPoint("TOPLEFT", header, "TOPLEFT", C.TITLE_OFFSET.x, C.TITLE_OFFSET.y)
-        title:SetText("Select a Slot")
-        title:SetTextColor(1, 0.84, 0, 1)  -- Gold
-        header.title = title
-
-        -- Subtitle (equipped item)
-        local subtitle = header:CreateFontString(nil, "OVERLAY", C.SUBTITLE_FONT)
-        subtitle:SetPoint("TOPLEFT", header, "TOPLEFT", C.SUBTITLE_OFFSET.x, C.SUBTITLE_OFFSET.y)
-        subtitle:SetText("")
-        subtitle:SetTextColor(0.7, 0.7, 0.7, 1)
-        header.subtitle = subtitle
-
-        -- Divider line at bottom
-        local divider = header:CreateTexture(nil, "ARTWORK")
-        divider:SetHeight(C.DIVIDER_HEIGHT)
-        divider:SetPoint("BOTTOMLEFT", header, "BOTTOMLEFT", 10, 0)
-        divider:SetPoint("BOTTOMRIGHT", header, "BOTTOMRIGHT", -10, 0)
-        divider:SetTexture("Interface\\BUTTONS\\WHITE8X8")
-        divider:SetVertexColor(C.DIVIDER_COLOR.r, C.DIVIDER_COLOR.g, C.DIVIDER_COLOR.b, C.DIVIDER_COLOR.a)
-        header.divider = divider
-
-        detailPanel.header = header
-    end
-
-    detailPanel.header:Show()
-    return detailPanel.header
-end
-
---[[
-    Create the scrollable content area in detail panel
-]]
-function Journal:CreateArmoryDetailScroll()
-    local detailPanel = self.armoryUI.detailPanel
-    local C = HopeAddon.Constants.ARMORY_DETAIL_SCROLL
-    local headerHeight = HopeAddon.Constants.ARMORY_DETAIL_HEADER.HEIGHT
-    local footerHeight = HopeAddon.Constants.ARMORY_DETAIL_FOOTER.HEIGHT
-
-    if not detailPanel.scrollFrame then
-        -- Create scroll frame using shared utility
-        local scrollContainer = HopeAddon.Components:CreateScrollFrame(
-            detailPanel,
-            nil,  -- width set by anchors
-            nil   -- height set by anchors
-        )
-
-        scrollContainer.frame:SetPoint("TOPLEFT", detailPanel, "TOPLEFT", C.PADDING_LEFT, -headerHeight)
-        scrollContainer.frame:SetPoint("BOTTOMRIGHT", detailPanel, "BOTTOMRIGHT", -C.PADDING_RIGHT, footerHeight)
-
-        detailPanel.scrollFrame = scrollContainer.frame
-        detailPanel.scrollContent = scrollContainer.content
-    end
-
-    detailPanel.scrollFrame:Show()
-    return detailPanel.scrollFrame
-end
-
---[[
-    Create the detail panel footer with action buttons
-]]
-function Journal:CreateArmoryDetailFooter()
-    local detailPanel = self.armoryUI.detailPanel
-    local C = HopeAddon.Constants.ARMORY_DETAIL_FOOTER
-
-    if not detailPanel.footer then
-        local footer = CreateFrame("Frame", nil, detailPanel)
-        footer:SetHeight(C.HEIGHT)
-        footer:SetPoint("BOTTOMLEFT", detailPanel, "BOTTOMLEFT", 0, 0)
-        footer:SetPoint("BOTTOMRIGHT", detailPanel, "BOTTOMRIGHT", 0, 0)
-
-        -- Divider line at top
-        local divider = footer:CreateTexture(nil, "ARTWORK")
-        divider:SetHeight(C.DIVIDER_HEIGHT)
-        divider:SetPoint("TOPLEFT", footer, "TOPLEFT", 10, -1)
-        divider:SetPoint("TOPRIGHT", footer, "TOPRIGHT", -10, -1)
-        divider:SetTexture("Interface\\BUTTONS\\WHITE8X8")
-        divider:SetVertexColor(C.DIVIDER_COLOR.r, C.DIVIDER_COLOR.g, C.DIVIDER_COLOR.b, C.DIVIDER_COLOR.a)
-        footer.divider = divider
-
-        -- Create action buttons
-        footer.buttons = {}
-        for _, btnConfig in ipairs(C.BUTTONS) do
-            local btn = HopeAddon.Components:CreateStyledButton(
-                footer,
-                btnConfig.label,
-                C.BUTTON_WIDTH,
-                C.BUTTON_HEIGHT
-            )
-
-            if btnConfig.position == "LEFT" then
-                btn:SetPoint("LEFT", footer, "LEFT", C.PADDING_H, 0)
-            else
-                btn:SetPoint("RIGHT", footer, "RIGHT", -C.PADDING_H, 0)
+    for slotId = 1, 18 do
+        -- Skip shirt (4) - tabard (19) is outside this range anyway
+        if slotId ~= 4 then
+            local itemLink = GetInventoryItemLink("player", slotId)
+            if itemLink then
+                local _, _, _, iLvl = GetItemInfo(itemLink)
+                if iLvl and iLvl > 0 then
+                    totalILvl = totalILvl + iLvl
+                    slotCount = slotCount + 1
+                end
             end
-
-            local color = HopeAddon.colors[btnConfig.color]
-            if color then
-                btn:SetBackdropBorderColor(color.r, color.g, color.b, 1)
-            end
-
-            btn:SetScript("OnClick", function()
-                self:OnArmoryFooterButtonClick(btnConfig.id)
-            end)
-
-            footer.buttons[btnConfig.id] = btn
         end
-
-        detailPanel.footer = footer
     end
 
-    detailPanel.footer:Show()
-    return detailPanel.footer
+    return slotCount > 0 and math.floor(totalILvl / slotCount) or 0
 end
+
+--[[
+    Determine upgrade status arrow for a slot based on iLvl vs average
+    Returns arrow config: { symbol, color }
+]]
+function Journal:GetSlotUpgradeStatus(slotILvl, avgILvl)
+    local cfg = HopeAddon.Constants.ARMORY_INFO_CARD
+    local diff = slotILvl - avgILvl
+
+    if diff >= cfg.THRESHOLD_GOOD then
+        return cfg.ARROWS.GOOD       -- Green down arrow (above average)
+    elseif diff <= cfg.THRESHOLD_BAD then
+        return cfg.ARROWS.UPGRADE    -- Red up arrow (needs upgrade)
+    else
+        return cfg.ARROWS.OKAY       -- Gold right arrow (at average)
+    end
+end
+
+--[[
+    Create or update an info card for a specific equipment slot
+    Returns nil if slot is empty (card should be hidden)
+]]
+function Journal:CreateSlotInfoCard(slotButton, slotName)
+    if not slotButton or not slotButton.slotId then
+        return nil
+    end
+
+    local itemLink = GetInventoryItemLink("player", slotButton.slotId)
+    if not itemLink then
+        return nil  -- Hide card for empty slots
+    end
+
+    local _, _, _, iLvl = GetItemInfo(itemLink)
+    if not iLvl or iLvl <= 0 then
+        return nil
+    end
+
+    local avgILvl = self:GetAverageEquippedILvl()
+    local status = self:GetSlotUpgradeStatus(iLvl, avgILvl)
+    local posData = HopeAddon.Constants.ARMORY_INFO_CARD.POSITIONS[slotName]
+
+    if not posData then
+        HopeAddon:Debug("CreateSlotInfoCard: No position data for", slotName)
+        return nil
+    end
+
+    -- Acquire card from pool
+    local card = self.armoryPools.infoCard:Acquire()
+    card:SetParent(slotButton:GetParent())
+    card:ClearAllPoints()
+    card:SetPoint(posData.anchor, slotButton, posData.relAnchor, posData.x, posData.y)
+
+    -- Set frame level above slot button
+    card:SetFrameLevel(slotButton:GetFrameLevel() + 1)
+
+    -- Set content
+    card.iLvlText:SetText(tostring(iLvl))
+    card.arrowText:SetText(status.symbol)
+    card.arrowText:SetTextColor(status.color.r, status.color.g, status.color.b)
+
+    -- Store slot reference for click handling
+    card.slotName = slotName
+
+    -- Click handler - opens gear popup (same as clicking slot)
+    card:SetScript("OnMouseDown", function()
+        if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+        self:OnArmorySlotClick(slotName)
+    end)
+
+    card:Show()
+    return card
+end
+
+--[[
+    Update all slot info cards
+    Releases existing cards and creates new ones for equipped slots
+]]
+function Journal:UpdateArmoryInfoCards()
+    -- Release all existing info cards
+    if self.armoryPools.infoCard then
+        self.armoryPools.infoCard:ReleaseAll()
+    end
+
+    -- Initialize storage for card references
+    self.armoryUI.infoCards = self.armoryUI.infoCards or {}
+    wipe(self.armoryUI.infoCards)
+
+    -- Create info card for each equipped slot
+    local HIDDEN = HopeAddon.Constants.ARMORY_HIDDEN_SLOTS or {}
+    for slotName, slotButton in pairs(self.armoryUI.slotButtons or {}) do
+        -- Skip hidden slots (shirt, tabard)
+        if not HIDDEN[slotName] then
+            local card = self:CreateSlotInfoCard(slotButton, slotName)
+            if card then
+                self.armoryUI.infoCards[slotName] = card
+            end
+        end
+    end
+
+    local cardCount = 0
+    for _ in pairs(self.armoryUI.infoCards or {}) do cardCount = cardCount + 1 end
+    HopeAddon:Debug("UpdateArmoryInfoCards: Created", cardCount, "info cards")
+end
+
+-- NOTE: Old detail panel functions (CreateArmoryDetailPanel, CreateArmoryDetailHeader,
+-- CreateArmoryDetailScroll, CreateArmoryDetailFooter) have been removed.
+-- The new UI uses a floating gear popup instead - see GetArmoryGearPopup()
 
 --[[
     Create the main footer showing gear statistics
 ]]
 function Journal:CreateArmoryFooter()
     local container = self.armoryUI.container
-    local paperdoll = self.armoryUI.paperdoll
+    local characterView = self.armoryUI.characterView
     local C = HopeAddon.Constants.ARMORY_FOOTER
 
     if not self.armoryUI.footer then
         local footer = CreateFrame("Frame", "HopeArmoryFooter", container, "BackdropTemplate")
         footer:SetHeight(C.HEIGHT)
-        footer:SetPoint("BOTTOMLEFT", container, "BOTTOMLEFT", 0, 0)
-        footer:SetPoint("BOTTOMRIGHT", container, "BOTTOMRIGHT", 0, 0)
+        -- Position below characterView, not overlapping
+        -- Footer spans full width of container, positioned 5px below characterView
+        footer:SetPoint("TOPLEFT", characterView, "BOTTOMLEFT", 0, -5)
+        footer:SetPoint("RIGHT", container, "RIGHT", 0, 0)  -- Match container right edge
 
         footer:SetBackdrop(C.BACKDROP)
         footer:SetBackdropColor(C.BG_COLOR.r, C.BG_COLOR.g, C.BG_COLOR.b, C.BG_COLOR.a)
@@ -9896,6 +10632,9 @@ function Journal:CreateArmoryFooter()
             xOffset = xOffset + label:GetStringWidth() + 50 + C.STAT_GAP
         end
 
+        -- Create BIS and RESET buttons on the right side
+        self:CreateArmoryFooterButtons(footer)
+
         self.armoryUI.footer = footer
     end
 
@@ -9904,14 +10643,120 @@ function Journal:CreateArmoryFooter()
 end
 
 --[[
+    Create BIS and RESET buttons for the footer
+    Layout: BIS on LEFT (prominent gold), RESET on RIGHT (grey)
+]]
+function Journal:CreateArmoryFooterButtons(footer)
+    local C = HopeAddon.Constants.ARMORY_FOOTER.BUTTONS
+    if not C then return end
+
+    -- BIS button (LEFT side, prominent gold)
+    local bisBtn = self:CreateArmoryFooterButton(
+        footer,
+        C.BIS.label,
+        C.BIS.width,
+        C.BIS.height,
+        C.BIS.borderColor,
+        C.BIS.bgColor,
+        C.BIS.tooltip,
+        function() self:OnBISButtonClick() end
+    )
+    bisBtn:ClearAllPoints()
+    bisBtn:SetPoint("LEFT", footer, "LEFT", C.LEFT_MARGIN or 12, 0)
+    footer.bisBtn = bisBtn
+
+    -- RESET button (RIGHT side, grey)
+    local resetBtn = self:CreateArmoryFooterButton(
+        footer,
+        C.RESET.label,
+        C.RESET.width,
+        C.RESET.height,
+        C.RESET.borderColor,
+        C.RESET.bgColor,
+        C.RESET.tooltip,
+        function() self:OnRESETButtonClick() end
+    )
+    resetBtn:ClearAllPoints()
+    resetBtn:SetPoint("RIGHT", footer, "RIGHT", -(C.RIGHT_MARGIN or 12), 0)
+    footer.resetBtn = resetBtn
+end
+
+--[[
+    Create a single footer button
+]]
+function Journal:CreateArmoryFooterButton(parent, label, width, height, borderColor, bgColor, tooltip, onClick)
+    local btn = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    btn:SetSize(width, height)
+
+    -- Backdrop
+    btn:SetBackdrop({
+        bgFile = "Interface\\BUTTONS\\WHITE8X8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 8,
+        insets = { left = 1, right = 1, top = 1, bottom = 1 },
+    })
+    btn:SetBackdropColor(bgColor.r, bgColor.g, bgColor.b, bgColor.a)
+    btn:SetBackdropBorderColor(borderColor.r, borderColor.g, borderColor.b, borderColor.a)
+
+    -- Store colors for hover effects
+    btn.normalBorder = borderColor
+    btn.normalBg = bgColor
+
+    -- Label
+    local text = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    text:SetPoint("CENTER", btn, "CENTER", 0, 0)
+    text:SetText(label)
+    text:SetTextColor(borderColor.r, borderColor.g, borderColor.b, 1)
+    btn.label = text
+
+    -- Click handler
+    btn:SetScript("OnClick", onClick)
+
+    -- Hover effects
+    btn:SetScript("OnEnter", function(self)
+        if HopeAddon.Sounds then HopeAddon.Sounds:PlayHover() end
+        -- Brighten
+        self:SetBackdropColor(
+            bgColor.r * 1.5,
+            bgColor.g * 1.5,
+            bgColor.b * 1.5,
+            bgColor.a
+        )
+        self:SetBackdropBorderColor(1, 1, 1, 1)
+        self.label:SetTextColor(1, 1, 1, 1)
+
+        -- Tooltip
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText(tooltip)
+        GameTooltip:Show()
+    end)
+
+    btn:SetScript("OnLeave", function(self)
+        -- Restore normal colors
+        self:SetBackdropColor(bgColor.r, bgColor.g, bgColor.b, bgColor.a)
+        self:SetBackdropBorderColor(borderColor.r, borderColor.g, borderColor.b, borderColor.a)
+        self.label:SetTextColor(borderColor.r, borderColor.g, borderColor.b, 1)
+        GameTooltip:Hide()
+    end)
+
+    return btn
+end
+
+--[[
     Recalculate the total height of the armory container
+    Layout: PhaseBar (35px) + CharacterView (480px) + Gap (5px) + Footer (35px) = 555px
+
+    DEPRECATED: No longer used - Armory tab now uses fixed layout anchored to contentArea
+    corners (TOPLEFT/TOPRIGHT/BOTTOMLEFT/BOTTOMRIGHT), so height is automatic.
+    Kept for reference in case dynamic sizing is needed in the future.
 ]]
 function Journal:RecalculateArmoryHeight()
-    local tierBarHeight = HopeAddon.Constants.ARMORY_TIER_BAR.HEIGHT
-    local paperdollHeight = self.armoryUI.paperdoll and self.armoryUI.paperdoll:GetHeight() or 0
-    local footerHeight = HopeAddon.Constants.ARMORY_FOOTER.HEIGHT
+    local phaseBarHeight = HopeAddon.Constants.ARMORY_PHASE_BAR.HEIGHT  -- 35
+    local characterViewHeight = self.armoryUI.characterView and self.armoryUI.characterView:GetHeight() or 480
+    local footerHeight = HopeAddon.Constants.ARMORY_FOOTER.HEIGHT  -- 35
+    local contentGap = 5  -- Gap between characterView and footer
 
-    local totalHeight = tierBarHeight + paperdollHeight + footerHeight + 20
+    local totalHeight = phaseBarHeight + characterViewHeight + contentGap + footerHeight
     self.armoryUI.container:SetHeight(math.max(totalHeight, HopeAddon.Constants.ARMORY_CONTAINER.MIN_HEIGHT))
 end
 
@@ -9919,8 +10764,8 @@ end
     Update the footer statistics
 ]]
 function Journal:UpdateArmoryFooter()
-    local footer = self.armoryUI.footer
-    if not footer then return end
+    local footer = self.armoryUI and self.armoryUI.footer
+    if not footer or not footer.stats then return end
 
     local stats = self:CalculateArmoryStats()
 
@@ -9966,6 +10811,100 @@ function Journal:CalculateArmoryStats()
 end
 
 --[[
+    BIS Button: Preview all Best in Slot items for current phase
+    Undresses model first, then tries on each BiS item
+]]
+function Journal:OnBISButtonClick()
+    if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+
+    local modelFrame = self.armoryUI.modelFrame
+    if not modelFrame then
+        HopeAddon:Debug("OnBISButtonClick: No model frame")
+        return
+    end
+
+    -- Undress model first
+    modelFrame:Undress()
+
+    -- Get current phase and spec guide key
+    local phase = self.armoryState.selectedPhase or 1
+    local guideKey = self:GetCurrentArmoryGuideKey()
+
+    if not guideKey then
+        HopeAddon:Print("Cannot determine your spec. Please select a spec from the dropdown.")
+        return
+    end
+
+    -- Get BiS database for this phase/spec
+    local C = HopeAddon.Constants
+    local HIDDEN = C.ARMORY_HIDDEN_SLOTS or {}
+    local phaseData = C.ARMORY_SPEC_BIS_DATABASE and C.ARMORY_SPEC_BIS_DATABASE[phase]
+    local specData = phaseData and phaseData[guideKey]
+
+    if not specData then
+        HopeAddon:Print("No BiS data for Phase " .. phase .. " / " .. guideKey)
+        return
+    end
+
+    -- Try on each BiS item
+    local itemCount = 0
+
+    for slotName, slotData in pairs(specData) do
+        if not HIDDEN[slotName] and slotData.bis and slotData.bis.id then
+            local itemId = slotData.bis.id
+            local itemLink = select(2, GetItemInfo(itemId))
+
+            if itemLink then
+                modelFrame:TryOn(itemLink)
+                itemCount = itemCount + 1
+            else
+                -- Request item info for cache (will work next time)
+                GetItemInfo(itemId)
+            end
+        end
+    end
+
+    -- Visual feedback
+    if HopeAddon.Effects and HopeAddon.Effects.IconGlow then
+        HopeAddon.Effects:IconGlow(modelFrame, 0.5)
+    end
+
+    -- Feedback message
+    local phaseLabel = C.ARMORY_PHASES and C.ARMORY_PHASES[phase] and C.ARMORY_PHASES[phase].label or ("Phase " .. phase)
+    HopeAddon:Print("Previewing " .. itemCount .. " BiS items for " .. phaseLabel)
+end
+
+-- Legacy alias for backwards compatibility
+function Journal:PreviewAllBis()
+    self:OnBISButtonClick()
+end
+
+--[[
+    RESET Button: Reset model to current equipped gear
+    Undresses model and re-sets unit to player
+]]
+function Journal:OnRESETButtonClick()
+    if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+
+    local modelFrame = self.armoryUI.modelFrame
+    if not modelFrame then
+        HopeAddon:Debug("OnRESETButtonClick: No model frame")
+        return
+    end
+
+    -- Reset to current gear
+    modelFrame:Undress()
+    modelFrame:SetUnit("player")
+
+    HopeAddon:Print("Reset to current gear")
+end
+
+-- Legacy alias for backwards compatibility
+function Journal:ResetArmoryPreview()
+    self:OnRESETButtonClick()
+end
+
+--[[
     Refresh all slot data from current equipment
 ]]
 function Journal:RefreshArmorySlotData()
@@ -9983,10 +10922,24 @@ function Journal:RefreshSingleSlotData(btn)
     local itemLink = GetInventoryItemLink("player", slotId)
     local C = HopeAddon.Constants
 
+    HopeAddon:Debug("RefreshSingleSlotData:", slotName, "slotId=", slotId, "hasItem=", itemLink and "YES" or "NO")
+
     if itemLink then
         local itemName, _, itemQuality, itemLevel, _, _, _, _, _, itemTexture = GetItemInfo(itemLink)
         local itemIdMatch = itemLink:match("item:(%d+)")
         local itemId = itemIdMatch and tonumber(itemIdMatch) or nil
+
+        -- Handle uncached items (GetItemInfo returns nil on first call)
+        if not itemName or not itemTexture then
+            HopeAddon:Debug("RefreshSingleSlotData:", slotName, "- item not cached yet, showing placeholder")
+            btn.equippedItem = { itemId = itemId, name = "Loading...", quality = 1, iLvl = 0, icon = nil }
+            btn.icon:Hide()
+            btn.placeholder:Show()
+            btn.qualityBorder:Hide()
+            btn.upgradeStatus = "empty"
+            self:UpdateArmorySlotVisual(btn)
+            return
+        end
 
         btn.equippedItem = {
             itemId = itemId,
@@ -10024,12 +10977,8 @@ end
     Returns: "bis" (have BiS), "ok" (have alternative), "upgrade" (better available), "empty" (no item)
 ]]
 function Journal:CalculateSlotUpgradeStatus(slotName, equippedItemId, equippedILvl)
-    local C = HopeAddon.Constants
-    local role = self:GetCurrentArmoryRole()
-    local tier = self.armoryState.selectedTier or 4
-
-    -- Get gear recommendations from database
-    local gearData = C:GetArmoryGear(tier, role, slotName)
+    -- Get gear recommendations from new spec-based database
+    local gearData = self:GetArmoryGearData(slotName)
     if not gearData then
         return "ok" -- No data, assume OK
     end
@@ -10106,220 +11055,28 @@ function Journal:UpdateArmorySlotVisual(btn)
 end
 
 --[[
-    Refresh recommendations based on current tier/spec selection
+    Refresh recommendations based on current phase/spec selection
 ]]
 function Journal:RefreshArmoryRecommendations()
     -- Save spec preference
-    HopeAddon.charDb.armory.selectedSpec = self.armoryState.selectedSpec
+    if HopeAddon.charDb then
+        HopeAddon.charDb.armory = HopeAddon.charDb.armory or {}
+        HopeAddon.charDb.armory.selectedSpec = self.armoryState.selectedSpec
+    end
 
     -- Refresh slot data to update upgrade status
     self:RefreshArmorySlotData()
 
-    -- Refresh detail panel if a slot is selected
-    if self.armoryState.selectedSlot then
-        self:PopulateArmorySlotDetail(self.armoryState.selectedSlot)
+    -- Refresh gear popup if a slot is selected and visible
+    if self.armoryState.selectedSlot and self.armoryState.popupVisible then
+        self:PopulateArmoryGearPopup(self.armoryState.selectedSlot)
     end
 
     self:UpdateArmoryFooter()
 end
 
---[[
-    Populate the detail panel with recommendations for a specific slot
-]]
-function Journal:PopulateArmorySlotDetail(slotName)
-    local detailPanel = self.armoryUI.detailPanel
-    if not detailPanel then return end
-
-    local C = HopeAddon.Constants
-    local slotData = C.ARMORY_SLOT_BUTTON and C.ARMORY_SLOT_BUTTON.SLOTS and C.ARMORY_SLOT_BUTTON.SLOTS[slotName]
-    local btn = self.armoryUI.slotButtons[slotName]
-
-    -- Update header
-    detailPanel.header.title:SetText(slotData and slotData.displayName or slotName:upper())
-    if btn and btn.equippedItem then
-        detailPanel.header.subtitle:SetText("Currently: " .. (btn.equippedItem.name or "Unknown"))
-    else
-        detailPanel.header.subtitle:SetText("No item equipped")
-    end
-
-    -- Clear scroll content properly (release cards to pool, hide FontStrings)
-    self:ClearArmoryDetailContent()
-
-    -- Get current role based on spec
-    local role = self:GetCurrentArmoryRole()
-    local tier = self.armoryState.selectedTier or 4
-
-    -- Get gear recommendations from database
-    local gearData = C:GetArmoryGear(tier, role, slotName)
-
-    -- Initialize active cards tracking
-    detailPanel.activeCards = detailPanel.activeCards or {}
-
-    if not gearData or (not gearData.best and not gearData.alternatives) then
-        -- No data for this slot/tier/role - use reusable FontString
-        local emptyText = self:GetArmoryDetailFontString("GameFontNormal")
-        if emptyText then
-            emptyText:SetPoint("TOP", detailPanel.scrollContent, "TOP", 0, -20)
-            emptyText:SetText("No recommendations available for this slot.\n\nTier " .. tier .. " " .. (C.ARMORY_ROLES[role] and C.ARMORY_ROLES[role].name or role) .. " data is being researched.")
-            emptyText:SetTextColor(0.6, 0.6, 0.6, 1)
-            emptyText:SetJustifyH("CENTER")
-            emptyText:SetWidth(detailPanel.scrollContent:GetWidth() - 20)
-        end
-        return
-    end
-
-    local yOffset = -10
-    local cardHeight = 80
-    local cardSpacing = 5
-
-    -- Best in Slot section
-    if gearData.best then
-        -- BiS Header - use reusable FontString
-        local bisHeader = self:GetArmoryDetailFontString("GameFontNormalLarge")
-        if bisHeader then
-            bisHeader:SetPoint("TOPLEFT", detailPanel.scrollContent, "TOPLEFT", 10, yOffset)
-            bisHeader:SetText("|cFFFFD700★ Best in Slot|r")
-        end
-        yOffset = yOffset - 20
-
-        -- BiS Card - track for cleanup
-        local bisCard = self:CreateArmoryUpgradeCard(detailPanel.scrollContent, gearData.best, true)
-        bisCard:SetPoint("TOPLEFT", detailPanel.scrollContent, "TOPLEFT", 10, yOffset)
-        bisCard:SetPoint("RIGHT", detailPanel.scrollContent, "RIGHT", -10, 0)
-        bisCard:SetHeight(cardHeight)
-        table.insert(detailPanel.activeCards, bisCard)
-        yOffset = yOffset - cardHeight - cardSpacing
-    end
-
-    -- Alternatives section
-    if gearData.alternatives and #gearData.alternatives > 0 then
-        yOffset = yOffset - 10
-        -- Alt Header - use reusable FontString
-        local altHeader = self:GetArmoryDetailFontString("GameFontNormalLarge")
-        if altHeader then
-            altHeader:SetPoint("TOPLEFT", detailPanel.scrollContent, "TOPLEFT", 10, yOffset)
-            altHeader:SetText("|cFF00BFFFAlternatives|r")
-        end
-        yOffset = yOffset - 20
-
-        for _, altItem in ipairs(gearData.alternatives) do
-            -- Alt Card - track for cleanup
-            local altCard = self:CreateArmoryUpgradeCard(detailPanel.scrollContent, altItem, false)
-            altCard:SetPoint("TOPLEFT", detailPanel.scrollContent, "TOPLEFT", 10, yOffset)
-            altCard:SetPoint("RIGHT", detailPanel.scrollContent, "RIGHT", -10, 0)
-            altCard:SetHeight(cardHeight)
-            table.insert(detailPanel.activeCards, altCard)
-            yOffset = yOffset - cardHeight - cardSpacing
-        end
-    end
-
-    -- Update scroll content height and force scroll update
-    detailPanel.scrollContent:SetHeight(math.abs(yOffset) + 20)
-    if detailPanel.scrollFrame and detailPanel.scrollFrame.UpdateScrollChildRect then
-        detailPanel.scrollFrame:UpdateScrollChildRect()
-    end
-end
-
---[[
-    Create an upgrade card showing item info
-]]
-function Journal:CreateArmoryUpgradeCard(parent, itemData, isBest)
-    local C = HopeAddon.Constants
-    local card = HopeAddon:CreateBackdropFrame("Frame", nil, parent)
-    card:SetBackdrop({
-        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
-        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-        edgeSize = 12,
-        insets = { left = 4, right = 4, top = 4, bottom = 4 },
-    })
-
-    -- Border color based on quality
-    local qualityColor = C.ARMORY_QUALITY_COLORS[itemData.quality] or C.ARMORY_QUALITY_COLORS["rare"]
-    card:SetBackdropBorderColor(qualityColor.r, qualityColor.g, qualityColor.b, 1)
-
-    -- Item icon
-    local icon = card:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(40, 40)
-    icon:SetPoint("LEFT", card, "LEFT", 10, 0)
-    icon:SetTexture(itemData.icon and ("Interface\\Icons\\" .. itemData.icon) or "Interface\\Icons\\INV_Misc_QuestionMark")
-
-    -- Item name with quality color
-    local nameText = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    nameText:SetPoint("TOPLEFT", icon, "TOPRIGHT", 10, -2)
-    local nameColor = string.format("|cFF%02X%02X%02X", qualityColor.r * 255, qualityColor.g * 255, qualityColor.b * 255)
-    nameText:SetText(nameColor .. (itemData.name or "Unknown Item") .. "|r")
-
-    -- iLvl and BiS tag
-    local infoText = card:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    infoText:SetPoint("TOPLEFT", nameText, "BOTTOMLEFT", 0, -2)
-    local infoStr = "iLvl " .. (itemData.iLvl or "?")
-    if isBest then
-        infoStr = infoStr .. " |cFFFFD700★ BiS|r"
-    end
-    infoText:SetText(infoStr)
-    infoText:SetTextColor(0.8, 0.8, 0.8, 1)
-
-    -- Stats
-    if itemData.stats then
-        local statsText = card:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        statsText:SetPoint("TOPLEFT", infoText, "BOTTOMLEFT", 0, -2)
-        statsText:SetText("|cFF00FF00" .. itemData.stats .. "|r")
-        statsText:SetWidth(card:GetWidth() - 70)
-        statsText:SetJustifyH("LEFT")
-    end
-
-    -- Source info
-    local sourceText = card:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    sourceText:SetPoint("BOTTOMLEFT", icon, "BOTTOMRIGHT", 10, 2)
-    local sourceInfo = C.ARMORY_SOURCE_TYPES[itemData.sourceType] or { label = "Unknown", color = "GREY" }
-    local sourceColorHex = HopeAddon.colors[sourceInfo.color] or HopeAddon.colors.GREY
-    local srcColorStr = string.format("|cFF%02X%02X%02X", sourceColorHex.r * 255, sourceColorHex.g * 255, sourceColorHex.b * 255)
-    sourceText:SetText(srcColorStr .. sourceInfo.label .. "|r: " .. (itemData.source or "Unknown"))
-
-    -- Item tooltip on card hover (PAYLOAD 3)
-    card:EnableMouse(true)
-    card.itemId = itemData.itemId
-    card:SetScript("OnEnter", function(self)
-        if self.itemId then
-            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            GameTooltip:SetHyperlink("item:" .. self.itemId)
-            GameTooltip:Show()
-        end
-        if HopeAddon.Sounds then HopeAddon.Sounds:PlayHover() end
-    end)
-    card:SetScript("OnLeave", function()
-        GameTooltip:Hide()
-    end)
-
-    -- Wishlist star button (right side)
-    local wishBtn = CreateFrame("Button", nil, card)
-    wishBtn:SetSize(24, 24)
-    wishBtn:SetPoint("RIGHT", card, "RIGHT", -10, 0)
-
-    local wishIcon = wishBtn:CreateTexture(nil, "ARTWORK")
-    wishIcon:SetAllPoints()
-    local isWishlisted = self:IsItemWishlisted(itemData.itemId)
-    wishIcon:SetTexture(isWishlisted and "Interface\\COMMON\\ReputationStar" or "Interface\\COMMON\\FavoritesIcon")
-    wishIcon:SetVertexColor(isWishlisted and 1 or 0.5, isWishlisted and 0.84 or 0.5, isWishlisted and 0 or 0.5, 1)
-    wishBtn.icon = wishIcon
-
-    wishBtn:SetScript("OnClick", function()
-        self:ToggleArmoryWishlist(itemData)
-        local nowWish = self:IsItemWishlisted(itemData.itemId)
-        wishIcon:SetTexture(nowWish and "Interface\\COMMON\\ReputationStar" or "Interface\\COMMON\\FavoritesIcon")
-        wishIcon:SetVertexColor(nowWish and 1 or 0.5, nowWish and 0.84 or 0.5, nowWish and 0 or 0.5, 1)
-        if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
-    end)
-
-    wishBtn:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText(isWishlisted and "Remove from Wishlist" or "Add to Wishlist")
-        GameTooltip:Show()
-    end)
-    wishBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
-
-    return card
-end
+-- NOTE: Old detail panel functions (PopulateArmorySlotDetail, CreateArmoryUpgradeCard) have been removed.
+-- Item display is now handled by CreateArmoryGearPopupItemRow() in the gear popup system.
 
 --[[
     Get the current role for armory based on spec or saved preference
@@ -10338,88 +11095,153 @@ function Journal:GetCurrentArmoryRole()
 end
 
 --[[
-    Clear the detail panel content (content only, preserves header text)
-    Properly releases cards to pool and hides FontStrings
+    Get the current guideKey for armory BiS lookup
+    Returns: guideKey string (e.g., "warrior-dps", "protection-warrior-tank")
 ]]
-function Journal:ClearArmoryDetailContent()
-    local detailPanel = self.armoryUI.detailPanel
-    if not detailPanel or not detailPanel.scrollContent then return end
+function Journal:GetCurrentArmoryGuideKey()
+    local _, classToken = UnitClass("player")
+    local C = HopeAddon.Constants
+    local specs = C:GetClassSpecs(classToken)
+    if not specs or #specs == 0 then return nil end
 
-    -- Release upgrade cards back to pool
-    if detailPanel.activeCards then
-        for _, card in ipairs(detailPanel.activeCards) do
-            if self.armoryPools.upgradeCard then
-                self.armoryPools.upgradeCard:Release(card)
-            else
-                card:Hide()
-                card:SetParent(nil)
+    -- Get the current spec tab (1, 2, or 3)
+    local specTab = self.armoryState.selectedSpec
+    if not specTab then
+        _, specTab = HopeAddon:GetPlayerSpec()
+    end
+    specTab = specTab or 1
+
+    -- Find the matching spec entry
+    -- Note: specTab is 1-3, and specs array is indexed by order in C.ARMORY_SPECS
+    -- We need to match by checking the role or use the index directly
+    local role = HopeAddon:GetSpecRole(classToken, specTab)
+
+    for _, spec in ipairs(specs) do
+        if spec.role == role then
+            return spec.guideKey
+        end
+    end
+
+    -- Fallback to first spec
+    return specs[1] and specs[1].guideKey
+end
+
+--[[
+    Filter gear items based on class weapon restrictions
+    Removes items the current class cannot equip and promotes alternatives
+]]
+function Journal:FilterGearByClass(gearData, classToken)
+    local C = HopeAddon.Constants
+    if not gearData then return nil end
+    if not C.CLASS_WEAPON_ALLOWED then return gearData end
+
+    local allowed = C.CLASS_WEAPON_ALLOWED[classToken]
+    if not allowed then return gearData end -- Unknown class, no filtering
+
+    -- Helper to check if an item is allowed for this class
+    local function isAllowed(item)
+        if not item then return false end
+        if not item.weaponType then return true end -- No weapon type = allow
+        for _, wtype in ipairs(allowed) do
+            if item.weaponType == wtype then
+                return true
             end
         end
-        table.wipe(detailPanel.activeCards)
-    else
-        detailPanel.activeCards = {}
+        return false
     end
 
-    -- Hide all children (FontStrings are tracked separately)
-    for _, child in pairs({ detailPanel.scrollContent:GetChildren() }) do
-        child:Hide()
-    end
+    -- Make a copy to avoid modifying the original data
+    local filtered = {
+        best = gearData.best,
+        alternatives = {},
+    }
 
-    -- Hide and reuse FontStrings
-    if detailPanel.fontStrings then
-        for _, fs in ipairs(detailPanel.fontStrings) do
-            fs:Hide()
-            fs:SetText("")
+    -- Copy alternatives
+    if gearData.alternatives then
+        for _, alt in ipairs(gearData.alternatives) do
+            table.insert(filtered.alternatives, alt)
         end
-    else
-        detailPanel.fontStrings = {}
     end
-    detailPanel.fontStringIndex = 0
+
+    -- If best item is not allowed, find first allowed alternative to promote
+    if filtered.best and not isAllowed(filtered.best) then
+        local promoted = nil
+        local newAlternatives = {}
+
+        for _, alt in ipairs(filtered.alternatives) do
+            if not promoted and isAllowed(alt) then
+                promoted = alt -- First allowed alternative becomes best
+            else
+                table.insert(newAlternatives, alt)
+            end
+        end
+
+        filtered.best = promoted
+        filtered.alternatives = newAlternatives
+    end
+
+    -- Filter alternatives to only include allowed items
+    if filtered.alternatives then
+        local allowedAlts = {}
+        for _, alt in ipairs(filtered.alternatives) do
+            if isAllowed(alt) then
+                table.insert(allowedAlts, alt)
+            end
+        end
+        filtered.alternatives = allowedAlts
+    end
+
+    return filtered
 end
 
 --[[
-    Get or create a FontString for the detail panel (reuses hidden ones)
+    Get gear data using the new spec-based BiS database
+    Returns data in legacy format for compatibility
+    Filters weapon slots based on class restrictions
 ]]
-function Journal:GetArmoryDetailFontString(font)
-    local detailPanel = self.armoryUI.detailPanel
-    if not detailPanel or not detailPanel.scrollContent then return nil end
+function Journal:GetArmoryGearData(slotName)
+    local C = HopeAddon.Constants
+    local phase = self.armoryState.selectedPhase or 1
+    local role = self:GetCurrentArmoryRole()
 
-    detailPanel.fontStrings = detailPanel.fontStrings or {}
-    detailPanel.fontStringIndex = (detailPanel.fontStringIndex or 0) + 1
-
-    local fs = detailPanel.fontStrings[detailPanel.fontStringIndex]
-    if not fs then
-        fs = detailPanel.scrollContent:CreateFontString(nil, "OVERLAY", font or "GameFontNormal")
-        detailPanel.fontStrings[detailPanel.fontStringIndex] = fs
-    else
-        -- Reset font if different
-        if font then
-            fs:SetFontObject(font)
+    -- Use phase number directly (no tier conversion needed)
+    if C.GetArmoryGear then
+        local gearData = C:GetArmoryGear(phase, role, slotName)
+        if gearData then
+            -- Filter weapon slots by class restrictions
+            if slotName == "ranged" or slotName == "mainhand" or slotName == "offhand" then
+                local _, classToken = UnitClass("player")
+                gearData = self:FilterGearByClass(gearData, classToken)
+            end
+            return gearData
         end
     end
-    fs:Show()
-    fs:ClearAllPoints()
-    return fs
+
+    return nil
 end
 
---[[
-    Clear the detail panel completely (resets header too)
-]]
-function Journal:ClearArmoryDetailPanel()
-    local detailPanel = self.armoryUI.detailPanel
-    if not detailPanel then return end
-
-    detailPanel.header.title:SetText("Select a Slot")
-    detailPanel.header.subtitle:SetText("")
-
-    self:ClearArmoryDetailContent()
-end
+-- NOTE: Old detail panel helper functions (ClearArmoryDetailContent, GetArmoryDetailFontString,
+-- ClearArmoryDetailPanel) have been removed. The gear popup manages its own content lifecycle.
 
 --------------------------------------------------------------------------------
 -- ARMORY EVENT HANDLERS
 --------------------------------------------------------------------------------
 
 function Journal:OnArmorySlotClick(slotName)
+    local slotBtn = self.armoryUI.slotButtons[slotName]
+
+    -- If clicking the same slot that's already selected, toggle popup off
+    if self.armoryState.selectedSlot == slotName and self.armoryState.popupVisible then
+        self:HideArmoryGearPopup()
+        -- Deselect the slot
+        if slotBtn then
+            slotBtn.isSelected = false
+            self:UpdateArmorySlotVisual(slotBtn)
+        end
+        self.armoryState.selectedSlot = nil
+        return
+    end
+
     -- Deselect previous slot
     if self.armoryState.selectedSlot then
         local prevBtn = self.armoryUI.slotButtons[self.armoryState.selectedSlot]
@@ -10431,49 +11253,1578 @@ function Journal:OnArmorySlotClick(slotName)
 
     -- Select new slot
     self.armoryState.selectedSlot = slotName
-    local newBtn = self.armoryUI.slotButtons[slotName]
-    if newBtn then
-        newBtn.isSelected = true
-        self:UpdateArmorySlotVisual(newBtn)
+    if slotBtn then
+        slotBtn.isSelected = true
+        self:UpdateArmorySlotVisual(slotBtn)
     end
 
-    -- Populate detail panel
-    self:PopulateArmorySlotDetail(slotName)
+    -- Show gear popup near the slot
+    self:ShowArmoryGearPopup(slotName, slotBtn)
 end
 
 function Journal:OnArmorySlotEnter(btn)
-    -- Show tooltip with equipped item
+    GameTooltip:SetOwner(btn, "ANCHOR_RIGHT")
+
+    -- Show equipped item first (if any)
     if btn.equippedItem and btn.equippedItem.itemId then
-        GameTooltip:SetOwner(btn, "ANCHOR_RIGHT")
         GameTooltip:SetInventoryItem("player", btn.slotId)
-        GameTooltip:Show()
     else
-        GameTooltip:SetOwner(btn, "ANCHOR_RIGHT")
-        GameTooltip:SetText(btn.slotName:upper() .. "\nNo item equipped")
-        GameTooltip:Show()
+        GameTooltip:SetText(btn.slotName:upper(), 1, 0.84, 0)
+        GameTooltip:AddLine("No item equipped", 0.5, 0.5, 0.5)
     end
+
+    -- Divider
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddLine("---------------------", 0.3, 0.3, 0.3)
+
+    -- Get BiS recommendation for current phase/role
+    local gearData = self:GetArmoryGearData(btn.slotName)
+
+    if gearData and gearData.best then
+        local best = gearData.best
+        local phase = self.armoryState.selectedPhase or 1
+
+        -- BiS header (green)
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine("Phase " .. phase .. " Best in Slot:", 0.2, 0.8, 0.2)
+
+        -- BiS item name (quality colored)
+        local qualityColors = HopeAddon.Constants.ARMORY_QUALITY_COLORS
+        local qc = qualityColors[best.quality or "epic"] or qualityColors.epic
+        GameTooltip:AddLine("  " .. (best.name or "Unknown"), qc.r, qc.g, qc.b)
+
+        -- iLvl
+        if best.iLvl then
+            GameTooltip:AddLine("  iLvl " .. best.iLvl, 0.7, 0.7, 0.7)
+        end
+
+        -- Source (orange)
+        if best.source then
+            local sourceText = best.source
+            if best.sourceDetail then
+                sourceText = sourceText .. " - " .. best.sourceDetail
+            end
+            GameTooltip:AddLine("  " .. sourceText, 1, 0.5, 0)
+        end
+
+        -- Upgrade indicator
+        if btn.equippedItem and btn.equippedItem.iLvl then
+            local equippedILvl = btn.equippedItem.iLvl or 0
+            local bisILvl = best.iLvl or 0
+            local diff = bisILvl - equippedILvl
+            if diff > 0 then
+                GameTooltip:AddLine(" ")
+                GameTooltip:AddLine("  +" .. diff .. " item levels upgrade!", 0.2, 1, 0.2)
+            elseif diff == 0 then
+                GameTooltip:AddLine(" ")
+                GameTooltip:AddLine("  Already at BiS!", 1, 0.84, 0)
+            end
+        end
+
+        -- Alternatives count
+        if gearData.alternatives and #gearData.alternatives > 0 then
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine("  " .. #gearData.alternatives .. " alternative(s) available", 0.5, 0.5, 0.5)
+        end
+    else
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine("No BiS data for Phase " .. (self.armoryState.selectedPhase or 1), 0.5, 0.5, 0.5)
+    end
+
+    -- Click hint
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddLine("Click for upgrade options", 0.4, 0.4, 0.4)
+
+    GameTooltip:Show()
 end
 
 function Journal:OnArmorySlotLeave(btn)
-    GameTooltip:Hide()
+    if not btn then return end
+    if GameTooltip then
+        GameTooltip:Hide()
+    end
 end
 
-function Journal:SelectArmoryTier(tier)
-    self.armoryState.selectedTier = tier
+--------------------------------------------------------------------------------
+-- ARMORY ENHANCED TOOLTIP SYSTEM
+--------------------------------------------------------------------------------
 
-    -- Update tier button visuals
-    for t, btn in pairs(self.armoryUI.tierButtons) do
-        local state = (t == tier) and "active" or "inactive"
-        self:SetTierButtonState(btn, state)
+--[[
+    Build an enhanced gear tooltip with drop info, tips, stat priority, alternatives
+    Follows the Attunements tab pattern with color-coded sections
+]]
+function Journal:BuildArmoryGearTooltip(itemData, anchorFrame)
+    if not itemData then return end
+
+    GameTooltip:SetOwner(anchorFrame, "ANCHOR_RIGHT", 8, 0)
+
+    -- Show standard item tooltip first (use proper item link format)
+    local itemId = itemData.id or itemData.itemId
+    if itemId and itemId > 0 then
+        -- Full item link format: item:itemId:enchant:gem1:gem2:gem3:gem4:suffix:uniqueId
+        GameTooltip:SetHyperlink("item:" .. itemId .. ":0:0:0:0:0:0:0")
+    else
+        GameTooltip:SetText(itemData.name or "Unknown Item", 1, 1, 1)
     end
 
-    -- Refresh recommendations if slot selected
-    if self.armoryState.selectedSlot then
-        self:PopulateArmorySlotDetail(self.armoryState.selectedSlot)
+    -- Try to get enhanced hover data
+    local hoverData = itemData.hoverData
+    if not hoverData then
+        -- Build basic hover data from existing fields
+        hoverData = self:BuildBasicHoverData(itemData)
+    end
+
+    if hoverData then
+        -- Divider
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine("=======================", 0.4, 0.4, 0.4)
+
+        -- Drop Information (gold header)
+        if hoverData.dropInfo then
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine("Drop Information:", 1, 0.84, 0)
+            local di = hoverData.dropInfo
+            if di.bossName then
+                GameTooltip:AddLine("  Boss: " .. di.bossName, 0.9, 0.9, 0.9)
+            end
+            if di.instance then
+                GameTooltip:AddLine("  Instance: " .. di.instance, 0.9, 0.9, 0.9)
+            end
+            if di.difficulty then
+                GameTooltip:AddLine("  Difficulty: " .. di.difficulty, 0.7, 0.7, 0.7)
+            end
+            if di.dropRate then
+                GameTooltip:AddLine("  Drop Rate: " .. di.dropRate, 0.7, 0.9, 0.7)
+            end
+            if di.tokenInfo then
+                GameTooltip:AddLine("  Token: " .. di.tokenInfo, 0.9, 0.7, 1)
+            end
+        end
+
+        -- Stat Priority (arcane purple header)
+        if hoverData.statPriority and #hoverData.statPriority > 0 then
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine("Stat Priority:", 0.61, 0.19, 1.0)
+            for i, stat in ipairs(hoverData.statPriority) do
+                GameTooltip:AddLine("  " .. i .. ". " .. stat, 0.8, 0.8, 0.8)
+            end
+        end
+
+        -- Tips (orange header)
+        if hoverData.tips and #hoverData.tips > 0 then
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine("Tips:", 1, 0.5, 0)
+            for _, tip in ipairs(hoverData.tips) do
+                GameTooltip:AddLine("  • " .. tip, 0.8, 0.8, 0.8, true)
+            end
+        end
+
+        -- Alternatives (sky blue header)
+        if hoverData.alternatives and #hoverData.alternatives > 0 then
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine("Alternatives:", 0.3, 0.7, 1.0)
+            for _, alt in ipairs(hoverData.alternatives) do
+                GameTooltip:AddLine("  • " .. alt, 0.7, 0.7, 0.7, true)
+            end
+        end
+
+        -- Prerequisites (hellfire red header)
+        if hoverData.prerequisites and #hoverData.prerequisites > 0 then
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine("Requirements:", 0.9, 0.2, 0.1)
+            for _, prereq in ipairs(hoverData.prerequisites) do
+                GameTooltip:AddLine("  • " .. prereq, 0.8, 0.6, 0.6, true)
+            end
+        end
+    end
+
+    GameTooltip:Show()
+end
+
+--[[
+    Build basic hover data from existing item fields (fallback)
+]]
+function Journal:BuildBasicHoverData(itemData)
+    local hoverData = {}
+
+    if itemData.source or itemData.sourceDetail or itemData.sourceType then
+        hoverData.dropInfo = {}
+
+        if itemData.sourceType == "raid" then
+            hoverData.dropInfo.bossName = itemData.source
+            hoverData.dropInfo.instance = itemData.sourceDetail
+        elseif itemData.sourceType == "badge" then
+            hoverData.dropInfo.instance = "Badge of Justice Vendor"
+            if itemData.badgeCost then
+                hoverData.dropInfo.difficulty = itemData.badgeCost .. " Badges"
+            end
+        elseif itemData.sourceType == "crafted" then
+            hoverData.dropInfo.instance = itemData.source or "Crafted"
+            hoverData.dropInfo.difficulty = "Requires profession"
+        elseif itemData.sourceType == "reputation" or itemData.sourceType == "rep" then
+            hoverData.dropInfo.instance = itemData.source or "Reputation Vendor"
+            if itemData.standing then
+                hoverData.prerequisites = { "Requires " .. itemData.standing .. " with " .. (itemData.faction or itemData.source) }
+            end
+        elseif itemData.sourceType == "heroic" then
+            hoverData.dropInfo.bossName = itemData.source
+            hoverData.dropInfo.instance = itemData.sourceDetail
+            hoverData.dropInfo.difficulty = "Heroic"
+        elseif itemData.sourceType == "quest" then
+            hoverData.dropInfo.instance = "Quest Reward"
+            hoverData.dropInfo.difficulty = itemData.sourceDetail
+        else
+            hoverData.dropInfo.bossName = itemData.source
+            hoverData.dropInfo.instance = itemData.sourceDetail
+        end
+    end
+
+    if not next(hoverData) then
+        return nil
+    end
+
+    return hoverData
+end
+
+--------------------------------------------------------------------------------
+-- ARMORY GEAR POPUP (Floating popup for BiS and alternatives)
+--------------------------------------------------------------------------------
+
+--[[
+    Get or create the gear popup frame
+    Phase 60 Redesign: Larger popup with BiS showcase, filter bar, grouped alternatives
+    Uses the Get/Show/Hide pattern from MinigamesUI
+]]
+function Journal:GetArmoryGearPopup()
+    if self.armoryUI.gearPopup then
+        return self.armoryUI.gearPopup
+    end
+
+    local C = HopeAddon.Constants.ARMORY_GEAR_POPUP
+
+    -- IMPORTANT: Parent popup to mainFrame (not characterView) so it renders above all Armory content
+    local popupParent = self.mainFrame or UIParent
+
+    -- Create popup frame at DIALOG strata so it floats above everything
+    local popup = CreateFrame("Frame", "HopeArmoryGearPopup", popupParent, "BackdropTemplate")
+    popup:SetSize(C.WIDTH, C.MAX_HEIGHT)
+    popup:SetBackdrop(C.BACKDROP)
+    popup:SetBackdropColor(C.BG_COLOR.r, C.BG_COLOR.g, C.BG_COLOR.b, C.BG_COLOR.a)
+    popup:SetBackdropBorderColor(C.BORDER_COLOR.r, C.BORDER_COLOR.g, C.BORDER_COLOR.b, C.BORDER_COLOR.a)
+    popup:SetFrameStrata("DIALOG")
+    popup:SetFrameLevel(100)
+    popup:EnableMouse(true)
+    popup:SetMovable(true)
+    popup:SetClampedToScreen(true)
+    popup:Hide()
+
+    --======================================================================
+    -- HEADER SECTION
+    --======================================================================
+    local header = CreateFrame("Frame", nil, popup)
+    header:SetHeight(C.HEADER_HEIGHT)
+    header:SetPoint("TOPLEFT", popup, "TOPLEFT", 0, 0)
+    header:SetPoint("TOPRIGHT", popup, "TOPRIGHT", 0, 0)
+
+    -- Make header draggable
+    header:EnableMouse(true)
+    header:RegisterForDrag("LeftButton")
+
+    header:SetScript("OnDragStart", function()
+        popup:StartMoving()
+        popup.isBeingDragged = true
+    end)
+
+    header:SetScript("OnDragStop", function()
+        popup:StopMovingOrSizing()
+        popup.isBeingDragged = false
+        popup.hasBeenMoved = true  -- Flag that user repositioned
+    end)
+
+    -- Visual feedback: cursor changes when hovering over draggable header
+    header:SetScript("OnEnter", function(self)
+        SetCursor("Interface\\CURSOR\\UI-Cursor-Move")
+    end)
+
+    header:SetScript("OnLeave", function(self)
+        SetCursor(nil)  -- Reset to default
+    end)
+
+    -- Slot icon (left of title)
+    local slotIcon = header:CreateTexture(nil, "ARTWORK")
+    slotIcon:SetSize(24, 24)
+    slotIcon:SetPoint("LEFT", header, "LEFT", C.PADDING, 0)
+    slotIcon:SetTexture("Interface\\ICONS\\INV_Misc_QuestionMark")
+    popup.slotIcon = slotIcon
+
+    -- Header title
+    local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    title:SetPoint("LEFT", slotIcon, "RIGHT", 8, 0)
+    title:SetText("UPGRADES")
+    popup.title = title
+
+    -- Close button (X)
+    local closeBtn = CreateFrame("Button", nil, header)
+    closeBtn:SetSize(20, 20)
+    closeBtn:SetPoint("RIGHT", header, "RIGHT", -C.PADDING, 0)
+    closeBtn:SetNormalTexture("Interface\\BUTTONS\\UI-Panel-MinimizeButton-Up")
+    closeBtn:SetPushedTexture("Interface\\BUTTONS\\UI-Panel-MinimizeButton-Down")
+    closeBtn:SetHighlightTexture("Interface\\BUTTONS\\UI-Panel-MinimizeButton-Highlight")
+    closeBtn:SetScript("OnClick", function()
+        if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+        self:HideArmoryGearPopup()
+    end)
+    popup.closeBtn = closeBtn
+
+    -- Divider below header
+    local headerDivider = popup:CreateTexture(nil, "OVERLAY")
+    headerDivider:SetPoint("TOPLEFT", header, "BOTTOMLEFT", C.PADDING, 0)
+    headerDivider:SetPoint("TOPRIGHT", header, "BOTTOMRIGHT", -C.PADDING, 0)
+    headerDivider:SetHeight(1)
+    headerDivider:SetColorTexture(0.4, 0.35, 0.25, 1)
+
+    --======================================================================
+    -- BIS SHOWCASE SECTION (Featured item card)
+    --======================================================================
+    local bisSection = CreateFrame("Frame", nil, popup)
+    bisSection:SetHeight(C.BIS_SECTION_HEIGHT)
+    bisSection:SetPoint("TOPLEFT", popup, "TOPLEFT", C.PADDING, -C.HEADER_HEIGHT - 4)
+    bisSection:SetPoint("TOPRIGHT", popup, "TOPRIGHT", -C.PADDING, -C.HEADER_HEIGHT - 4)
+    popup.bisSection = bisSection
+
+    -- BiS section label
+    local bisLabel = bisSection:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    bisLabel:SetPoint("TOPLEFT", bisSection, "TOPLEFT", 0, 0)
+    bisLabel:SetText("BEST IN SLOT")
+    bisLabel:SetTextColor(1, 0.84, 0)  -- Gold
+    popup.bisLabel = bisLabel
+
+    -- Placeholder for BiS card (populated dynamically)
+    popup.bisCardFrame = nil
+
+    --======================================================================
+    -- FILTER BAR SECTION
+    --======================================================================
+    local filterBar = CreateFrame("Frame", nil, popup)
+    filterBar:SetHeight(C.FILTER_BAR_HEIGHT)
+    filterBar:SetPoint("TOPLEFT", bisSection, "BOTTOMLEFT", 0, -8)
+    filterBar:SetPoint("TOPRIGHT", bisSection, "BOTTOMRIGHT", 0, -8)
+    popup.filterBar = filterBar
+
+    -- "Alternatives" label
+    local altLabel = filterBar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    altLabel:SetPoint("LEFT", filterBar, "LEFT", 0, 0)
+    altLabel:SetText("Alternatives:")
+    altLabel:SetTextColor(0.8, 0.8, 0.8)
+    popup.altLabel = altLabel
+
+    -- Filter buttons container (populated dynamically)
+    popup.filterButtons = {}
+
+    -- Divider below filter bar
+    local filterDivider = popup:CreateTexture(nil, "OVERLAY")
+    filterDivider:SetPoint("TOPLEFT", filterBar, "BOTTOMLEFT", 0, -4)
+    filterDivider:SetPoint("TOPRIGHT", filterBar, "BOTTOMRIGHT", 0, -4)
+    filterDivider:SetHeight(1)
+    filterDivider:SetColorTexture(0.3, 0.3, 0.3, 0.6)
+    popup.filterDivider = filterDivider
+
+    --======================================================================
+    -- ALTERNATIVES SCROLL SECTION
+    --======================================================================
+    local scrollYStart = C.HEADER_HEIGHT + C.BIS_SECTION_HEIGHT + C.FILTER_BAR_HEIGHT + 20
+
+    local scrollFrame = CreateFrame("ScrollFrame", "HopeArmoryGearPopupScroll", popup, "UIPanelScrollFrameTemplate")
+    scrollFrame:SetPoint("TOPLEFT", popup, "TOPLEFT", C.PADDING, -scrollYStart)
+    scrollFrame:SetPoint("BOTTOMRIGHT", popup, "BOTTOMRIGHT", -C.PADDING - 20, C.FOOTER_HEIGHT)
+
+    local scrollContent = CreateFrame("Frame", nil, scrollFrame)
+    scrollContent:SetWidth(C.WIDTH - C.PADDING * 2 - 20)
+    scrollFrame:SetScrollChild(scrollContent)
+    popup.scrollFrame = scrollFrame
+    popup.scrollContent = scrollContent
+
+    --======================================================================
+    -- FOOTER SECTION (Try On Full Set button)
+    --======================================================================
+    local footer = CreateFrame("Frame", nil, popup)
+    footer:SetHeight(C.FOOTER_HEIGHT)
+    footer:SetPoint("BOTTOMLEFT", popup, "BOTTOMLEFT", C.PADDING, 0)
+    footer:SetPoint("BOTTOMRIGHT", popup, "BOTTOMRIGHT", -C.PADDING, 0)
+    popup.footer = footer
+
+    -- "Try On Full BiS Set" button
+    local tryOnSetBtn = CreateFrame("Button", nil, footer, "BackdropTemplate")
+    tryOnSetBtn:SetSize(140, 24)
+    tryOnSetBtn:SetPoint("LEFT", footer, "LEFT", 0, 0)
+    tryOnSetBtn:SetBackdrop({
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 8,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    })
+    local tryOnText = tryOnSetBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    tryOnText:SetPoint("CENTER")
+    tryOnText:SetText("Try On BiS Set")
+    tryOnSetBtn.text = tryOnText
+
+    tryOnSetBtn:SetScript("OnEnter", function(self)
+        self:SetBackdropBorderColor(1, 0.84, 0)
+        if HopeAddon.Sounds then HopeAddon.Sounds:PlayHover() end
+    end)
+    tryOnSetBtn:SetScript("OnLeave", function(self)
+        self:SetBackdropBorderColor(0.5, 0.5, 0.5)
+    end)
+    tryOnSetBtn:SetScript("OnClick", function()
+        if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+        self:TryOnBisSet()
+    end)
+    popup.tryOnSetBtn = tryOnSetBtn
+
+    -- "Reset Model" button
+    local resetBtn = CreateFrame("Button", nil, footer, "BackdropTemplate")
+    resetBtn:SetSize(100, 24)
+    resetBtn:SetPoint("LEFT", tryOnSetBtn, "RIGHT", 8, 0)
+    resetBtn:SetBackdrop({
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 8,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    })
+    local resetText = resetBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    resetText:SetPoint("CENTER")
+    resetText:SetText("Reset")
+    resetBtn.text = resetText
+
+    resetBtn:SetScript("OnEnter", function(self)
+        self:SetBackdropBorderColor(0.8, 0.7, 0.2)
+        if HopeAddon.Sounds then HopeAddon.Sounds:PlayHover() end
+    end)
+    resetBtn:SetScript("OnLeave", function(self)
+        self:SetBackdropBorderColor(0.5, 0.5, 0.5)
+    end)
+    resetBtn:SetScript("OnClick", function()
+        if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+        self:ResetModelToEquipped()
+    end)
+    popup.resetBtn = resetBtn
+
+    -- Item count indicator (right side)
+    local itemCount = footer:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    itemCount:SetPoint("RIGHT", footer, "RIGHT", 0, 0)
+    itemCount:SetTextColor(0.6, 0.6, 0.6)
+    popup.itemCount = itemCount
+
+    --======================================================================
+    -- POOLED ELEMENTS TRACKING
+    --======================================================================
+    popup.itemRows = {}           -- Currently displayed item rows (pooled)
+    popup.groupHeaders = {}       -- Currently displayed group headers (pooled)
+    popup.activeFilterBtns = {}   -- Currently displayed filter buttons (pooled)
+    popup.emptyFontStrings = {}   -- Orphan text cleanup tracking
+
+    --======================================================================
+    -- EVENT HANDLERS
+    --======================================================================
+    popup:SetScript("OnShow", function()
+        self:RegisterArmoryClickAwayHandler()
+    end)
+
+    popup:SetScript("OnHide", function()
+        self:UnregisterArmoryClickAwayHandler()
+        -- Release pooled frames when hiding
+        self:ReleaseArmoryPopupFrames()
+    end)
+
+    -- ESC key to close
+    popup:SetScript("OnKeyDown", function(_, key)
+        if key == "ESCAPE" then
+            self:HideArmoryGearPopup()
+        end
+    end)
+    popup:SetPropagateKeyboardInput(true)
+
+    self.armoryUI.gearPopup = popup
+    return popup
+end
+
+--[[
+    Release all pooled frames from the gear popup
+]]
+function Journal:ReleaseArmoryPopupFrames()
+    local popup = self.armoryUI.gearPopup
+    if not popup then return end
+
+    -- Release BiS card
+    if popup.bisCardFrame and self.armoryPools.bisCard then
+        self.armoryPools.bisCard:Release(popup.bisCardFrame)
+        popup.bisCardFrame = nil
+    end
+
+    -- Release item rows
+    if popup.itemRows and self.armoryPools.popupItemRow then
+        for _, row in ipairs(popup.itemRows) do
+            self.armoryPools.popupItemRow:Release(row)
+        end
+        wipe(popup.itemRows)
+    end
+
+    -- Release group headers
+    if popup.groupHeaders and self.armoryPools.groupHeader then
+        for _, header in ipairs(popup.groupHeaders) do
+            self.armoryPools.groupHeader:Release(header)
+        end
+        wipe(popup.groupHeaders)
+    end
+
+    -- Release filter buttons
+    if popup.activeFilterBtns and self.armoryPools.filterBtn then
+        for _, btn in ipairs(popup.activeFilterBtns) do
+            self.armoryPools.filterBtn:Release(btn)
+        end
+        wipe(popup.activeFilterBtns)
+    end
+
+    -- Clear orphan FontStrings
+    if popup.emptyFontStrings then
+        for _, fs in ipairs(popup.emptyFontStrings) do
+            fs:Hide()
+            fs:SetText("")
+        end
+        wipe(popup.emptyFontStrings)
+    end
+end
+
+--[[
+    Show the gear popup near the clicked slot
+    Phase 60: Added screen bounds checking to prevent popup from going off-screen
+]]
+function Journal:ShowArmoryGearPopup(slotName, anchorBtn)
+    local popup = self:GetArmoryGearPopup()
+    local C = HopeAddon.Constants.ARMORY_GEAR_POPUP
+
+    -- Reset manual position flag when showing - each slot click repositions to that slot
+    popup.hasBeenMoved = false
+
+    -- Get positioning info for this slot
+    local posInfo = C.POSITION_OFFSETS[slotName]
+    if not posInfo then
+        posInfo = { side = "RIGHT", x = 10, y = 0 }
+    end
+
+    -- Update title with slot name
+    local slotData = HopeAddon.Constants.ARMORY_SLOT_BUTTON.SLOTS[slotName]
+    popup.title:SetText((slotData and slotData.displayName) or slotName:upper())
+
+    -- Populate with gear data FIRST (sets popup height)
+    self:PopulateArmoryGearPopup(slotName)
+
+    -- Clear previous anchoring
+    popup:ClearAllPoints()
+
+    -- Get screen dimensions
+    local screenWidth = GetScreenWidth()
+    local screenHeight = GetScreenHeight()
+    local popupWidth = popup:GetWidth()
+    local popupHeight = popup:GetHeight()
+
+    -- Get anchor button position
+    local btnLeft = anchorBtn:GetLeft() or 0
+    local btnRight = anchorBtn:GetRight() or 0
+    local btnTop = anchorBtn:GetTop() or 0
+    local btnBottom = anchorBtn:GetBottom() or 0
+    local btnCenterY = (btnTop + btnBottom) / 2
+
+    -- Calculate preferred position based on slot
+    local preferredSide = posInfo.side
+    local finalX, finalY
+    local usedSide = preferredSide
+
+    -- Check if preferred side fits, otherwise flip
+    if preferredSide == "RIGHT" then
+        -- Check if popup fits on right
+        if btnRight + posInfo.x + popupWidth <= screenWidth then
+            popup:SetPoint("LEFT", anchorBtn, "RIGHT", posInfo.x, posInfo.y)
+        else
+            -- Flip to left
+            popup:SetPoint("RIGHT", anchorBtn, "LEFT", -posInfo.x, posInfo.y)
+            usedSide = "LEFT"
+        end
+    elseif preferredSide == "LEFT" then
+        -- Check if popup fits on left
+        if btnLeft + posInfo.x - popupWidth >= 0 then
+            popup:SetPoint("RIGHT", anchorBtn, "LEFT", posInfo.x, posInfo.y)
+        else
+            -- Flip to right
+            popup:SetPoint("LEFT", anchorBtn, "RIGHT", -posInfo.x, posInfo.y)
+            usedSide = "RIGHT"
+        end
+    elseif preferredSide == "TOP" then
+        -- Check if popup fits above
+        if btnTop + posInfo.y + popupHeight <= screenHeight then
+            popup:SetPoint("BOTTOM", anchorBtn, "TOP", posInfo.x, posInfo.y)
+        else
+            -- Flip to below
+            popup:SetPoint("TOP", anchorBtn, "BOTTOM", posInfo.x, -posInfo.y)
+            usedSide = "BOTTOM"
+        end
+    else
+        -- Default: right side
+        popup:SetPoint("LEFT", anchorBtn, "RIGHT", 10, 0)
+    end
+
+    -- After positioning, check for vertical overflow and adjust
+    popup:Show()
+
+    -- Use C_Timer or direct check after Show
+    local popupTop = popup:GetTop() or 0
+    local popupBottom = popup:GetBottom() or 0
+
+    -- Clamp to screen bounds vertically
+    local verticalOffset = 0
+    if popupTop > screenHeight then
+        verticalOffset = screenHeight - popupTop - 10
+    elseif popupBottom < 0 then
+        verticalOffset = -popupBottom + 10
+    end
+
+    if verticalOffset ~= 0 and (usedSide == "LEFT" or usedSide == "RIGHT") then
+        -- Re-anchor with vertical offset
+        popup:ClearAllPoints()
+        if usedSide == "RIGHT" then
+            popup:SetPoint("LEFT", anchorBtn, "RIGHT", posInfo.x, posInfo.y + verticalOffset)
+        else
+            popup:SetPoint("RIGHT", anchorBtn, "LEFT", posInfo.x, posInfo.y + verticalOffset)
+        end
+    end
+
+    self.armoryState.popupVisible = true
+    self.armoryState.selectedSlot = slotName
+end
+
+--[[
+    Hide the gear popup
+]]
+function Journal:HideArmoryGearPopup()
+    if self.armoryUI.gearPopup then
+        self.armoryUI.gearPopup:Hide()
+    end
+    self.armoryState.popupVisible = false
+end
+
+--[[
+    Populate the gear popup with BiS and alternatives for the selected slot
+    Phase 60 Redesign: BiS showcase card, filter bar, grouped alternatives
+]]
+function Journal:PopulateArmoryGearPopup(slotName)
+    local popup = self.armoryUI.gearPopup
+    if not popup then return end
+
+    local C = HopeAddon.Constants.ARMORY_GEAR_POPUP
+    local scrollContent = popup.scrollContent
+    local journalSelf = self
+
+    -- Release all pooled frames from previous population
+    self:ReleaseArmoryPopupFrames()
+
+    -- Store current slot for refresh operations
+    self.armoryState.popup.lastSlot = slotName
+
+    -- Get gear recommendations for this slot
+    local gearData = self:GetArmoryGearData(slotName)
+
+    -- Update slot icon in header
+    local slotData = HopeAddon.Constants.ARMORY_SLOT_BUTTON.SLOTS[slotName]
+    if slotData and slotData.slotId then
+        local invSlot = GetInventoryItemTexture("player", slotData.slotId)
+        if invSlot then
+            popup.slotIcon:SetTexture(invSlot)
+        else
+            popup.slotIcon:SetTexture("Interface\\PaperDoll\\UI-Backpack-EmptySlot")
+        end
+    end
+
+    --======================================================================
+    -- EMPTY STATE (No gear data)
+    --======================================================================
+    if not gearData or (not gearData.best and (not gearData.alternatives or #gearData.alternatives == 0)) then
+        local phase = self.armoryState.selectedPhase or 1
+        local CC = HopeAddon.Constants
+
+        -- Hide BiS section
+        popup.bisSection:Hide()
+        popup.filterBar:Hide()
+        popup.filterDivider:Hide()
+        popup.tryOnSetBtn:Hide()
+        popup.resetBtn:Hide()
+        popup.itemCount:SetText("")
+
+        -- Show empty message
+        local emptyText = scrollContent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        emptyText:SetPoint("TOP", scrollContent, "TOP", 0, -40)
+        emptyText:SetText("No gear data for\nPhase " .. phase .. " yet")
+        emptyText:SetTextColor(0.6, 0.6, 0.6, 1)
+        table.insert(popup.emptyFontStrings, emptyText)
+
+        -- Hint about available phases
+        local hintText = scrollContent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        hintText:SetPoint("TOP", emptyText, "BOTTOM", 0, -10)
+        if CC:HasArmoryPhaseData(1) then
+            hintText:SetText("Phase 1 data is available.")
+            hintText:SetTextColor(0.5, 0.8, 0.5, 1)
+        else
+            hintText:SetText("No phase data available.")
+            hintText:SetTextColor(0.5, 0.5, 0.5, 1)
+        end
+        table.insert(popup.emptyFontStrings, hintText)
+
+        scrollContent:SetHeight(100)
+        popup:SetHeight(C.MIN_HEIGHT)
+        return
+    end
+
+    -- Show sections
+    popup.bisSection:Show()
+    popup.filterBar:Show()
+    popup.filterDivider:Show()
+    popup.tryOnSetBtn:Show()
+    popup.resetBtn:Show()
+
+    --======================================================================
+    -- BIS SHOWCASE CARD
+    --======================================================================
+    if gearData.best then
+        self:PopulateBisCard(popup, gearData.best)
+    else
+        -- No BiS, hide the section
+        if popup.bisCardFrame then
+            self.armoryPools.bisCard:Release(popup.bisCardFrame)
+            popup.bisCardFrame = nil
+        end
+        popup.bisLabel:Hide()
+    end
+
+    --======================================================================
+    -- FILTER BAR
+    --======================================================================
+    self:PopulateArmoryFilterBar(popup, gearData)
+
+    --======================================================================
+    -- ALTERNATIVES LIST (Grouped by source type)
+    --======================================================================
+    local yOffset = 0
+    local totalHeight = 0
+    local itemCount = 0
+
+    if gearData.alternatives and #gearData.alternatives > 0 then
+        -- Group alternatives by source type
+        local grouped = self:GroupItemsBySource(gearData.alternatives)
+
+        -- Get sort order for groups
+        local sortedGroups = self:GetSortedSourceGroups(grouped)
+
+        -- Get current filter
+        local activeFilter = self.armoryState.popup.activeFilter or "all"
+
+        -- Render each group
+        for _, groupKey in ipairs(sortedGroups) do
+            local items = grouped[groupKey]
+            if items and #items > 0 then
+                -- Skip this group if filtered out
+                if activeFilter ~= "all" and activeFilter ~= groupKey then
+                    -- Skip
+                else
+                    -- Create group header (collapsible)
+                    local groupHeader = self:CreateArmoryGroupHeader(scrollContent, groupKey, #items, yOffset)
+                    table.insert(popup.groupHeaders, groupHeader)
+                    yOffset = yOffset - C.GROUP_HEADER.HEIGHT - 4
+                    totalHeight = totalHeight + C.GROUP_HEADER.HEIGHT + 4
+
+                    -- Check if group is expanded
+                    local isExpanded = self.armoryState.popup.expandedGroups[groupKey]
+                    if isExpanded == nil then isExpanded = true end  -- Default expanded
+
+                    if isExpanded then
+                        -- Render items in this group
+                        for _, itemData in ipairs(items) do
+                            local row = self:CreateArmoryPopupItemRow(scrollContent, itemData, yOffset)
+                            table.insert(popup.itemRows, row)
+                            yOffset = yOffset - C.ITEM_HEIGHT - C.ITEM_GAP
+                            totalHeight = totalHeight + C.ITEM_HEIGHT + C.ITEM_GAP
+                            itemCount = itemCount + 1
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Update item count in footer
+    popup.itemCount:SetText(itemCount .. " alternatives")
+
+    -- Set scroll content height
+    scrollContent:SetHeight(math.max(totalHeight, 60))
+
+    -- Calculate popup height
+    local fixedHeight = C.HEADER_HEIGHT + C.BIS_SECTION_HEIGHT + C.FILTER_BAR_HEIGHT + C.FOOTER_HEIGHT + 30
+    local contentHeight = totalHeight + 20
+    local popupHeight = fixedHeight + math.min(contentHeight, C.MAX_HEIGHT - fixedHeight)
+    popup:SetHeight(math.max(math.min(popupHeight, C.MAX_HEIGHT), C.MIN_HEIGHT))
+end
+
+--[[
+    Group items by their source type
+]]
+function Journal:GroupItemsBySource(items)
+    local groups = {}
+    for _, item in ipairs(items) do
+        local sourceType = item.sourceType or "world"
+        if not groups[sourceType] then
+            groups[sourceType] = {}
+        end
+        table.insert(groups[sourceType], item)
+    end
+    return groups
+end
+
+--[[
+    Get sorted array of source group keys based on SOURCE_GROUPS order
+]]
+function Journal:GetSortedSourceGroups(grouped)
+    local C = HopeAddon.Constants.ARMORY_GEAR_POPUP
+    local sorted = {}
+
+    -- Collect all group keys
+    for key in pairs(grouped) do
+        table.insert(sorted, key)
+    end
+
+    -- Sort by order defined in SOURCE_GROUPS
+    table.sort(sorted, function(a, b)
+        local orderA = C.SOURCE_GROUPS[a] and C.SOURCE_GROUPS[a].order or 99
+        local orderB = C.SOURCE_GROUPS[b] and C.SOURCE_GROUPS[b].order or 99
+        return orderA < orderB
+    end)
+
+    return sorted
+end
+
+--======================================================================
+-- GEAR POPUP HELPER FUNCTIONS (Phase 60)
+--======================================================================
+
+--[[
+    Populate the BiS showcase card at top of popup
+]]
+function Journal:PopulateBisCard(popup, bisItem)
+    local C = HopeAddon.Constants.ARMORY_GEAR_POPUP
+    local journalSelf = self
+
+    -- Acquire BiS card from pool
+    local card = self.armoryPools.bisCard:Acquire()
+    card:SetParent(popup.bisSection)
+    card:ClearAllPoints()
+    card:SetPoint("TOPLEFT", popup.bisLabel, "BOTTOMLEFT", 0, -4)
+    card:SetPoint("TOPRIGHT", popup.bisSection, "TOPRIGHT", 0, -20)
+
+    -- Set icon
+    local itemId = bisItem.id or bisItem.itemId
+    if itemId and itemId > 0 then
+        GetItemInfo(itemId)  -- Queue for cache
+        local _, _, _, _, _, _, _, _, _, itemTexture = GetItemInfo(itemId)
+        if itemTexture then
+            card.icon:SetTexture(itemTexture)
+        elseif bisItem.icon then
+            local iconPath = bisItem.icon
+            if not iconPath:find("Interface") then
+                iconPath = "Interface\\ICONS\\" .. iconPath
+            end
+            card.icon:SetTexture(iconPath)
+        else
+            card.icon:SetTexture("Interface\\ICONS\\INV_Misc_QuestionMark")
+        end
+    end
+
+    -- Set icon border color based on quality
+    local qualityColors = HopeAddon.Constants.ARMORY_QUALITY_COLORS
+    local qualityColor = qualityColors[bisItem.quality or "epic"] or qualityColors.epic
+    card.iconBorder:SetVertexColor(qualityColor.r, qualityColor.g, qualityColor.b)
+
+    -- Set name with quality color
+    card.nameText:SetText(bisItem.name or "Unknown Item")
+    card.nameText:SetTextColor(qualityColor.r, qualityColor.g, qualityColor.b)
+
+    -- Set item level
+    card.iLevelText:SetText(bisItem.iLvl and ("iLvl " .. bisItem.iLvl) or "")
+
+    -- Set source
+    local sourceText = bisItem.source or "Unknown Source"
+    if bisItem.sourceDetail then
+        sourceText = sourceText .. " - " .. bisItem.sourceDetail
+    end
+    card.sourceText:SetText(sourceText)
+
+    -- Try On button handler
+    card.tryOnBtn:SetScript("OnClick", function()
+        if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+        journalSelf:PreviewItemOnModel(bisItem)
+    end)
+
+    -- Store item data for tooltip
+    card.itemData = bisItem
+    card.itemId = itemId
+
+    -- Tooltip on hover
+    card:SetScript("OnEnter", function(self)
+        journalSelf:BuildArmoryGearTooltip(self.itemData, self)
+    end)
+    card:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
+    card:Show()
+    popup.bisCardFrame = card
+    popup.bisLabel:Show()
+end
+
+--[[
+    Populate the filter bar with source type buttons
+]]
+function Journal:PopulateArmoryFilterBar(popup, gearData)
+    local C = HopeAddon.Constants.ARMORY_GEAR_POPUP
+    local journalSelf = self
+
+    -- Clear existing filter buttons
+    if popup.activeFilterBtns then
+        for _, btn in ipairs(popup.activeFilterBtns) do
+            self.armoryPools.filterBtn:Release(btn)
+        end
+        wipe(popup.activeFilterBtns)
+    end
+
+    -- Collect unique source types from alternatives
+    local sourceTypes = {}
+    if gearData.alternatives then
+        for _, item in ipairs(gearData.alternatives) do
+            local st = item.sourceType or "world"
+            sourceTypes[st] = (sourceTypes[st] or 0) + 1
+        end
+    end
+
+    -- Create "All" button first
+    local xOffset = 80  -- After "Alternatives:" label
+    local activeFilter = self.armoryState.popup.activeFilter or "all"
+
+    local allBtn = self.armoryPools.filterBtn:Acquire()
+    allBtn:SetParent(popup.filterBar)
+    allBtn:ClearAllPoints()
+    allBtn:SetPoint("LEFT", popup.filterBar, "LEFT", xOffset, 0)
+    allBtn:SetWidth(50)
+    allBtn.text:SetText("All")
+    allBtn.filterKey = "all"
+    allBtn.isActive = (activeFilter == "all")
+
+    if allBtn.isActive then
+        allBtn:SetBackdropBorderColor(0.3, 0.8, 0.3)
+        allBtn.activeIndicator:Show()
+    else
+        allBtn:SetBackdropBorderColor(0.5, 0.5, 0.5)
+        allBtn.activeIndicator:Hide()
+    end
+
+    allBtn:SetScript("OnClick", function()
+        if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+        journalSelf:SetArmoryPopupFilter("all")
+    end)
+
+    allBtn:Show()
+    table.insert(popup.activeFilterBtns, allBtn)
+    xOffset = xOffset + 58
+
+    -- Create buttons for each source type
+    local sortedTypes = {}
+    for st in pairs(sourceTypes) do
+        table.insert(sortedTypes, st)
+    end
+    table.sort(sortedTypes, function(a, b)
+        local orderA = C.SOURCE_GROUPS[a] and C.SOURCE_GROUPS[a].order or 99
+        local orderB = C.SOURCE_GROUPS[b] and C.SOURCE_GROUPS[b].order or 99
+        return orderA < orderB
+    end)
+
+    for _, sourceType in ipairs(sortedTypes) do
+        local groupInfo = C.SOURCE_GROUPS[sourceType]
+        if groupInfo then
+            local btn = self.armoryPools.filterBtn:Acquire()
+            btn:SetParent(popup.filterBar)
+            btn:ClearAllPoints()
+            btn:SetPoint("LEFT", popup.filterBar, "LEFT", xOffset, 0)
+
+            -- Shorter label for space
+            local label = groupInfo.label:gsub(" Dungeon", ""):gsub(" Drops", ""):gsub(" Rewards", "")
+            btn:SetWidth(math.max(btn.text:GetStringWidth() + 16, 60))
+            btn.text:SetText(label)
+            btn.filterKey = sourceType
+            btn.isActive = (activeFilter == sourceType)
+
+            if btn.isActive then
+                btn:SetBackdropBorderColor(0.3, 0.8, 0.3)
+                btn.activeIndicator:Show()
+            else
+                btn:SetBackdropBorderColor(0.5, 0.5, 0.5)
+                btn.activeIndicator:Hide()
+            end
+
+            btn:SetScript("OnClick", function()
+                if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+                journalSelf:SetArmoryPopupFilter(sourceType)
+            end)
+
+            btn:Show()
+            table.insert(popup.activeFilterBtns, btn)
+            xOffset = xOffset + btn:GetWidth() + 4
+        end
+    end
+end
+
+--[[
+    Set the active filter and refresh the popup
+]]
+function Journal:SetArmoryPopupFilter(filterKey)
+    self.armoryState.popup.activeFilter = filterKey
+
+    -- Refresh the popup content
+    local lastSlot = self.armoryState.popup.lastSlot
+    if lastSlot then
+        self:PopulateArmoryGearPopup(lastSlot)
+    end
+end
+
+--[[
+    Create a collapsible group header for a source type
+]]
+function Journal:CreateArmoryGroupHeader(parent, groupKey, itemCount, yOffset)
+    local C = HopeAddon.Constants.ARMORY_GEAR_POPUP
+    local journalSelf = self
+
+    local header = self.armoryPools.groupHeader:Acquire()
+    header:SetParent(parent)
+    header:ClearAllPoints()
+    header:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, yOffset)
+    header:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, yOffset)
+
+    -- Get group info
+    local groupInfo = C.SOURCE_GROUPS[groupKey] or { label = groupKey, color = "GOLD_BRIGHT", icon = "Interface\\ICONS\\INV_Misc_QuestionMark" }
+
+    -- Check expanded state
+    local isExpanded = self.armoryState.popup.expandedGroups[groupKey]
+    if isExpanded == nil then isExpanded = true end  -- Default expanded
+    header.isExpanded = isExpanded
+    header.groupKey = groupKey
+
+    -- Set expand/collapse icon
+    if isExpanded then
+        header.expandIcon:SetTexture(C.GROUP_HEADER.COLLAPSE_ICON)
+    else
+        header.expandIcon:SetTexture(C.GROUP_HEADER.EXPAND_ICON)
+    end
+
+    -- Set source icon
+    header.sourceIcon:SetTexture(groupInfo.icon)
+
+    -- Set label with color
+    local color = HopeAddon.colors[groupInfo.color] or HopeAddon.colors.GOLD_BRIGHT
+    header.labelText:SetText(groupInfo.label)
+    header.labelText:SetTextColor(color.r, color.g, color.b)
+
+    -- Set count
+    header.countText:SetText("(" .. itemCount .. ")")
+
+    -- Click to toggle expand/collapse
+    header:SetScript("OnClick", function()
+        if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+        journalSelf.armoryState.popup.expandedGroups[groupKey] = not isExpanded
+        -- Refresh popup
+        local lastSlot = journalSelf.armoryState.popup.lastSlot
+        if lastSlot then
+            journalSelf:PopulateArmoryGearPopup(lastSlot)
+        end
+    end)
+
+    header:Show()
+    return header
+end
+
+--[[
+    Create a compact item row for the alternatives list (uses pool)
+]]
+function Journal:CreateArmoryPopupItemRow(parent, itemData, yOffset)
+    local C = HopeAddon.Constants.ARMORY_GEAR_POPUP
+    local journalSelf = self
+
+    local row = self.armoryPools.popupItemRow:Acquire()
+    row:SetParent(parent)
+    row:ClearAllPoints()
+    row:SetPoint("TOPLEFT", parent, "TOPLEFT", 10, yOffset)
+    row:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, yOffset)
+
+    -- Store item data
+    row.itemData = itemData
+    row.itemId = itemData.id or itemData.itemId or 0
+
+    -- Set icon
+    local itemId = row.itemId
+    if itemId and itemId > 0 then
+        GetItemInfo(itemId)  -- Queue for cache
+        local _, _, _, _, _, _, _, _, _, itemTexture = GetItemInfo(itemId)
+        if itemTexture then
+            row.icon:SetTexture(itemTexture)
+        elseif itemData.icon then
+            local iconPath = itemData.icon
+            if not iconPath:find("Interface") then
+                iconPath = "Interface\\ICONS\\" .. iconPath
+            end
+            row.icon:SetTexture(iconPath)
+        else
+            row.icon:SetTexture("Interface\\ICONS\\INV_Misc_QuestionMark")
+        end
+    end
+
+    -- Set icon border color based on quality
+    local qualityColors = HopeAddon.Constants.ARMORY_QUALITY_COLORS
+    local qualityColor = qualityColors[itemData.quality or "rare"] or qualityColors.rare
+    row.iconBorder:SetVertexColor(qualityColor.r, qualityColor.g, qualityColor.b)
+
+    -- Set name with quality color
+    row.nameText:SetText(itemData.name or "Unknown Item")
+    row.nameText:SetTextColor(qualityColor.r, qualityColor.g, qualityColor.b)
+
+    -- Set source
+    local sourceText = itemData.source or "Unknown"
+    if itemData.sourceDetail then
+        sourceText = sourceText .. " - " .. itemData.sourceDetail
+    end
+    row.sourceText:SetText(sourceText)
+
+    -- Set iLevel
+    row.iLevelText:SetText(itemData.iLvl and ("iLvl " .. itemData.iLvl) or "")
+
+    -- Click to preview
+    row:SetScript("OnClick", function()
+        if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+        journalSelf:PreviewItemOnModel(itemData)
+    end)
+
+    -- Tooltip on hover
+    row:SetScript("OnEnter", function(self)
+        self.highlight:SetColorTexture(0.3, 0.3, 0.3, 0.3)
+        if HopeAddon.Sounds then HopeAddon.Sounds:PlayHover() end
+        journalSelf:BuildArmoryGearTooltip(self.itemData, self)
+    end)
+    row:SetScript("OnLeave", function(self)
+        self.highlight:SetColorTexture(0.3, 0.3, 0.3, 0)
+        GameTooltip:Hide()
+    end)
+
+    row:Show()
+    return row
+end
+
+--[[
+    Create a single item row in the gear popup
+    Enhanced with hover highlight, full item tooltip, and Preview button
+]]
+function Journal:CreateArmoryGearPopupItemRow(parent, itemData, isBis, yOffset)
+    local C = HopeAddon.Constants.ARMORY_GEAR_POPUP
+    local journalSelf = self  -- Capture for closures
+
+    local row = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    row:SetHeight(C.ITEM_HEIGHT)
+    row:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, yOffset)
+    row:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, yOffset)
+
+    -- Store full item data for enhanced tooltip
+    row.itemData = itemData
+    row.itemId = itemData.id or itemData.itemId or 0
+    row.itemName = itemData.name or "Unknown"
+    row.itemSource = itemData.source or ""
+    row.itemSourceType = itemData.sourceType or "unknown"
+
+    -- Background
+    row:SetBackdrop({
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 8,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    })
+
+    local normalBg, normalBorder
+    if isBis then
+        normalBg = { r = 0.15, g = 0.12, b = 0.05, a = 0.95 }
+        normalBorder = { r = 1, g = 0.84, b = 0, a = 1 }  -- Gold border for BiS
+    else
+        normalBg = { r = 0.1, g = 0.1, b = 0.1, a = 0.95 }
+        normalBorder = { r = 0.4, g = 0.4, b = 0.4, a = 1 }
+    end
+    row:SetBackdropColor(normalBg.r, normalBg.g, normalBg.b, normalBg.a)
+    row:SetBackdropBorderColor(normalBorder.r, normalBorder.g, normalBorder.b, normalBorder.a)
+    row.normalBg = normalBg
+    row.normalBorder = normalBorder
+
+    -- Highlight overlay (shown on hover)
+    local highlight = row:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetAllPoints()
+    highlight:SetTexture("Interface\\Buttons\\ButtonHilight-Square")
+    highlight:SetBlendMode("ADD")
+    highlight:SetAlpha(0.3)
+    row.highlight = highlight
+
+    -- Icon
+    local icon = row:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(C.ITEM.ICON_SIZE, C.ITEM.ICON_SIZE)
+    icon:SetPoint("LEFT", row, "LEFT", 8, 0)
+    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+    -- Try to get icon from item ID first, fall back to provided icon
+    local itemId = itemData.id or itemData.itemId
+    if itemId and itemId > 0 then
+        -- Request item info FIRST to queue for cache
+        GetItemInfo(itemId)
+        -- Now try to get the texture (may be cached now or from previous request)
+        local _, _, _, _, _, _, _, _, _, itemTexture = GetItemInfo(itemId)
+        if itemTexture then
+            icon:SetTexture(itemTexture)
+        elseif itemData.icon then
+            local iconPath = itemData.icon
+            if not iconPath:find("Interface") then
+                iconPath = "Interface\\ICONS\\" .. iconPath
+            end
+            icon:SetTexture(iconPath)
+        else
+            icon:SetTexture("Interface\\ICONS\\INV_Misc_QuestionMark")
+        end
+    elseif itemData.icon then
+        local iconPath = itemData.icon
+        if not iconPath:find("Interface") then
+            iconPath = "Interface\\ICONS\\" .. iconPath
+        end
+        icon:SetTexture(iconPath)
+    else
+        icon:SetTexture("Interface\\ICONS\\INV_Misc_QuestionMark")
+    end
+    row.icon = icon
+
+    -- BiS star indicator
+    if isBis then
+        local star = row:CreateTexture(nil, "OVERLAY")
+        star:SetSize(C.ITEM.BIS_INDICATOR_SIZE, C.ITEM.BIS_INDICATOR_SIZE)
+        star:SetPoint("TOPLEFT", icon, "TOPLEFT", -4, 4)
+        star:SetTexture("Interface\\RAIDFRAME\\ReadyCheck-Ready")
+        star:SetVertexColor(C.ITEM.BIS_COLOR.r, C.ITEM.BIS_COLOR.g, C.ITEM.BIS_COLOR.b)
+        row.star = star
+    end
+
+    -- Item name (quality colored) - adjust width to leave room for preview button
+    local name = row:CreateFontString(nil, "OVERLAY", C.ITEM.NAME_FONT)
+    name:SetPoint("TOPLEFT", icon, "TOPRIGHT", 8, -2)
+    name:SetPoint("RIGHT", row, "RIGHT", -70, 0)  -- Leave room for preview button
+    name:SetJustifyH("LEFT")
+    name:SetText(itemData.name or "Unknown Item")
+
+    -- Apply quality color
+    local qualityColors = HopeAddon.Constants.ARMORY_QUALITY_COLORS
+    local qualityColor = qualityColors[itemData.quality or "rare"] or qualityColors.rare
+    name:SetTextColor(qualityColor.r, qualityColor.g, qualityColor.b, 1)
+    row.name = name
+
+    -- Item level and stats
+    local stats = row:CreateFontString(nil, "OVERLAY", C.ITEM.ILEVEL_FONT)
+    stats:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -2)
+    stats:SetPoint("RIGHT", row, "RIGHT", -70, 0)
+    stats:SetJustifyH("LEFT")
+    local iLvlText = itemData.iLvl and ("iLvl " .. itemData.iLvl) or ""
+    local statsText = itemData.stats or ""
+    stats:SetText(iLvlText .. (iLvlText ~= "" and " - " or "") .. statsText)
+    stats:SetTextColor(0.7, 0.7, 0.7, 1)
+    row.stats = stats
+
+    -- Source info
+    local source = row:CreateFontString(nil, "OVERLAY", C.ITEM.SOURCE_FONT)
+    source:SetPoint("TOPLEFT", stats, "BOTTOMLEFT", 0, -2)
+    source:SetPoint("RIGHT", row, "RIGHT", -70, 0)
+    source:SetJustifyH("LEFT")
+    local sourceText = itemData.source or "Unknown Source"
+    if itemData.sourceDetail then
+        sourceText = sourceText .. " - " .. itemData.sourceDetail
+    end
+    source:SetText(sourceText)
+
+    -- Source color based on type - use new ARMORY_SOURCE_COLORS
+    local sourceColors = HopeAddon.Constants.ARMORY_SOURCE_COLORS
+    local sourceColor = sourceColors[itemData.sourceType or "raid"]
+    if sourceColor then
+        source:SetTextColor(sourceColor.r, sourceColor.g, sourceColor.b, 1)
+    else
+        source:SetTextColor(0.6, 0.6, 0.6, 1)
+    end
+    row.source = source
+
+    -- Preview button (right side of item row)
+    local previewBtn = CreateFrame("Button", nil, row, "BackdropTemplate")
+    previewBtn:SetSize(55, 20)
+    previewBtn:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+
+    -- Button backdrop
+    previewBtn:SetBackdrop({
+        bgFile = "Interface\\BUTTONS\\WHITE8X8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 8,
+        insets = { left = 1, right = 1, top = 1, bottom = 1 },
+    })
+    previewBtn:SetBackdropColor(0.15, 0.15, 0.15, 0.9)
+    previewBtn:SetBackdropBorderColor(0.5, 0.5, 0.5, 1)
+
+    -- Button text
+    local btnText = previewBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    btnText:SetPoint("CENTER")
+    btnText:SetText("Preview")
+    btnText:SetTextColor(0.9, 0.9, 0.9, 1)
+    previewBtn.text = btnText
+
+    -- Preview button hover effects
+    previewBtn:SetScript("OnEnter", function(self)
+        self:SetBackdropColor(0.25, 0.25, 0.25, 1)
+        self:SetBackdropBorderColor(0.8, 0.7, 0.2, 1)
+        self.text:SetTextColor(1, 1, 1, 1)
+    end)
+
+    previewBtn:SetScript("OnLeave", function(self)
+        self:SetBackdropColor(0.15, 0.15, 0.15, 0.9)
+        self:SetBackdropBorderColor(0.5, 0.5, 0.5, 1)
+        self.text:SetTextColor(0.9, 0.9, 0.9, 1)
+    end)
+
+    -- Preview button click handler: preview item on model
+    -- Note: Use self (Journal) from closure, not global Journal reference
+    previewBtn:SetScript("OnClick", function()
+        local modelFrame = self.armoryUI and self.armoryUI.modelFrame
+        local itemIdToPreview = row.itemId
+
+        if modelFrame and itemIdToPreview and itemIdToPreview > 0 then
+            local itemLink = select(2, GetItemInfo(itemIdToPreview))
+            if itemLink then
+                modelFrame:TryOn(itemLink)
+                if HopeAddon.Sounds and HopeAddon.Sounds.PlayClick then
+                    HopeAddon.Sounds:PlayClick()
+                end
+            else
+                -- Item not cached yet, request it
+                GetItemInfo(itemIdToPreview)
+                HopeAddon:Print("Item not cached. Click again to preview.")
+            end
+        end
+    end)
+
+    row.previewBtn = previewBtn
+
+    -- Row hover tooltip (enhanced item tooltip via BuildArmoryGearTooltip)
+    row:EnableMouse(true)
+    row:SetScript("OnEnter", function(self)
+        -- Brighten on hover
+        self:SetBackdropColor(
+            self.normalBg.r * 1.3,
+            self.normalBg.g * 1.3,
+            self.normalBg.b * 1.3,
+            self.normalBg.a
+        )
+
+        -- Sound effect
+        if HopeAddon.Sounds then
+            HopeAddon.Sounds:PlayHover()
+        end
+
+        -- Show enhanced tooltip with drop info, tips, etc.
+        journalSelf:BuildArmoryGearTooltip(self.itemData, self)
+    end)
+
+    row:SetScript("OnLeave", function(self)
+        -- Restore normal colors (with nil safety)
+        if self and self.normalBg then
+            self:SetBackdropColor(self.normalBg.r, self.normalBg.g, self.normalBg.b, self.normalBg.a)
+        end
+
+        -- Hide tooltip
+        GameTooltip:Hide()
+    end)
+
+    -- Row click (entire row) also previews item
+    row:SetScript("OnClick", function(self)
+        if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+        Journal:PreviewItemOnModel(itemData)
+    end)
+
+    row:Show()
+    return row
+end
+
+--[[
+    Preview an item on the character model
+]]
+function Journal:PreviewItemOnModel(itemData)
+    local modelFrame = self.armoryUI.modelFrame
+    if not modelFrame then return end
+
+    -- Handle both itemId and id fields
+    local itemId = itemData and (itemData.itemId or itemData.id)
+    if not itemId then return end
+
+    -- Try to dress the model with this item
+    -- Note: DressUpModel:TryOn() may not work in TBC Classic for all items
+    local itemLink = "item:" .. itemId
+    if modelFrame.TryOn then
+        modelFrame:TryOn(itemLink)
+    end
+end
+
+--[[
+    Try on the full BiS set for all slots (Phase 60)
+    Iterates through all equipment slots and tries on each BiS item
+]]
+function Journal:TryOnBisSet()
+    local modelFrame = self.armoryUI.modelFrame
+    if not modelFrame or not modelFrame.TryOn then
+        HopeAddon:Print("Model frame not available for try-on.")
+        return
+    end
+
+    local phase = self.armoryState.selectedPhase or 1
+    local CC = HopeAddon.Constants
+
+    -- Get all slot names
+    local slots = { "head", "neck", "shoulders", "back", "chest", "wrist", "hands", "waist", "legs", "feet", "ring1", "ring2", "trinket1", "trinket2", "mainhand", "offhand", "ranged" }
+
+    local triedOnCount = 0
+
+    for _, slotName in ipairs(slots) do
+        -- Skip hidden slots
+        if not CC.ARMORY_HIDDEN_SLOTS[slotName] then
+            local gearData = self:GetArmoryGearData(slotName)
+            if gearData and gearData.best then
+                local itemId = gearData.best.itemId or gearData.best.id
+                if itemId then
+                    local itemLink = "item:" .. itemId
+                    modelFrame:TryOn(itemLink)
+                    triedOnCount = triedOnCount + 1
+                end
+            end
+        end
+    end
+
+    if triedOnCount > 0 then
+        HopeAddon:Print("Trying on " .. triedOnCount .. " BiS items for Phase " .. phase .. ".")
+    else
+        HopeAddon:Print("No BiS items available for Phase " .. phase .. ".")
+    end
+end
+
+--[[
+    Reset the model to show currently equipped gear (Phase 60)
+]]
+function Journal:ResetModelToEquipped()
+    local modelFrame = self.armoryUI.modelFrame
+    if not modelFrame then
+        HopeAddon:Print("Model frame not available.")
+        return
+    end
+
+    -- DressUpModel has Undress() method to remove all previewed items
+    if modelFrame.Undress then
+        modelFrame:Undress()
+        HopeAddon:Print("Model reset to current equipment.")
+    elseif modelFrame.RefreshUnit then
+        -- Alternative: refresh from player unit
+        modelFrame:RefreshUnit()
+        HopeAddon:Print("Model refreshed.")
+    else
+        -- Fallback: SetUnit to re-dress from player
+        if modelFrame.SetUnit then
+            modelFrame:SetUnit("player")
+        end
+        HopeAddon:Print("Model reset.")
+    end
+end
+
+--[[
+    Register click-away handler to dismiss popup
+]]
+function Journal:RegisterArmoryClickAwayHandler()
+    -- Create a frame that catches clicks outside the popup
+    -- Parent to characterView so it only covers the armory area (not fullscreen)
+    local characterView = self.armoryUI.characterView
+    if not characterView then return end
+
+    if not self.armoryClickAwayFrame then
+        local frame = CreateFrame("Button", "HopeArmoryClickAway", characterView)
+        frame:SetAllPoints(characterView)
+        frame:SetFrameStrata("MEDIUM")
+        frame:EnableMouse(true)
+        frame:RegisterForClicks("AnyUp")
+        frame:SetScript("OnClick", function()
+            self:HideArmoryGearPopup()
+            -- Also deselect the slot
+            if self.armoryState.selectedSlot then
+                local btn = self.armoryUI.slotButtons[self.armoryState.selectedSlot]
+                if btn then
+                    btn.isSelected = false
+                    self:UpdateArmorySlotVisual(btn)
+                end
+                self.armoryState.selectedSlot = nil
+            end
+        end)
+        self.armoryClickAwayFrame = frame
+    else
+        -- Re-parent if characterView changed
+        self.armoryClickAwayFrame:SetParent(characterView)
+        self.armoryClickAwayFrame:SetAllPoints(characterView)
+    end
+
+    -- Frame level: above model frame but below slots container
+    -- characterView level + 5 (model is at characterView level, slots are at +10)
+    self.armoryClickAwayFrame:SetFrameLevel(characterView:GetFrameLevel() + 5)
+    self.armoryClickAwayFrame:Show()
+end
+
+--[[
+    Unregister click-away handler
+]]
+function Journal:UnregisterArmoryClickAwayHandler()
+    if self.armoryClickAwayFrame then
+        self.armoryClickAwayFrame:Hide()
+    end
+end
+
+function Journal:SelectArmoryPhase(phase)
+    self.armoryState.selectedPhase = phase
+
+    -- Update phase button visuals
+    for p, btn in pairs(self.armoryUI.phaseButtons) do
+        local state = (p == phase) and "active" or "inactive"
+        self:SetPhaseButtonState(btn, state)
+    end
+
+    -- Refresh slot indicators to reflect new phase
+    self:RefreshArmorySlotData()
+
+    -- Refresh popup if visible
+    if self.armoryState.popupVisible and self.armoryState.selectedSlot then
+        self:ShowArmoryGearPopup(self.armoryState.selectedSlot, self.armoryUI.slotButtons[self.armoryState.selectedSlot])
     end
 
     -- Save preference
-    HopeAddon.charDb.armory.selectedTier = tier
+    if HopeAddon.charDb then
+        HopeAddon.charDb.armory = HopeAddon.charDb.armory or {}
+        HopeAddon.charDb.armory.selectedPhase = phase
+    end
 end
 
 function Journal:ToggleArmorySection(sectionId)
@@ -10497,7 +12848,10 @@ function Journal:ToggleArmoryWishlist(itemData)
     end
 
     -- Save to character data
-    HopeAddon.charDb.armory.wishlist = self.armoryState.wishlist
+    if HopeAddon.charDb then
+        HopeAddon.charDb.armory = HopeAddon.charDb.armory or {}
+        HopeAddon.charDb.armory.wishlist = self.armoryState.wishlist
+    end
 
     -- Update visuals
     self:RefreshArmorySlotData()

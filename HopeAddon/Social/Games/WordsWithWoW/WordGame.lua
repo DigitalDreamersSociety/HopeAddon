@@ -294,8 +294,9 @@ function WordGame:OnEnd(gameId, reason)
     end
 
     -- Determine winner by score
-    local p1Score = state.scores[game.player1] or 0
-    local p2Score = state.scores[game.player2] or 0
+    local scores = state.scores or {}
+    local p1Score = scores[game.player1] or 0
+    local p2Score = scores[game.player2] or 0
 
     if p1Score > p2Score then
         game.winner = game.player1
@@ -1628,6 +1629,7 @@ function WordGame:ShowUI(gameId)
 
             -- Handle mouse up (drop tile here)
             tile:SetScript("OnMouseUp", function(self, button)
+                HopeAddon:Debug("BoardTile OnMouseUp: button=" .. tostring(button) .. ", row=" .. tostring(self.row) .. ", col=" .. tostring(self.col) .. ", isDragging=" .. tostring(WordGame.dragState.isDragging))
                 if button == "LeftButton" then
                     if WordGame.dragState.isDragging then
                         -- Drop the dragged tile here
@@ -2816,6 +2818,7 @@ function WordGame:StartDrag(gameId, rackIndex)
     self.dragState.sourceIndex = rackIndex
     self.dragState.letter = letter
     self.dragState.sourceTile = ui.rackTiles[rackIndex]
+    HopeAddon:Debug("StartDrag: letter=" .. letter .. ", rackIndex=" .. rackIndex .. ", gameId=" .. tostring(gameId))
 
     -- Create and show drag tile
     local dragTile = self:CreateDragTile()
@@ -3043,7 +3046,10 @@ function WordGame:EndDrag(targetRow, targetCol)
     end
 
     -- Check if valid drop
-    if targetRow and targetCol and self:IsValidDropTarget(targetRow, targetCol) then
+    local isValid = targetRow and targetCol and self:IsValidDropTarget(targetRow, targetCol)
+    HopeAddon:Debug("EndDrag: targetRow=" .. tostring(targetRow) .. ", targetCol=" .. tostring(targetCol) .. ", isValid=" .. tostring(isValid) .. ", letter=" .. tostring(self.dragState.letter))
+
+    if isValid then
         -- Add to pending placements
         self:AddPendingTile(gameId, targetRow, targetCol, self.dragState.letter, self.dragState.sourceIndex)
 
@@ -3053,6 +3059,7 @@ function WordGame:EndDrag(targetRow, targetCol)
         end
     else
         -- Invalid drop or cancelled - play error sound
+        HopeAddon:Debug("EndDrag: Invalid drop at " .. tostring(targetRow) .. "," .. tostring(targetCol))
         if targetRow and targetCol and HopeAddon.Sounds then
             HopeAddon.Sounds:PlayError()
         end
@@ -3106,6 +3113,7 @@ function WordGame:AddPendingTile(gameId, row, col, letter, rackIndex)
         letter = letter,
         rackIndex = rackIndex,
     })
+    HopeAddon:Debug("AddPendingTile: Added " .. tostring(letter) .. " at (" .. row .. "," .. col .. "), total pending: " .. #pending)
 
     -- Detect direction after second tile
     if #pending == 2 then
@@ -3189,25 +3197,44 @@ function WordGame:UpdatePendingTilesDisplay(gameId)
     if not game or not game.data or not game.data.ui then return end
 
     local ui = game.data.ui
+    if not ui.tileFrames then return end
+
     local C = HopeAddon.Constants
     local pendingColor = C.WORDS_DRAG_COLORS.PENDING_TILE
     local pendingBorder = C.WORDS_DRAG_COLORS.PENDING_BORDER
     local tileColors = C.WORDS_TILE_COLORS
-    local letterValues = self.WordDictionary.LETTER_VALUES
+    local letterValues = self.WordDictionary and self.WordDictionary.LETTER_VALUES or {}
 
-    -- First, reset all board tiles to normal state
+    -- First, reset all board tiles to normal state and clear isPending flag
+    for row = 1, self.BOARD_SIZE do
+        if ui.tileFrames[row] then
+            for col = 1, self.BOARD_SIZE do
+                local tile = ui.tileFrames[row][col]
+                if tile then
+                    tile.isPending = false
+                    tile.pendingLetter = nil
+                    tile.pendingRackIndex = nil
+                end
+            end
+        end
+    end
+
+    -- Update board visuals
     self:UpdateBoardTiles(gameId)
 
     -- Then overlay pending tiles
+    HopeAddon:Debug("UpdatePendingTilesDisplay: Processing " .. #self.dragState.pendingPlacements .. " pending tiles")
     for _, pending in ipairs(self.dragState.pendingPlacements) do
         local tile = ui.tileFrames[pending.row] and ui.tileFrames[pending.row][pending.col]
         if tile then
+            HopeAddon:Debug("UpdatePendingTilesDisplay: Showing " .. pending.letter .. " at (" .. pending.row .. "," .. pending.col .. ")")
             -- Show as pending tile
             tile.letter:SetText(pending.letter)
             tile.letter:SetTextColor(tileColors.LETTER.r, tileColors.LETTER.g, tileColors.LETTER.b)
             tile.letter:Show()
 
-            tile.points:SetText(tostring(letterValues[pending.letter] or 0))
+            local pointValue = letterValues[pending.letter] or 0
+            tile.points:SetText(tostring(pointValue))
             tile.points:SetTextColor(tileColors.POINTS.r, tileColors.POINTS.g, tileColors.POINTS.b)
             tile.points:Show()
 
@@ -3221,6 +3248,8 @@ function WordGame:UpdatePendingTilesDisplay(gameId)
             tile.isPending = true
             tile.pendingLetter = pending.letter
             tile.pendingRackIndex = pending.rackIndex
+        else
+            HopeAddon:Debug("UpdatePendingTilesDisplay: No tile found at (" .. pending.row .. "," .. pending.col .. ")")
         end
     end
 end

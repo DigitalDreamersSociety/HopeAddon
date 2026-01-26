@@ -1375,8 +1375,8 @@ function ActivityFeed:ShowLootSharePrompt(prompt)
     frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
 
     -- Apply backdrop
-    if HopeAddon.CreateBackdropFrame then
-        HopeAddon:CreateBackdropFrame(frame, "DARK_GOLD")
+    if HopeAddon.Components and HopeAddon.Components.ApplyBackdrop then
+        HopeAddon.Components:ApplyBackdrop(frame, "DARK_GOLD", "DARK_SOLID", "GOLD")
     else
         frame:SetBackdrop({
             bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",

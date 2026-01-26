@@ -4031,9 +4031,78 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 1: Arms (Melee DPS)
         [1] = {
             rep = {
-                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8 },
-                { itemId = 29152, name = "Marksman's Bow", icon = "INV_Weapon_Bow_18", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Honor Hold @ Revered", sourceType = "rep", faction = "Honor Hold", standing = 7 },
-                { itemId = 29187, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "Thrallmar @ Exalted", sourceType = "rep", faction = "Thrallmar", standing = 8 },
+                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8,
+                    hoverData = {
+                        repSources = {
+                            "Mana-Tombs (Normal: 5-10, Heroic: 15-25 rep/kill)",
+                            "Turn in Oshu'gun Crystal Powder Samples (250 rep/10)",
+                            "Consortium quests in Nagrand and Netherstorm",
+                        },
+                        statPriority = {
+                            "Best pre-raid DPS neck for physical damage",
+                            "+22 Hit Rating helps reach melee hit cap (9%)",
+                            "Agility provides crit and dodge",
+                        },
+                        tips = {
+                            "Farm Oshu'gun Powder from Nagrand ogres/ethereals",
+                            "Mana-Tombs Heroic is fastest once keyed",
+                            "Buy from Karaaz in Stormspire (Netherstorm)",
+                        },
+                        alternatives = {
+                            "Natasha's Ember Necklace (Nagrand quest)",
+                            "Necklace of the Deep (Fishing)",
+                            "Worgen Claw Necklace (H Underbog)",
+                        },
+                    },
+                },
+                { itemId = 29152, name = "Marksman's Bow", icon = "INV_Weapon_Bow_18", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Honor Hold @ Revered", sourceType = "rep", faction = "Honor Hold", standing = 7,
+                    hoverData = {
+                        repSources = {
+                            "Hellfire Ramparts/Blood Furnace (10 rep/kill)",
+                            "Shattered Halls (15-25 rep/kill)",
+                            "Hellfire Peninsula quests (~10k rep total)",
+                        },
+                        statPriority = {
+                            "Best ranged slot for melee - stat stick",
+                            "+16 Hit is huge for reaching hit cap",
+                            "Better than Nerubian Slavemaker until Kara",
+                        },
+                        tips = {
+                            "Should reach Revered just from questing",
+                            "If short, run Shattered Halls (fastest)",
+                            "Buy from Logistics Officer Ulrike in Honor Hold",
+                        },
+                        alternatives = {
+                            "Nerubian Slavemaker (Naxx - if you have it)",
+                            "Emberhawk Crossbow (H OHB)",
+                            "Melmorta's Twilight Longbow (H BM)",
+                        },
+                    },
+                },
+                { itemId = 29187, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "Thrallmar @ Exalted", sourceType = "rep", faction = "Thrallmar", standing = 8,
+                    hoverData = {
+                        repSources = {
+                            "Hellfire Ramparts/Blood Furnace (10 rep/kill)",
+                            "Shattered Halls (15-25 rep/kill, best rep/hour)",
+                            "Hellfire Peninsula quests (Horde only)",
+                        },
+                        statPriority = {
+                            "BiS trinket for physical DPS until T5",
+                            "+72 AP passive + 278 AP on-use burst",
+                            "20 sec duration, 2 min cooldown",
+                        },
+                        tips = {
+                            "Shattered Halls spam is fastest to Exalted",
+                            "Grind this early - used through T5",
+                            "Buy from Quartermaster Urgronn in Thrallmar",
+                        },
+                        alternatives = {
+                            "Abacus of Violent Odds (H Mech)",
+                            "Hourglass of the Unraveller (H BM)",
+                            "Core of Ar'kelos (Netherstorm quest)",
+                        },
+                    },
+                },
             },
             drops = {
                 { itemId = 28776, name = "Liar's Tongue Gloves", icon = "INV_Gauntlets_25", quality = "epic", slot = "Hands", stats = "+32 Agi, +32 Sta, +24 Hit", source = "Magtheridon's Lair", sourceType = "drops" },
@@ -4049,9 +4118,78 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 2: Fury (Melee DPS)
         [2] = {
             rep = {
-                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8 },
-                { itemId = 29152, name = "Marksman's Bow", icon = "INV_Weapon_Bow_18", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Honor Hold @ Revered", sourceType = "rep", faction = "Honor Hold", standing = 7 },
-                { itemId = 29187, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "Thrallmar @ Exalted", sourceType = "rep", faction = "Thrallmar", standing = 8 },
+                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8,
+                    hoverData = {
+                        repSources = {
+                            "Mana-Tombs (Normal: 5-10, Heroic: 15-25 rep/kill)",
+                            "Turn in Oshu'gun Crystal Powder Samples (250 rep/10)",
+                            "Consortium quests in Nagrand and Netherstorm",
+                        },
+                        statPriority = {
+                            "Best pre-raid DPS neck for physical damage",
+                            "+22 Hit Rating helps reach melee hit cap (9%)",
+                            "Agility provides crit and dodge",
+                        },
+                        tips = {
+                            "Farm Oshu'gun Powder from Nagrand ogres/ethereals",
+                            "Mana-Tombs Heroic is fastest once keyed",
+                            "Buy from Karaaz in Stormspire (Netherstorm)",
+                        },
+                        alternatives = {
+                            "Natasha's Ember Necklace (Nagrand quest)",
+                            "Necklace of the Deep (Fishing)",
+                            "Worgen Claw Necklace (H Underbog)",
+                        },
+                    },
+                },
+                { itemId = 29152, name = "Marksman's Bow", icon = "INV_Weapon_Bow_18", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Honor Hold @ Revered", sourceType = "rep", faction = "Honor Hold", standing = 7,
+                    hoverData = {
+                        repSources = {
+                            "Hellfire Ramparts/Blood Furnace (10 rep/kill)",
+                            "Shattered Halls (15-25 rep/kill)",
+                            "Hellfire Peninsula quests (~10k rep total)",
+                        },
+                        statPriority = {
+                            "Best ranged slot for melee - stat stick",
+                            "+16 Hit is huge for reaching hit cap",
+                            "Better than Nerubian Slavemaker until Kara",
+                        },
+                        tips = {
+                            "Should reach Revered just from questing",
+                            "If short, run Shattered Halls (fastest)",
+                            "Buy from Logistics Officer Ulrike in Honor Hold",
+                        },
+                        alternatives = {
+                            "Nerubian Slavemaker (Naxx - if you have it)",
+                            "Emberhawk Crossbow (H OHB)",
+                            "Melmorta's Twilight Longbow (H BM)",
+                        },
+                    },
+                },
+                { itemId = 29187, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "Thrallmar @ Exalted", sourceType = "rep", faction = "Thrallmar", standing = 8,
+                    hoverData = {
+                        repSources = {
+                            "Hellfire Ramparts/Blood Furnace (10 rep/kill)",
+                            "Shattered Halls (15-25 rep/kill, best rep/hour)",
+                            "Hellfire Peninsula quests (Horde only)",
+                        },
+                        statPriority = {
+                            "BiS trinket for physical DPS until T5",
+                            "+72 AP passive + 278 AP on-use burst",
+                            "20 sec duration, 2 min cooldown",
+                        },
+                        tips = {
+                            "Shattered Halls spam is fastest to Exalted",
+                            "Grind this early - used through T5",
+                            "Buy from Quartermaster Urgronn in Thrallmar",
+                        },
+                        alternatives = {
+                            "Abacus of Violent Odds (H Mech)",
+                            "Hourglass of the Unraveller (H BM)",
+                            "Core of Ar'kelos (Netherstorm quest)",
+                        },
+                    },
+                },
             },
             drops = {
                 { itemId = 27538, name = "Greaves of Desolation", icon = "INV_Pants_Plate_10", quality = "epic", slot = "Legs", stats = "+38 Str, +27 Agi, +37 Sta", source = "Heroic Black Morass", sourceType = "drops" },
@@ -4067,9 +4205,101 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 3: Protection (Tank)
         [3] = {
             rep = {
-                { itemId = 29167, name = "Bladespire Warbands", icon = "INV_Bracer_16", quality = "epic", slot = "Wrist", stats = "+33 Sta, +21 Def Rating", source = "Keepers of Time @ Exalted", sourceType = "rep", faction = "Keepers of Time", standing = 8 },
-                { itemId = 29151, name = "Veteran's Plate Belt", icon = "INV_Belt_03", quality = "epic", slot = "Waist", stats = "+40 Sta, +23 Def, +22 Block", source = "Honor Hold @ Exalted", sourceType = "rep", faction = "Honor Hold", standing = 8 },
-                { itemId = 29177, name = "Consortium Plated Legguards", icon = "INV_Pants_Plate_05", quality = "epic", slot = "Legs", stats = "+48 Sta, +27 Def", source = "The Consortium @ Revered", sourceType = "rep", faction = "The Consortium", standing = 7 },
+                { itemId = 29167, name = "Bladespire Warbands", icon = "INV_Bracer_16", quality = "epic", slot = "Wrist", stats = "+33 Sta, +21 Def Rating", source = "Keepers of Time @ Exalted", sourceType = "rep", faction = "Keepers of Time", standing = 8,
+                    hoverData = {
+                        repSources = {
+                            "Old Hillsbrad Foothills (8 rep/kill)",
+                            "Black Morass (8 Normal, 25 Heroic rep/kill)",
+                            "Caverns of Time attunement questline",
+                        },
+                        statPriority = {
+                            "Best pre-raid tank bracers",
+                            "+21 Defense helps reach 490 cap",
+                            "+33 Stamina for effective health",
+                        },
+                        tips = {
+                            "Black Morass Heroic is fastest at 70",
+                            "Complete attunement first (required for Heroic)",
+                            "Buy from Alurmi in Caverns of Time",
+                        },
+                        alternatives = {
+                            "Bracers of Dignity (H Mechanar)",
+                            "Bracers of the Green Fortress (BS BoE)",
+                            "Vambraces of Courage (H SH)",
+                        },
+                    },
+                },
+                { itemId = 29151, name = "Veteran's Plate Belt", icon = "INV_Belt_03", quality = "epic", slot = "Waist", stats = "+40 Sta, +23 Def, +22 Block", source = "Honor Hold @ Exalted", sourceType = "rep", faction = "Honor Hold", standing = 8,
+                    hoverData = {
+                        repSources = {
+                            "Hellfire Ramparts/Blood Furnace (10 rep/kill)",
+                            "Shattered Halls (15-25 rep/kill)",
+                            "Hellfire Peninsula quests (~10k total)",
+                        },
+                        statPriority = {
+                            "Best pre-raid tank belt",
+                            "+23 Defense + 22 Block Rating",
+                            "+40 Stamina for massive EH",
+                        },
+                        tips = {
+                            "Long grind - start early while leveling",
+                            "Shattered Halls is most efficient",
+                            "Buy from Logistics Officer Ulrike",
+                        },
+                        alternatives = {
+                            "Sha'tari Vindicator's Waistguard (H Mech)",
+                            "Girdle of the Immovable (H SL)",
+                            "Belt of the Guardian (BS craft)",
+                        },
+                    },
+                },
+                { itemId = 29177, name = "Consortium Plated Legguards", icon = "INV_Pants_Plate_05", quality = "epic", slot = "Legs", stats = "+48 Sta, +27 Def", source = "The Consortium @ Revered", sourceType = "rep", faction = "The Consortium", standing = 7,
+                    hoverData = {
+                        repSources = {
+                            "Mana-Tombs (Normal: 5-10, Heroic: 15-25 rep/kill)",
+                            "Oshu'gun Crystal Powder Samples (250 rep/10)",
+                            "Consortium quests in Nagrand/Netherstorm",
+                        },
+                        statPriority = {
+                            "Solid pre-raid tank legs at Revered",
+                            "+27 Defense toward 490 cap",
+                            "+48 Stamina is excellent",
+                        },
+                        tips = {
+                            "Only need Revered (not Exalted)",
+                            "Powder farming in Nagrand is relaxing",
+                            "Buy from Karaaz in Stormspire",
+                        },
+                        alternatives = {
+                            "Timewarden's Leggings (H BM)",
+                            "Legguards of the Bold (H SH)",
+                            "Felsteel Leggings (BS craft)",
+                        },
+                    },
+                },
+                { itemId = 29152, name = "Marksman's Bow", icon = "INV_Weapon_Bow_18", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Honor Hold @ Revered", sourceType = "rep", faction = "Honor Hold", standing = 7,
+                    hoverData = {
+                        repSources = {
+                            "Hellfire Ramparts/Blood Furnace (10 rep/kill)",
+                            "Shattered Halls (15-25 rep/kill)",
+                            "Hellfire Peninsula quests (~10k rep total)",
+                        },
+                        statPriority = {
+                            "Stat stick for Protection Warriors",
+                            "+16 Hit Rating helps threat abilities land",
+                            "Agility provides small dodge bonus",
+                        },
+                        tips = {
+                            "Only need Revered - easy grind",
+                            "Do all HFP quests first for fast rep",
+                            "Buy from Logistics Officer Ulrike in Honor Hold",
+                        },
+                        alternatives = {
+                            "Felsteel Whisper Knives (Engineering)",
+                            "Low priority slot for tanks",
+                        },
+                    },
+                },
             },
             drops = {
                 { itemId = 29362, name = "The Sun Eater", icon = "INV_Sword_76", quality = "epic", slot = "One-Hand Sword", stats = "+24 Sta, +17 Def, Dodge proc", source = "Heroic Mechanar", sourceType = "drops" },
@@ -4090,9 +4320,102 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 1: Holy (Healer)
         [1] = {
             rep = {
-                { itemId = 29175, name = "Gavel of Pure Light", icon = "INV_Mace_53", quality = "epic", slot = "Main Hand", stats = "+225 Healing, +22 Int, +14 Sta", source = "The Sha'tar @ Exalted", sourceType = "rep", faction = "The Sha'tar", standing = 8 },
-                { itemId = 30841, name = "Lower City Prayerbook", icon = "INV_Misc_Book_09", quality = "rare", slot = "Trinket", stats = "+70 Healing, Reduce cost", source = "Lower City @ Revered", sourceType = "rep", faction = "Lower City", standing = 7 },
-                { itemId = 29181, name = "Light's Justice", icon = "INV_Mace_37", quality = "epic", slot = "Main Hand", stats = "+264 Healing, +10 MP5", source = "The Aldor @ Exalted", sourceType = "rep", faction = "The Aldor", standing = 8 },
+                { itemId = 29175, name = "Gavel of Pure Light", icon = "INV_Mace_53", quality = "epic", slot = "Main Hand", stats = "+225 Healing, +22 Int, +14 Sta", source = "The Sha'tar @ Exalted", sourceType = "rep", faction = "The Sha'tar", standing = 8,
+                    hoverData = {
+                        repSources = {
+                            "Tempest Keep dungeons (Mech, Bot, Arc) - 10-25 rep/kill",
+                            "Aldor/Scryer turn-ins also grant Sha'tar rep",
+                            "TK dungeon quests give good rep bonus",
+                        },
+                        statPriority = {
+                            "Best pre-raid healing weapon for Paladins",
+                            "+225 Healing is massive for Holy Light spam",
+                            "Good stamina for survival",
+                        },
+                        tips = {
+                            "Long grind - start TK dungeons early",
+                            "Botanica is fastest rep (many mobs)",
+                            "Buy from Almaador in Sha'tar base (Shattrath)",
+                        },
+                        alternatives = {
+                            "Light's Justice (Aldor Exalted)",
+                            "Crystalheart Pulse-Staff (H Arc - 2H)",
+                            "The Essence Focuser (H Mech)",
+                        },
+                    },
+                },
+                { itemId = 30841, name = "Lower City Prayerbook", icon = "INV_Misc_Book_09", quality = "rare", slot = "Trinket", stats = "+70 Healing, Reduce cost", source = "Lower City @ Revered", sourceType = "rep", faction = "Lower City", standing = 7,
+                    hoverData = {
+                        repSources = {
+                            "Auchenai Crypts/Sethekk Halls (10 rep/kill)",
+                            "Shadow Labyrinth (12-25 rep/kill)",
+                            "Auchindoun quests (~6k rep total)",
+                        },
+                        statPriority = {
+                            "+70 Healing passive, excellent for any healer",
+                            "Reduces mana cost of Prayer of Healing",
+                            "Solid until Badge of Justice trinkets",
+                        },
+                        tips = {
+                            "Only need Revered (easy grind)",
+                            "Shadow Lab is best rep but harder",
+                            "Buy from Nakodu in Lower City (Shattrath)",
+                        },
+                        alternatives = {
+                            "Scarab of the Infinite Cycle (H BM)",
+                            "Bangle of Endless Blessings (H Arc)",
+                            "Essence of the Martyr (41 Badges)",
+                        },
+                    },
+                },
+                { itemId = 29181, name = "Light's Justice", icon = "INV_Mace_37", quality = "epic", slot = "Main Hand", stats = "+264 Healing, +10 MP5", source = "The Aldor @ Exalted", sourceType = "rep", faction = "The Aldor", standing = 8,
+                    hoverData = {
+                        repSources = {
+                            "Turn in Marks of Kil'jaeden (25 rep each, until Honored)",
+                            "Turn in Marks of Sargeras (25 rep, Honored+)",
+                            "Turn in Fel Armaments (350 rep each)",
+                        },
+                        statPriority = {
+                            "+264 Healing - highest pre-raid weapon",
+                            "+10 MP5 for sustained healing",
+                            "Slightly better than Gavel for pure output",
+                        },
+                        tips = {
+                            "Expensive grind - need 1000s of turn-ins",
+                            "Farm Marks at Shadow Council camps (Nagrand)",
+                            "Buy from Quartermaster Endarin (Aldor Rise)",
+                        },
+                        alternatives = {
+                            "Gavel of Pure Light (Sha'tar Exalted)",
+                            "Crystalheart Pulse-Staff (H Arc - 2H)",
+                            "Hammer of the Penitent (H SH)",
+                        },
+                    },
+                },
+                -- Non-rep item: Best pre-raid Holy Paladin Libram (dungeon drop)
+                { itemId = 28296, name = "Libram of the Lightbringer", icon = "INV_Relics_LibramofHope", quality = "rare", slot = "Relic", stats = "+87 Healing to Holy Light", source = "Botanica (Normal)", sourceType = "dungeon",
+                    hoverData = {
+                        repSources = {
+                            "Drops from Commander Sarannis in Botanica",
+                            "Normal mode - no Heroic key needed",
+                            "~15% drop rate",
+                        },
+                        statPriority = {
+                            "BiS pre-raid Libram for Holy Paladins",
+                            "+87 Healing per Holy Light cast",
+                            "Massive throughput increase for tank healing",
+                        },
+                        tips = {
+                            "Run Botanica until it drops",
+                            "First boss - quick resets if needed",
+                            "No reputation required",
+                        },
+                        alternatives = {
+                            "Libram of Souls Redeemed (15 Badges)",
+                            "Blessed Book of Nagrand (Quest)",
+                        },
+                    },
+                },
             },
             drops = {
                 { itemId = 27828, name = "Warp Infused Drape", icon = "INV_Misc_Cape_12", quality = "rare", slot = "Back", stats = "+24 Int, +21 Spi, +44 Healing", source = "Botanica (Normal)", sourceType = "drops" },
@@ -4108,9 +4431,78 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 2: Protection (Tank)
         [2] = {
             rep = {
-                { itemId = 29167, name = "Bladespire Warbands", icon = "INV_Bracer_16", quality = "epic", slot = "Wrist", stats = "+33 Sta, +21 Def Rating", source = "Keepers of Time @ Exalted", sourceType = "rep", faction = "Keepers of Time", standing = 8 },
-                { itemId = 29151, name = "Veteran's Plate Belt", icon = "INV_Belt_03", quality = "epic", slot = "Waist", stats = "+40 Sta, +23 Def, +22 Block", source = "Honor Hold @ Exalted", sourceType = "rep", faction = "Honor Hold", standing = 8 },
-                { itemId = 29183, name = "Libram of Repentance", icon = "INV_Relics_LibramofHope", quality = "epic", slot = "Relic", stats = "Block Value +35", source = "The Sha'tar @ Exalted", sourceType = "rep", faction = "The Sha'tar", standing = 8 },
+                { itemId = 29167, name = "Bladespire Warbands", icon = "INV_Bracer_16", quality = "epic", slot = "Wrist", stats = "+33 Sta, +21 Def Rating", source = "Keepers of Time @ Exalted", sourceType = "rep", faction = "Keepers of Time", standing = 8,
+                    hoverData = {
+                        repSources = {
+                            "Old Hillsbrad Foothills (10-25 rep/kill)",
+                            "Black Morass (15-25 rep/kill)",
+                            "Caverns of Time quests (~4.5k rep total)",
+                        },
+                        statPriority = {
+                            "Best pre-raid tank bracers for Paladins",
+                            "+21 Defense helps reach 490 def cap",
+                            "+33 Stamina adds ~330 HP",
+                        },
+                        tips = {
+                            "Long grind - start Heroics early once Revered",
+                            "Black Morass gives more rep per run",
+                            "Buy from Alurmi in Caverns of Time",
+                        },
+                        alternatives = {
+                            "Bracers of the Green Fortress (Blacksmithing)",
+                            "Sha'tari Wrought Armguards (Shattered Halls)",
+                            "Mok'Nathal Hero's Bracers (Quest)",
+                        },
+                    },
+                },
+                { itemId = 29151, name = "Veteran's Plate Belt", icon = "INV_Belt_03", quality = "epic", slot = "Waist", stats = "+40 Sta, +23 Def, +22 Block", source = "Honor Hold @ Exalted", sourceType = "rep", faction = "Honor Hold", standing = 8,
+                    hoverData = {
+                        repSources = {
+                            "Hellfire Ramparts/Blood Furnace (10 rep/kill)",
+                            "Shattered Halls (15-25 rep/kill)",
+                            "Hellfire Peninsula quests (~8k rep total)",
+                        },
+                        statPriority = {
+                            "Excellent tank belt with triple stats",
+                            "+23 Defense + +22 Block Rating",
+                            "+40 Stamina is massive for HP",
+                        },
+                        tips = {
+                            "Shattered Halls is fastest for rep",
+                            "Do all HFP quests first for easy rep",
+                            "Buy from Logistics Officer Ulrike (Honor Hold)",
+                        },
+                        alternatives = {
+                            "Crimson Girdle of the Indomitable (H SH)",
+                            "Belt of the Guardian (Blacksmithing)",
+                            "Girdle of Living Flame (SV)",
+                        },
+                    },
+                },
+                { itemId = 29183, name = "Libram of Repentance", icon = "INV_Relics_LibramofHope", quality = "epic", slot = "Relic", stats = "Block Value +35", source = "The Sha'tar @ Exalted", sourceType = "rep", faction = "The Sha'tar", standing = 8,
+                    hoverData = {
+                        repSources = {
+                            "Tempest Keep dungeons (Mech, Bot, Arc) - 10-25 rep/kill",
+                            "Aldor/Scryer turn-ins also grant Sha'tar rep",
+                            "TK dungeon quests give good rep bonus",
+                        },
+                        statPriority = {
+                            "+35 Block Value increases Shield of Righteousness damage",
+                            "Also increases Holy Shield threat",
+                            "Best threat libram for tanking",
+                        },
+                        tips = {
+                            "Long grind - start TK dungeons early",
+                            "Botanica is fastest rep (many mobs)",
+                            "Buy from Almaador in Sha'tar base (Shattrath)",
+                        },
+                        alternatives = {
+                            "Libram of Saints Departed (Auction House)",
+                            "Libram of Divine Judgment (Arena)",
+                            "Blessed Book of Nagrand (Quest)",
+                        },
+                    },
+                },
             },
             drops = {
                 { itemId = 27475, name = "Gauntlets of the Bold", icon = "INV_Gauntlets_30", quality = "rare", slot = "Hands", stats = "+27 Sta, +18 Def, +17 Hit", source = "Shattered Halls (Normal)", sourceType = "drops" },
@@ -4126,9 +4518,78 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 3: Retribution (Melee DPS)
         [3] = {
             rep = {
-                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8 },
-                { itemId = 29152, name = "Marksman's Bow", icon = "INV_Weapon_Bow_18", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Honor Hold @ Revered", sourceType = "rep", faction = "Honor Hold", standing = 7 },
-                { itemId = 29182, name = "Libram of Avengement", icon = "INV_Relics_LibramofGrace", quality = "rare", slot = "Relic", stats = "+Crusader Strike dmg", source = "The Scryers @ Revered", sourceType = "rep", faction = "The Scryers", standing = 7 },
+                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8,
+                    hoverData = {
+                        repSources = {
+                            "Mana-Tombs (Normal: 5-10 rep/kill, Heroic: 15-25 rep/kill)",
+                            "Turn in Oshu'gun Crystal Powder Samples (250 rep per 10)",
+                            "Complete Consortium quests in Nagrand and Netherstorm",
+                        },
+                        statPriority = {
+                            "Best pre-raid DPS neck for physical damage dealers",
+                            "+22 Hit Rating helps reach melee hit cap (9%)",
+                            "Agility provides crit and some armor",
+                        },
+                        tips = {
+                            "Farm Oshu'gun Powder in Nagrand (ogres, ethereals)",
+                            "Mana-Tombs Heroic is fastest rep once keyed",
+                            "Buy from Karaaz in Stormspire (Netherstorm)",
+                        },
+                        alternatives = {
+                            "Natasha's Ember Necklace (Quest: Nagrand)",
+                            "Necklace of the Deep (Fishing)",
+                            "Worgen Claw Necklace (H Underbog)",
+                        },
+                    },
+                },
+                { itemId = 29152, name = "Marksman's Bow", icon = "INV_Weapon_Bow_18", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Honor Hold @ Revered", sourceType = "rep", faction = "Honor Hold", standing = 7,
+                    hoverData = {
+                        repSources = {
+                            "Hellfire Ramparts/Blood Furnace (10 rep/kill)",
+                            "Shattered Halls (15-25 rep/kill)",
+                            "Hellfire Peninsula quests (~8k rep total)",
+                        },
+                        statPriority = {
+                            "Stat stick for Paladins (ranged slot rarely used)",
+                            "+16 Hit Rating is valuable for reaching cap",
+                            "Decent Agi and Stamina for passives",
+                        },
+                        tips = {
+                            "Only need Revered - relatively easy grind",
+                            "Do all HFP quests first for easy rep",
+                            "Buy from Logistics Officer Ulrike (Honor Hold)",
+                        },
+                        alternatives = {
+                            "Don Santos' Famous Hunting Rifle (AH)",
+                            "Felsteel Whisper Knives (Throwing)",
+                            "Skip this slot - low priority for Ret",
+                        },
+                    },
+                },
+                { itemId = 29182, name = "Libram of Avengement", icon = "INV_Relics_LibramofGrace", quality = "rare", slot = "Relic", stats = "+Crusader Strike dmg", source = "The Scryers @ Revered", sourceType = "rep", faction = "The Scryers", standing = 7,
+                    hoverData = {
+                        repSources = {
+                            "Turn in Firewing Signets (25 rep each, until Honored)",
+                            "Turn in Sunfury Signets (25 rep, Honored+)",
+                            "Turn in Arcane Tomes (350 rep each)",
+                        },
+                        statPriority = {
+                            "BiS Retribution libram for Crusader Strike builds",
+                            "Increases CS damage for main DPS rotation",
+                            "Essential for Ret Paladin raid DPS",
+                        },
+                        tips = {
+                            "Scryer choice locks you out of Aldor rewards",
+                            "Farm Sunfury camps in Netherstorm",
+                            "Buy from Quartermaster Enuril (Scryer's Tier)",
+                        },
+                        alternatives = {
+                            "Libram of Divine Purpose (Quest)",
+                            "Libram of Hope (Auction House)",
+                            "Blessed Book of Nagrand (Quest)",
+                        },
+                    },
+                },
             },
             drops = {
                 { itemId = 28776, name = "Liar's Tongue Gloves", icon = "INV_Gauntlets_25", quality = "epic", slot = "Hands", stats = "+32 Agi, +32 Sta, +24 Hit", source = "Magtheridon's Lair", sourceType = "drops" },
@@ -4149,9 +4610,30 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 1: Discipline (Healer)
         [1] = {
             rep = {
-                { itemId = 29175, name = "Gavel of Pure Light", icon = "INV_Mace_53", quality = "epic", slot = "Main Hand", stats = "+225 Healing, +22 Int, +14 Sta", source = "The Sha'tar @ Exalted", sourceType = "rep", faction = "The Sha'tar", standing = 8 },
-                { itemId = 30841, name = "Lower City Prayerbook", icon = "INV_Misc_Book_09", quality = "rare", slot = "Trinket", stats = "+70 Healing, Reduce cost", source = "Lower City @ Revered", sourceType = "rep", faction = "Lower City", standing = 7 },
-                { itemId = 29179, name = "Xi'ri's Gift", icon = "INV_Jewelry_Necklace_17", quality = "epic", slot = "Neck", stats = "+22 Sta, +20 Int, +35 Healing", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7 },
+                { itemId = 29175, name = "Gavel of Pure Light", icon = "INV_Mace_53", quality = "epic", slot = "Main Hand", stats = "+225 Healing, +22 Int, +14 Sta", source = "The Sha'tar @ Exalted", sourceType = "rep", faction = "The Sha'tar", standing = 8,
+                    hoverData = {
+                        repSources = { "Tempest Keep dungeons (Mech, Bot, Arc) - 10-25 rep/kill", "Aldor/Scryer turn-ins also grant Sha'tar rep" },
+                        statPriority = { "Best pre-raid healing weapon for Disc", "+225 Healing massive for shields and heals" },
+                        tips = { "Long grind - start TK dungeons early", "Buy from Almaador in Sha'tar base (Shattrath)" },
+                        alternatives = { "Light's Justice (Aldor Exalted)", "The Essence Focuser (H Mech)" },
+                    },
+                },
+                { itemId = 30841, name = "Lower City Prayerbook", icon = "INV_Misc_Book_09", quality = "rare", slot = "Trinket", stats = "+70 Healing, Reduce cost", source = "Lower City @ Revered", sourceType = "rep", faction = "Lower City", standing = 7,
+                    hoverData = {
+                        repSources = { "Auchenai Crypts/Sethekk Halls (10 rep/kill)", "Shadow Labyrinth (12-25 rep/kill)" },
+                        statPriority = { "+70 Healing passive, reduces Prayer of Healing cost", "Great for Disc's heavy use of PoH" },
+                        tips = { "Only need Revered - easy grind", "Buy from Nakodu in Lower City (Shattrath)" },
+                        alternatives = { "Bangle of Endless Blessings (H Arc)", "Essence of the Martyr (41 Badges)" },
+                    },
+                },
+                { itemId = 29179, name = "Xi'ri's Gift", icon = "INV_Jewelry_Necklace_17", quality = "epic", slot = "Neck", stats = "+22 Sta, +20 Int, +35 Healing", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7,
+                    hoverData = {
+                        repSources = { "Tempest Keep dungeons (10-25 rep/kill)", "Aldor/Scryer turn-ins also grant Sha'tar rep" },
+                        statPriority = { "Great healer neck with balanced stats", "+35 Healing and +20 Int both valuable" },
+                        tips = { "Only need Revered - moderate grind", "Buy from Almaador in Sha'tar base (Shattrath)" },
+                        alternatives = { "Natasha's Guardian Cord (Quest: Nagrand)", "Necklace of Eternal Hope (H Durnholde)" },
+                    },
+                },
             },
             drops = {
                 { itemId = 27828, name = "Warp Infused Drape", icon = "INV_Misc_Cape_12", quality = "rare", slot = "Back", stats = "+24 Int, +21 Spi, +44 Healing", source = "Botanica (Normal)", sourceType = "drops" },
@@ -4167,9 +4649,30 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 2: Holy (Healer)
         [2] = {
             rep = {
-                { itemId = 29175, name = "Gavel of Pure Light", icon = "INV_Mace_53", quality = "epic", slot = "Main Hand", stats = "+225 Healing, +22 Int, +14 Sta", source = "The Sha'tar @ Exalted", sourceType = "rep", faction = "The Sha'tar", standing = 8 },
-                { itemId = 30841, name = "Lower City Prayerbook", icon = "INV_Misc_Book_09", quality = "rare", slot = "Trinket", stats = "+70 Healing, Reduce cost", source = "Lower City @ Revered", sourceType = "rep", faction = "Lower City", standing = 7 },
-                { itemId = 29179, name = "Xi'ri's Gift", icon = "INV_Jewelry_Necklace_17", quality = "epic", slot = "Neck", stats = "+22 Sta, +20 Int, +35 Healing", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7 },
+                { itemId = 29175, name = "Gavel of Pure Light", icon = "INV_Mace_53", quality = "epic", slot = "Main Hand", stats = "+225 Healing, +22 Int, +14 Sta", source = "The Sha'tar @ Exalted", sourceType = "rep", faction = "The Sha'tar", standing = 8,
+                    hoverData = {
+                        repSources = { "Tempest Keep dungeons (Mech, Bot, Arc) - 10-25 rep/kill", "Aldor/Scryer turn-ins also grant Sha'tar rep" },
+                        statPriority = { "Best pre-raid healing weapon for Holy", "+225 Healing massive for Flash/Greater Heal" },
+                        tips = { "Long grind - start TK dungeons early", "Buy from Almaador in Sha'tar base (Shattrath)" },
+                        alternatives = { "Light's Justice (Aldor Exalted)", "The Essence Focuser (H Mech)" },
+                    },
+                },
+                { itemId = 30841, name = "Lower City Prayerbook", icon = "INV_Misc_Book_09", quality = "rare", slot = "Trinket", stats = "+70 Healing, Reduce cost", source = "Lower City @ Revered", sourceType = "rep", faction = "Lower City", standing = 7,
+                    hoverData = {
+                        repSources = { "Auchenai Crypts/Sethekk Halls (10 rep/kill)", "Shadow Labyrinth (12-25 rep/kill)" },
+                        statPriority = { "+70 Healing passive, reduces Prayer of Healing cost", "Excellent for Holy's AoE healing style" },
+                        tips = { "Only need Revered - easy grind", "Buy from Nakodu in Lower City (Shattrath)" },
+                        alternatives = { "Bangle of Endless Blessings (H Arc)", "Essence of the Martyr (41 Badges)" },
+                    },
+                },
+                { itemId = 29179, name = "Xi'ri's Gift", icon = "INV_Jewelry_Necklace_17", quality = "epic", slot = "Neck", stats = "+22 Sta, +20 Int, +35 Healing", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7,
+                    hoverData = {
+                        repSources = { "Tempest Keep dungeons (10-25 rep/kill)", "Aldor/Scryer turn-ins also grant Sha'tar rep" },
+                        statPriority = { "Great healer neck with balanced stats", "+35 Healing and +20 Int both valuable" },
+                        tips = { "Only need Revered - moderate grind", "Buy from Almaador in Sha'tar base (Shattrath)" },
+                        alternatives = { "Natasha's Guardian Cord (Quest: Nagrand)", "Necklace of Eternal Hope (H Durnholde)" },
+                    },
+                },
             },
             drops = {
                 { itemId = 27828, name = "Warp Infused Drape", icon = "INV_Misc_Cape_12", quality = "rare", slot = "Back", stats = "+24 Int, +21 Spi, +44 Healing", source = "Botanica (Normal)", sourceType = "drops" },
@@ -4185,9 +4688,30 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 3: Shadow (Caster DPS)
         [3] = {
             rep = {
-                { itemId = 29185, name = "Continuum Blade", icon = "INV_Sword_66", quality = "rare", slot = "One-Hand Sword", stats = "+190 Spell Power, +8 Hit", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7 },
-                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8 },
-                { itemId = 29179, name = "Xi'ri's Gift", icon = "INV_Jewelry_Necklace_17", quality = "epic", slot = "Neck", stats = "+22 Sta, +20 Int, +35 SP", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7 },
+                { itemId = 29185, name = "Continuum Blade", icon = "INV_Sword_66", quality = "rare", slot = "One-Hand Sword", stats = "+190 Spell Power, +8 Hit", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7,
+                    hoverData = {
+                        repSources = { "Old Hillsbrad/Black Morass (10-25 rep/kill)", "Caverns of Time quests (~4.5k rep total)" },
+                        statPriority = { "Strong caster weapon with Hit Rating", "+8 Hit helps reach spell hit cap (16%)" },
+                        tips = { "Only need Revered - moderate grind", "Buy from Alurmi in Caverns of Time" },
+                        alternatives = { "Greatsword of Horrid Dreams (H Arc)", "Nathrezim Mindblade (Attumen - Kara)" },
+                    },
+                },
+                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8,
+                    hoverData = {
+                        repSources = { "Auchenai Crypts/Sethekk Halls (10 rep/kill)", "Shadow Labyrinth (12-25 rep/kill)" },
+                        statPriority = { "Best pre-raid caster ring with Hit", "+23 Hit massive for Shadow's hit cap" },
+                        tips = { "Shadow Lab is best rep but harder", "Buy from Nakodu in Lower City" },
+                        alternatives = { "Ashyen's Gift (Cenarion Exalted)", "Ring of Cryptic Dreams (H Mana-Tombs)" },
+                    },
+                },
+                { itemId = 29179, name = "Xi'ri's Gift", icon = "INV_Jewelry_Necklace_17", quality = "epic", slot = "Neck", stats = "+22 Sta, +20 Int, +35 SP", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7,
+                    hoverData = {
+                        repSources = { "Tempest Keep dungeons (10-25 rep/kill)", "Aldor/Scryer turn-ins also grant Sha'tar rep" },
+                        statPriority = { "Great caster neck for Shadow", "+35 SP scales well with talents" },
+                        tips = { "Only need Revered - moderate grind", "Buy from Almaador in Sha'tar base (Shattrath)" },
+                        alternatives = { "Brooch of Heightened Potential (H Mech)", "Necklace of Eternal Hope (H Durnholde)" },
+                    },
+                },
             },
             drops = {
                 { itemId = 28230, name = "Hallowed Garments", icon = "INV_Chest_Cloth_52", quality = "epic", slot = "Chest", stats = "+30 Sta, +28 Int, +37 SP", source = "Heroic Slave Pens", sourceType = "drops" },
@@ -4208,9 +4732,30 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 1: Balance (Caster DPS)
         [1] = {
             rep = {
-                { itemId = 29185, name = "Continuum Blade", icon = "INV_Sword_66", quality = "rare", slot = "One-Hand Sword", stats = "+190 Spell Power, +8 Hit", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7 },
-                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8 },
-                { itemId = 29172, name = "Idol of the Raven Goddess", icon = "INV_Relics_IdolofRejuvenation", quality = "epic", slot = "Relic", stats = "+Moonfire/Wrath dmg", source = "Cenarion Expedition @ Exalted", sourceType = "rep", faction = "Cenarion Expedition", standing = 8 },
+                { itemId = 29185, name = "Continuum Blade", icon = "INV_Sword_66", quality = "rare", slot = "One-Hand Sword", stats = "+190 Spell Power, +8 Hit", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7,
+                    hoverData = {
+                        repSources = { "Old Hillsbrad/Black Morass (10-25 rep/kill)", "Caverns of Time quests (~4.5k rep total)" },
+                        statPriority = { "Strong caster weapon with Hit Rating", "+8 Hit helps reach spell hit cap (16%)" },
+                        tips = { "Only need Revered - moderate grind", "Buy from Alurmi in Caverns of Time" },
+                        alternatives = { "Greatsword of Horrid Dreams (H Arc)", "Nathrezim Mindblade (Attumen - Kara)" },
+                    },
+                },
+                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8,
+                    hoverData = {
+                        repSources = { "Auchenai Crypts/Sethekk Halls (10 rep/kill)", "Shadow Labyrinth (12-25 rep/kill)" },
+                        statPriority = { "Best pre-raid caster ring with Hit", "+23 Hit massive for reaching cap" },
+                        tips = { "Shadow Lab is best rep but harder", "Buy from Nakodu in Lower City" },
+                        alternatives = { "Ashyen's Gift (Cenarion Exalted)", "Ring of Cryptic Dreams (H Mana-Tombs)" },
+                    },
+                },
+                { itemId = 29172, name = "Idol of the Raven Goddess", icon = "INV_Relics_IdolofRejuvenation", quality = "epic", slot = "Relic", stats = "+Moonfire/Wrath dmg", source = "Cenarion Expedition @ Exalted", sourceType = "rep", faction = "Cenarion Expedition", standing = 8,
+                    hoverData = {
+                        repSources = { "Coilfang dungeons (10-25 rep/kill)", "Turn in Unidentified Plant Parts (250 rep/10)" },
+                        statPriority = { "BiS Balance idol for Moonfire/Wrath", "Essential for raiding Balance Druid" },
+                        tips = { "Long grind - start CE dungeons early", "Buy from Fedryen Swiftspear in Cenarion Refuge" },
+                        alternatives = { "Ivory Idol of the Moongoddess (N Slave Pens)", "Idol of the Moon (Quest)" },
+                    },
+                },
             },
             drops = {
                 { itemId = 28230, name = "Hallowed Garments", icon = "INV_Chest_Cloth_52", quality = "epic", slot = "Chest", stats = "+30 Sta, +28 Int, +37 SP", source = "Heroic Slave Pens", sourceType = "drops" },
@@ -4226,9 +4771,30 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 2: Feral (Tank - Bear)
         [2] = {
             rep = {
-                { itemId = 29171, name = "Earthwarden", icon = "INV_Mace_52", quality = "epic", slot = "Two-Hand Mace", stats = "+43 Sta, +556 AP, +24 Def", source = "Cenarion Expedition @ Exalted", sourceType = "rep", faction = "Cenarion Expedition", standing = 8 },
-                { itemId = 29170, name = "Windcaller's Orb", icon = "INV_Misc_Orb_02", quality = "epic", slot = "Off Hand", stats = "+27 Sta, +18 Int, +18 Spi", source = "Cenarion Expedition @ Revered", sourceType = "rep", faction = "Cenarion Expedition", standing = 7 },
-                { itemId = 29173, name = "Idol of Ursoc", icon = "INV_Relics_IdolofFerocity", quality = "epic", slot = "Relic", stats = "+Maul damage +54", source = "Cenarion Expedition @ Revered", sourceType = "rep", faction = "Cenarion Expedition", standing = 7 },
+                { itemId = 29171, name = "Earthwarden", icon = "INV_Mace_52", quality = "epic", slot = "Two-Hand Mace", stats = "+43 Sta, +556 AP, +24 Def", source = "Cenarion Expedition @ Exalted", sourceType = "rep", faction = "Cenarion Expedition", standing = 8,
+                    hoverData = {
+                        repSources = { "Coilfang dungeons (Slave Pens, Underbog, SV) - 10-25 rep/kill", "Turn in Plant Parts (250 rep/10, until Honored)" },
+                        statPriority = { "BiS Feral tank weapon through T4/T5", "+24 Defense helps reach 415 for crits", "+556 AP and Stamina huge for bear" },
+                        tips = { "Long grind - start CE dungeons early", "Buy from Fedryen Swiftspear in Cenarion Refuge" },
+                        alternatives = { "Braxxis' Staff of Slumber (H Underbog)", "Terestian's Stranglestaff (Kara)" },
+                    },
+                },
+                { itemId = 29170, name = "Windcaller's Orb", icon = "INV_Misc_Orb_02", quality = "epic", slot = "Off Hand", stats = "+27 Sta, +18 Int, +18 Spi", source = "Cenarion Expedition @ Revered", sourceType = "rep", faction = "Cenarion Expedition", standing = 7,
+                    hoverData = {
+                        repSources = { "Coilfang dungeons (10-25 rep/kill)", "Turn in Plant Parts (250 rep/10, until Honored)" },
+                        statPriority = { "Good caster off-hand for Resto set", "+27 Stamina adds survivability", "Not used in Bear form (2H weapon)" },
+                        tips = { "Only need Revered - moderate grind", "Buy from Fedryen Swiftspear in Cenarion Refuge" },
+                        alternatives = { "Lamp of Peaceful Repose (H Bot)", "Tears of Heaven (Aldor Exalted)" },
+                    },
+                },
+                { itemId = 29173, name = "Idol of Ursoc", icon = "INV_Relics_IdolofFerocity", quality = "epic", slot = "Relic", stats = "+Maul damage +54", source = "Cenarion Expedition @ Revered", sourceType = "rep", faction = "Cenarion Expedition", standing = 7,
+                    hoverData = {
+                        repSources = { "Coilfang dungeons (10-25 rep/kill)", "Turn in Plant Parts (250 rep/10, until Honored)" },
+                        statPriority = { "BiS Feral tank idol for threat", "+54 Maul damage massive for TPS" },
+                        tips = { "Only need Revered - same faction as Earthwarden", "Buy from Fedryen Swiftspear in Cenarion Refuge" },
+                        alternatives = { "Idol of the Wild (Quest)", "Everbloom Idol (H Underbog)" },
+                    },
+                },
             },
             drops = {
                 { itemId = 28139, name = "Heavy Clefthoof Boots", icon = "INV_Boots_Plate_04", quality = "rare", slot = "Feet", stats = "+45 Sta, +30 Agi, Armor", source = "Leatherworking/AH", sourceType = "drops" },
@@ -4244,9 +4810,54 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 3: Restoration (Healer)
         [3] = {
             rep = {
-                { itemId = 29175, name = "Gavel of Pure Light", icon = "INV_Mace_53", quality = "epic", slot = "Main Hand", stats = "+225 Healing, +22 Int, +14 Sta", source = "The Sha'tar @ Exalted", sourceType = "rep", faction = "The Sha'tar", standing = 8 },
-                { itemId = 30841, name = "Lower City Prayerbook", icon = "INV_Misc_Book_09", quality = "rare", slot = "Trinket", stats = "+70 Healing, Reduce cost", source = "Lower City @ Revered", sourceType = "rep", faction = "Lower City", standing = 7 },
-                { itemId = 29170, name = "Windcaller's Orb", icon = "INV_Misc_Orb_02", quality = "epic", slot = "Off Hand", stats = "+27 Sta, +18 Int, +18 Spi", source = "Cenarion Expedition @ Revered", sourceType = "rep", faction = "Cenarion Expedition", standing = 7 },
+                { itemId = 29175, name = "Gavel of Pure Light", icon = "INV_Mace_53", quality = "epic", slot = "Main Hand", stats = "+225 Healing, +22 Int, +14 Sta", source = "The Sha'tar @ Exalted", sourceType = "rep", faction = "The Sha'tar", standing = 8,
+                    hoverData = {
+                        repSources = { "Tempest Keep dungeons (Mech, Bot, Arc) - 10-25 rep/kill", "Aldor/Scryer turn-ins also grant Sha'tar rep" },
+                        statPriority = { "Best pre-raid healing weapon for Resto", "+225 Healing massive for HoTs" },
+                        tips = { "Long grind - start TK dungeons early", "Buy from Almaador in Sha'tar base (Shattrath)" },
+                        alternatives = { "Light's Justice (Aldor Exalted)", "The Essence Focuser (H Mech)" },
+                    },
+                },
+                { itemId = 30841, name = "Lower City Prayerbook", icon = "INV_Misc_Book_09", quality = "rare", slot = "Trinket", stats = "+70 Healing, Reduce cost", source = "Lower City @ Revered", sourceType = "rep", faction = "Lower City", standing = 7,
+                    hoverData = {
+                        repSources = { "Auchenai Crypts/Sethekk Halls (10 rep/kill)", "Shadow Labyrinth (12-25 rep/kill)" },
+                        statPriority = { "+70 Healing passive, excellent for any healer", "Solid until Badge of Justice trinkets" },
+                        tips = { "Only need Revered - easy grind", "Buy from Nakodu in Lower City (Shattrath)" },
+                        alternatives = { "Bangle of Endless Blessings (H Arc)", "Essence of the Martyr (41 Badges)" },
+                    },
+                },
+                { itemId = 29170, name = "Windcaller's Orb", icon = "INV_Misc_Orb_02", quality = "epic", slot = "Off Hand", stats = "+27 Sta, +18 Int, +18 Spi", source = "Cenarion Expedition @ Revered", sourceType = "rep", faction = "Cenarion Expedition", standing = 7,
+                    hoverData = {
+                        repSources = { "Coilfang dungeons (10-25 rep/kill)", "Turn in Plant Parts (250 rep/10, until Honored)" },
+                        statPriority = { "Good caster off-hand for Resto Druid", "+18 Spirit benefits mana regen" },
+                        tips = { "Only need Revered - moderate grind", "Buy from Fedryen Swiftspear in Cenarion Refuge" },
+                        alternatives = { "Lamp of Peaceful Repose (H Bot)", "Tears of Heaven (Aldor Exalted)" },
+                    },
+                },
+                -- Non-rep item: Best pre-raid Resto Druid Idol (badge vendor)
+                { itemId = 27886, name = "Idol of the Emerald Queen", icon = "INV_Relics_IdolofRejuvenation", quality = "rare", slot = "Relic", stats = "+47 Healing to Lifebloom", source = "G'eras (15 Badges)", sourceType = "badge",
+                    hoverData = {
+                        repSources = {
+                            "Badge of Justice vendor in Shattrath",
+                            "15 Badges of Justice",
+                            "Badges from Heroics and Karazhan",
+                        },
+                        statPriority = {
+                            "BiS pre-raid Idol for Resto Druids",
+                            "+47 Healing per Lifebloom tick",
+                            "Core part of rolling Lifebloom rotation",
+                        },
+                        tips = {
+                            "Priority badge purchase for Resto",
+                            "Heroics drop 3-5 badges each",
+                            "Karazhan drops many badges",
+                        },
+                        alternatives = {
+                            "Harold's Rejuvenating Broach (Kara Quest)",
+                            "Idol of Rejuvenation (Quest)",
+                        },
+                    },
+                },
             },
             drops = {
                 { itemId = 27828, name = "Warp Infused Drape", icon = "INV_Misc_Cape_12", quality = "rare", slot = "Back", stats = "+24 Int, +21 Spi, +44 Healing", source = "Botanica (Normal)", sourceType = "drops" },
@@ -4267,9 +4878,30 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 1: Elemental (Caster DPS)
         [1] = {
             rep = {
-                { itemId = 29185, name = "Continuum Blade", icon = "INV_Sword_66", quality = "rare", slot = "One-Hand Sword", stats = "+190 Spell Power, +8 Hit", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7 },
-                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8 },
-                { itemId = 29389, name = "Totem of the Void", icon = "Spell_Nature_Groundingtotem", quality = "rare", slot = "Relic", stats = "+55 Lightning Bolt dmg", source = "Lower City @ Revered", sourceType = "rep", faction = "Lower City", standing = 7 },
+                { itemId = 29185, name = "Continuum Blade", icon = "INV_Sword_66", quality = "rare", slot = "One-Hand Sword", stats = "+190 Spell Power, +8 Hit", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7,
+                    hoverData = {
+                        repSources = { "Old Hillsbrad Foothills (10-25 rep/kill)", "Black Morass (15-25 rep/kill)", "Caverns of Time quests (~4.5k rep total)" },
+                        statPriority = { "Best pre-raid caster sword for Elemental Shamans", "+8 Hit helps reach spell hit cap (16%)", "High spell power for Lightning Bolt/Chain Lightning" },
+                        tips = { "Can grind to Revered in ~5 normal runs", "Pair with Carved Witch Doctor's Stick for crit off-hand", "Buy from Alurmi in Caverns of Time" },
+                        alternatives = { "Starlight Dagger (Heroic Mech)", "Bleeding Hollow Warhammer (Quest)", "Gladiator's Gavel (Arena)" },
+                    },
+                },
+                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8,
+                    hoverData = {
+                        repSources = { "Auchenai Crypts / Sethekk Halls / Shadow Lab (10-25 rep/kill)", "Lower City quests in Terokkar (~6k rep)", "Underbog turn-ins (Arakkoa Feathers - 250 rep per 30)" },
+                        statPriority = { "Massive +23 Hit Rating (nearly 2% spell hit)", "Best caster DPS ring for Ele Shaman pre-raid", "+23 Int adds to mana pool and crit" },
+                        tips = { "Arakkoa Feather turn-ins speed up the grind", "Shadow Labyrinth gives best rep per run", "Buy from Nakodu in Shattrath Lower City" },
+                        alternatives = { "Ashyen's Gift (Cenarion Expedition Exalted)", "Mana-Etched Band (Quest)", "Sparking Arcanite Ring (Heroic Mech)" },
+                    },
+                },
+                { itemId = 29389, name = "Totem of the Void", icon = "Spell_Nature_Groundingtotem", quality = "rare", slot = "Relic", stats = "+55 Lightning Bolt dmg", source = "Lower City @ Revered", sourceType = "rep", faction = "Lower City", standing = 7,
+                    hoverData = {
+                        repSources = { "Auchenai Crypts / Sethekk Halls / Shadow Lab (10-25 rep/kill)", "Lower City quests in Terokkar (~6k rep)", "Underbog turn-ins (Arakkoa Feathers - 250 rep per 30)" },
+                        statPriority = { "BiS pre-raid totem for Lightning Bolt builds", "+55 damage per Lightning Bolt is massive DPS boost", "Core piece for Elemental DPS rotation" },
+                        tips = { "Get this at Revered - much faster than Exalted ring", "Stack with spell power gear for huge LB damage", "Buy from Nakodu in Shattrath Lower City" },
+                        alternatives = { "Totem of Impact (Quest)", "Totem of the Storm (The Sha'tar)", "Totem of Lightning (Cenarion Expedition)" },
+                    },
+                },
             },
             drops = {
                 { itemId = 28230, name = "Hallowed Garments", icon = "INV_Chest_Cloth_52", quality = "epic", slot = "Chest", stats = "+30 Sta, +28 Int, +37 SP", source = "Heroic Slave Pens", sourceType = "drops" },
@@ -4285,9 +4917,30 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 2: Enhancement (Melee DPS)
         [2] = {
             rep = {
-                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8 },
-                { itemId = 29187, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "Thrallmar @ Exalted", sourceType = "rep", faction = "Thrallmar", standing = 8 },
-                { itemId = 29390, name = "Totem of the Astral Winds", icon = "Spell_Nature_Windfury", quality = "rare", slot = "Relic", stats = "+80 Stormstrike AP", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7 },
+                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8,
+                    hoverData = {
+                        repSources = { "Mana-Tombs (Normal: 5-10, Heroic: 15-25 rep/kill)", "Turn in Oshu'gun Crystal Powder Samples (250 rep per 10)", "Consortium quests in Nagrand and Netherstorm" },
+                        statPriority = { "Best pre-raid neck for Enhancement Shaman", "+22 Hit helps reach dual-wield hit cap", "+20 Agility provides crit and AP" },
+                        tips = { "Farm Crystal Powder in Nagrand (ogres, ethereals)", "Mana-Tombs Heroic is fastest rep once keyed", "Buy from Karaaz in Stormspire (Netherstorm)" },
+                        alternatives = { "Natasha's Ember Necklace (Quest: Nagrand)", "Necklace of the Deep (Fishing)", "Worgen Claw Necklace (H Underbog)" },
+                    },
+                },
+                { itemId = 29187, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "Thrallmar @ Exalted", sourceType = "rep", faction = "Thrallmar", standing = 8,
+                    hoverData = {
+                        repSources = { "Hellfire Ramparts / Blood Furnace / Shattered Halls (10-25 rep/kill)", "Hellfire Peninsula quests (~8k rep)", "Marks of Thrallmar PvP turn-in (250 rep per mark)" },
+                        statPriority = { "BiS pre-raid trinket for physical DPS specs", "+72 permanent AP + 278 AP on use (2min CD)", "Stacks with all enhancement buffs" },
+                        tips = { "Shattered Halls gives best rep per run", "Use on-use with Heroism/Bloodlust", "Buy from Quartermaster Urgronn in Thrallmar" },
+                        alternatives = { "Hourglass of the Unraveller (H Black Morass)", "Abacus of Violent Odds (H Mechanar)", "Icon of Unyielding Courage (Quest)" },
+                    },
+                },
+                { itemId = 29390, name = "Totem of the Astral Winds", icon = "Spell_Nature_Windfury", quality = "rare", slot = "Relic", stats = "+80 Stormstrike AP", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7,
+                    hoverData = {
+                        repSources = { "Botanica / Mechanar / Arcatraz (10-25 rep/kill)", "Sha'tar quests in Shattrath and Netherstorm (~4k rep)", "Aldor/Scryer spillover (50% of their rep gains)" },
+                        statPriority = { "BiS pre-raid totem for Enhancement Shaman", "+80 AP on Stormstrike is huge (~5% DPS increase)", "Core piece for melee enhancement rotation" },
+                        tips = { "Get this at Revered - very quick grind", "Stormstrike should be used on cooldown", "Buy from Almaador in Shattrath Terrace of Light" },
+                        alternatives = { "Totem of Impact (Quest)", "Totem of the Storm (Lower City)", "Totem of Lightning (Cenarion Expedition)" },
+                    },
+                },
             },
             drops = {
                 { itemId = 27846, name = "Claw of the Watcher", icon = "INV_Weapon_Hand_14", quality = "rare", slot = "Fist Weapon", stats = "+23 Agi, +15 Sta, +12 Hit", source = "Arcatraz (Normal)", sourceType = "drops" },
@@ -4303,9 +4956,30 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 3: Restoration (Healer)
         [3] = {
             rep = {
-                { itemId = 29175, name = "Gavel of Pure Light", icon = "INV_Mace_53", quality = "epic", slot = "Main Hand", stats = "+225 Healing, +22 Int, +14 Sta", source = "The Sha'tar @ Exalted", sourceType = "rep", faction = "The Sha'tar", standing = 8 },
-                { itemId = 30841, name = "Lower City Prayerbook", icon = "INV_Misc_Book_09", quality = "rare", slot = "Trinket", stats = "+70 Healing, Reduce cost", source = "Lower City @ Revered", sourceType = "rep", faction = "Lower City", standing = 7 },
-                { itemId = 29388, name = "Totem of Healing Rains", icon = "Spell_Nature_HealingWaveGreater", quality = "rare", slot = "Relic", stats = "+79 Chain Heal heal", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7 },
+                { itemId = 29175, name = "Gavel of Pure Light", icon = "INV_Mace_53", quality = "epic", slot = "Main Hand", stats = "+225 Healing, +22 Int, +14 Sta", source = "The Sha'tar @ Exalted", sourceType = "rep", faction = "The Sha'tar", standing = 8,
+                    hoverData = {
+                        repSources = { "Botanica / Mechanar / Arcatraz (10-25 rep/kill)", "Sha'tar quests in Shattrath and Netherstorm (~4k rep)", "Aldor/Scryer spillover (50% of their rep gains)" },
+                        statPriority = { "Best pre-raid healing mace for Resto Shaman", "+225 Healing is massive (equivalent to 10+ gem slots)", "+22 Int improves mana pool and crit" },
+                        tips = { "Long grind - start heroics once Revered for speed", "Pair with Shield of the Wayward Footman", "Buy from Almaador in Shattrath Terrace of Light" },
+                        alternatives = { "Shard of the Virtuous (Maiden - Kara)", "The Essence Focuser (H Botanica)", "Hammer of the Penitent (Heroic Mech)" },
+                    },
+                },
+                { itemId = 30841, name = "Lower City Prayerbook", icon = "INV_Misc_Book_09", quality = "rare", slot = "Trinket", stats = "+70 Healing, Reduce cost", source = "Lower City @ Revered", sourceType = "rep", faction = "Lower City", standing = 7,
+                    hoverData = {
+                        repSources = { "Auchenai Crypts / Sethekk Halls / Shadow Lab (10-25 rep/kill)", "Lower City quests in Terokkar (~6k rep)", "Underbog turn-ins (Arakkoa Feathers - 250 rep per 30)" },
+                        statPriority = { "Strong healing trinket with mana reduction proc", "+70 Healing passive bonus always active", "Proc reduces heal cost by 22 - great for Chain Heal" },
+                        tips = { "Arakkoa Feather turn-ins speed up the grind", "Get this at Revered - reasonable grind", "Buy from Nakodu in Shattrath Lower City" },
+                        alternatives = { "Bangle of Endless Blessings (H Slave Pens)", "Essence of the Martyr (41 Badges)", "Ribbon of Sacrifice (Opera - Kara)" },
+                    },
+                },
+                { itemId = 29388, name = "Totem of Healing Rains", icon = "Spell_Nature_HealingWaveGreater", quality = "rare", slot = "Relic", stats = "+79 Chain Heal heal", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7,
+                    hoverData = {
+                        repSources = { "Botanica / Mechanar / Arcatraz (10-25 rep/kill)", "Sha'tar quests in Shattrath and Netherstorm (~4k rep)", "Aldor/Scryer spillover (50% of their rep gains)" },
+                        statPriority = { "BiS pre-raid totem for Resto Shaman", "+79 healing per Chain Heal is significant throughput", "Core piece for raid healing rotation" },
+                        tips = { "Get this at Revered - same faction as Gavel", "Chain Heal is your primary raid heal", "Buy from Almaador in Shattrath Terrace of Light" },
+                        alternatives = { "Totem of Spontaneous Regrowth (H Underbog)", "Totem of the Plains (Quest)", "Totem of Sustaining (Steamvault)" },
+                    },
+                },
             },
             drops = {
                 { itemId = 27828, name = "Warp Infused Drape", icon = "INV_Misc_Cape_12", quality = "rare", slot = "Back", stats = "+24 Int, +21 Spi, +44 Healing", source = "Botanica (Normal)", sourceType = "drops" },
@@ -4326,9 +5000,30 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 1: Arcane (Caster DPS)
         [1] = {
             rep = {
-                { itemId = 29185, name = "Continuum Blade", icon = "INV_Sword_66", quality = "rare", slot = "One-Hand Sword", stats = "+190 Spell Power, +8 Hit", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7 },
-                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8 },
-                { itemId = 29179, name = "Xi'ri's Gift", icon = "INV_Jewelry_Necklace_17", quality = "epic", slot = "Neck", stats = "+22 Sta, +20 Int, +35 SP", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7 },
+                { itemId = 29185, name = "Continuum Blade", icon = "INV_Sword_66", quality = "rare", slot = "One-Hand Sword", stats = "+190 Spell Power, +8 Hit", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7,
+                    hoverData = {
+                        repSources = { "Old Hillsbrad Foothills (10-25 rep/kill)", "Black Morass (15-25 rep/kill)", "Caverns of Time quests (~4.5k rep total)" },
+                        statPriority = { "Best pre-raid caster sword for Arcane Mage", "+8 Hit helps reach spell hit cap (16%)", "High spell power boosts Arcane Blast damage" },
+                        tips = { "Can grind to Revered in ~5 normal runs", "Pair with Carved Witch Doctor's Stick", "Buy from Alurmi in Caverns of Time" },
+                        alternatives = { "Starlight Dagger (Heroic Mech)", "Gladiator's Gavel (Arena)", "Nether-Core's Control Rod (H Mech)" },
+                    },
+                },
+                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8,
+                    hoverData = {
+                        repSources = { "Auchenai Crypts / Sethekk Halls / Shadow Lab (10-25 rep/kill)", "Lower City quests in Terokkar (~6k rep)", "Underbog turn-ins (Arakkoa Feathers - 250 rep per 30)" },
+                        statPriority = { "Massive +23 Hit Rating (nearly 2% spell hit)", "Best caster DPS ring for Arcane Mage pre-raid", "+23 Int adds to mana pool and crit" },
+                        tips = { "Arakkoa Feather turn-ins speed up the grind", "Shadow Labyrinth gives best rep per run", "Buy from Nakodu in Shattrath Lower City" },
+                        alternatives = { "Ashyen's Gift (Cenarion Expedition Exalted)", "Band of the Guardian (Black Morass Quest)", "Sparking Arcanite Ring (Heroic Mech)" },
+                    },
+                },
+                { itemId = 29179, name = "Xi'ri's Gift", icon = "INV_Jewelry_Necklace_17", quality = "epic", slot = "Neck", stats = "+22 Sta, +20 Int, +35 SP", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7,
+                    hoverData = {
+                        repSources = { "Botanica / Mechanar / Arcatraz (10-25 rep/kill)", "Sha'tar quests in Shattrath and Netherstorm (~4k rep)", "Aldor/Scryer spillover (50% of their rep gains)" },
+                        statPriority = { "BiS pre-raid neck for Arcane Mage", "+35 Spell Power is significant DPS boost", "+20 Int benefits mana-hungry Arcane rotation" },
+                        tips = { "Get this at Revered - reasonable grind", "Sha'tar also gives Gavel (healers) at Exalted", "Buy from Almaador in Shattrath Terrace of Light" },
+                        alternatives = { "Brooch of Heightened Potential (Nightbane)", "Manasurge Pendant (25 Badges)", "Pendant of the Lost Ages (H Arc)" },
+                    },
+                },
             },
             drops = {
                 { itemId = 28230, name = "Hallowed Garments", icon = "INV_Chest_Cloth_52", quality = "epic", slot = "Chest", stats = "+30 Sta, +28 Int, +37 SP", source = "Heroic Slave Pens", sourceType = "drops" },
@@ -4344,9 +5039,30 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 2: Fire (Caster DPS)
         [2] = {
             rep = {
-                { itemId = 29185, name = "Continuum Blade", icon = "INV_Sword_66", quality = "rare", slot = "One-Hand Sword", stats = "+190 Spell Power, +8 Hit", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7 },
-                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8 },
-                { itemId = 29179, name = "Xi'ri's Gift", icon = "INV_Jewelry_Necklace_17", quality = "epic", slot = "Neck", stats = "+22 Sta, +20 Int, +35 SP", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7 },
+                { itemId = 29185, name = "Continuum Blade", icon = "INV_Sword_66", quality = "rare", slot = "One-Hand Sword", stats = "+190 Spell Power, +8 Hit", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7,
+                    hoverData = {
+                        repSources = { "Old Hillsbrad Foothills (10-25 rep/kill)", "Black Morass (15-25 rep/kill)", "Caverns of Time quests (~4.5k rep total)" },
+                        statPriority = { "Best pre-raid caster sword for Fire Mage", "+8 Hit helps reach spell hit cap (16%)", "High spell power boosts Fireball and Pyroblast" },
+                        tips = { "Can grind to Revered in ~5 normal runs", "Fire benefits from Spellfire set crafted gear", "Buy from Alurmi in Caverns of Time" },
+                        alternatives = { "Starlight Dagger (Heroic Mech)", "Gladiator's Gavel (Arena)", "Nether-Core's Control Rod (H Mech)" },
+                    },
+                },
+                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8,
+                    hoverData = {
+                        repSources = { "Auchenai Crypts / Sethekk Halls / Shadow Lab (10-25 rep/kill)", "Lower City quests in Terokkar (~6k rep)", "Underbog turn-ins (Arakkoa Feathers - 250 rep per 30)" },
+                        statPriority = { "Massive +23 Hit Rating (nearly 2% spell hit)", "Best caster DPS ring for Fire Mage pre-raid", "+23 Int adds to mana pool and crit" },
+                        tips = { "Fire rotation is mana-efficient so Int less critical", "Shadow Labyrinth gives best rep per run", "Buy from Nakodu in Shattrath Lower City" },
+                        alternatives = { "Ashyen's Gift (Cenarion Expedition Exalted)", "Band of the Guardian (Black Morass Quest)", "Sparking Arcanite Ring (Heroic Mech)" },
+                    },
+                },
+                { itemId = 29179, name = "Xi'ri's Gift", icon = "INV_Jewelry_Necklace_17", quality = "epic", slot = "Neck", stats = "+22 Sta, +20 Int, +35 SP", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7,
+                    hoverData = {
+                        repSources = { "Botanica / Mechanar / Arcatraz (10-25 rep/kill)", "Sha'tar quests in Shattrath and Netherstorm (~4k rep)", "Aldor/Scryer spillover (50% of their rep gains)" },
+                        statPriority = { "BiS pre-raid neck for Fire Mage", "+35 Spell Power significantly boosts Fire damage", "Generic spell power works for all schools" },
+                        tips = { "Get this at Revered - reasonable grind", "Pairs well with Spellfire tailoring set", "Buy from Almaador in Shattrath Terrace of Light" },
+                        alternatives = { "Brooch of Heightened Potential (Nightbane)", "Manasurge Pendant (25 Badges)", "Pendant of the Lost Ages (H Arc)" },
+                    },
+                },
             },
             drops = {
                 { itemId = 28230, name = "Hallowed Garments", icon = "INV_Chest_Cloth_52", quality = "epic", slot = "Chest", stats = "+30 Sta, +28 Int, +37 SP", source = "Heroic Slave Pens", sourceType = "drops" },
@@ -4362,9 +5078,30 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 3: Frost (Caster DPS)
         [3] = {
             rep = {
-                { itemId = 29185, name = "Continuum Blade", icon = "INV_Sword_66", quality = "rare", slot = "One-Hand Sword", stats = "+190 Spell Power, +8 Hit", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7 },
-                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8 },
-                { itemId = 29179, name = "Xi'ri's Gift", icon = "INV_Jewelry_Necklace_17", quality = "epic", slot = "Neck", stats = "+22 Sta, +20 Int, +35 SP", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7 },
+                { itemId = 29185, name = "Continuum Blade", icon = "INV_Sword_66", quality = "rare", slot = "One-Hand Sword", stats = "+190 Spell Power, +8 Hit", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7,
+                    hoverData = {
+                        repSources = { "Old Hillsbrad Foothills (10-25 rep/kill)", "Black Morass (15-25 rep/kill)", "Caverns of Time quests (~4.5k rep total)" },
+                        statPriority = { "Best pre-raid caster sword for Frost Mage", "+8 Hit helps reach spell hit cap (16%)", "High spell power boosts Frostbolt and Ice Lance" },
+                        tips = { "Can grind to Revered in ~5 normal runs", "Frost benefits from Frozen Shadoweave set", "Buy from Alurmi in Caverns of Time" },
+                        alternatives = { "Starlight Dagger (Heroic Mech)", "Gladiator's Gavel (Arena)", "Nether-Core's Control Rod (H Mech)" },
+                    },
+                },
+                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8,
+                    hoverData = {
+                        repSources = { "Auchenai Crypts / Sethekk Halls / Shadow Lab (10-25 rep/kill)", "Lower City quests in Terokkar (~6k rep)", "Underbog turn-ins (Arakkoa Feathers - 250 rep per 30)" },
+                        statPriority = { "Massive +23 Hit Rating (nearly 2% spell hit)", "Best caster DPS ring for Frost Mage pre-raid", "Hit is critical for Frost's single-target damage" },
+                        tips = { "Frost shatter combos need high hit", "Shadow Labyrinth gives best rep per run", "Buy from Nakodu in Shattrath Lower City" },
+                        alternatives = { "Ashyen's Gift (Cenarion Expedition Exalted)", "Band of the Guardian (Black Morass Quest)", "Sparking Arcanite Ring (Heroic Mech)" },
+                    },
+                },
+                { itemId = 29179, name = "Xi'ri's Gift", icon = "INV_Jewelry_Necklace_17", quality = "epic", slot = "Neck", stats = "+22 Sta, +20 Int, +35 SP", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7,
+                    hoverData = {
+                        repSources = { "Botanica / Mechanar / Arcatraz (10-25 rep/kill)", "Sha'tar quests in Shattrath and Netherstorm (~4k rep)", "Aldor/Scryer spillover (50% of their rep gains)" },
+                        statPriority = { "BiS pre-raid neck for Frost Mage", "+35 Spell Power boosts all Frost damage", "Generic spell power better than Frost-specific here" },
+                        tips = { "Get this at Revered - reasonable grind", "Consider Frozen Shadoweave set for Frost-specific", "Buy from Almaador in Shattrath Terrace of Light" },
+                        alternatives = { "Brooch of Heightened Potential (Nightbane)", "Manasurge Pendant (25 Badges)", "Pendant of the Lost Ages (H Arc)" },
+                    },
+                },
             },
             drops = {
                 { itemId = 28230, name = "Hallowed Garments", icon = "INV_Chest_Cloth_52", quality = "epic", slot = "Chest", stats = "+30 Sta, +28 Int, +37 SP", source = "Heroic Slave Pens", sourceType = "drops" },
@@ -4385,9 +5122,30 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 1: Affliction (Caster DPS)
         [1] = {
             rep = {
-                { itemId = 29185, name = "Continuum Blade", icon = "INV_Sword_66", quality = "rare", slot = "One-Hand Sword", stats = "+190 Spell Power, +8 Hit", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7 },
-                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8 },
-                { itemId = 29179, name = "Xi'ri's Gift", icon = "INV_Jewelry_Necklace_17", quality = "epic", slot = "Neck", stats = "+22 Sta, +20 Int, +35 SP", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7 },
+                { itemId = 29185, name = "Continuum Blade", icon = "INV_Sword_66", quality = "rare", slot = "One-Hand Sword", stats = "+190 Spell Power, +8 Hit", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7,
+                    hoverData = {
+                        repSources = { "Old Hillsbrad Foothills (10-25 rep/kill)", "Black Morass (15-25 rep/kill)", "Caverns of Time quests (~4.5k rep total)" },
+                        statPriority = { "Best pre-raid caster sword for Affliction Lock", "+8 Hit helps reach spell hit cap (16%)", "Spell power boosts all DoT damage" },
+                        tips = { "Affliction's DoTs scale well with spell power", "Pair with Shadow Damage off-hand", "Buy from Alurmi in Caverns of Time" },
+                        alternatives = { "Starlight Dagger (Heroic Mech)", "Gladiator's Gavel (Arena)", "Nether-Core's Control Rod (H Mech)" },
+                    },
+                },
+                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8,
+                    hoverData = {
+                        repSources = { "Auchenai Crypts / Sethekk Halls / Shadow Lab (10-25 rep/kill)", "Lower City quests in Terokkar (~6k rep)", "Underbog turn-ins (Arakkoa Feathers - 250 rep per 30)" },
+                        statPriority = { "Massive +23 Hit Rating (nearly 2% spell hit)", "Critical for Affliction's DoT consistency", "Hit cap ensures no missed applications" },
+                        tips = { "DoTs that miss = huge DPS loss", "Shadow Labyrinth gives best rep per run", "Buy from Nakodu in Shattrath Lower City" },
+                        alternatives = { "Ashyen's Gift (Cenarion Expedition Exalted)", "Band of the Guardian (Black Morass Quest)", "Sparking Arcanite Ring (Heroic Mech)" },
+                    },
+                },
+                { itemId = 29179, name = "Xi'ri's Gift", icon = "INV_Jewelry_Necklace_17", quality = "epic", slot = "Neck", stats = "+22 Sta, +20 Int, +35 SP", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7,
+                    hoverData = {
+                        repSources = { "Botanica / Mechanar / Arcatraz (10-25 rep/kill)", "Sha'tar quests in Shattrath and Netherstorm (~4k rep)", "Aldor/Scryer spillover (50% of their rep gains)" },
+                        statPriority = { "BiS pre-raid neck for Affliction Lock", "+35 Spell Power boosts all DoT ticks", "Generic SP applies to all Shadow spells" },
+                        tips = { "Get this at Revered - reasonable grind", "Stacks with Frozen Shadoweave bonus", "Buy from Almaador in Shattrath Terrace of Light" },
+                        alternatives = { "Brooch of Heightened Potential (Nightbane)", "Manasurge Pendant (25 Badges)", "Pendant of the Lost Ages (H Arc)" },
+                    },
+                },
             },
             drops = {
                 { itemId = 28230, name = "Hallowed Garments", icon = "INV_Chest_Cloth_52", quality = "epic", slot = "Chest", stats = "+30 Sta, +28 Int, +37 SP", source = "Heroic Slave Pens", sourceType = "drops" },
@@ -4403,9 +5161,30 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 2: Demonology (Caster DPS)
         [2] = {
             rep = {
-                { itemId = 29185, name = "Continuum Blade", icon = "INV_Sword_66", quality = "rare", slot = "One-Hand Sword", stats = "+190 Spell Power, +8 Hit", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7 },
-                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8 },
-                { itemId = 29179, name = "Xi'ri's Gift", icon = "INV_Jewelry_Necklace_17", quality = "epic", slot = "Neck", stats = "+22 Sta, +20 Int, +35 SP", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7 },
+                { itemId = 29185, name = "Continuum Blade", icon = "INV_Sword_66", quality = "rare", slot = "One-Hand Sword", stats = "+190 Spell Power, +8 Hit", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7,
+                    hoverData = {
+                        repSources = { "Old Hillsbrad Foothills (10-25 rep/kill)", "Black Morass (15-25 rep/kill)", "Caverns of Time quests (~4.5k rep total)" },
+                        statPriority = { "Best pre-raid caster sword for Demo Lock", "+8 Hit helps reach spell hit cap (16%)", "Your pet benefits from your spell power too" },
+                        tips = { "Demo scales spell power to Felguard", "Can grind to Revered in ~5 normal runs", "Buy from Alurmi in Caverns of Time" },
+                        alternatives = { "Starlight Dagger (Heroic Mech)", "Gladiator's Gavel (Arena)", "Nether-Core's Control Rod (H Mech)" },
+                    },
+                },
+                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8,
+                    hoverData = {
+                        repSources = { "Auchenai Crypts / Sethekk Halls / Shadow Lab (10-25 rep/kill)", "Lower City quests in Terokkar (~6k rep)", "Underbog turn-ins (Arakkoa Feathers - 250 rep per 30)" },
+                        statPriority = { "Massive +23 Hit Rating (nearly 2% spell hit)", "Demo uses Shadow Bolt and needs hit cap", "+23 Int helps with mana for pet abilities" },
+                        tips = { "Hit affects both you and pet's threat", "Shadow Labyrinth gives best rep per run", "Buy from Nakodu in Shattrath Lower City" },
+                        alternatives = { "Ashyen's Gift (Cenarion Expedition Exalted)", "Band of the Guardian (Black Morass Quest)", "Sparking Arcanite Ring (Heroic Mech)" },
+                    },
+                },
+                { itemId = 29179, name = "Xi'ri's Gift", icon = "INV_Jewelry_Necklace_17", quality = "epic", slot = "Neck", stats = "+22 Sta, +20 Int, +35 SP", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7,
+                    hoverData = {
+                        repSources = { "Botanica / Mechanar / Arcatraz (10-25 rep/kill)", "Sha'tar quests in Shattrath and Netherstorm (~4k rep)", "Aldor/Scryer spillover (50% of their rep gains)" },
+                        statPriority = { "BiS pre-raid neck for Demo Lock", "+35 Spell Power boosts you and pet", "Demonic Knowledge scales with your stats" },
+                        tips = { "Get this at Revered - reasonable grind", "Pet power increases with your gear", "Buy from Almaador in Shattrath Terrace of Light" },
+                        alternatives = { "Brooch of Heightened Potential (Nightbane)", "Manasurge Pendant (25 Badges)", "Pendant of the Lost Ages (H Arc)" },
+                    },
+                },
             },
             drops = {
                 { itemId = 28230, name = "Hallowed Garments", icon = "INV_Chest_Cloth_52", quality = "epic", slot = "Chest", stats = "+30 Sta, +28 Int, +37 SP", source = "Heroic Slave Pens", sourceType = "drops" },
@@ -4421,9 +5200,30 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 3: Destruction (Caster DPS)
         [3] = {
             rep = {
-                { itemId = 29185, name = "Continuum Blade", icon = "INV_Sword_66", quality = "rare", slot = "One-Hand Sword", stats = "+190 Spell Power, +8 Hit", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7 },
-                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8 },
-                { itemId = 29179, name = "Xi'ri's Gift", icon = "INV_Jewelry_Necklace_17", quality = "epic", slot = "Neck", stats = "+22 Sta, +20 Int, +35 SP", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7 },
+                { itemId = 29185, name = "Continuum Blade", icon = "INV_Sword_66", quality = "rare", slot = "One-Hand Sword", stats = "+190 Spell Power, +8 Hit", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7,
+                    hoverData = {
+                        repSources = { "Old Hillsbrad Foothills (10-25 rep/kill)", "Black Morass (15-25 rep/kill)", "Caverns of Time quests (~4.5k rep total)" },
+                        statPriority = { "Best pre-raid caster sword for Destro Lock", "+8 Hit helps reach spell hit cap (16%)", "Fire damage from Spellfire set works great" },
+                        tips = { "Destro uses Shadow Bolt AND Incinerate", "Pair with Spellfire set for Fire spells", "Buy from Alurmi in Caverns of Time" },
+                        alternatives = { "Starlight Dagger (Heroic Mech)", "Gladiator's Gavel (Arena)", "Nether-Core's Control Rod (H Mech)" },
+                    },
+                },
+                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8,
+                    hoverData = {
+                        repSources = { "Auchenai Crypts / Sethekk Halls / Shadow Lab (10-25 rep/kill)", "Lower City quests in Terokkar (~6k rep)", "Underbog turn-ins (Arakkoa Feathers - 250 rep per 30)" },
+                        statPriority = { "Massive +23 Hit Rating (nearly 2% spell hit)", "Critical for Destro's high-damage nukes", "Missed Incinerates = huge DPS loss" },
+                        tips = { "Destro is burst spec - every hit matters", "Shadow Labyrinth gives best rep per run", "Buy from Nakodu in Shattrath Lower City" },
+                        alternatives = { "Ashyen's Gift (Cenarion Expedition Exalted)", "Band of the Guardian (Black Morass Quest)", "Sparking Arcanite Ring (Heroic Mech)" },
+                    },
+                },
+                { itemId = 29179, name = "Xi'ri's Gift", icon = "INV_Jewelry_Necklace_17", quality = "epic", slot = "Neck", stats = "+22 Sta, +20 Int, +35 SP", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7,
+                    hoverData = {
+                        repSources = { "Botanica / Mechanar / Arcatraz (10-25 rep/kill)", "Sha'tar quests in Shattrath and Netherstorm (~4k rep)", "Aldor/Scryer spillover (50% of their rep gains)" },
+                        statPriority = { "BiS pre-raid neck for Destro Lock", "+35 Spell Power applies to all schools", "Generic SP works for Shadow AND Fire" },
+                        tips = { "Get this at Revered - reasonable grind", "Works with hybrid Fire/Shadow builds", "Buy from Almaador in Shattrath Terrace of Light" },
+                        alternatives = { "Brooch of Heightened Potential (Nightbane)", "Manasurge Pendant (25 Badges)", "Pendant of the Lost Ages (H Arc)" },
+                    },
+                },
             },
             drops = {
                 { itemId = 28230, name = "Hallowed Garments", icon = "INV_Chest_Cloth_52", quality = "epic", slot = "Chest", stats = "+30 Sta, +28 Int, +37 SP", source = "Heroic Slave Pens", sourceType = "drops" },
@@ -4444,9 +5244,30 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 1: Beast Mastery (Ranged DPS)
         [1] = {
             rep = {
-                { itemId = 29152, name = "Marksman's Bow", icon = "INV_Weapon_Bow_18", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Honor Hold @ Revered", sourceType = "rep", faction = "Honor Hold", standing = 7 },
-                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8 },
-                { itemId = 29187, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "Thrallmar @ Exalted", sourceType = "rep", faction = "Thrallmar", standing = 8 },
+                { itemId = 29152, name = "Marksman's Bow", icon = "INV_Weapon_Bow_18", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Honor Hold @ Revered", sourceType = "rep", faction = "Honor Hold", standing = 7,
+                    hoverData = {
+                        repSources = { "Hellfire Ramparts / Blood Furnace / Shattered Halls (10-25 rep/kill)", "Hellfire Peninsula quests (~8k rep)", "Marks of Honor Hold PvP turn-in (250 rep per mark)" },
+                        statPriority = { "Best pre-raid bow for all Hunter specs", "+16 Hit helps reach ranged hit cap (9%)", "Weapon DPS is your most important stat" },
+                        tips = { "Hellfire dungeons give rep even at 70", "Shattered Halls Heroic is fastest", "Buy from Logistics Officer Ulrike in Honor Hold" },
+                        alternatives = { "Sunfury Bow of the Phoenix (Kael)", "Wrathtide Longbow (H Underbog)", "Steelhawk Crossbow (Quest)" },
+                    },
+                },
+                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8,
+                    hoverData = {
+                        repSources = { "Mana-Tombs (Normal: 5-10, Heroic: 15-25 rep/kill)", "Turn in Oshu'gun Crystal Powder Samples (250 rep per 10)", "Consortium quests in Nagrand and Netherstorm" },
+                        statPriority = { "BiS pre-raid neck for Beast Mastery Hunter", "+22 Hit helps reach 9% ranged hit cap", "+20 Agility adds crit and RAP" },
+                        tips = { "Farm Crystal Powder in Nagrand for fast rep", "Mana-Tombs Heroic once keyed", "Buy from Karaaz in Stormspire (Netherstorm)" },
+                        alternatives = { "Natasha's Ember Necklace (Quest: Nagrand)", "Necklace of the Deep (Fishing)", "Worgen Claw Necklace (H Underbog)" },
+                    },
+                },
+                { itemId = 29187, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "Thrallmar @ Exalted", sourceType = "rep", faction = "Thrallmar", standing = 8,
+                    hoverData = {
+                        repSources = { "Hellfire Ramparts / Blood Furnace / Shattered Halls (10-25 rep/kill)", "Hellfire Peninsula quests (~8k rep)", "Marks of Thrallmar PvP turn-in (250 rep per mark)" },
+                        statPriority = { "BiS pre-raid trinket for all physical DPS", "+72 permanent AP + 278 AP on use (2min CD)", "Pop with Bestial Wrath for massive burst" },
+                        tips = { "Use on-use with Kill Command and Bestial Wrath", "Shattered Halls gives best rep per run", "Buy from Quartermaster Urgronn in Thrallmar" },
+                        alternatives = { "Hourglass of the Unraveller (H Black Morass)", "Abacus of Violent Odds (H Mechanar)", "Icon of Unyielding Courage (Quest)" },
+                    },
+                },
             },
             drops = {
                 { itemId = 28275, name = "Beast Lord Cuirass", icon = "INV_Chest_Chain_12", quality = "rare", slot = "Chest", stats = "+32 Agi, +32 Sta, +25 Int", source = "Mana-Tombs (Normal)", sourceType = "drops" },
@@ -4462,9 +5283,30 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 2: Marksmanship (Ranged DPS)
         [2] = {
             rep = {
-                { itemId = 29152, name = "Marksman's Bow", icon = "INV_Weapon_Bow_18", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Honor Hold @ Revered", sourceType = "rep", faction = "Honor Hold", standing = 7 },
-                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8 },
-                { itemId = 29187, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "Thrallmar @ Exalted", sourceType = "rep", faction = "Thrallmar", standing = 8 },
+                { itemId = 29152, name = "Marksman's Bow", icon = "INV_Weapon_Bow_18", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Honor Hold @ Revered", sourceType = "rep", faction = "Honor Hold", standing = 7,
+                    hoverData = {
+                        repSources = { "Hellfire Ramparts / Blood Furnace / Shattered Halls (10-25 rep/kill)", "Hellfire Peninsula quests (~8k rep)", "Marks of Honor Hold PvP turn-in (250 rep per mark)" },
+                        statPriority = { "BiS pre-raid bow for Marksmanship Hunter", "+16 Hit critical for Aimed Shot hits", "Weapon DPS directly affects Aimed Shot damage" },
+                        tips = { "MM Hunters need more hit than BM", "Shattered Halls Heroic is fastest", "Buy from Logistics Officer Ulrike in Honor Hold" },
+                        alternatives = { "Sunfury Bow of the Phoenix (Kael)", "Wrathtide Longbow (H Underbog)", "Steelhawk Crossbow (Quest)" },
+                    },
+                },
+                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8,
+                    hoverData = {
+                        repSources = { "Mana-Tombs (Normal: 5-10, Heroic: 15-25 rep/kill)", "Turn in Oshu'gun Crystal Powder Samples (250 rep per 10)", "Consortium quests in Nagrand and Netherstorm" },
+                        statPriority = { "BiS pre-raid neck for Marksmanship Hunter", "+22 Hit helps reach 9% ranged hit cap", "+20 Agility benefits Trueshot Aura" },
+                        tips = { "Farm Crystal Powder in Nagrand for fast rep", "Mana-Tombs Heroic once keyed", "Buy from Karaaz in Stormspire (Netherstorm)" },
+                        alternatives = { "Natasha's Ember Necklace (Quest: Nagrand)", "Necklace of the Deep (Fishing)", "Worgen Claw Necklace (H Underbog)" },
+                    },
+                },
+                { itemId = 29187, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "Thrallmar @ Exalted", sourceType = "rep", faction = "Thrallmar", standing = 8,
+                    hoverData = {
+                        repSources = { "Hellfire Ramparts / Blood Furnace / Shattered Halls (10-25 rep/kill)", "Hellfire Peninsula quests (~8k rep)", "Marks of Thrallmar PvP turn-in (250 rep per mark)" },
+                        statPriority = { "BiS pre-raid trinket for Marksmanship", "+72 permanent AP + 278 AP on use (2min CD)", "Use with Rapid Fire for burst damage" },
+                        tips = { "Stack with Rapid Fire and haste effects", "Shattered Halls gives best rep per run", "Buy from Quartermaster Urgronn in Thrallmar" },
+                        alternatives = { "Hourglass of the Unraveller (H Black Morass)", "Abacus of Violent Odds (H Mechanar)", "Icon of Unyielding Courage (Quest)" },
+                    },
+                },
             },
             drops = {
                 { itemId = 28034, name = "Hourglass of the Unraveller", icon = "INV_Misc_PocketWatch_01", quality = "rare", slot = "Trinket", stats = "+32 Hit, Haste proc", source = "Black Morass (Normal)", sourceType = "drops" },
@@ -4480,9 +5322,30 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 3: Survival (Ranged DPS)
         [3] = {
             rep = {
-                { itemId = 29152, name = "Marksman's Bow", icon = "INV_Weapon_Bow_18", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Honor Hold @ Revered", sourceType = "rep", faction = "Honor Hold", standing = 7 },
-                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8 },
-                { itemId = 25838, name = "Warden's Hauberk", icon = "INV_Chest_Leather_03", quality = "rare", slot = "Chest", stats = "+30 Agi, +27 Sta, +20 Int", source = "Cenarion Expedition @ Revered", sourceType = "rep", faction = "Cenarion Expedition", standing = 7 },
+                { itemId = 29152, name = "Marksman's Bow", icon = "INV_Weapon_Bow_18", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Honor Hold @ Revered", sourceType = "rep", faction = "Honor Hold", standing = 7,
+                    hoverData = {
+                        repSources = { "Hellfire Ramparts / Blood Furnace / Shattered Halls (10-25 rep/kill)", "Hellfire Peninsula quests (~8k rep)", "Marks of Honor Hold PvP turn-in (250 rep per mark)" },
+                        statPriority = { "BiS pre-raid bow for Survival Hunter", "+16 Hit critical for trap consistency", "Agility scales with Survival talents" },
+                        tips = { "Survival benefits heavily from Agility", "Shattered Halls Heroic is fastest", "Buy from Logistics Officer Ulrike in Honor Hold" },
+                        alternatives = { "Sunfury Bow of the Phoenix (Kael)", "Wrathtide Longbow (H Underbog)", "Steelhawk Crossbow (Quest)" },
+                    },
+                },
+                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8,
+                    hoverData = {
+                        repSources = { "Mana-Tombs (Normal: 5-10, Heroic: 15-25 rep/kill)", "Turn in Oshu'gun Crystal Powder Samples (250 rep per 10)", "Consortium quests in Nagrand and Netherstorm" },
+                        statPriority = { "BiS pre-raid neck for Survival Hunter", "+22 Hit helps reach 9% ranged hit cap", "+20 Agility synergizes with Lightning Reflexes" },
+                        tips = { "Farm Crystal Powder in Nagrand for fast rep", "Survival gets extra crit from Agility", "Buy from Karaaz in Stormspire (Netherstorm)" },
+                        alternatives = { "Natasha's Ember Necklace (Quest: Nagrand)", "Necklace of the Deep (Fishing)", "Worgen Claw Necklace (H Underbog)" },
+                    },
+                },
+                { itemId = 25838, name = "Warden's Hauberk", icon = "INV_Chest_Leather_03", quality = "rare", slot = "Chest", stats = "+30 Agi, +27 Sta, +20 Int", source = "Cenarion Expedition @ Revered", sourceType = "rep", faction = "Cenarion Expedition", standing = 7,
+                    hoverData = {
+                        repSources = { "Slave Pens / Underbog / Steamvault (10-25 rep/kill)", "Cenarion quests in Zangarmarsh/Blade's Edge (~6k rep)", "Unidentified Plant Parts turn-in (250 rep per 10)" },
+                        statPriority = { "Solid Survival Hunter chest with high Agility", "+30 Agi benefits Lightning Reflexes talent", "Good alternative while farming Beast Lord" },
+                        tips = { "Plant Parts turn-in works until Honored", "Steamvault Heroic is fastest Revered+", "Buy from Fedryen Swiftspear in Zangarmarsh" },
+                        alternatives = { "Beast Lord Cuirass (Mana-Tombs)", "Stealthbinder's Chestguard (Shadow Lab)", "Fel Leather Vest (Leatherworking)" },
+                    },
+                },
             },
             drops = {
                 { itemId = 28034, name = "Hourglass of the Unraveller", icon = "INV_Misc_PocketWatch_01", quality = "rare", slot = "Trinket", stats = "+32 Hit, Haste proc", source = "Black Morass (Normal)", sourceType = "drops" },
@@ -4503,9 +5366,55 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 1: Assassination (Melee DPS)
         [1] = {
             rep = {
-                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8 },
-                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Agi, +22 Sta, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8 },
-                { itemId = 25838, name = "Warden's Hauberk", icon = "INV_Chest_Leather_03", quality = "rare", slot = "Chest", stats = "+30 Agi, +27 Sta, +20 Int", source = "Cenarion Expedition @ Revered", sourceType = "rep", faction = "Cenarion Expedition", standing = 7 },
+                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8,
+                    hoverData = {
+                        repSources = { "Mana-Tombs (Normal: 5-10, Heroic: 15-25 rep/kill)", "Oshu'gun Crystal Powder Samples (250 rep per 10)", "Consortium quests in Nagrand and Netherstorm" },
+                        statPriority = { "BiS pre-raid neck for Assassination Rogues", "+22 Hit Rating crucial for poison application", "Agility boosts crit for Seal Fate procs" },
+                        tips = { "Hit cap for poisons is 315 rating (24%)", "Farm Oshu'gun Powder from Nagrand ogres", "Mana-Tombs Heroic is fastest rep once keyed" },
+                        alternatives = { "Natasha's Ember Necklace (Quest: Nagrand)", "Necklace of the Deep (Fishing)", "Worgen Claw Necklace (H Underbog)" },
+                    },
+                },
+                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Agi, +22 Sta, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8,
+                    hoverData = {
+                        repSources = { "Auchenai Crypts / Sethekk Halls / Shadow Lab (10-25 rep/kill)", "Lower City quests in Terokkar (~6k rep)", "Arakkoa Feather turn-ins (250 rep per 30)" },
+                        statPriority = { "Best pre-raid ring for melee DPS", "+23 Hit Rating helps cap special attacks", "+24 Agility provides crit for Mutilate builds" },
+                        tips = { "Shadow Labyrinth gives most rep per run", "Pair with Garona's Signet Ring for hit stacking", "Buy from Nakodu in Lower City" },
+                        alternatives = { "Ring of Umbral Doom (H Sethekk)", "Delicate Eternium Ring (Jewelcrafting)", "A'dal's Command (The Sha'tar)" },
+                    },
+                },
+                { itemId = 25838, name = "Warden's Hauberk", icon = "INV_Chest_Leather_03", quality = "rare", slot = "Chest", stats = "+30 Agi, +27 Sta, +20 Int", source = "Cenarion Expedition @ Revered", sourceType = "rep", faction = "Cenarion Expedition", standing = 7,
+                    hoverData = {
+                        repSources = { "Coilfang dungeons (Slave Pens, Underbog, Steamvault - 5-15 rep/kill)", "Unidentified Plant Parts turn-in (250 rep each, to Honored)", "Cenarion Expedition quests in Zangarmarsh/Blade's Edge" },
+                        statPriority = { "Solid pre-raid leather chest for Assassination", "+30 Agility excellent for crit-based builds", "High stamina aids dungeon survival" },
+                        tips = { "Get at Revered - easier than Exalted gear", "Steamvault gives most rep at higher levels", "Int is wasted but other stats are strong" },
+                        alternatives = { "Stealthbinder's Chestguard (Shadow Lab)", "Primalstrike Vest (Leatherworking)", "Clefthoof Hide Tunic (Crafted)" },
+                    },
+                },
+                -- Non-rep item: Best pre-raid thrown for Rogues (crafted)
+                { itemId = 29204, name = "Felsteel Whisper Knives", icon = "INV_ThrowingKnife_03", quality = "rare", slot = "Thrown", stats = "+10 Agi, +9 Sta", source = "Engineering (365)", sourceType = "crafted",
+                    hoverData = {
+                        repSources = {
+                            "Crafted by Engineers (365 skill)",
+                            "Mats: 6 Felsteel Bar, 2 Hardened Adamantite Bar",
+                            "Schematic from Shattered Halls (rare drop)",
+                        },
+                        statPriority = {
+                            "Best pre-raid thrown for Rogues",
+                            "+10 Agility adds crit chance",
+                            "Ranged slot is low priority for melee",
+                        },
+                        tips = {
+                            "Ask guild engineer to craft",
+                            "Mats cost ~50-100g",
+                            "One-time craft, lasts forever",
+                        },
+                        alternatives = {
+                            "Vendor throwing weapons",
+                            "Carved Bone Boomerang (Quest)",
+                            "Low priority upgrade",
+                        },
+                    },
+                },
             },
             drops = {
                 { itemId = 28189, name = "Liar's Tongue Gloves", icon = "INV_Gauntlets_25", quality = "epic", slot = "Hands", stats = "+32 Agi, +32 Sta, +24 Hit", source = "Heroic Mechanar", sourceType = "drops" },
@@ -4521,9 +5430,55 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 2: Combat (Melee DPS)
         [2] = {
             rep = {
-                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8 },
-                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Agi, +22 Sta, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8 },
-                { itemId = 29187, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "Thrallmar @ Exalted", sourceType = "rep", faction = "Thrallmar", standing = 8 },
+                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8,
+                    hoverData = {
+                        repSources = { "Mana-Tombs (Normal: 5-10, Heroic: 15-25 rep/kill)", "Oshu'gun Crystal Powder Samples (250 rep per 10)", "Consortium quests in Nagrand and Netherstorm" },
+                        statPriority = { "BiS pre-raid neck for Combat Rogues", "+22 Hit Rating essential for white hit cap", "Agility boosts crit for Combat Potency procs" },
+                        tips = { "Combat needs 363 hit rating for dual-wield cap", "Pair with other hit pieces early on", "Mana-Tombs Heroic is fastest rep once keyed" },
+                        alternatives = { "Natasha's Ember Necklace (Quest: Nagrand)", "Necklace of the Deep (Fishing)", "Worgen Claw Necklace (H Underbog)" },
+                    },
+                },
+                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Agi, +22 Sta, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8,
+                    hoverData = {
+                        repSources = { "Auchenai Crypts / Sethekk Halls / Shadow Lab (10-25 rep/kill)", "Lower City quests in Terokkar (~6k rep)", "Arakkoa Feather turn-ins (250 rep per 30)" },
+                        statPriority = { "Best pre-raid ring for Combat Rogues", "+23 Hit Rating helps reach dual-wield cap", "+24 Agility boosts Sinister Strike crit chance" },
+                        tips = { "Shadow Labyrinth gives most rep per run", "Essential for Combat Rogues stacking hit", "Buy from Nakodu in Lower City" },
+                        alternatives = { "Ring of Umbral Doom (H Sethekk)", "Delicate Eternium Ring (Jewelcrafting)", "A'dal's Command (The Sha'tar)" },
+                    },
+                },
+                { itemId = 29187, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "Thrallmar @ Exalted", sourceType = "rep", faction = "Thrallmar", standing = 8,
+                    hoverData = {
+                        repSources = { "Hellfire Ramparts / Blood Furnace / Shattered Halls (5-25 rep/kill)", "Thrallmar quests in Hellfire Peninsula (~8k rep)", "Fel Orc Blood turn-ins (Honored to Exalted)" },
+                        statPriority = { "BiS on-use trinket for Combat burst", "+72 passive AP always active", "Use effect stacks with Blade Flurry + Adrenaline Rush" },
+                        tips = { "Macro to Blade Flurry for cleave burst", "2 min cooldown syncs with major cooldowns", "Buy from Quartermaster in Thrallmar" },
+                        alternatives = { "Abacus of Violent Odds (H Mech)", "Hourglass of the Unraveller (Black Morass)", "Dragonspine Trophy (Gruul)" },
+                    },
+                },
+                -- Non-rep item: Best pre-raid thrown for Rogues (crafted)
+                { itemId = 29204, name = "Felsteel Whisper Knives", icon = "INV_ThrowingKnife_03", quality = "rare", slot = "Thrown", stats = "+10 Agi, +9 Sta", source = "Engineering (365)", sourceType = "crafted",
+                    hoverData = {
+                        repSources = {
+                            "Crafted by Engineers (365 skill)",
+                            "Mats: 6 Felsteel Bar, 2 Hardened Adamantite Bar",
+                            "Schematic from Shattered Halls (rare drop)",
+                        },
+                        statPriority = {
+                            "Best pre-raid thrown for Rogues",
+                            "+10 Agility adds crit chance",
+                            "Ranged slot is low priority for melee",
+                        },
+                        tips = {
+                            "Ask guild engineer to craft",
+                            "Mats cost ~50-100g",
+                            "One-time craft, lasts forever",
+                        },
+                        alternatives = {
+                            "Vendor throwing weapons",
+                            "Carved Bone Boomerang (Quest)",
+                            "Low priority upgrade",
+                        },
+                    },
+                },
             },
             drops = {
                 { itemId = 28189, name = "Liar's Tongue Gloves", icon = "INV_Gauntlets_25", quality = "epic", slot = "Hands", stats = "+32 Agi, +32 Sta, +24 Hit", source = "Heroic Mechanar", sourceType = "drops" },
@@ -4539,9 +5494,55 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 3: Subtlety (Melee DPS)
         [3] = {
             rep = {
-                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8 },
-                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Agi, +22 Sta, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8 },
-                { itemId = 25838, name = "Warden's Hauberk", icon = "INV_Chest_Leather_03", quality = "rare", slot = "Chest", stats = "+30 Agi, +27 Sta, +20 Int", source = "Cenarion Expedition @ Revered", sourceType = "rep", faction = "Cenarion Expedition", standing = 7 },
+                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8,
+                    hoverData = {
+                        repSources = { "Mana-Tombs (Normal: 5-10, Heroic: 15-25 rep/kill)", "Oshu'gun Crystal Powder Samples (250 rep per 10)", "Consortium quests in Nagrand and Netherstorm" },
+                        statPriority = { "BiS pre-raid neck for Subtlety Rogues", "+22 Hit Rating vital for Hemorrhage uptime", "Agility boosts crit for Honor Among Thieves" },
+                        tips = { "Subtlety needs consistent hit for debuff maintenance", "Farm Oshu'gun Powder from Nagrand ogres", "Mana-Tombs Heroic is fastest rep once keyed" },
+                        alternatives = { "Natasha's Ember Necklace (Quest: Nagrand)", "Necklace of the Deep (Fishing)", "Worgen Claw Necklace (H Underbog)" },
+                    },
+                },
+                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Agi, +22 Sta, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8,
+                    hoverData = {
+                        repSources = { "Auchenai Crypts / Sethekk Halls / Shadow Lab (10-25 rep/kill)", "Lower City quests in Terokkar (~6k rep)", "Arakkoa Feather turn-ins (250 rep per 30)" },
+                        statPriority = { "Excellent ring for Subtlety builds", "+23 Hit Rating helps land finishers reliably", "+24 Agility provides crit for combo point generation" },
+                        tips = { "Shadow Labyrinth gives most rep per run", "Subtlety excels in arena - gear appropriately", "Buy from Nakodu in Lower City" },
+                        alternatives = { "Ring of Umbral Doom (H Sethekk)", "Delicate Eternium Ring (Jewelcrafting)", "A'dal's Command (The Sha'tar)" },
+                    },
+                },
+                { itemId = 25838, name = "Warden's Hauberk", icon = "INV_Chest_Leather_03", quality = "rare", slot = "Chest", stats = "+30 Agi, +27 Sta, +20 Int", source = "Cenarion Expedition @ Revered", sourceType = "rep", faction = "Cenarion Expedition", standing = 7,
+                    hoverData = {
+                        repSources = { "Coilfang dungeons (Slave Pens, Underbog, Steamvault - 5-15 rep/kill)", "Unidentified Plant Parts turn-in (250 rep each, to Honored)", "Cenarion Expedition quests in Zangarmarsh/Blade's Edge" },
+                        statPriority = { "Solid leather chest for Subtlety Rogues", "+30 Agility excellent for crit and dodge", "High stamina aids survival in PvP" },
+                        tips = { "Get at Revered - faster than Exalted gear", "Subtlety benefits from high agility stacking", "Int stat is wasted but other stats compensate" },
+                        alternatives = { "Stealthbinder's Chestguard (Shadow Lab)", "Primalstrike Vest (Leatherworking)", "Gladiator's Leather Tunic (Arena)" },
+                    },
+                },
+                -- Non-rep item: Best pre-raid thrown for Rogues (crafted)
+                { itemId = 29204, name = "Felsteel Whisper Knives", icon = "INV_ThrowingKnife_03", quality = "rare", slot = "Thrown", stats = "+10 Agi, +9 Sta", source = "Engineering (365)", sourceType = "crafted",
+                    hoverData = {
+                        repSources = {
+                            "Crafted by Engineers (365 skill)",
+                            "Mats: 6 Felsteel Bar, 2 Hardened Adamantite Bar",
+                            "Schematic from Shattered Halls (rare drop)",
+                        },
+                        statPriority = {
+                            "Best pre-raid thrown for Rogues",
+                            "+10 Agility adds crit chance",
+                            "Ranged slot is low priority for melee",
+                        },
+                        tips = {
+                            "Ask guild engineer to craft",
+                            "Mats cost ~50-100g",
+                            "One-time craft, lasts forever",
+                        },
+                        alternatives = {
+                            "Vendor throwing weapons",
+                            "Carved Bone Boomerang (Quest)",
+                            "Low priority upgrade",
+                        },
+                    },
+                },
             },
             drops = {
                 { itemId = 28189, name = "Liar's Tongue Gloves", icon = "INV_Gauntlets_25", quality = "epic", slot = "Hands", stats = "+32 Agi, +32 Sta, +24 Hit", source = "Heroic Mechanar", sourceType = "drops" },
@@ -4608,7 +5609,7 @@ C.LEVELING_GEAR_MATRIX = {
             quests = {
                 { itemId = 25715, name = "Jade Warrior Pauldrons", icon = "INV_Shoulder_25", quality = "rare", slot = "Shoulder", stats = "+28 Sta, +20 Str, +19 Agi", source = "Weaken the Ramparts", sourceType = "quest", zone = "Hellfire Peninsula" },
                 { itemId = 25712, name = "Perfectly Balanced Cape", icon = "INV_Misc_Cape_14", quality = "rare", slot = "Back", stats = "+22 Sta, +15 Agi, +30 AP", source = "Heart of Rage", sourceType = "quest", zone = "Hellfire Peninsula" },
-                { itemId = 24044, name = "Hellreaver", icon = "INV_Polearm_06", quality = "rare", slot = "Polearm", stats = "+30 Str, +27 Sta, +25 Crit", source = "Hellfire Ramparts", sourceType = "dungeon", boss = "Vazruden" },
+                -- Note: Hellreaver polearm removed - Feral Druids can't use polearms, was also wrong category (dungeon drop, not quest)
             },
         },
         ["63-65"] = {
@@ -4618,7 +5619,7 @@ C.LEVELING_GEAR_MATRIX = {
                 { itemId = 24463, name = "Pauldrons of Brute Force", icon = "INV_Shoulder_28", quality = "rare", slot = "Shoulder", stats = "+22 Sta, +16 Str, +18 Def", source = "Underbog", sourceType = "dungeon", boss = "Black Stalker" },
             },
             quests = {
-                { itemId = 25540, name = "Dark Cloak of the Marsh", icon = "INV_Misc_Cape_16", quality = "rare", slot = "Back", stats = "+28 Sta, +15 Agi, +30 AP", source = "Lost in Action", sourceType = "quest", zone = "Zangarmarsh" },
+                { itemId = 25540, name = "Dark Cloak of the Marsh", icon = "INV_Misc_Cape_16", quality = "rare", slot = "Back", stats = "+16 Agi, +24 Sta, +30 AP", source = "Lost in Action", sourceType = "quest", zone = "Zangarmarsh" },
                 { itemId = 29336, name = "Mark of the Ravenguard", icon = "INV_Jewelry_Necklace_21", quality = "rare", slot = "Neck", stats = "+40 Sta, +17 Def", source = "Brother Against Brother", sourceType = "quest", zone = "Terokkar Forest" },
                 { itemId = 29337, name = "The Exarch's Protector", icon = "INV_Chest_Plate_15", quality = "rare", slot = "Chest", stats = "+30 Str, +23 Def, +18 Crit", source = "Everything Will Be Alright", sourceType = "quest", zone = "Terokkar Forest" },
             },
@@ -4648,7 +5649,7 @@ C.LEVELING_GEAR_MATRIX = {
                 { itemId = 24096, name = "Heartblood Prayer Beads", icon = "INV_Jewelry_Necklace_19", quality = "rare", slot = "Neck", stats = "+15 Int, +15 Sta, +31 Heal, +4 mp5", source = "Hellfire Ramparts", sourceType = "dungeon", boss = "Omor" },
             },
             quests = {
-                { itemId = 25718, name = "Mantle of Magical Might", icon = "INV_Shoulder_09", quality = "rare", slot = "Shoulder", stats = "+17 Int, +16 Sta, +10 Spirit, +19 Spell", source = "Weaken the Ramparts", sourceType = "quest", zone = "Hellfire Peninsula" },
+                { itemId = 25718, name = "Mantle of Magical Might", icon = "INV_Shoulder_09", quality = "rare", slot = "Shoulder", stats = "+17 Int, +16 Sta, +10 Spirit, +16 Crit, +19 Spell", source = "Weaken the Ramparts", sourceType = "quest", zone = "Hellfire Peninsula" },
                 { itemId = 25714, name = "Crimson Pendant of Clarity", icon = "INV_Jewelry_Necklace_17", quality = "rare", slot = "Neck", stats = "+15 Int, +18 Spell, +6 mp5", source = "Heart of Rage", sourceType = "quest", zone = "Hellfire Peninsula" },
                 { itemId = 25713, name = "Holy Healing Band", icon = "INV_Jewelry_Ring_33", quality = "rare", slot = "Ring", stats = "+15 Int, +33 Heal, +6 mp5", source = "Heart of Rage", sourceType = "quest", zone = "Hellfire Peninsula" },
             },
@@ -4661,18 +5662,18 @@ C.LEVELING_GEAR_MATRIX = {
             },
             quests = {
                 { itemId = 28029, name = "Goldenvine Wraps", icon = "INV_Bracer_07", quality = "rare", slot = "Wrist", stats = "+14 Int, +24 Heal", source = "Lost in Action", sourceType = "quest", zone = "Zangarmarsh" },
-                { itemId = 29345, name = "Haramad's Leg Wraps", icon = "INV_Pants_Cloth_15", quality = "rare", slot = "Legs", stats = "+18 Int, +12 Spirit, +28 Heal", source = "Undercutting the Competition", sourceType = "quest", zone = "Terokkar Forest" },
-                { itemId = 29328, name = "Consortium Prince's Wrap", icon = "INV_Belt_13", quality = "rare", slot = "Waist", stats = "+16 Int, +22 Heal", source = "Mana-Tombs Quest", sourceType = "quest", zone = "Terokkar Forest" },
+                { itemId = 29345, name = "Haramad's Leg Wraps", icon = "INV_Pants_Cloth_15", quality = "rare", slot = "Legs", stats = "+29 Spirit, +24 Heal, +8 Spell, +11 mp5, 3 sockets", source = "Undercutting the Competition", sourceType = "quest", zone = "Terokkar Forest" },
+                -- Note: Consortium Prince's Wrap removed from healer - it's a caster DPS item (+Crit, +Spell Pen, no +Heal)
             },
         },
         ["66-67"] = {
             dungeons = {
                 { itemId = 27412, name = "Ironstaff of Regeneration", icon = "INV_Staff_48", quality = "rare", slot = "Staff", stats = "+29 Int, +33 Sta, +35 Spirit, +143 Heal", source = "Auchenai Crypts", sourceType = "dungeon", boss = "Exarch Maladaar" },
                 { itemId = 27410, name = "Collar of Command", icon = "INV_Helmet_48", quality = "rare", slot = "Head", stats = "+23 Int, +29 Spirit, +66 Heal", source = "Auchenai Crypts", sourceType = "dungeon", boss = "Shirrak" },
-                { itemId = 27411, name = "Slippers of Serenity", icon = "INV_Boots_Cloth_10", quality = "rare", slot = "Feet", stats = "+22 Int, +15 Spirit, +35 Heal", source = "Auchenai Crypts", sourceType = "dungeon", boss = "Exarch Maladaar" },
+                { itemId = 27411, name = "Slippers of Serenity", icon = "INV_Boots_Cloth_10", quality = "rare", slot = "Feet", stats = "+22 Int, +10 Sta, +15 Spirit, +35 Heal, 2 sockets", source = "Auchenai Crypts", sourceType = "dungeon", boss = "Exarch Maladaar" },
             },
             quests = {
-                { itemId = 29317, name = "Tempest's Touch", icon = "INV_Gauntlets_17", quality = "rare", slot = "Hands", stats = "+20 Int, +32 Heal", source = "Return to Andormu", sourceType = "quest", zone = "Tanaris" },
+                { itemId = 29317, name = "Tempest's Touch", icon = "INV_Gauntlets_17", quality = "rare", slot = "Hands", stats = "+20 Int, +10 Sta, +6 Spirit, +27 Spell, +10 Spell Pen, 2 sockets", source = "Return to Andormu", sourceType = "quest", zone = "Tanaris" },
                 { itemId = 29334, name = "Sethekk Oracle's Focus", icon = "INV_Jewelry_Necklace_23", quality = "rare", slot = "Neck", stats = "+18 Int, +36 Heal", source = "Brother Against Brother", sourceType = "quest", zone = "Terokkar Forest" },
                 { itemId = 29341, name = "Auchenai Anchorite's Robe", icon = "INV_Chest_Cloth_47", quality = "rare", slot = "Chest", stats = "+22 Int, +14 Spirit, +40 Heal", source = "Everything Will Be Alright", sourceType = "quest", zone = "Terokkar Forest" },
             },
@@ -4683,31 +5684,32 @@ C.LEVELING_GEAR_MATRIX = {
     -- MELEE DPS
     --========================================================================
     ["melee_dps"] = {
-        -- NOTE: Rogues can use daggers, 1H swords, 1H maces, fist, polearms, axes
-        -- NOTE: Feral Druids can use daggers, maces (1H/2H), staves, fist weapons (NO axes/swords/polearms)
-        -- WEAPON CONFLICT: No single weapon type works for both classes at this level
+        -- NOTE: Rogues can use daggers, 1H swords, 1H maces, fist weapons (NO polearms, NO 2H swords, NO axes)
+        -- NOTE: Feral Druids can use daggers, maces (1H/2H), staves, fist weapons (NO axes/swords/polearms) - prefer 2H
+        -- NOTE: Enhancement Shamans can use daggers, maces (1H/2H), axes, fist weapons (NO swords/polearms) - dual wield
+        -- NOTE: Ret Paladins can use swords, maces, axes, polearms (2H preferred)
+        -- WEAPON CONFLICT: Showing shared leather armor only; weapons excluded due to class conflicts
         ["60-62"] = {
             dungeons = {
-                -- Weapons listed for BOTH classes since they can't share weapon types:
-                -- Hellreaver (polearm) = Rogues only; Ursol's Claw (staff) = Druids only
-                { itemId = 24044, name = "Hellreaver", icon = "INV_Polearm_2H_01", quality = "rare", slot = "Polearm", stats = "+30 Str, +27 Sta, +25 Crit (Rogues only)", source = "Hellfire Ramparts", sourceType = "dungeon", boss = "Vazruden" },
+                -- Note: Hellreaver polearm removed - Rogues CAN'T use polearms (only Warriors/Paladins/Hunters/Druids)
+                -- Note: Druids also can't use polearms, so no melee_dps class here can use it
                 { itemId = 24396, name = "Vest of Vengeance", icon = "INV_Chest_Leather_07", quality = "rare", slot = "Chest", stats = "+27 Agi, +18 Sta, +42 AP, +11 Hit", source = "Blood Furnace", sourceType = "dungeon", boss = "Keli'dan" },
                 { itemId = 24063, name = "Shifting Sash of Midnight", icon = "INV_Belt_03", quality = "rare", slot = "Waist", stats = "+20 Agi, +19 Sta, +12 Hit", source = "Hellfire Ramparts", sourceType = "dungeon", boss = "Vazruden" },
             },
             quests = {
                 -- Note: Handguards of Precision removed - it's MAIL armor, rogues/druids can't equip
-                { itemId = 25717, name = "Sure-Step Boots", icon = "INV_Boots_Leather_07", quality = "uncommon", slot = "Feet", stats = "+16 Agi, +18 Sta", source = "Weaken the Ramparts", sourceType = "quest", zone = "Hellfire Peninsula" },
-                { itemId = 25712, name = "Perfectly Balanced Cape", icon = "INV_Misc_Cape_14", quality = "uncommon", slot = "Back", stats = "+22 AP, +14 Crit", source = "Heart of Rage", sourceType = "quest", zone = "Hellfire Peninsula" },
+                { itemId = 25717, name = "Sure-Step Boots", icon = "INV_Boots_Leather_07", quality = "uncommon", slot = "Feet", stats = "+20 Agi, +28 Sta, +38 AP", source = "Weaken the Ramparts", sourceType = "quest", zone = "Hellfire Peninsula" },
+                { itemId = 25712, name = "Perfectly Balanced Cape", icon = "INV_Misc_Cape_14", quality = "rare", slot = "Back", stats = "+15 Agi, +22 Sta, +30 AP", source = "Heart of Rage", sourceType = "quest", zone = "Hellfire Peninsula" },
             },
         },
         ["63-65"] = {
             dungeons = {
-                { itemId = 25943, name = "Creepjacker", icon = "INV_Gauntlets_26", quality = "rare", slot = "Fist", stats = "+13 Sta, +13 Crit, +28 AP", source = "Mana-Tombs", sourceType = "dungeon", boss = "Pandemonius" },
+                -- Note: Creepjacker (fist weapon) removed - Ferals prefer 2H, Rogues have spec-specific weapon needs
                 { itemId = 24365, name = "Deft Handguards", icon = "INV_Gauntlets_25", quality = "rare", slot = "Hands", stats = "+52 AP, +12 Crit, +18 Sta", source = "Slave Pens", sourceType = "dungeon", boss = "Quagmirran" },
                 { itemId = 24466, name = "Skulldugger's Leggings", icon = "INV_Pants_Leather_11", quality = "rare", slot = "Legs", stats = "+40 AP, +21 Dodge, +16 Hit, +24 Sta", source = "Underbog", sourceType = "dungeon", boss = "Black Stalker" },
             },
             quests = {
-                { itemId = 25540, name = "Dark Cloak of the Marsh", icon = "INV_Misc_Cape_16", quality = "uncommon", slot = "Back", stats = "+28 AP, +14 Crit", source = "Lost in Action", sourceType = "quest", zone = "Zangarmarsh" },
+                { itemId = 25540, name = "Dark Cloak of the Marsh", icon = "INV_Misc_Cape_16", quality = "rare", slot = "Back", stats = "+16 Agi, +24 Sta, +30 AP", source = "Lost in Action", sourceType = "quest", zone = "Zangarmarsh" },
                 { itemId = 29343, name = "Haramad's Leggings of the Third Coin", icon = "INV_Pants_Leather_12", quality = "uncommon", slot = "Legs", stats = "+22 Agi, +20 Sta, +32 AP", source = "Undercutting the Competition", sourceType = "quest", zone = "Terokkar Forest" },
                 -- Note: Cryo-mitts removed - it's a caster item (Int/Spirit/+Heal), not melee agility
             },
@@ -4715,12 +5717,12 @@ C.LEVELING_GEAR_MATRIX = {
         ["66-67"] = {
             dungeons = {
                 { itemId = 27415, name = "Darkguard Face Mask", icon = "INV_Helmet_15", quality = "rare", slot = "Head", stats = "+29 Agi, +30 Sta, +20 Hit, +60 AP", source = "Auchenai Crypts", sourceType = "dungeon", boss = "Exarch Maladaar" },
-                -- Creepjacker (63-65 fist weapon) remains best weapon option until 70; focus on armor upgrades
+                -- Note: Weapons removed - Ferals prefer 2H, Rogues have spec-specific weapon needs; focus on armor upgrades
                 { itemId = 27423, name = "Cloak of Impulsiveness", icon = "INV_Misc_Cape_10", quality = "rare", slot = "Back", stats = "+18 Agi, +19 Sta, +40 AP", source = "Old Hillsbrad", sourceType = "dungeon", boss = "Lieutenant Drake" },
                 { itemId = 27434, name = "Mantle of Perenolde", icon = "INV_Shoulder_23", quality = "rare", slot = "Shoulder", stats = "+24 Sta, +23 Hit, +23 Crit, +20 AP", source = "Old Hillsbrad", sourceType = "dungeon", boss = "Epoch Hunter" },
             },
             quests = {
-                { itemId = 29333, name = "Talon Lord's Collar", icon = "INV_Jewelry_Necklace_25", quality = "uncommon", slot = "Neck", stats = "+30 AP, +16 Crit", source = "Brother Against Brother", sourceType = "quest", zone = "Terokkar Forest" },
+                { itemId = 29335, name = "Talon Lord's Collar", icon = "INV_Jewelry_Necklace_25", quality = "rare", slot = "Neck", stats = "+19 Sta, +21 Hit, +38 AP", source = "Brother Against Brother", sourceType = "quest", zone = "Terokkar Forest" },
                 { itemId = 29340, name = "Auchenai Monk's Tunic", icon = "INV_Chest_Leather_01", quality = "uncommon", slot = "Chest", stats = "+24 Agi, +24 Dodge, +19 Hit, +18 AP", source = "Everything Will Be Alright", sourceType = "quest", zone = "Terokkar Forest" },
                 -- Note: Terokk's Quill (polearm) removed - druids can't use polearms; no good melee weapon quest rewards at this level
             },
@@ -4752,7 +5754,7 @@ C.LEVELING_GEAR_MATRIX = {
             },
             quests = {
                 -- Note: Mail agility legs are scarce in quests; dungeon drops (Shamblehide/Nethershade) are primary upgrades
-                { itemId = 25540, name = "Dark Cloak of the Marsh", icon = "INV_Misc_Cape_16", quality = "uncommon", slot = "Back", stats = "+16 Agi, +28 AP", source = "Lost in Action", sourceType = "quest", zone = "Zangarmarsh" },
+                { itemId = 25540, name = "Dark Cloak of the Marsh", icon = "INV_Misc_Cape_16", quality = "rare", slot = "Back", stats = "+16 Agi, +24 Sta, +30 AP", source = "Lost in Action", sourceType = "quest", zone = "Zangarmarsh" },
                 { itemId = 29326, name = "Consortium Mantle of Phasing", icon = "INV_Shoulder_22", quality = "uncommon", slot = "Shoulder", stats = "+21 Crit, +46 AP", source = "Someone Else's Hard Work Pays Off", sourceType = "quest", zone = "Terokkar Forest" },
             },
         },
@@ -4764,7 +5766,7 @@ C.LEVELING_GEAR_MATRIX = {
             },
             quests = {
                 { itemId = 29319, name = "Tarren Mill Defender's Cinch", icon = "INV_Belt_14", quality = "uncommon", slot = "Waist", stats = "+18 Agi, +16 Sta", source = "Return to Andormu", sourceType = "quest", zone = "Tanaris" },
-                { itemId = 29333, name = "Talon Lord's Collar", icon = "INV_Jewelry_Necklace_25", quality = "uncommon", slot = "Neck", stats = "+20 Agi, +30 AP", source = "Brother Against Brother", sourceType = "quest", zone = "Terokkar Forest" },
+                { itemId = 29335, name = "Talon Lord's Collar", icon = "INV_Jewelry_Necklace_25", quality = "rare", slot = "Neck", stats = "+19 Sta, +21 Hit, +38 AP", source = "Brother Against Brother", sourceType = "quest", zone = "Terokkar Forest" },
                 { itemId = 29339, name = "Auchenai Tracker's Hauberk", icon = "INV_Chest_Chain_11", quality = "uncommon", slot = "Chest", stats = "+29 Int, +60 AP, +5 mp5", source = "Everything Will Be Alright", sourceType = "quest", zone = "Terokkar Forest" },
             },
         },
@@ -4777,13 +5779,13 @@ C.LEVELING_GEAR_MATRIX = {
         ["60-62"] = {
             dungeons = {
                 { itemId = 24069, name = "Crystalfire Staff", icon = "INV_Staff_38", quality = "rare", slot = "Staff", stats = "+34 Int, +34 Sta, +46 Spell", source = "Hellfire Ramparts", sourceType = "dungeon", boss = "Omor" },
-                { itemId = 24384, name = "Diamond-Core Sledgemace", icon = "INV_Hammer_18", quality = "rare", slot = "2H Mace", stats = "+12 Sta, +51 Spell", source = "Blood Furnace", sourceType = "dungeon", boss = "The Maker" },
+                -- Note: Diamond-Core Sledgemace removed - 2H Mace, Mages/Warlocks can't use maces
                 { itemId = 24024, name = "Pauldrons of Arcane Rage", icon = "INV_Shoulder_18", quality = "rare", slot = "Shoulder", stats = "+18 Int, +18 Sta, +27 Spell", source = "Hellfire Ramparts", sourceType = "dungeon", boss = "Gargolmar" },
             },
             quests = {
-                { itemId = 25718, name = "Mantle of Magical Might", icon = "INV_Shoulder_09", quality = "uncommon", slot = "Shoulder", stats = "+16 Int, +22 Spell", source = "Weaken the Ramparts", sourceType = "quest", zone = "Hellfire Peninsula" },
-                { itemId = 25713, name = "Deadly Borer Leggings", icon = "INV_Pants_Cloth_13", quality = "uncommon", slot = "Legs", stats = "+18 Int, +16 Sta, +24 Spell", source = "Heart of Rage", sourceType = "quest", zone = "Hellfire Peninsula" },
-                { itemId = 25714, name = "Crimson Pendant of Clarity", icon = "INV_Jewelry_Necklace_17", quality = "uncommon", slot = "Neck", stats = "+14 Int, +20 Spell", source = "Heart of Rage", sourceType = "quest", zone = "Hellfire Peninsula" },
+                { itemId = 25718, name = "Mantle of Magical Might", icon = "INV_Shoulder_09", quality = "rare", slot = "Shoulder", stats = "+17 Int, +16 Sta, +10 Spirit, +16 Crit, +19 Spell", source = "Weaken the Ramparts", sourceType = "quest", zone = "Hellfire Peninsula" },
+                { itemId = 25711, name = "Deadly Borer Leggings", icon = "INV_Pants_Cloth_13", quality = "rare", slot = "Legs", stats = "+23 Int, +21 Sta, +15 Spirit, +22 Crit, +27 Spell", source = "Heart of Rage", sourceType = "quest", zone = "Hellfire Peninsula" },
+                { itemId = 25714, name = "Crimson Pendant of Clarity", icon = "INV_Jewelry_Necklace_17", quality = "rare", slot = "Neck", stats = "+15 Int, +18 Spell, +6 mp5", source = "Heart of Rage", sourceType = "quest", zone = "Hellfire Peninsula" },
             },
         },
         ["63-65"] = {
@@ -4794,20 +5796,20 @@ C.LEVELING_GEAR_MATRIX = {
             },
             quests = {
                 { itemId = 25541, name = "Cenarion Ring of Casting", icon = "INV_Jewelry_Ring_38", quality = "uncommon", slot = "Ring", stats = "+14 Int, +18 Spell", source = "Lost in Action", sourceType = "quest", zone = "Zangarmarsh" },
-                { itemId = 29328, name = "Consortium Prince's Wrap", icon = "INV_Belt_13", quality = "uncommon", slot = "Waist", stats = "+16 Int, +22 Spell", source = "Mana-Tombs Quest", sourceType = "quest", zone = "Terokkar Forest" },
-                { itemId = 29345, name = "Haramad's Leg Wraps", icon = "INV_Pants_Cloth_15", quality = "uncommon", slot = "Legs", stats = "+18 Int, +26 Spell", source = "Undercutting the Competition", sourceType = "quest", zone = "Terokkar Forest" },
+                { itemId = 29328, name = "Consortium Prince's Wrap", icon = "INV_Belt_13", quality = "rare", slot = "Waist", stats = "+22 Crit, +30 Spell, +20 Spell Pen", source = "Mana-Tombs Quest", sourceType = "quest", zone = "Terokkar Forest" },
+                { itemId = 29345, name = "Haramad's Leg Wraps", icon = "INV_Pants_Cloth_15", quality = "rare", slot = "Legs", stats = "+29 Spirit, +24 Heal, +8 Spell, +11 mp5, 3 sockets", source = "Undercutting the Competition", sourceType = "quest", zone = "Terokkar Forest" },
             },
         },
         ["66-67"] = {
             dungeons = {
                 { itemId = 27431, name = "Time-Shifted Dagger", icon = "INV_Weapon_ShortBlade_42", quality = "rare", slot = "Dagger", stats = "+15 Int, +15 Sta, +13 Crit, +85 Spell", source = "Old Hillsbrad", sourceType = "dungeon", boss = "Epoch Hunter" },
                 { itemId = 27418, name = "Stormreaver Shadow-Kilt", icon = "INV_Pants_Cloth_17", quality = "rare", slot = "Legs", stats = "+26 Int, +19 Sta, +14 Spirit, +25 Crit, +30 Spell", source = "Old Hillsbrad", sourceType = "dungeon", boss = "Lieutenant Drake" },
-                { itemId = 27410, name = "Collar of Command", icon = "INV_Helmet_48", quality = "rare", slot = "Head", stats = "+23 Int, +22 Sta, +29 Spirit, +22 Spell, +66 Heal", source = "Auchenai Crypts", sourceType = "dungeon", boss = "Shirrak" },
+                -- Note: Collar of Command removed - it's primarily a healer item (+66 Heal focus)
             },
             quests = {
-                { itemId = 29317, name = "Tempest's Touch", icon = "INV_Gauntlets_17", quality = "uncommon", slot = "Hands", stats = "+18 Int, +28 Spell", source = "Return to Andormu", sourceType = "quest", zone = "Tanaris" },
-                { itemId = 29335, name = "Torc of the Sethekk Prophet", icon = "INV_Jewelry_Necklace_24", quality = "uncommon", slot = "Neck", stats = "+16 Int, +24 Spell", source = "Brother Against Brother", sourceType = "quest", zone = "Terokkar Forest" },
-                { itemId = 29336, name = "The Saga of Terokk", icon = "INV_Offhand_Stratholme_A_02", quality = "uncommon", slot = "Off-hand", stats = "+14 Int, +20 Spell", source = "Terokk's Legacy", sourceType = "quest", zone = "Terokkar Forest" },
+                { itemId = 29317, name = "Tempest's Touch", icon = "INV_Gauntlets_17", quality = "rare", slot = "Hands", stats = "+20 Int, +10 Sta, +6 Spirit, +27 Spell, +10 Spell Pen, 2 sockets", source = "Return to Andormu", sourceType = "quest", zone = "Tanaris" },
+                { itemId = 29333, name = "Torc of the Sethekk Prophet", icon = "INV_Jewelry_Necklace_24", quality = "rare", slot = "Neck", stats = "+18 Int, +21 Crit, +19 Spell, +19 Heal", source = "Brother Against Brother", sourceType = "quest", zone = "Terokkar Forest" },
+                { itemId = 29330, name = "The Saga of Terokk", icon = "INV_Offhand_Stratholme_A_02", quality = "rare", slot = "Off-hand", stats = "+23 Int, +28 Spell", source = "Terokk's Legacy", sourceType = "quest", zone = "Terokkar Forest" },
             },
         },
     },
@@ -5187,83 +6189,129 @@ C.ARMORY_CONTAINER = {
     MARGIN_BOTTOM = 20,
 }
 
--- Tier bar
-C.ARMORY_TIER_BAR = {
-    HEIGHT = 50,
+-- Phase bar (slim 35px bar replacing 50px tier bar)
+C.ARMORY_PHASE_BAR = {
+    HEIGHT = 35,
     WIDTH = "MATCH_PARENT",
     ANCHOR = "TOPLEFT",
     OFFSET_X = 0,
     OFFSET_Y = 0,
-    PADDING_H = 15,
-    PADDING_V = 7,
+    PADDING_H = 12,
+    PADDING_V = 5,
     BACKDROP = {
         bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         edgeSize = 12,
         insets = { left = 2, right = 2, top = 2, bottom = 2 },
     },
-    BG_COLOR = { r = 0.08, g = 0.08, b = 0.08, a = 0.95 },
+    BG_COLOR = { r = 0.06, g = 0.06, b = 0.06, a = 0.95 },
     BORDER_COLOR = { r = 0.4, g = 0.35, b = 0.25, a = 1 },
-    TIER_BUTTONS_LEFT = 15,
-    SPEC_DROPDOWN_RIGHT = -15,
+    LABEL_TEXT = "PHASE",
+    LABEL_WIDTH = 50,
+    SPEC_DROPDOWN_RIGHT = -10,
 }
 
--- Tier button
-C.ARMORY_TIER_BUTTON = {
-    WIDTH = 100,
-    HEIGHT = 36,
-    GAP = 12,
-    FIRST_OFFSET = 15,
+-- Phase button (compact numbered buttons 1-5)
+C.ARMORY_PHASE_BUTTON = {
+    WIDTH = 32,
+    HEIGHT = 24,
+    GAP = 4,
+    FIRST_OFFSET = 60,  -- After "PHASE" label
     FONT = "GameFontNormal",
     FONT_SIZE = 12,
-    TIERS = {
-        [4] = { label = "T4", sublabel = "Phase 1", color = "FEL_GREEN", raids = "Kara, Gruul, Mag" },
-        [5] = { label = "T5", sublabel = "Phase 2", color = "SKY_BLUE", raids = "SSC, TK" },
-        [6] = { label = "T6", sublabel = "Phase 3", color = "HELLFIRE_RED", raids = "Hyjal, BT, SWP" },
+    PHASES = {
+        [1] = {
+            label = "1",
+            tooltip = "Phase 1: Karazhan Era",
+            color = "FEL_GREEN",
+            raids = { "Karazhan (10)", "Gruul's Lair (25)", "Magtheridon's Lair (25)" },
+            gearSources = { "Raid Drops", "Heroic Dungeons", "Badge of Justice", "Reputation Rewards", "Crafted BoE" },
+            recommendedILvl = "100-115",
+        },
+        [2] = {
+            label = "2",
+            tooltip = "Phase 2: Serpentshrine & Tempest Keep",
+            color = "SKY_BLUE",
+            raids = { "Serpentshrine Cavern (25)", "Tempest Keep: The Eye (25)" },
+            gearSources = { "Raid Drops", "Heroic Badge Gear", "Nether Vortex Crafting" },
+            recommendedILvl = "115-128",
+        },
+        [3] = {
+            label = "3",
+            tooltip = "Phase 3: Hyjal & Black Temple",
+            color = "HELLFIRE_RED",
+            raids = { "Hyjal Summit (25)", "Black Temple (25)" },
+            gearSources = { "Raid Drops", "Hearts of Darkness Crafting" },
+            recommendedILvl = "128-141",
+        },
+        [4] = {
+            label = "4",
+            tooltip = "Phase 4: Zul'Aman",
+            color = "GOLD_BRIGHT",
+            raids = { "Zul'Aman (10)" },
+            gearSources = { "Raid Drops", "Bear Run Loot" },
+            recommendedILvl = "128-138",
+        },
+        [5] = {
+            label = "5",
+            tooltip = "Phase 5: Sunwell Plateau",
+            color = "LEGENDARY_ORANGE",
+            raids = { "Sunwell Plateau (25)" },
+            gearSources = { "Raid Drops", "Sunmote Crafting", "Isle of Quel'Danas" },
+            recommendedILvl = "141-154",
+        },
     },
     STATES = {
-        active = { bgAlpha = 0.4, borderAlpha = 1.0, textAlpha = 1.0, showUnderline = true, underlineHeight = 3 },
-        inactive = { bgAlpha = 0.1, borderAlpha = 0.5, textAlpha = 0.6, showUnderline = false },
-        hover = { bgAlpha = 0.25, borderAlpha = 0.8, textAlpha = 0.9, showUnderline = true, underlineHeight = 2 },
+        active = { bgAlpha = 0.5, borderAlpha = 1.0, textAlpha = 1.0, showGlow = true },
+        inactive = { bgAlpha = 0.15, borderAlpha = 0.4, textAlpha = 0.6, showGlow = false },
+        hover = { bgAlpha = 0.35, borderAlpha = 0.8, textAlpha = 0.9, showGlow = false },
     },
 }
 
 -- Spec dropdown
 C.ARMORY_SPEC_DROPDOWN = {
-    WIDTH = 150,
-    HEIGHT = 30,
+    WIDTH = 120,
+    HEIGHT = 28,
     ANCHOR = "RIGHT",
-    OFFSET_X = -15,
+    OFFSET_X = -10,
     OFFSET_Y = 0,
-    MENU_WIDTH = 140,
+    MENU_WIDTH = 110,
 }
 
--- Paperdoll
-C.ARMORY_PAPERDOLL = {
-    WIDTH = 300,
-    HEIGHT = "FILL_HEIGHT",
+-- Character View - Centered layout (replaces paperdoll + detail panel)
+-- Full width container with model centered, slots symmetrically positioned
+C.ARMORY_CHARACTER_VIEW = {
+    WIDTH = "MATCH_PARENT",  -- Full container width
+    HEIGHT = "FILL_REMAINING",  -- Fill space below phase bar and above footer
+    COMPACT_HEIGHT = 380,    -- Compact height: 8 slots × 44px + weapons (54) + padding (10) = 380px
     ANCHOR = "TOPLEFT",
     OFFSET_X = 0,
-    OFFSET_Y = -50,
-    MODEL_HEIGHT = 280,
-    SLOTS_HEIGHT = 280,
+    OFFSET_Y = -35,  -- Below phase bar (35px height)
+    -- Layout zones (for reference)
+    LEFT_COLUMN_WIDTH = 54,   -- 44px slot + 10px gap
+    RIGHT_COLUMN_WIDTH = 54,
+    MODEL_WIDTH = 180,        -- Centered between slot columns (compact: was 220)
+    BOTTOM_ROW_HEIGHT = 54,   -- Weapons row (compact: was 60)
     BACKDROP = {
         bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         edgeSize = 12,
         insets = { left = 3, right = 3, top = 3, bottom = 3 },
     },
-    BG_COLOR = { r = 0.05, g = 0.05, b = 0.05, a = 0.9 },
-    BORDER_COLOR = { r = 0.3, g = 0.3, b = 0.3, a = 1 },
+    BG_COLOR = { r = 0.04, g = 0.04, b = 0.04, a = 0.3 },
+    BORDER_COLOR = { r = 0.35, g = 0.3, b = 0.2, a = 1 },
 }
 
--- Model frame
+-- Legacy alias for backwards compatibility
+C.ARMORY_PAPERDOLL = C.ARMORY_CHARACTER_VIEW
+
+-- Model frame - centered between slot columns (compact layout)
 C.ARMORY_MODEL_FRAME = {
-    WIDTH = 280,
-    HEIGHT = 260,
+    WIDTH = 180,           -- Was 200 (10% narrower for compact layout)
+    HEIGHT = 280,          -- Was 390 (28% shorter, still shows full body)
     ANCHOR = "TOP",
-    OFFSET_X = 0,
-    OFFSET_Y = -10,
+    OFFSET_X = 0,          -- Centered between left and right slot columns
+    OFFSET_Y = -8,         -- Was -10
     DEFAULT_ROTATION = 0,
     ROTATION_SPEED = 0.01,
     DEFAULT_CAMERA = 0,
@@ -5274,16 +6322,180 @@ C.ARMORY_MODEL_FRAME = {
     },
 }
 
--- Slots container
+-- Slots container - now spans full characterView for centered positioning
 C.ARMORY_SLOTS_CONTAINER = {
-    WIDTH = 280,
-    HEIGHT = 260,
+    WIDTH = "MATCH_PARENT",  -- Full width of characterView
+    HEIGHT = 420,  -- Full height including bottom weapons row
     ANCHOR = "TOP",
     OFFSET_X = 0,
-    OFFSET_Y = -280,
+    OFFSET_Y = 0,
     SLOT_SIZE = 44,
     SLOT_GAP = 6,
     COLUMN_GAP = 8,
+}
+
+-- Gear popup (floating popup near clicked slot) - Redesigned Phase 60
+C.ARMORY_GEAR_POPUP = {
+    -- Dimensions (expanded from 300x420)
+    WIDTH = 480,
+    MAX_HEIGHT = 520,
+    MIN_HEIGHT = 280,
+
+    -- Section heights
+    HEADER_HEIGHT = 40,
+    BIS_SECTION_HEIGHT = 100,      -- BiS showcase card
+    FILTER_BAR_HEIGHT = 32,        -- Source filter buttons
+    SCROLL_CONTENT_PADDING = 8,
+    FOOTER_HEIGHT = 36,
+
+    -- Item row styling
+    ITEM_HEIGHT = 54,              -- Reduced from 64
+    COMPACT_ITEM_HEIGHT = 44,      -- For dense lists
+    ITEM_GAP = 4,                  -- Reduced from 6
+    PADDING = 16,                  -- Increased from 12
+    SECTION_GAP = 12,              -- Gap between grouped sections
+
+    -- Limits
+    MAX_ALTERNATIVES = 10,         -- Increased from 5
+
+    -- Visual styling
+    BACKDROP = {
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
+        edgeSize = 16,
+        insets = { left = 4, right = 4, top = 4, bottom = 4 },
+    },
+    BG_COLOR = { r = 0.05, g = 0.05, b = 0.05, a = 0.98 },
+    BORDER_COLOR = { r = 0.8, g = 0.7, b = 0.2, a = 1 },
+
+    -- Source type groupings for organized display
+    SOURCE_GROUPS = {
+        raid = {
+            order = 1,
+            label = "Raid Drops",
+            color = "HELLFIRE_RED",
+            icon = "Interface\\Icons\\INV_Helmet_06",
+        },
+        heroic = {
+            order = 2,
+            label = "Heroic Dungeon",
+            color = "ARCANE_PURPLE",
+            icon = "Interface\\Icons\\Spell_Holy_ChampionsBond",
+        },
+        dungeon = {
+            order = 3,
+            label = "Normal Dungeon",
+            color = "SKY_BLUE",
+            icon = "Interface\\Icons\\INV_Misc_Key_10",
+        },
+        crafted = {
+            order = 4,
+            label = "Crafted",
+            color = "GOLD_BRIGHT",
+            icon = "Interface\\Icons\\Trade_BlackSmithing",
+        },
+        badge = {
+            order = 5,
+            label = "Badge Vendor",
+            color = "FEL_GREEN",
+            icon = "Interface\\Icons\\Spell_Holy_ChampionsBond",
+        },
+        reputation = {
+            order = 6,
+            label = "Reputation",
+            color = "GOLD_BRIGHT",
+            icon = "Interface\\Icons\\INV_Misc_Note_02",
+        },
+        pvp = {
+            order = 7,
+            label = "PvP Rewards",
+            color = "HELLFIRE_RED",
+            icon = "Interface\\Icons\\INV_BannerPVP_01",
+        },
+        quest = {
+            order = 8,
+            label = "Quest Rewards",
+            color = "GOLD_BRIGHT",
+            icon = "Interface\\Icons\\INV_Misc_Note_01",
+        },
+        world = {
+            order = 9,
+            label = "World Drops",
+            color = "FEL_GREEN",
+            icon = "Interface\\Icons\\INV_Misc_Bag_10",
+        },
+    },
+
+    -- Position offsets based on slot location (popup appears opposite side)
+    POSITION_OFFSETS = {
+        -- Left column slots: popup appears to the RIGHT
+        head      = { side = "RIGHT", x = 10, y = 0 },
+        neck      = { side = "RIGHT", x = 10, y = 0 },
+        shoulders = { side = "RIGHT", x = 10, y = 0 },
+        back      = { side = "RIGHT", x = 10, y = 0 },
+        chest     = { side = "RIGHT", x = 10, y = 0 },
+        shirt     = { side = "RIGHT", x = 10, y = 0 },
+        tabard    = { side = "RIGHT", x = 10, y = 0 },
+        wrist     = { side = "RIGHT", x = 10, y = 0 },
+        -- Right column slots: popup appears to the LEFT
+        hands     = { side = "LEFT", x = -10, y = 0 },
+        waist     = { side = "LEFT", x = -10, y = 0 },
+        legs      = { side = "LEFT", x = -10, y = 0 },
+        feet      = { side = "LEFT", x = -10, y = 0 },
+        ring1     = { side = "LEFT", x = -10, y = 0 },
+        ring2     = { side = "LEFT", x = -10, y = 0 },
+        trinket1  = { side = "LEFT", x = -10, y = 0 },
+        trinket2  = { side = "LEFT", x = -10, y = 0 },
+        -- Bottom row slots: popup appears ABOVE
+        mainhand  = { side = "TOP", x = 0, y = 10 },
+        offhand   = { side = "TOP", x = 0, y = 10 },
+        ranged    = { side = "TOP", x = 0, y = 10 },
+    },
+
+    -- BiS card styling (featured item at top)
+    BIS_CARD = {
+        HEIGHT = 90,
+        ICON_SIZE = 56,
+        BORDER_COLOR = { r = 1, g = 0.84, b = 0 },      -- Gold
+        GLOW_COLOR = { r = 1, g = 0.84, b = 0, a = 0.3 },
+        NAME_FONT = "GameFontNormalLarge",
+        STATS_FONT = "GameFontNormal",
+    },
+
+    -- Compact item row styling (for alternatives list)
+    ITEM = {
+        ICON_SIZE = 40,            -- Reduced from 44
+        BIS_INDICATOR_SIZE = 16,   -- Reduced from 18
+        BIS_COLOR = { r = 1, g = 0.84, b = 0 },  -- Gold star for BiS
+        NAME_FONT = "GameFontNormal",
+        SOURCE_FONT = "GameFontNormalSmall",
+        ILEVEL_FONT = "GameFontNormalSmall",
+        HOVER_BG = { r = 0.3, g = 0.3, b = 0.3, a = 0.3 },
+    },
+
+    -- Filter button styling
+    FILTER = {
+        BUTTON_HEIGHT = 24,
+        BUTTON_PADDING = 8,
+        ACTIVE_COLOR = { r = 0.3, g = 0.6, b = 0.3, a = 0.8 },
+        INACTIVE_COLOR = { r = 0.2, g = 0.2, b = 0.2, a = 0.6 },
+        ALL_LABEL = "All Sources",
+    },
+
+    -- Group header styling (collapsible sections)
+    GROUP_HEADER = {
+        HEIGHT = 28,
+        FONT = "GameFontNormal",
+        EXPAND_ICON = "Interface\\Buttons\\UI-PlusButton-UP",
+        COLLAPSE_ICON = "Interface\\Buttons\\UI-MinusButton-UP",
+        ICON_SIZE = 16,
+    },
+}
+
+-- Slots to hide from Armory (cosmetic only, no BiS data)
+C.ARMORY_HIDDEN_SLOTS = {
+    shirt = true,
+    tabard = true,
 }
 
 -- Slot button
@@ -5296,12 +6508,16 @@ C.ARMORY_SLOT_BUTTON = {
     LABEL_HEIGHT = 12,
     LABEL_FONT = "GameFontNormalSmall",
     SLOTS = {
+        -- Left column (armor)
         head      = { displayName = "HEAD",  slotId = 1 },
         neck      = { displayName = "NECK",  slotId = 2 },
         shoulders = { displayName = "SHLD",  slotId = 3 },
         back      = { displayName = "BACK",  slotId = 15 },
         chest     = { displayName = "CHEST", slotId = 5 },
+        shirt     = { displayName = "SHIRT", slotId = 4 },
+        tabard    = { displayName = "TABRD", slotId = 19 },
         wrist     = { displayName = "WRIST", slotId = 9 },
+        -- Right column (accessories)
         hands     = { displayName = "HANDS", slotId = 10 },
         waist     = { displayName = "WAIST", slotId = 6 },
         legs      = { displayName = "LEGS",  slotId = 7 },
@@ -5310,28 +6526,46 @@ C.ARMORY_SLOT_BUTTON = {
         ring2     = { displayName = "RING",  slotId = 12 },
         trinket1  = { displayName = "TRNK",  slotId = 13 },
         trinket2  = { displayName = "TRNK",  slotId = 14 },
+        -- Bottom row (weapons)
         mainhand  = { displayName = "MH",    slotId = 16 },
         offhand   = { displayName = "OH",    slotId = 17 },
         ranged    = { displayName = "RNG",   slotId = 18 },
     },
+    -- COMPACT Centered Character Screen Layout:
+    -- LEFT column (6 slots): Head, Neck, Shoulders, Back, Chest, Wrist (shirt/tabard hidden)
+    -- RIGHT column (8 slots): Hands, Waist, Legs, Feet, Ring1, Ring2, Trinket1, Trinket2
+    -- BOTTOM row: MainHand, OffHand, Ranged (weapons anchored to model bottom, not container)
+    -- 44px vertical spacing (compact), x = -130/+130 (tighter than before)
     POSITIONS = {
-        head      = { anchor = "TOPLEFT",     x = 10,   y = -10 },
-        shoulders = { anchor = "TOPLEFT",     x = 10,   y = -60 },
-        chest     = { anchor = "TOPLEFT",     x = 10,   y = -110 },
-        waist     = { anchor = "TOPLEFT",     x = 10,   y = -160 },
-        legs      = { anchor = "TOPLEFT",     x = 10,   y = -210 },
-        neck      = { anchor = "TOPRIGHT",    x = -10,  y = -10 },
-        back      = { anchor = "TOPRIGHT",    x = -10,  y = -60 },
-        wrist     = { anchor = "TOPRIGHT",    x = -10,  y = -110 },
-        hands     = { anchor = "TOPRIGHT",    x = -10,  y = -160 },
-        feet      = { anchor = "TOPRIGHT",    x = -10,  y = -210 },
-        ring1     = { anchor = "BOTTOMLEFT",  x = 10,   y = 10 },
-        ring2     = { anchor = "BOTTOMLEFT",  x = 60,   y = 10 },
-        trinket1  = { anchor = "BOTTOMLEFT",  x = 110,  y = 10 },
-        trinket2  = { anchor = "BOTTOMLEFT",  x = 160,  y = 10 },
-        mainhand  = { anchor = "BOTTOMRIGHT", x = -110, y = 10 },
-        offhand   = { anchor = "BOTTOMRIGHT", x = -60,  y = 10 },
-        ranged    = { anchor = "BOTTOMRIGHT", x = -10,  y = 10 },
+        -- LEFT column: 6 armor slots (shirt/tabard hidden via ARMORY_HIDDEN_SLOTS)
+        -- x = -130 (moved in from -160 for tighter layout)
+        -- 44px vertical spacing (was 50px)
+        head      = { anchor = "TOP",  x = -130, y = -8 },
+        neck      = { anchor = "TOP",  x = -130, y = -52 },
+        shoulders = { anchor = "TOP",  x = -130, y = -96 },
+        back      = { anchor = "TOP",  x = -130, y = -140 },
+        chest     = { anchor = "TOP",  x = -130, y = -184 },
+        wrist     = { anchor = "TOP",  x = -130, y = -228 },
+        -- shirt/tabard still defined but hidden via ARMORY_HIDDEN_SLOTS
+        shirt     = { anchor = "TOP",  x = -130, y = -272 },
+        tabard    = { anchor = "TOP",  x = -130, y = -316 },
+
+        -- RIGHT column: 8 accessory slots
+        -- x = +130 (moved in from +160)
+        hands     = { anchor = "TOP",  x = 130, y = -8 },
+        waist     = { anchor = "TOP",  x = 130, y = -52 },
+        legs      = { anchor = "TOP",  x = 130, y = -96 },
+        feet      = { anchor = "TOP",  x = 130, y = -140 },
+        ring1     = { anchor = "TOP",  x = 130, y = -184 },
+        ring2     = { anchor = "TOP",  x = 130, y = -228 },
+        trinket1  = { anchor = "TOP",  x = 130, y = -272 },
+        trinket2  = { anchor = "TOP",  x = 130, y = -316 },
+
+        -- BOTTOM row: Weapons anchor to MODEL_BOTTOM (special handling in Journal.lua)
+        -- y = -10 means 10px below model bottom
+        mainhand  = { anchor = "MODEL_BOTTOM", x = -54, y = -10 },
+        offhand   = { anchor = "MODEL_BOTTOM", x = 0,   y = -10 },
+        ranged    = { anchor = "MODEL_BOTTOM", x = 54,  y = -10 },
     },
     STATE_COLORS = {
         empty     = { border = "GREY",         indicator = nil },
@@ -5362,6 +6596,8 @@ C.ARMORY_SLOT_PLACEHOLDER_ICONS = {
     shoulders = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Shoulder",
     back      = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Chest",
     chest     = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Chest",
+    shirt     = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Shirt",
+    tabard    = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Tabard",
     wrist     = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Wrists",
     hands     = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Hands",
     waist     = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Waist",
@@ -5376,113 +6612,65 @@ C.ARMORY_SLOT_PLACEHOLDER_ICONS = {
     ranged    = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Ranged",
 }
 
--- Detail panel
-C.ARMORY_DETAIL_PANEL = {
-    WIDTH = "FILL_REMAINING",
-    MIN_WIDTH = 350,
-    HEIGHT = "MATCH_PAPERDOLL",
-    ANCHOR = "TOPRIGHT",
-    OFFSET_X = 0,
-    OFFSET_Y = -50,
-    HEADER_HEIGHT = 45,
-    FOOTER_HEIGHT = 40,
-    CONTENT_PADDING = 12,
-    BACKDROP = {
-        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        edgeSize = 12,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 },
+-- Slot info cards (44x44px cards showing iLvl + upgrade arrow)
+C.ARMORY_INFO_CARD = {
+    SIZE = 44,
+    GAP = 2,  -- Gap between slot and card
+
+    -- Upgrade thresholds (compared to average iLvl)
+    THRESHOLD_GOOD = 5,   -- Above avg + 5 = green
+    THRESHOLD_BAD = -5,   -- Below avg - 5 = red
+
+    -- Arrow indicators
+    ARROWS = {
+        GOOD = { symbol = "↓", color = { r = 0.2, g = 1, b = 0.2 } },     -- Green (above avg)
+        OKAY = { symbol = "→", color = { r = 1, g = 0.84, b = 0 } },      -- Gold (at avg)
+        UPGRADE = { symbol = "↑", color = { r = 1, g = 0.2, b = 0.2 } },  -- Red (needs upgrade)
     },
-    BG_COLOR = { r = 0.05, g = 0.05, b = 0.05, a = 0.95 },
-    BORDER_COLOR = { r = 0.4, g = 0.35, b = 0.25, a = 1 },
-}
 
--- Detail header
-C.ARMORY_DETAIL_HEADER = {
-    HEIGHT = 45,
-    TITLE_FONT = "GameFontNormalLarge",
-    TITLE_OFFSET = { x = 15, y = -12 },
-    SUBTITLE_FONT = "GameFontNormalSmall",
-    SUBTITLE_OFFSET = { x = 15, y = -28 },
-    CLOSE_BUTTON_SIZE = 24,
-    CLOSE_BUTTON_OFFSET = { x = -10, y = 0 },
-    DIVIDER_HEIGHT = 2,
-    DIVIDER_COLOR = { r = 0.3, g = 0.3, b = 0.3, a = 1 },
-}
-
--- Detail scroll
-C.ARMORY_DETAIL_SCROLL = {
-    PADDING_LEFT = 5,
-    PADDING_RIGHT = 5,
-    PADDING_TOP = 50,
-    PADDING_BOTTOM = 45,
-    SCROLLBAR_WIDTH = 16,
-    SCROLLBAR_OFFSET = -2,
-    CONTENT_PADDING = 10,
-}
-
--- Scroll content
-C.ARMORY_SCROLL_CONTENT = {
-    CARD_SPACING = 8,
-    SECTION_SPACING = 15,
-    EMPTY_TEXT = "Click on an equipment slot to see upgrade recommendations.",
-    EMPTY_TEXT_COLOR = { r = 0.6, g = 0.6, b = 0.6, a = 1 },
-}
-
--- Equipped card
-C.ARMORY_EQUIPPED_CARD = {
-    HEIGHT = 80,
-    WIDTH = "MATCH_PARENT",
-    PADDING = 12,
-    ICON_SIZE = 44,
-    TITLE_OFFSET = { x = 60, y = -12 },
-    ILEVEL_OFFSET = { x = 60, y = -28 },
-    STATS_OFFSET = { x = 60, y = -44 },
+    -- Visual style
     BACKDROP = {
         bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        edgeSize = 10,
+        edgeSize = 8,
         insets = { left = 2, right = 2, top = 2, bottom = 2 },
     },
-    BG_COLOR = { r = 0.15, g = 0.15, b = 0.15, a = 0.95 },
-    HEADER_TEXT = "CURRENTLY EQUIPPED",
-    HEADER_COLOR = { r = 0.7, g = 0.7, b = 0.7, a = 1 },
-}
+    BG_COLOR = { r = 0.04, g = 0.04, b = 0.04, a = 0.8 },
+    BORDER_COLOR = { r = 0.6, g = 0.5, b = 0.2, a = 0.8 },
+    HIGHLIGHT_COLOR = { r = 0.8, g = 0.7, b = 0.4, a = 1 },
 
--- Upgrade section
-C.ARMORY_UPGRADE_SECTION = {
-    SECTIONS = {
-        { id = "t4_upgrades", label = "T4 UPGRADES",       color = "FEL_GREEN",    defaultExpanded = true },
-        { id = "badge",       label = "BADGE OF JUSTICE",  color = "GOLD_BRIGHT",  defaultExpanded = false },
-        { id = "heroic",      label = "HEROIC DUNGEONS",   color = "SKY_BLUE",     defaultExpanded = false },
-        { id = "rep",         label = "REPUTATION",        color = "ARCANE_PURPLE",defaultExpanded = false },
-        { id = "crafted",     label = "CRAFTED GEAR",      color = "BRONZE",       defaultExpanded = false },
-    },
-    HEADER_HEIGHT = 28,
-    HEADER_PADDING = 8,
-    HEADER_FONT = "GameFontNormal",
-    ARROW_SIZE = 16,
-    ARROW_EXPANDED = "Interface\\Buttons\\UI-MinusButton-Up",
-    ARROW_COLLAPSED = "Interface\\Buttons\\UI-PlusButton-Up",
-    CONTENT_PADDING = 8,
-    CARD_SPACING = 6,
-}
+    -- Card position offsets by slot (relative to slot button)
+    -- LEFT column slots: cards extend LEFT (negative X)
+    -- RIGHT column slots: cards extend RIGHT (positive X)
+    -- WEAPON slots: cards extend DOWN (negative Y)
+    POSITIONS = {
+        -- LEFT column: extend LEFT (card RIGHT edge anchors to slot LEFT edge)
+        head      = { anchor = "RIGHT", relAnchor = "LEFT", x = -2, y = 0 },
+        neck      = { anchor = "RIGHT", relAnchor = "LEFT", x = -2, y = 0 },
+        shoulders = { anchor = "RIGHT", relAnchor = "LEFT", x = -2, y = 0 },
+        back      = { anchor = "RIGHT", relAnchor = "LEFT", x = -2, y = 0 },
+        chest     = { anchor = "RIGHT", relAnchor = "LEFT", x = -2, y = 0 },
+        wrist     = { anchor = "RIGHT", relAnchor = "LEFT", x = -2, y = 0 },
 
--- Detail footer
-C.ARMORY_DETAIL_FOOTER = {
-    HEIGHT = 40,
-    PADDING_H = 10,
-    PADDING_V = 5,
-    BUTTON_WIDTH = 100,
-    BUTTON_HEIGHT = 28,
-    BUTTON_GAP = 10,
-    DIVIDER_HEIGHT = 2,
-    DIVIDER_COLOR = { r = 0.3, g = 0.3, b = 0.3, a = 1 },
-    BUTTONS = {
-        { id = "addWishlist", label = "Add to Wishlist", color = "EPIC_PURPLE", position = "LEFT" },
-        { id = "close",       label = "Close",           color = "GREY",        position = "RIGHT" },
+        -- RIGHT column: extend RIGHT (card LEFT edge anchors to slot RIGHT edge)
+        hands     = { anchor = "LEFT", relAnchor = "RIGHT", x = 2, y = 0 },
+        waist     = { anchor = "LEFT", relAnchor = "RIGHT", x = 2, y = 0 },
+        legs      = { anchor = "LEFT", relAnchor = "RIGHT", x = 2, y = 0 },
+        feet      = { anchor = "LEFT", relAnchor = "RIGHT", x = 2, y = 0 },
+        ring1     = { anchor = "LEFT", relAnchor = "RIGHT", x = 2, y = 0 },
+        ring2     = { anchor = "LEFT", relAnchor = "RIGHT", x = 2, y = 0 },
+        trinket1  = { anchor = "LEFT", relAnchor = "RIGHT", x = 2, y = 0 },
+        trinket2  = { anchor = "LEFT", relAnchor = "RIGHT", x = 2, y = 0 },
+
+        -- Weapons: extend DOWN (card TOP anchors to slot BOTTOM)
+        mainhand  = { anchor = "TOP", relAnchor = "BOTTOM", x = 0, y = -2 },
+        offhand   = { anchor = "TOP", relAnchor = "BOTTOM", x = 0, y = -2 },
+        ranged    = { anchor = "TOP", relAnchor = "BOTTOM", x = 0, y = -2 },
     },
 }
+
+-- NOTE: Detail panel constants removed - replaced by ARMORY_GEAR_POPUP
+-- The gear popup now handles showing BiS and alternatives when clicking slots
 
 -- Main footer
 C.ARMORY_FOOTER = {
@@ -5506,6 +6694,46 @@ C.ARMORY_FOOTER = {
     BORDER_COLOR = { r = 0.3, g = 0.3, b = 0.3, a = 1 },
     LABEL_COLOR = { r = 0.6, g = 0.6, b = 0.6, a = 1 },
     VALUE_COLOR = { r = 1, g = 0.84, b = 0, a = 1 },
+    -- Action buttons (BIS on LEFT, RESET on RIGHT)
+    BUTTONS = {
+        GAP = 8,
+        LEFT_MARGIN = 12,   -- For BIS button on left
+        RIGHT_MARGIN = 12,  -- For RESET button on right
+
+        BIS = {
+            label = "BIS",
+            width = 60,           -- Was 45, larger and more prominent
+            height = 26,          -- Was 22
+            position = "LEFT",    -- Position hint for Journal.lua
+            tooltip = "Preview all Best in Slot items for this phase on your character model",
+            borderColor = { r = 1, g = 0.84, b = 0, a = 1 },  -- Gold
+            bgColor = { r = 0.2, g = 0.16, b = 0.05, a = 0.95 },
+            hoverColor = { r = 0.3, g = 0.24, b = 0.08, a = 1 },
+        },
+        RESET = {
+            label = "RESET",
+            width = 60,           -- Was 55
+            height = 26,          -- Was 22
+            position = "RIGHT",   -- Position hint for Journal.lua
+            tooltip = "Reset model to your current equipped gear",
+            borderColor = { r = 0.5, g = 0.5, b = 0.5, a = 1 },  -- Grey
+            bgColor = { r = 0.12, g = 0.12, b = 0.12, a = 0.95 },
+            hoverColor = { r = 0.2, g = 0.2, b = 0.2, a = 1 },
+        },
+    },
+}
+
+-- Source type colors for Master List popup items
+C.ARMORY_SOURCE_COLORS = {
+    raid       = { r = 0.9, g = 0.2, b = 0.1 },   -- HELLFIRE_RED
+    heroic     = { r = 0.61, g = 0.19, b = 1.0 }, -- ARCANE_PURPLE
+    dungeon    = { r = 0.3, g = 0.7, b = 1.0 },   -- SKY_BLUE
+    badge      = { r = 1, g = 0.84, b = 0 },      -- GOLD_BRIGHT
+    crafted    = { r = 0.2, g = 0.8, b = 0.2 },   -- FEL_GREEN
+    reputation = { r = 0.4, g = 0.8, b = 0.4 },   -- CENARION_GREEN
+    pvp        = { r = 0.6, g = 0.6, b = 0.6 },   -- TITAN_GREY
+    quest      = { r = 1, g = 1, b = 0 },         -- QUEST_YELLOW
+    world      = { r = 0.12, g = 1, b = 0 },      -- UNCOMMON_GREEN
 }
 
 -- Upgrade card (pooled)
@@ -5623,27 +6851,47 @@ C.ARMORY_ASSETS = {
 -- ARMORY TAB: GEAR DATABASE (T4 BiS Recommendations)
 --============================================================
 
--- Tier definitions with metadata
-C.ARMORY_TIERS = {
-    [4] = {
-        name = "Phase 1 (T4)",
-        content = "Karazhan, Gruul, Magtheridon, Heroics",
-        color = "FEL_GREEN",
+-- Phase definitions with metadata (Phase-based, not Tier-based)
+C.ARMORY_PHASES = {
+    [1] = {
+        name = "Phase 1",
+        content = "Karazhan, Gruul, Magtheridon, Heroics, Badge Gear, Reputation",
+        color = "ARCANE_PURPLE",  -- Karazhan purple theme
         raids = { "karazhan", "gruul", "magtheridon" },
+        sources = { "raid", "heroic", "badge", "rep", "crafted" },
+    },
+    [2] = {
+        name = "Phase 2",
+        content = "Serpentshrine Cavern, Tempest Keep",
+        color = "SKY_BLUE",  -- Serpentshrine blue theme
+        raids = { "ssc", "tk" },
+        sources = { "raid", "heroic", "badge", "rep", "crafted" },
+    },
+    [3] = {
+        name = "Phase 3",
+        content = "Hyjal Summit, Black Temple",
+        color = "FEL_GREEN",  -- TBC green theme
+        raids = { "hyjal", "bt" },
+        sources = { "raid", "heroic", "badge", "rep", "crafted" },
+    },
+    [4] = {
+        name = "Phase 4",
+        content = "Zul'Aman",
+        color = "HELLFIRE_RED",  -- Zul'Aman troll/blood red theme
+        raids = { "za" },
+        sources = { "raid", "badge" },
     },
     [5] = {
-        name = "Phase 2 (T5)",
-        content = "SSC, Tempest Keep",
-        color = "SKY_BLUE",
-        raids = { "ssc", "tk" },
-    },
-    [6] = {
-        name = "Phase 3 (T6)",
-        content = "Hyjal, Black Temple, Sunwell",
-        color = "HELLFIRE_RED",
-        raids = { "hyjal", "bt", "sunwell" },
+        name = "Phase 5",
+        content = "Sunwell Plateau",
+        color = "GOLD_BRIGHT",  -- Sunwell golden theme
+        raids = { "sunwell" },
+        sources = { "raid", "heroic", "badge", "rep", "crafted" },
     },
 }
+
+-- Legacy alias for backwards compatibility
+C.ARMORY_TIERS = C.ARMORY_PHASES
 
 -- Source type display info
 C.ARMORY_SOURCE_TYPES = {
@@ -5704,12 +6952,12 @@ C.ARMORY_QUALITY_COLORS = {
 }
 
 -- Main gear database
--- Structure: [tier][role][slot] = { best = {...}, alternatives = {...} }
+-- Structure: [phase][role][slot] = { best = {...}, alternatives = {...} }
 C.ARMORY_GEAR_DATABASE = {
     -------------------------------------------------
-    -- TIER 4 (Phase 1): Karazhan, Gruul, Magtheridon
+    -- PHASE 1: Karazhan, Gruul, Magtheridon, Heroics
     -------------------------------------------------
-    [4] = {
+    [1] = {
         --===========================================
         -- TANK ROLE
         --===========================================
@@ -5819,9 +7067,12 @@ C.ARMORY_GEAR_DATABASE = {
                 },
             },
             ["ranged"] = {
-                best = { itemId = 30724, name = "Barrel-Blade Longrifle", icon = "INV_Weapon_Rifle_23", quality = "epic", iLvl = 115, stats = "+Sta, +Crit", source = "Doomwalker", sourceType = "world" },
+                best = { itemId = 30724, name = "Barrel-Blade Longrifle", icon = "INV_Weapon_Rifle_23", quality = "epic", iLvl = 115, stats = "+Sta, +Crit", source = "Doomwalker", sourceType = "world", weaponType = "gun" },
                 alternatives = {
-                    { itemId = 29115, name = "Consortium Blaster", icon = "INV_Weapon_Rifle_22", quality = "rare", iLvl = 105, stats = "+Sta", source = "Consortium Exalted", sourceType = "rep", repFaction = "The Consortium", repStanding = "Exalted" },
+                    { itemId = 29115, name = "Consortium Blaster", icon = "INV_Weapon_Rifle_22", quality = "rare", iLvl = 105, stats = "+Sta", source = "Consortium Exalted", sourceType = "rep", repFaction = "The Consortium", repStanding = "Exalted", weaponType = "gun" },
+                    -- Paladin/Druid alternatives (libram/idol)
+                    { itemId = 28296, name = "Libram of Repentance", icon = "INV_Relics_LibramofGrace", quality = "rare", iLvl = 100, stats = "+Block Value", source = "Badge Vendor", sourceType = "badge", badgeCost = 15, weaponType = "libram" },
+                    { itemId = 28064, name = "Idol of Terror", icon = "INV_Relics_IdolofFerocity", quality = "epic", iLvl = 115, stats = "+Agility proc", source = "Heroic Mana-Tombs", sourceType = "heroic", weaponType = "idol" },
                 },
             },
         },
@@ -5887,7 +7138,7 @@ C.ARMORY_GEAR_DATABASE = {
             ["feet"] = {
                 best = { itemId = 28752, name = "Forestlord Striders", icon = "INV_Boots_Cloth_12", quality = "epic", iLvl = 115, stats = "+22 Int, +55 Healing", source = "Chess Event", sourceType = "raid", sourceDetail = "Karazhan" },
                 alternatives = {
-                    { itemId = 27411, name = "Jeweled Boots of Sanctification", icon = "INV_Boots_Cloth_11", quality = "rare", iLvl = 112, stats = "+18 Int, +48 Healing", source = "Quest: The Soul Devices", sourceType = "quest" },
+                    { itemId = 27525, name = "Jeweled Boots of Sanctification", icon = "INV_Boots_Cloth_11", quality = "rare", iLvl = 112, stats = "+25 Int, +22 Sta, +29 Spell, +6 mp5", source = "Warbringer O'mrogg", sourceType = "dungeon" },
                 },
             },
             ["ring1"] = {
@@ -5927,9 +7178,9 @@ C.ARMORY_GEAR_DATABASE = {
                 },
             },
             ["ranged"] = {
-                best = { itemId = 28592, name = "Libram of Souls Redeemed", icon = "INV_Relics_LibramofHope", quality = "epic", iLvl = 115, stats = "+Healing to Flash of Light", source = "Opera Event", sourceType = "raid", sourceDetail = "Karazhan" },
+                best = { itemId = 28592, name = "Libram of Souls Redeemed", icon = "INV_Relics_LibramofHope", quality = "epic", iLvl = 115, stats = "+Healing to Flash of Light", source = "Opera Event", sourceType = "raid", sourceDetail = "Karazhan", weaponType = "libram" },
                 alternatives = {
-                    { itemId = 28296, name = "Libram of Mending", icon = "INV_Relics_LibramofGrace", quality = "rare", iLvl = 100, stats = "+Healing", source = "Badge Vendor", sourceType = "badge", badgeCost = 15 },
+                    { itemId = 28296, name = "Libram of Mending", icon = "INV_Relics_LibramofGrace", quality = "rare", iLvl = 100, stats = "+Healing", source = "Badge Vendor", sourceType = "badge", badgeCost = 15, weaponType = "libram" },
                 },
             },
         },
@@ -6036,10 +7287,16 @@ C.ARMORY_GEAR_DATABASE = {
                 },
             },
             ["ranged"] = {
-                best = { itemId = 28772, name = "Sunfury Bow of the Phoenix", icon = "INV_Weapon_Bow_26", quality = "epic", iLvl = 115, stats = "+Agi, +Crit", source = "Prince Malchezaar", sourceType = "raid", sourceDetail = "Karazhan" },
+                best = { itemId = 28772, name = "Sunfury Bow of the Phoenix", icon = "INV_Weapon_Bow_26", quality = "epic", iLvl = 115, stats = "+Agi, +Crit", source = "Prince Malchezaar", sourceType = "raid", sourceDetail = "Karazhan", weaponType = "bow" },
                 alternatives = {
-                    { itemId = 29151, name = "Veteran's Musket", icon = "INV_Weapon_Rifle_24", quality = "rare", iLvl = 100, stats = "+Agi", source = "Honor Hold Exalted", sourceType = "rep", repFaction = "Honor Hold", repStanding = "Exalted" },
-                    { itemId = 29152, name = "Marksman's Bow", icon = "INV_Weapon_Bow_25", quality = "rare", iLvl = 100, stats = "+Agi", source = "Thrallmar Exalted", sourceType = "rep", repFaction = "Thrallmar", repStanding = "Exalted" },
+                    { itemId = 29151, name = "Veteran's Musket", icon = "INV_Weapon_Rifle_24", quality = "rare", iLvl = 100, stats = "+Agi", source = "Honor Hold Exalted", sourceType = "rep", repFaction = "Honor Hold", repStanding = "Exalted", weaponType = "gun" },
+                    { itemId = 29152, name = "Marksman's Bow", icon = "INV_Weapon_Bow_25", quality = "rare", iLvl = 100, stats = "+Agi", source = "Thrallmar Exalted", sourceType = "rep", repFaction = "Thrallmar", repStanding = "Exalted", weaponType = "bow" },
+                    -- Paladin alternative (libram)
+                    { itemId = 23203, name = "Libram of Avengement", icon = "INV_Relics_LibramofTruth", quality = "rare", iLvl = 65, stats = "+Crit Rating", source = "Cenarion Hold Rep", sourceType = "rep", repFaction = "Cenarion Circle", repStanding = "Revered", weaponType = "libram" },
+                    -- Druid alternative (idol)
+                    { itemId = 28064, name = "Idol of the Wild", icon = "INV_Relics_IdolofFerocity", quality = "epic", iLvl = 115, stats = "+AP proc", source = "Heroic Mana-Tombs", sourceType = "heroic", weaponType = "idol" },
+                    -- Shaman alternative (totem)
+                    { itemId = 27947, name = "Totem of the Astral Winds", icon = "INV_Relics_Totem04", quality = "rare", iLvl = 115, stats = "+AP", source = "Anzu", sourceType = "heroic", sourceDetail = "Heroic Sethekk Halls", weaponType = "totem" },
                 },
             },
         },
@@ -6145,9 +7402,9 @@ C.ARMORY_GEAR_DATABASE = {
                 },
             },
             ["ranged"] = {
-                best = { itemId = 28772, name = "Sunfury Bow of the Phoenix", icon = "INV_Weapon_Bow_26", quality = "epic", iLvl = 115, stats = "+High DPS, +Agi", source = "Prince Malchezaar", sourceType = "raid", sourceDetail = "Karazhan" },
+                best = { itemId = 28772, name = "Sunfury Bow of the Phoenix", icon = "INV_Weapon_Bow_26", quality = "epic", iLvl = 115, stats = "+High DPS, +Agi", source = "Prince Malchezaar", sourceType = "raid", sourceDetail = "Karazhan", weaponType = "bow" },
                 alternatives = {
-                    { itemId = 30724, name = "Barrel-Blade Longrifle", icon = "INV_Weapon_Rifle_23", quality = "epic", iLvl = 115, stats = "+Sta, +Crit", source = "Doomwalker", sourceType = "world" },
+                    { itemId = 30724, name = "Barrel-Blade Longrifle", icon = "INV_Weapon_Rifle_23", quality = "epic", iLvl = 115, stats = "+Sta, +Crit", source = "Doomwalker", sourceType = "world", weaponType = "gun" },
                 },
             },
         },
@@ -6254,31 +7511,75 @@ C.ARMORY_GEAR_DATABASE = {
                 },
             },
             ["ranged"] = {
-                best = { itemId = 28783, name = "Eredar Wand of Obliteration", icon = "INV_Wand_22", quality = "epic", iLvl = 120, stats = "+15 Sta, +12 Spell Dmg", source = "Magtheridon", sourceType = "raid", sourceDetail = "Magtheridon's Lair" },
+                best = { itemId = 28783, name = "Eredar Wand of Obliteration", icon = "INV_Wand_22", quality = "epic", iLvl = 120, stats = "+15 Sta, +12 Spell Dmg", source = "Magtheridon", sourceType = "raid", sourceDetail = "Magtheridon's Lair", weaponType = "wand" },
                 alternatives = {
-                    { itemId = 28673, name = "Tirisfal Wand of Ascendancy", icon = "INV_Wand_21", quality = "epic", iLvl = 115, stats = "+12 Sta, +10 Spell Dmg, +8 Hit", source = "Shade of Aran", sourceType = "raid", sourceDetail = "Karazhan" },
+                    { itemId = 28673, name = "Tirisfal Wand of Ascendancy", icon = "INV_Wand_21", quality = "epic", iLvl = 115, stats = "+12 Sta, +10 Spell Dmg, +8 Hit", source = "Shade of Aran", sourceType = "raid", sourceDetail = "Karazhan", weaponType = "wand" },
                 },
             },
         },
     },
 
-    -- T5 and T6 placeholder for future expansion
+    -- Phase 2, 3, 5 placeholders for future expansion
+    [2] = {},
+    [3] = {},
     [5] = {},
-    [6] = {},
 }
 
--- Helper function to get gear for a slot/role/tier
-function C:GetArmoryGear(tier, role, slot)
-    if not C.ARMORY_GEAR_DATABASE[tier] then return nil end
-    if not C.ARMORY_GEAR_DATABASE[tier][role] then return nil end
-    return C.ARMORY_GEAR_DATABASE[tier][role][slot]
+-- Helper function to get gear for a slot/role/phase
+function C:GetArmoryGear(phase, role, slot)
+    if not C.ARMORY_GEAR_DATABASE[phase] then return nil end
+    if not C.ARMORY_GEAR_DATABASE[phase][role] then return nil end
+    return C.ARMORY_GEAR_DATABASE[phase][role][slot]
 end
 
--- Helper function to get all slots for a role/tier
-function C:GetArmorySlots(tier, role)
-    if not C.ARMORY_GEAR_DATABASE[tier] then return {} end
-    if not C.ARMORY_GEAR_DATABASE[tier][role] then return {} end
-    return C.ARMORY_GEAR_DATABASE[tier][role]
+-- Helper function to get all slots for a role/phase
+function C:GetArmorySlots(phase, role)
+    if not C.ARMORY_GEAR_DATABASE[phase] then return {} end
+    if not C.ARMORY_GEAR_DATABASE[phase][role] then return {} end
+    return C.ARMORY_GEAR_DATABASE[phase][role]
+end
+
+-- Get phase metadata
+function C:GetArmoryPhase(phase)
+    return C.ARMORY_PHASES[phase]
+end
+
+-- Check if phase has gear data
+function C:HasArmoryPhaseData(phase)
+    local data = C.ARMORY_GEAR_DATABASE[phase]
+    if not data then return false end
+    -- Check if any role has data
+    for role, slots in pairs(data) do
+        if next(slots) then return true end
+    end
+    return false
+end
+
+-- Class weapon restrictions for Armory filtering
+-- Maps each class to the weapon types they can equip
+C.CLASS_WEAPON_ALLOWED = {
+    WARRIOR = { "sword", "axe", "mace", "polearm", "staff", "dagger", "fist", "gun", "bow", "crossbow", "thrown" },
+    PALADIN = { "sword", "axe", "mace", "polearm", "libram" },
+    HUNTER = { "sword", "axe", "polearm", "staff", "dagger", "fist", "gun", "bow", "crossbow" },
+    ROGUE = { "sword", "mace", "dagger", "fist", "gun", "bow", "crossbow", "thrown" },
+    PRIEST = { "mace", "staff", "dagger", "wand" },
+    SHAMAN = { "axe", "mace", "staff", "dagger", "fist", "totem" },
+    MAGE = { "sword", "staff", "dagger", "wand" },
+    WARLOCK = { "sword", "staff", "dagger", "wand" },
+    DRUID = { "mace", "polearm", "staff", "dagger", "fist", "idol" },
+}
+
+-- Helper to check if a class can use a weapon type
+function C:CanClassUseWeapon(classToken, weaponType)
+    local allowed = C.CLASS_WEAPON_ALLOWED[classToken]
+    if not allowed then return true end -- Unknown class, allow
+    if not weaponType then return true end -- No weapon type specified, allow
+    for _, wtype in ipairs(allowed) do
+        if wtype == weaponType then
+            return true
+        end
+    end
+    return false
 end
 
 -- Build the boss name lookup table now that all boss data is defined

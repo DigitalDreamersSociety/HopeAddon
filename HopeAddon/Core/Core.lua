@@ -1023,6 +1023,19 @@ function HopeAddon:MigrateCharacterData()
     db.reputation.milestones = db.reputation.milestones or {}
     db.reputation.currentStandings = db.reputation.currentStandings or {}
 
+    -- Ensure armory structure exists
+    db.armory = db.armory or {}
+    db.armory.wishlist = db.armory.wishlist or {}
+    db.armory.expandedSections = db.armory.expandedSections or {}
+
+    -- Migrate old selectedTier (4-6) to new selectedPhase (1-5)
+    if db.armory.selectedTier and not db.armory.selectedPhase then
+        -- T4 (4) -> Phase 1, T5 (5) -> Phase 2, T6 (6) -> Phase 3
+        db.armory.selectedPhase = math.max(1, db.armory.selectedTier - 3)
+        db.armory.selectedTier = nil  -- Remove old field
+    end
+    db.armory.selectedPhase = db.armory.selectedPhase or 1
+
     -- Migrate bossKills to include kill time tracking fields
     if db.journal and db.journal.bossKills then
         for key, killData in pairs(db.journal.bossKills) do
@@ -1404,7 +1417,7 @@ function HopeAddon:GetDefaultCharDB()
 
         -- Armory Tab (Gear Upgrade Advisor)
         armory = {
-            selectedTier = 4,           -- Current tier (4, 5, or 6)
+            selectedPhase = 1,          -- Current phase (1-5), matching TBC content phases
             selectedSpec = nil,         -- Spec index (1-3) or nil
             wishlist = {},              -- [itemId] = true for wishlisted items
             expandedSections = {},      -- [sectionId] = bool for collapsed state
@@ -1443,6 +1456,50 @@ SlashCmdList["HOPE"] = function(msg)
     elseif cmd == "debug" then
         HopeAddon.db.debug = not HopeAddon.db.debug
         HopeAddon:Print("Debug mode:", HopeAddon.db.debug and "ON" or "OFF")
+    elseif cmd == "armoryslots" then
+        -- Debug: List all armory slot button states
+        local Journal = HopeAddon.Journal
+        if not Journal then
+            HopeAddon:Print("Journal module not loaded")
+            return
+        end
+        if not Journal.armoryUI or not Journal.armoryUI.slotButtons then
+            HopeAddon:Print("Armory UI not initialized - open Armory tab first")
+            return
+        end
+
+        HopeAddon:Print("=== Armory Slot Debug ===")
+        local total, shown, hidden = 0, 0, 0
+        for slotName, btn in pairs(Journal.armoryUI.slotButtons) do
+            total = total + 1
+            local isShown = btn:IsShown()
+            local isVisible = btn:IsVisible()
+            local w, h = btn:GetSize()
+            local frameLevel = btn:GetFrameLevel()
+            local itemName = btn.equippedItem and btn.equippedItem.name or "EMPTY"
+            local status = btn.upgradeStatus or "?"
+
+            if isShown and isVisible then
+                shown = shown + 1
+            else
+                hidden = hidden + 1
+            end
+
+            HopeAddon:Print(string.format("  %s: shown=%s vis=%s lvl=%d size=%dx%d [%s] %s",
+                slotName,
+                isShown and "Y" or "N",
+                isVisible and "Y" or "N",
+                frameLevel,
+                math.floor(w), math.floor(h),
+                status,
+                itemName))
+        end
+        HopeAddon:Print(string.format("Total: %d | Shown: %d | Hidden: %d", total, shown, hidden))
+
+        -- Also show model frame level for comparison
+        if Journal.armoryUI.modelFrame then
+            HopeAddon:Print("Model frameLevel:", Journal.armoryUI.modelFrame:GetFrameLevel())
+        end
     elseif cmd == "reset" then
         HopeAddon:Print("Type /hope reset confirm to reset all character data")
     elseif cmd == "reset confirm" then

@@ -282,12 +282,12 @@ function Sounds:PlayDeathComedy()
     local handle1 = HopeAddon.Timer:After(0.3, function()
         PlaySound(ids.bagClose, "Master")  -- Bag Close
     end)
-    table.insert(self.sequenceTimers, handle1)
+    if handle1 then table.insert(self.sequenceTimers, handle1) end
 
     local handle2 = HopeAddon.Timer:After(0.5, function()
         PlaySound(ids.murlocAggro, "Master")  -- Murloc Aggro "Mrglglgl!"
     end)
-    table.insert(self.sequenceTimers, handle2)
+    if handle2 then table.insert(self.sequenceTimers, handle2) end
 end
 
 --[[
@@ -334,7 +334,7 @@ function Sounds:PlaySequence(sounds)
         local handle = HopeAddon.Timer:After(totalDelay, function()
             self:Play(category, soundName)
         end)
-        table.insert(self.sequenceTimers, handle)
+        if handle then table.insert(self.sequenceTimers, handle) end
     end
 end
 

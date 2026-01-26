@@ -467,6 +467,98 @@ WORDS = { width = 650, height = 600 }    -- Words with WoW board (H2 fix)
 
 ---
 
+### 1.10 Frame Strata & Z-Ordering Standards
+
+**WoW Frame Strata Hierarchy (lowest to highest):**
+1. `WORLD` - World content (rarely used for UI)
+2. `BACKGROUND` - Background frames
+3. `LOW` - Below normal UI
+4. `MEDIUM` - Standard UI elements (default)
+5. `HIGH` - Above normal UI
+6. `DIALOG` - Popup dialogs, modals
+7. `FULLSCREEN` - Fullscreen overlays
+8. `FULLSCREEN_DIALOG` - Dialogs over fullscreen
+9. `TOOLTIP` - Tooltips (highest normal)
+
+**Frame Level vs Frame Strata:**
+- **Strata** - Coarse grouping (all frames in higher strata render above lower)
+- **Level** - Fine ordering within same strata (higher level = on top)
+- A frame at strata `HIGH` level 1 is ABOVE strata `MEDIUM` level 100
+
+**HopeAddon Strata Assignments:**
+
+| Frame | Strata | Level | Purpose |
+|-------|--------|-------|---------|
+| Main Journal Frame | `DIALOG` | default | Primary addon window |
+| Journal Tab Bar | `HIGH` | default | Tab navigation |
+| Journal Content | `HIGH` | default | Tab content area |
+| Scroll Container | `MEDIUM` | default | Scrollable content |
+| Notification Pool | `DIALOG` | default | Pop-up notifications |
+| Game Windows | `DIALOG` | default | Minigame windows |
+| Rumor Popup | `DIALOG` | default | Modal dialogs |
+| Tooltips | `TOOLTIP` | default | Item/hover tooltips |
+
+**Armory Tab Frame Hierarchy (CRITICAL):**
+```
+scrollContainer.content (MEDIUM, inherits)
+└── armoryUI.container (MEDIUM, inherits)
+    ├── phaseBar (MEDIUM, inherits)
+    │   └── phase buttons (level: parent+2)
+    ├── characterView (MEDIUM, BackdropTemplate, a=0.95)
+    │   ├── modelFrame (LOW, DressUpModel - renders 3D model)
+    │   └── slotsContainer (MEDIUM, level: characterView+10)
+    │       └── slot buttons (level: slotsContainer+2)
+    └── footer (MEDIUM, inherits)
+
+armoryUI.gearPopup (DIALOG) - Floats above all Armory content
+armoryClickAwayFrame (HIGH, level: popup-1) - Catches clicks outside popup
+```
+
+**Why Model Frame is LOW Strata:**
+The `DressUpModel` frame renders a 3D character model which intercepts mouse events. Setting it to `LOW` strata allows slot buttons (at `MEDIUM` strata) to receive clicks even when positioned over the model area.
+
+**Click-Away Pattern:**
+When showing popups that should dismiss on outside click:
+1. Create a full-screen button at `HIGH` strata
+2. Set its level BELOW the popup (popup at `DIALOG` is above)
+3. Register `OnClick` to dismiss popup
+4. Show on popup show, hide on popup hide
+
+**Common Z-Order Issues & Fixes:**
+
+| Issue | Cause | Fix |
+|-------|-------|-----|
+| Popup hidden behind content | Parent strata too low | Use `DIALOG` strata for popups |
+| Buttons not clickable | Parent intercepts mouse | Set clickable frames higher level |
+| Model blocks clicks | DressUpModel intercepts | Set model to `LOW`, buttons to `MEDIUM` |
+| Backdrop covers content | High alpha on parent | Reduce alpha OR move children to separate parent |
+| Click-away catches popup clicks | Level ordering wrong | Set click-away level = popup level - 1 |
+| Popup visually obscured by parent backdrop | Child inherits parent rendering order | Re-parent popup to higher ancestor (mainFrame/UIParent), keep anchor to original element |
+
+**Armory Popup Fix Pattern (Phase 60):**
+```lua
+-- WRONG: Popup parented to characterView (has 95% opacity backdrop)
+local popup = CreateFrame("Frame", "...", characterView, "BackdropTemplate")
+popup:SetFrameStrata("DIALOG")  -- Still visually obscured!
+
+-- CORRECT: Popup parented to mainFrame, anchored to slot button
+local popup = CreateFrame("Frame", "...", self.mainFrame, "BackdropTemplate")
+popup:SetFrameStrata("DIALOG")
+popup:SetFrameLevel(100)  -- Ensure above other DIALOG frames
+-- Anchoring still works:
+popup:SetPoint("LEFT", slotButton, "RIGHT", 10, 0)  -- Anchors to slotButton
+```
+
+**Checklist for Frame Strata:**
+- [ ] Popups/modals use `DIALOG` strata
+- [ ] Main windows use `HIGH` or `DIALOG` strata
+- [ ] 3D models use `LOW` strata to not block buttons
+- [ ] Click-away frames are 1 level below target popup
+- [ ] BackdropTemplate frames with high alpha don't obstruct children
+- [ ] All interactive elements (buttons) have proper level above siblings
+
+---
+
 ## Part 2: Current Architecture Documentation
 
 ### 2.1 System Overview
@@ -474,51 +566,82 @@ WORDS = { width = 650, height = 600 }    -- Words with WoW board (H2 fix)
 ```
 HopeAddon UI Architecture
 ├─ Journal System (Main Hub)
-│  ├─ Frame Pools (6 types)
-│  ├─ Tab System (8 tabs)
+│  ├─ Frame Pools (7 types)
+│  ├─ Tab System (7 tabs: Journey, Reputation, Raids, Attunements, Games, Social, Armory)
 │  ├─ Scroll Container
 │  └─ Footer Stats
 ├─ Game System
 │  ├─ GameCore (Loop & State)
 │  ├─ GameUI (Windows & Components)
 │  ├─ GameComms (Network)
-│  └─ 4 Game Implementations
-└─ Social System
-   ├─ Directory (Games Hall + Travelers)
-   ├─ Profile Editor
-   ├─ MapPins
-   └─ TravelerIcons
+│  ├─ ScoreChallenge (Turn-based multiplayer)
+│  └─ 6 Game Implementations (Dice, RPS, DeathRoll, Pong, Tetris, Words, Battleship)
+├─ Social System
+│  ├─ Activity Feed (Tavern Notice Board)
+│  ├─ Companions (Favorites with online status)
+│  ├─ Romance (Relationship status)
+│  ├─ Profile Editor
+│  ├─ MapPins
+│  └─ TravelerIcons
+└─ Armory System (NEW - Phase 58+)
+   ├─ Phase Selection (P1-P5, skips P4)
+   ├─ Character Model (DressUpModel)
+   ├─ Equipment Slots (15 visible)
+   ├─ Gear Popup (BiS + alternatives)
+   └─ Footer Stats (iLvl, upgrades)
 ```
 
 ---
 
 ### 2.2 Frame Pool Architecture
 
+**Main Journal Pools:**
 | Pool | Purpose | Create Function | Reset Pattern | Usage |
 |------|---------|-----------------|---------------|-------|
 | **notificationPool** | Pop-up notifications | CreateBackdropFrame(Frame) | Clear FontStrings + effects | Achievement unlocks |
 | **containerPool** | Headers, spacers, sections | CreateFrame(Frame) | Clear children | All tabs |
 | **cardPool** | Entry cards | CreateBackdropFrame(Button) | Clear text, effects, handlers | Most tabs |
-| **collapsiblePool** | Expandable sections | CreateCollapsibleSection | Reset childEntries array | Raids, Milestones |
+| **collapsiblePool** | Expandable sections | CreateCollapsibleSection | Reset childEntries array | Raids, Attunements |
 | **bossInfoPool** | Raid metadata frames | CreateFrame(Frame) | Clear FontString | Raids tab |
-| **gameCardPool** | Games Hall cards | CreateGameCard | Reset text, handlers, colors | Directory tab |
+| **gameCardPool** | Games Hall cards | CreateGameCard | Reset text, handlers, colors | Games tab |
+| **upgradeCardPool** | Gear upgrade cards | CreateBackdropFrame(Button) | Clear text, handlers | Journey tab |
+
+**Armory Tab Pools (`Journal.armoryPools`):**
+| Pool | Purpose | Usage |
+|------|---------|-------|
+| **upgradeCard** | Gear upgrade item rows | Gear popup |
+| **sectionHeader** | Section headers | Gear popup categories |
 
 **Pool Lifecycle:**
-1. **OnEnable:** Create all pools
+1. **OnEnable:** Create all main pools
 2. **SelectTab:** ReleaseAll in dependency order (cards → sections → containers)
-3. **Populate:** Acquire frames from pools
-4. **OnDisable:** Destroy all pools
+3. **Armory Special:** `CreateArmoryFramePools()` on first Armory visit
+4. **Populate:** Acquire frames from pools
+5. **OnDisable:** Destroy all pools
 
 **Memory Management:**
 - Frames released to pool, not destroyed
 - Reset functions clear all references
 - Parent set to nil to hide frames
 - Effects/glows stopped before release
+- Armory pools use unnamed pools (not `NewNamed`) for isolation
 
 ---
 
 ### 2.3 Tab System Flow
 
+**Current Tabs (7 total):**
+| Index | Tab | Populate Function | Special Handling |
+|-------|-----|-------------------|------------------|
+| 1 | Journey | `PopulateJourney()` | Level-based routing (pre-68 vs endgame) |
+| 2 | Reputation | `PopulateReputation()` | Faction bars with milestone tracking |
+| 3 | Raids | `PopulateRaids()` | Collapsible tier sections |
+| 4 | Attunements | `PopulateAttunements()` | Quest chain progress |
+| 5 | Games | `PopulateGames()` | Game cards with Practice/Challenge |
+| 6 | Social | `PopulateSocial()` | Sub-tabs (Feed, Travelers, Companions) |
+| 7 | Armory | `PopulateArmory()` | Custom UI (not scroll-based) |
+
+**Tab Selection Flow:**
 ```
 User clicks tab
       ↓
@@ -532,21 +655,27 @@ Update tab button visual states
       ↓
 Stop all glow effects
       ↓
+Special cleanup for previous tab:
+  - If was Armory: CleanupArmory()
+  - If was Social: ClearSocialContent()
+      ↓
 Release pooled frames:
   1. cardPool:ReleaseAll()
   2. collapsiblePool:ReleaseAll()
   3. scrollContainer:ClearEntries(containerPool)
       ↓
-Call Populate function for tab
-  - PopulateTimeline()
-  - PopulateMilestones()
-  - PopulateZones()
-  - etc.
+Call Populate function for new tab
       ↓
-UpdateFooter() with stats
+UpdateFooter() with stats (unless Armory)
       ↓
 Set isTabAnimating = false after 0.3s
 ```
+
+**Armory Tab Special Handling:**
+- Does NOT use standard scroll container
+- Has its own container with custom components
+- Requires explicit `CleanupArmory()` when switching away
+- Footer stats updated via `UpdateArmoryFooter()` not `UpdateFooter()`
 
 ---
 
@@ -556,8 +685,8 @@ Set isTabAnimating = false after 0.3s
 Journal Frame (Draggable backdrop)
 ├─ Tab Container (Top)
 │  ├─ Tab Button 1 (Journey)
-│  ├─ Tab Button 2 (Milestones)
-│  ├─ ... (8 tabs total)
+│  ├─ Tab Button 2 (Reputation)
+│  ├─ ... (7 tabs total, ending with Armory)
 ├─ Content Container (Middle)
 │  └─ Scroll Frame
 │     └─ Scroll Content
@@ -616,6 +745,231 @@ end
 **Text colors in `HopeAddon.textColors`:**
 - Hierarchical grayscale (PRIMARY → DISABLED)
 - Consistent readability across contexts
+
+---
+
+### 2.7 Armory Tab Architecture
+
+The Armory tab is a complex equipment management interface with a 3D character model, equipment slots, and a floating gear popup system.
+
+**Frame Hierarchy:**
+```
+scrollContainer.content (scroll parent)
+└── armoryUI.container (main container, dynamically sized)
+    ├── phaseBar (35px height, horizontal phase buttons)
+    │   ├── Phase 1 button (active/inactive state)
+    │   ├── Phase 2 button
+    │   ├── Phase 3 button
+    │   └── Phase 5 button (Phase 4 skipped - ZA catch-up)
+    │
+    ├── characterView (380px height, BackdropTemplate a=0.95)
+    │   ├── modelFrame (DressUpModel, 180x280px, LOW strata)
+    │   │   └── 3D character model with drag rotation
+    │   │
+    │   └── slotsContainer (MEDIUM strata, level +10)
+    │       ├── Left column: head, neck, shoulders, back, chest, wrist
+    │       ├── Right column: hands, waist, legs, feet, ring1, ring2, trinket1, trinket2
+    │       └── Bottom row: mainhand, offhand, ranged (anchored to model bottom)
+    │
+    └── footer (35px height)
+        ├── Stats: Avg iLvl, Upgrades, Wishlisted
+        ├── BIS button (gold, left)
+        └── RESET button (grey, right)
+
+armoryUI.gearPopup (DIALOG strata, parented to mainFrame)
+    ├── Header with slot name + close button
+    ├── ScrollFrame with item rows
+    │   ├── BiS item row (gold star indicator)
+    │   └── Alternative item rows (up to 5)
+    └── Anchored to clicked slot button
+```
+
+**State Management (`Journal.armoryState`):**
+```lua
+armoryState = {
+    selectedPhase = 1,           -- Current phase (1-5, no 4)
+    selectedSlot = nil,          -- Currently selected slot name
+    popupVisible = false,        -- Is gear popup shown
+    expandedSections = {},       -- Collapsible state (future use)
+    slotData = {},               -- Cached equipment data per slot
+}
+```
+
+**UI State (`Journal.armoryUI`):**
+```lua
+armoryUI = {
+    container = Frame,           -- Main container
+    phaseBar = Frame,            -- Phase selection bar
+    phaseButtons = {},           -- [phase] = Button
+    characterView = Frame,       -- Character display area
+    modelFrame = DressUpModel,   -- 3D model
+    slotsContainer = Frame,      -- Slot button parent
+    slotButtons = {},            -- [slotName] = Button
+    footer = Frame,              -- Stats and action buttons
+    gearPopup = Frame,           -- Floating gear popup (parented to mainFrame!)
+}
+```
+
+**Key Functions:**
+| Function | Purpose |
+|----------|---------|
+| `PopulateArmory()` | Main entry point, creates/shows all Armory UI |
+| `CleanupArmory()` | Hides and clears Armory UI |
+| `CreateArmoryContainer()` | Creates main container and children |
+| `CreateArmoryPhaseBar()` | Creates phase selection buttons |
+| `CreateArmoryCharacterView()` | Creates model + slots container |
+| `CreateArmoryModelFrame()` | Creates DressUpModel with drag rotation |
+| `CreateArmorySlotsContainer()` | Creates slot button container |
+| `CreateArmorySlotButtons()` | Creates 15 equipment slot buttons |
+| `CreateSingleArmorySlotButton()` | Creates individual slot button |
+| `CreateArmoryFooter()` | Creates stats and action buttons |
+| `RefreshArmorySlotData()` | Loads current equipment + calculates upgrades |
+| `GetArmoryGearPopup()` | Lazy-creates gear popup |
+| `ShowArmoryGearPopup()` | Positions and shows popup |
+| `HideArmoryGearPopup()` | Hides popup |
+| `PopulateArmoryGearPopup()` | Fills popup with BiS + alternatives |
+| `SelectArmoryPhase()` | Changes phase, refreshes UI |
+| `RecalculateArmoryHeight()` | Updates container height |
+
+**Slot Button Visual States:**
+| State | Border Color | Background | Glow |
+|-------|--------------|------------|------|
+| Empty | Grey (0.4) | Dark (0.1) | None |
+| Equipped (no upgrade) | Grey (0.5) | Dark (0.15) | None |
+| Upgrade available | Gold (1, 0.84, 0) | Dark (0.15) | Gold pulse |
+| Selected | Bright gold | Lighter (0.2) | Strong gold |
+| Hover | Brighter | Lighter | Subtle |
+
+**Gear Popup Positioning:**
+- Left column slots → Popup appears RIGHT
+- Right column slots → Popup appears LEFT
+- Bottom row slots → Popup appears TOP
+- Configured in `C.ARMORY_GEAR_POPUP.POSITION_OFFSETS`
+
+**Constants Reference (Constants.lua):**
+| Constant | Purpose |
+|----------|---------|
+| `ARMORY_PHASES` | Phase metadata (name, color, raids) |
+| `ARMORY_PHASE_BAR` | Phase bar dimensions and styling |
+| `ARMORY_CHARACTER_VIEW` | Character view dimensions and backdrop |
+| `ARMORY_MODEL_FRAME` | Model frame dimensions and settings |
+| `ARMORY_SLOTS_CONTAINER` | Slot container dimensions |
+| `ARMORY_SLOT_BUTTON` | Slot button sizes, positions, icons |
+| `ARMORY_SLOT_PLACEHOLDER_ICONS` | Empty slot placeholder icons |
+| `ARMORY_HIDDEN_SLOTS` | Hidden slots (shirt, tabard) |
+| `ARMORY_GEAR_POPUP` | Popup dimensions, positioning, styling |
+| `ARMORY_FOOTER` | Footer dimensions and button config |
+| `ARMORY_GEAR_DATABASE` | BiS items by phase/slot |
+
+**Data Flow:**
+```
+User selects Phase 2
+       ↓
+SelectArmoryPhase(2)
+       ↓
+Update phase button visuals
+       ↓
+RefreshArmorySlotData()
+       ↓
+For each slot:
+  - Get equipped item
+  - Get BiS for Phase 2
+  - Calculate upgrade delta
+  - Update slot visual (gold border if upgrade)
+       ↓
+If popup visible:
+  - Re-populate with Phase 2 data
+```
+
+**Known Considerations:**
+1. Model frame at LOW strata allows slot buttons to receive clicks
+2. Gear popup parented to mainFrame (not characterView) to avoid backdrop obscuring
+3. Phase 4 (ZA) intentionally skipped in UI - catch-up raid with no BiS
+4. Shirt and tabard slots hidden - no BiS recommendations for cosmetic slots
+
+---
+
+### 2.8 Social Tab Architecture
+
+The Social Tab uses a sub-tabbed interface with three views: Feed, Travelers, and Companions.
+
+**Container Structure:**
+```lua
+Journal.socialContainers = {
+    statusBar = Frame,     -- Top profile/status bar
+    tabBar = Frame,        -- Sub-tab buttons
+    content = Frame,       -- Main content area
+    scrollFrame = Frame,   -- Scroll frame wrapper
+}
+
+Journal.socialSubTabs = {
+    feed = Button,         -- Activity Feed tab
+    travelers = Button,    -- Fellow Travelers directory
+    companions = Button,   -- Companions list
+}
+```
+
+**Sub-Tab Content:**
+
+| Sub-Tab | Content | Key Functions |
+|---------|---------|---------------|
+| Feed | Activity feed with rumors, mugs | `PopulateSocialFeed()` |
+| Travelers | Directory with filters/search | `PopulateSocialTravelers()` |
+| Companions | Favorites + online status | `PopulateSocialCompanions()` |
+
+**Travelers Tab Filters:**
+```lua
+Journal.socialState = {
+    searchText = "",           -- Search box content
+    sortOption = "last_seen",  -- Sort order
+    filterOption = "all",      -- Quick filter: all/online/ic/ooc/lfrp
+    currentPage = 1,           -- Pagination
+    pageSize = 20,             -- Items per page
+}
+```
+
+**Filter Buttons:**
+| Filter | Description | Color |
+|--------|-------------|-------|
+| All | All travelers | Grey |
+| Online | Seen < 5 min | Green |
+| IC | In Character status | Green |
+| OOC | Out of Character | Blue |
+| LF_RP | Looking for RP | Pink |
+
+**Content Clearing Pattern:**
+```lua
+-- When switching sub-tabs: clear everything
+ClearSocialContent()
+
+-- When changing filters (same sub-tab): preserve filter bar
+ClearSocialContent(true)  -- preserveFilterBar = true
+```
+
+**Region Tracking:**
+FontStrings and Textures must be tracked manually for cleanup:
+```lua
+local text = content:CreateFontString(nil, "OVERLAY")
+self:TrackSocialRegion(text)  -- Adds to socialContentRegions array
+```
+
+**Activity Feed System:**
+- Shows recent activities from Fellow Travelers (48h retention)
+- Activity types: STATUS, BOSS, LEVEL, GAME, BADGE, RUMOR, MUG, ROMANCE
+- Listener system for real-time updates: `ActivityFeed:RegisterListener(id, callback)`
+- Hybrid refresh: auto when scrolled to top, banner when scrolled down
+
+**Companions System:**
+- Favorites list with 50 max companions
+- Request/Accept/Decline flow with 24h expiry
+- Online status based on FellowTravelers lastSeenTime (5-min threshold)
+- Network messages: COMP_REQ, COMP_ACC, COMP_DEC
+
+**Romance System:**
+- One exclusive partner (monogamous)
+- States: SINGLE → PROPOSED → DATING
+- Network messages: ROM_REQ, ROM_ACC, ROM_DEC, ROM_BRK
+- Breakups broadcast to Activity Feed
 
 ---
 
@@ -793,6 +1147,45 @@ Score sent in move message but not validated by opponent. Scores can diverge if 
 **Fix Applied (2026-01-19):**
 - HandleRemoteMove now compares remote claimed score vs locally calculated score
 - Score is recalculated locally via PlaceWord (authoritative)
+
+---
+
+#### Issue H5: Armory Gear Popup Visually Obscured by Parent Backdrop ✅ FIXED
+**Severity:** High (Visual Bug)
+**Category:** Frame Strata/Z-Order
+**File:** `Journal/Journal.lua:10873-10888`
+
+**Problem:**
+The Armory gear popup was parented to `characterView` which has a `BackdropTemplate` with 95% opacity. Even though the popup was set to `DIALOG` strata (higher than parent), WoW's rendering engine draws child frames within their parent's visual context, causing the dark backdrop to visually obscure the popup content.
+
+**Symptom:** Popup appears to be "covered" or "behind" something dark despite being clickable.
+
+**Fix Applied (2026-01-25):**
+- Re-parented popup from `characterView` to `self.mainFrame` (Journal's main window)
+- Added `SetFrameLevel(100)` to ensure popup is above other DIALOG strata frames
+- Anchor positioning to slot buttons still works (anchors are independent of parent)
+
+```lua
+-- Before (broken):
+local popup = CreateFrame("Frame", "...", characterView, "BackdropTemplate")
+popup:SetFrameStrata("DIALOG")
+
+-- After (fixed):
+local popupParent = self.mainFrame or UIParent
+local popup = CreateFrame("Frame", "...", popupParent, "BackdropTemplate")
+popup:SetFrameStrata("DIALOG")
+popup:SetFrameLevel(100)
+```
+
+**Root Cause Analysis:**
+In WoW, frame strata determines render order between frames, but a parent's backdrop can still visually obscure children if the backdrop is drawn after children in the render pass. The solution is to parent popups to a frame that doesn't have an opaque backdrop, while still using anchors to position relative to the original content.
+
+**Checklist:**
+- [x] Popup parented to mainFrame (no opaque backdrop)
+- [x] SetFrameLevel(100) added for extra assurance
+- [x] Anchor to slot buttons still works
+- [x] Click-away handler still functions correctly
+- [x] Documented in Section 1.10 (Frame Strata Standards)
 - If mismatch detected, logs debug message with claimed vs actual values
 - Local calculation always trusted (prevents cheating)
 
@@ -1623,6 +2016,123 @@ end
 
 ---
 
+### Armory Tab Layout
+
+**Main Layout:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ [P1] [P2] [P3] [P5]              Phase Selection Bar (35px)     │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  [Head]                                            [Hands]      │
+│  [Neck]         ┌─────────────────────┐            [Waist]      │
+│  [Shoulders]    │                     │            [Legs]       │
+│  [Back]         │   Character Model   │            [Feet]       │
+│  [Chest]        │    (DressUpModel)   │            [Ring1]      │
+│  [Wrist]        │      180x280px      │            [Ring2]      │
+│                 └─────────────────────┘            [Trinket1]   │
+│                                                    [Trinket2]   │
+│          [MainHand]  [OffHand]  [Ranged]                        │
+│                  (Bottom row - anchored to model)               │
+│                                                                 │
+├─────────────────────────────────────────────────────────────────┤
+│ Avg iLvl: 115    Upgrades: 4 slots    [BIS]  [RESET]   (35px)   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Gear Popup (when slot clicked):**
+```
+                    ┌─────────────────────────────┐
+                    │ CHEST UPGRADES          [X] │  <- Header (36px)
+                    ├─────────────────────────────┤
+                    │ ★ [Icon] Chestguard of     │  <- BiS item (gold star)
+ [Chest] ──────────>│          the Fallen         │     64px height
+   slot             │          iLvl 128           │
+  button            │          Karazhan - Prince  │
+                    ├─────────────────────────────┤
+                    │   [Icon] T4 Chestpiece      │  <- Alternative
+                    │          iLvl 120           │     (up to 5)
+                    │          Mag - Magtheridon  │
+                    ├─────────────────────────────┤
+                    │   [Icon] Badge Chest        │
+                    │          iLvl 115           │
+                    │          Badges (75)        │
+                    └─────────────────────────────┘
+                              300px width
+```
+
+**Slot Button States:**
+```
+┌────────┐  Empty        ┌────────┐  Equipped      ┌────────┐  Upgrade
+│  [ ]   │  Grey border  │ [Icon] │  Grey border   │ [Icon] │  Gold border
+│        │  Dark BG      │        │  Dark BG       │   ↑    │  Gold glow
+│        │  No glow      │        │  No glow       │        │  Pulse anim
+└────────┘               └────────┘                └────────┘
+```
+
+**Z-Order Visualization:**
+```
+Layer 5 (DIALOG):   ┌──────────────────┐  Gear Popup (parented to mainFrame)
+                    │   Gear Popup     │
+Layer 4 (HIGH):     └─────┬────────────┘
+                          │
+Layer 3 (MEDIUM):   ┌─────▼────────────────────────────────────────┐
+                    │  Slot Buttons (level +10)                    │
+Layer 2 (MEDIUM):   │  ┌──────────────────────────────────────────┐│
+                    │  │ Slots Container                          ││
+Layer 1 (LOW):      │  │  ┌────────────────────────────────────┐  ││
+                    │  │  │ Model Frame (DressUpModel)         │  ││
+                    │  │  │ (LOW strata so buttons work above) │  ││
+                    │  │  └────────────────────────────────────┘  ││
+                    │  └──────────────────────────────────────────┘│
+                    │ Character View (backdrop a=0.95)             │
+                    └──────────────────────────────────────────────┘
+```
+
+---
+
+### Social Tab Layout
+
+**Main Layout with Sub-Tabs:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ YOUR PROFILE                                                     │
+│ [Class] Name <Title>    Level 70 Warrior                        │
+│ Status: [In Character ▼]    [Edit Profile]                      │
+├─────────────────────────────────────────────────────────────────┤
+│ [Feed]  [Travelers]  [Companions]    <- Sub-tab bar             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│    ┌─────────────────────────────────────────────────────┐      │
+│    │ Content varies by sub-tab:                          │      │
+│    │                                                     │      │
+│    │ Feed: Activity entries, rumors, mugs               │      │
+│    │ Travelers: Search, filters, directory cards        │      │
+│    │ Companions: Favorites list, online status          │      │
+│    └─────────────────────────────────────────────────────┘      │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Travelers Tab with Filters:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ [🔍 Search...              ] [Sort: Last Seen ▼]  15 travelers  │
+├─────────────────────────────────────────────────────────────────┤
+│ [All] [Online] [IC] [OOC] [LF_RP]    <- Quick filter buttons    │
+├─────────────────────────────────────────────────────────────────┤
+│ [Warrior] Thrall <Hero>                                         │
+│           Level 70 - Orgrimmar - 5 min ago    [♥] [★] [Game]   │
+├─────────────────────────────────────────────────────────────────┤
+│ [Mage] Jaina <Archmage>                                         │
+│        Level 70 - Theramore - 1 hr ago       [♥] [★] [Game]    │
+├─────────────────────────────────────────────────────────────────┤
+│                    [< Prev]  Page 1 of 3  [Next >]              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## Verification Steps
 
 ### Visual Consistency Checklist
@@ -1686,11 +2196,24 @@ When in doubt:
 ---
 
 **Document Created:** 2026-01-19
-**Last Updated:** 2026-01-19
-**Status:** Active - v1.2
+**Last Updated:** 2026-01-25
+**Status:** Active - v1.3
 **Maintainer:** AI Assistant (Claude Code)
 
-### Recent Updates (v1.2 - 2026-01-19)
+### Recent Updates (v1.3 - 2026-01-25)
+**Phase 60: Armory Tab Z-Order Fix + Documentation**
+- ✅ Added Section 1.10: Frame Strata & Z-Ordering Standards
+- ✅ Added Section 2.7: Armory Tab Architecture (full documentation)
+- ✅ Added Section 2.8: Social Tab Architecture
+- ✅ Updated Section 2.1: System Overview (7 tabs, Armory system added)
+- ✅ Updated Section 2.2: Frame Pool Architecture (Armory pools added)
+- ✅ Updated Section 2.3: Tab System Flow (current 7 tabs, special handling)
+- ✅ Added Armory tab ASCII diagrams to Part 8
+- ✅ Added Social tab ASCII diagrams to Part 8
+- ✅ Fixed Armory popup z-order issue (re-parented to mainFrame)
+- ✅ Documented WoW frame strata hierarchy
+
+### Previous Updates (v1.2 - 2026-01-19)
 **Phase 18: Low Priority Completion**
 - ✅ Fixed L1: Added minimap tooltip icons (MapPins.lua)
 - ✅ Verified L2: All handlers at module scope (MinigamesUI.lua)
