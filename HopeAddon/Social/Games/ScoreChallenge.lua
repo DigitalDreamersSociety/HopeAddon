@@ -55,6 +55,15 @@ function ScoreChallenge:OnEnable()
 end
 
 function ScoreChallenge:OnDisable()
+    -- Unregister network handlers to prevent handler accumulation on /reload
+    local GameComms = HopeAddon:GetModule("GameComms")
+    if GameComms then
+        GameComms:UnregisterHandler("SCORE_TETRIS", "MOVE")
+        GameComms:UnregisterHandler("SCORE_TETRIS", "END")
+        GameComms:UnregisterHandler("SCORE_PONG", "MOVE")
+        GameComms:UnregisterHandler("SCORE_PONG", "END")
+    end
+
     -- Cancel active challenge
     if self.activeChallenge then
         self:CancelChallenge("SHUTDOWN")

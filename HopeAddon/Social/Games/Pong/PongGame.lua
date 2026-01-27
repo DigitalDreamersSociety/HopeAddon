@@ -84,6 +84,13 @@ function PongGame:RegisterNetworkHandlers()
 end
 
 function PongGame:OnDisable()
+    -- Unregister network handlers to prevent handler accumulation on /reload
+    local GameComms = HopeAddon:GetModule("GameComms")
+    if GameComms then
+        GameComms:UnregisterHandler("PONG", "MOVE")
+        GameComms:UnregisterHandler("PONG", "END")
+    end
+
     -- Clean up any active games
     for gameId, game in pairs(self.games) do
         self:CleanupGame(gameId)

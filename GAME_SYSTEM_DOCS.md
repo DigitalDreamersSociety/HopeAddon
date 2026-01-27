@@ -2,7 +2,9 @@
 
 This document contains detailed game implementation specifications, state machines, and core loop documentation for all minigames in HopeAddon.
 
-For quick reference and API summaries, see [CLAUDE.md](CLAUDE.md).
+**Related Documentation:**
+- [CLAUDE.md](CLAUDE.md) - Quick reference and API summaries
+- [GAME_UI_PATTERNS.md](HopeAddon/Social/Games/GAME_UI_PATTERNS.md) - UI standards for minigames
 
 ---
 

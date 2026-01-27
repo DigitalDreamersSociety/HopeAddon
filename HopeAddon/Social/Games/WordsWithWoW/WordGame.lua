@@ -69,7 +69,13 @@ WordGame.dragState = {
     startRow = nil,            -- First tile placed row
     startCol = nil,            -- First tile placed col
     validSquares = {},         -- [row..","..col] = true for valid drop targets
+    -- Fix #2: Throttle and cache values for OnUpdate
+    lastDragUpdate = 0,        -- Time accumulator for throttling
+    cachedScale = nil,         -- Cached UIParent effective scale
 }
+
+-- Fix #2: Drag update throttle (target ~60fps)
+local DRAG_THROTTLE = 0.016
 
 --============================================================
 -- LIFECYCLE
@@ -126,6 +132,31 @@ function WordGame:OnDisable()
     if self.GameComms then
         self.GameComms:UnregisterHandler("WORDS", "MOVE")
         self.GameComms:UnregisterHandler("WORDS", "PASS")
+    end
+
+    -- Fix #7: Destroy drag tile singleton frame to prevent orphaned frame memory leak
+    if self.dragState and self.dragState.dragTile then
+        self.dragState.dragTile:SetScript("OnUpdate", nil)
+        self.dragState.dragTile:SetParent(nil)
+        self.dragState.dragTile:Hide()
+        self.dragState.dragTile = nil
+    end
+
+    -- Issue #27: Fully reset drag state including tables to prevent memory leaks
+    if self.dragState then
+        self.dragState.cachedScale = nil
+        self.dragState.lastDragUpdate = 0
+        self.dragState.sourceTile = nil  -- Issue #13: Clear frame reference
+        self.dragState.isDragging = false
+        self.dragState.gameId = nil
+        self.dragState.sourceIndex = nil
+        self.dragState.letter = nil
+        self.dragState.placementDirection = nil
+        self.dragState.startRow = nil
+        self.dragState.startCol = nil
+        -- Wipe tables to release all references
+        wipe(self.dragState.pendingPlacements)
+        wipe(self.dragState.validSquares)
     end
 
     -- Destroy frame pools
@@ -205,6 +236,7 @@ function WordGame:OnCreate(gameId, game)
                 enabled = false,       -- Set true for AI-controlled player
                 playerNum = 2,         -- Which player is AI (usually 2)
                 phase = "IDLE",        -- IDLE | THINKING
+                thinkTimer = nil,      -- Timer handle for AI thinking delay (cancel on cleanup)
             },
             -- Online status ticker (for remote games)
             statusTicker = nil,
@@ -240,8 +272,12 @@ function WordGame:OnStart(gameId)
     state.gameState = self.GAME_STATE.PLAYER1_TURN
     state.turnCount = 1
 
-    -- Initialize drag state for this game
+    -- Fix #19: Complete drag state initialization for this game
     self.dragState.gameId = gameId
+    self.dragState.isDragging = false
+    self.dragState.sourceTile = nil
+    self.dragState.sourceIndex = nil
+    self.dragState.letter = nil
     wipe(self.dragState.pendingPlacements)
     self.dragState.placementDirection = nil
     self.dragState.startRow = nil
@@ -360,6 +396,22 @@ function WordGame:CleanupGame(gameId)
         state.statusTicker = nil
     end
 
+    -- Cancel AI thinking timer if running (prevents orphaned callback)
+    if state and state.ai and state.ai.thinkTimer then
+        state.ai.thinkTimer:Cancel()
+        state.ai.thinkTimer = nil
+    end
+
+    -- Clean up drag state if this game is being dragged
+    if self.dragState and self.dragState.gameId == gameId then
+        if self.dragState.dragTile then
+            self.dragState.dragTile:SetScript("OnUpdate", nil)
+            self.dragState.dragTile:Hide()
+        end
+        self.dragState.isDragging = false
+        self.dragState.gameId = nil
+    end
+
     -- Release board tile frames back to pool
     if ui.tileFrames then
         for row = 1, self.BOARD_SIZE do
@@ -457,6 +509,17 @@ end
     Called when game is destroyed
 ]]
 function WordGame:OnDestroy(gameId)
+    -- Fix #4: Clean up drag state if this game was being dragged
+    if self.dragState.gameId == gameId then
+        self:CancelDrag()
+        wipe(self.dragState.pendingPlacements)
+        self.dragState.placementDirection = nil
+        self.dragState.startRow = nil
+        self.dragState.startCol = nil
+        wipe(self.dragState.validSquares)
+        self.dragState.gameId = nil
+    end
+
     -- Clean up UI elements first
     self:CleanupGame(gameId)
 
@@ -542,6 +605,11 @@ function WordGame:PlaceWord(gameId, word, horizontal, startRow, startCol, player
 
     -- Place the word
     local placedTiles = state.board:PlaceWord(word, startRow, startCol, horizontal)
+
+    -- Fix #5: Verify tiles were actually placed (guards against OOB/invalid positions)
+    if #placedTiles == 0 then
+        return false, "No valid tile positions for placement"
+    end
 
     -- Fix #12: Removed undefined InvalidateRows call (row cache optimization was never implemented)
 
@@ -688,6 +756,15 @@ function WordGame:PassTurn(gameId, playerName)
 
     -- Check for game end (both players passed)
     if state.consecutivePasses >= self.MAX_CONSECUTIVE_PASSES then
+        -- Fix #8: Clear drag state before game ends (NextTurn won't be called)
+        if self.dragState.gameId == gameId then
+            self:CancelDrag()
+            wipe(self.dragState.pendingPlacements)
+            self.dragState.placementDirection = nil
+            self.dragState.startRow = nil
+            self.dragState.startCol = nil
+            wipe(self.dragState.validSquares)
+        end
         if self.GameCore then
             self.GameCore:EndGame(gameId, "both_passed")
         end
@@ -771,6 +848,12 @@ function WordGame:HandleRemoteMove(sender, gameId, data)
     local game = self.games[gameId]
     if not game or not game.data or not game.data.state then return end
 
+    -- Fix #12: Verify this is a remote game to prevent local game hijacking
+    if self.GameCore and game.mode ~= self.GameCore.GAME_MODE.REMOTE then
+        HopeAddon:Debug("HandleRemoteMove: Ignoring remote move for non-remote game", gameId)
+        return
+    end
+
     local state = game.data.state
 
     -- Process the move (recalculates score locally for validation)
@@ -824,10 +907,21 @@ function WordGame:HandleRemotePass(sender, gameId)
     local game = self.games[gameId]
     if not game then return end
 
+    -- Fix #12: Verify this is a remote game to prevent local game hijacking
+    if self.GameCore and game.mode ~= self.GameCore.GAME_MODE.REMOTE then
+        HopeAddon:Debug("HandleRemotePass: Ignoring remote pass for non-remote game", gameId)
+        return
+    end
+
     -- Notification
     HopeAddon:Print(string.format("|cFF9B30FF[Words]|r %s passed their turn.", sender))
 
-    self:PassTurn(gameId, sender)
+    local success, message = self:PassTurn(gameId, sender)
+
+    -- Fix #9: Check if game ended (both passed) - don't continue if game is over
+    if message == "Game ended - both players passed" then
+        return
+    end
 
     -- Check if it's now local player's turn
     local playerName = UnitName("player")
@@ -890,11 +984,12 @@ function WordGame:StartAIThinking(gameId)
 
     HopeAddon:Debug("AI thinking for", string.format("%.1f", thinkDelay), "seconds...")
 
-    -- Schedule AI decision after delay
-    HopeAddon.Timer:After(thinkDelay, function()
+    -- Schedule AI decision after delay (store handle for cleanup)
+    state.ai.thinkTimer = HopeAddon.Timer:After(thinkDelay, function()
         -- Make sure game still exists and it's still AI's turn
         local currentGame = self.games[gameId]
         if currentGame and currentGame.data.state.ai.phase == "THINKING" then
+            currentGame.data.state.ai.thinkTimer = nil  -- Clear before processing
             self:ProcessAIDecision(gameId)
         end
     end)
@@ -1104,8 +1199,15 @@ end
 ]]
 function WordGame:CalculatePlacementScore(gameId, word, startRow, startCol, horizontal)
     local game = self.games[gameId]
+    -- Fix #6: Add nil guards to prevent crashes
+    if not game or not game.data or not game.data.state then
+        return 0
+    end
     local state = game.data.state
     local board = state.board
+    if not board then
+        return 0
+    end
 
     -- Simulate placing to find new tiles
     local placedTiles = {}
@@ -1135,6 +1237,9 @@ end
 function WordGame:AIPlayWord(gameId, move)
     local game = self.games[gameId]
     if not game then return end
+
+    -- Fix #7: Add nil guards for game.data and state
+    if not game.data or not game.data.state or not game.data.state.ai then return end
 
     local aiPlayer = game.data.state.ai.playerNum == 1 and game.player1 or game.player2
 
@@ -1315,9 +1420,11 @@ function WordGame:CreateFramePools()
             return toast
         end,
         function(toast)
+            toast:SetScript("OnUpdate", nil)
             toast:Hide()
             toast:ClearAllPoints()
             toast:SetParent(UIParent)
+            toast:SetAlpha(1)
             if toast.text then toast.text:SetText("") end
         end
     )
@@ -1391,7 +1498,7 @@ function WordGame:InitializeTileFrame(tile)
     -- Letter text (large, centered, clear readable font)
     tile.letter = tile:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
     tile.letter:SetPoint("CENTER", 0, 2)
-    tile.letter:SetFont("Fonts\\FRIZQT__.TTF", 18, "OUTLINE")
+    tile.letter:SetFont(HopeAddon.assets.fonts.HEADER, 18, "OUTLINE")
 
     -- Bonus label (shown when empty - DL, TL, DW, TW, star)
     tile.bonusLabel = tile:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
@@ -1401,7 +1508,7 @@ function WordGame:InitializeTileFrame(tile)
     -- Point value (small, bottom-right corner)
     tile.points = tile:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     tile.points:SetPoint("BOTTOMRIGHT", -2, 2)
-    tile.points:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
+    tile.points:SetFont(HopeAddon.assets.fonts.SMALL, 9, "OUTLINE")
 
     -- Glow texture for recently placed tiles
     tile.glow = tile:CreateTexture(nil, "OVERLAY")
@@ -1537,7 +1644,10 @@ function WordGame:RefillHand(gameId, playerName, usedLetters)
     local game = self.games[gameId]
     if not game then return end
 
-    local state = game.data.state
+    -- Fix #11: Full nil chain validation
+    local state = game.data and game.data.state
+    if not state or not state.playerHands then return end
+
     local hand = state.playerHands[playerName]
     if not hand then return end
 
@@ -2806,19 +2916,48 @@ function WordGame:CreateDragTile()
     -- Letter
     tile.letter = tile:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     tile.letter:SetPoint("CENTER", 0, 2)
-    tile.letter:SetFont("Fonts\\FRIZQT__.TTF", 20, "OUTLINE")
+    tile.letter:SetFont(HopeAddon.assets.fonts.HEADER, 20, "OUTLINE")
 
     -- Points
     tile.points = tile:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     tile.points:SetPoint("BOTTOMRIGHT", -3, 3)
-    tile.points:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    tile.points:SetFont(HopeAddon.assets.fonts.SMALL, 10, "OUTLINE")
 
-    -- Update position to follow cursor
-    tile:SetScript("OnUpdate", function(self)
+    -- Update position to follow cursor and detect mouse release
+    -- Fix #2: Throttle updates to ~60fps and cache scale to reduce garbage
+    tile:SetScript("OnUpdate", function(self, elapsed)
+        -- Throttle updates to reduce per-frame garbage
+        WordGame.dragState.lastDragUpdate = (WordGame.dragState.lastDragUpdate or 0) + elapsed
+        if WordGame.dragState.lastDragUpdate < DRAG_THROTTLE then return end
+        WordGame.dragState.lastDragUpdate = 0
+
         local x, y = GetCursorPosition()
-        local scale = UIParent:GetEffectiveScale()
+        -- Cache scale to avoid repeated calls
+        local scale = WordGame.dragState.cachedScale or UIParent:GetEffectiveScale()
+        WordGame.dragState.cachedScale = scale
+
         self:ClearAllPoints()
         self:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x / scale, y / scale)
+
+        -- Detect mouse release during drag
+        -- WoW's OnMouseUp only fires on the frame that received OnMouseDown,
+        -- so we must detect the release here when dragging from rack to board
+        if WordGame.dragState.isDragging and not IsMouseButtonDown("LeftButton") then
+            local gameId = WordGame.dragState.gameId
+            local game = WordGame.games[gameId]
+            if game and game.data and game.data.ui and game.data.ui.tileFrames then
+                local targetRow, targetCol = WordGame:GetBoardTileUnderCursor(gameId, x / scale, y / scale)
+                if targetRow and targetCol then
+                    HopeAddon:Debug("OnUpdate: Mouse released over board tile [" .. targetRow .. "," .. targetCol .. "]")
+                    WordGame:EndDrag(targetRow, targetCol)
+                else
+                    HopeAddon:Debug("OnUpdate: Mouse released off-board, cancelling drag")
+                    WordGame:CancelDrag()
+                end
+            else
+                WordGame:CancelDrag()
+            end
+        end
     end)
 
     self.dragState.dragTile = tile
@@ -2932,18 +3071,28 @@ function WordGame:CalculateValidSquares(gameId)
         ", pendingCount=" .. #pending .. ", isBoardEmpty=" .. tostring(isBoardEmpty))
 
     if isBoardEmpty then
-        -- First word: any empty square that could connect to center
-        -- For simplicity, allow any empty square (validation happens on confirm)
+        -- First word: must include center square (8,8)
+        -- Only mark row 8 and column 8 as valid (lines through center)
+        local CENTER = 8
         local count = 0
-        for row = 1, self.BOARD_SIZE do
-            for col = 1, self.BOARD_SIZE do
-                if board:IsEmpty(row, col) then
-                    self.dragState.validSquares[row .. "," .. col] = true
-                    count = count + 1
-                end
+
+        -- Mark horizontal line through center (row 8)
+        for col = 1, self.BOARD_SIZE do
+            if board:IsEmpty(CENTER, col) then
+                self.dragState.validSquares[CENTER .. "," .. col] = true
+                count = count + 1
             end
         end
-        HopeAddon:Debug("CalculateValidSquares: First word mode - marked " .. count .. " valid squares")
+
+        -- Mark vertical line through center (column 8)
+        for row = 1, self.BOARD_SIZE do
+            if row ~= CENTER and board:IsEmpty(row, CENTER) then
+                self.dragState.validSquares[row .. "," .. CENTER] = true
+                count = count + 1
+            end
+        end
+
+        HopeAddon:Debug("CalculateValidSquares: First word mode - marked " .. count .. " valid squares (center lines only)")
     elseif #pending == 0 then
         -- First tile of a new word: must be adjacent to existing tiles
         local count = 0
@@ -3006,8 +3155,21 @@ function WordGame:CalculateValidSquares(gameId)
                 end
             end
         else
-            -- Direction is locked, only allow squares in that direction
+            -- Fix #10: Direction is locked, only allow squares ADJACENT to existing pending tiles
+            -- This prevents gaps like A__C in a word
+
+            -- Find min/max of pending placements
+            local minCol, maxCol = pending[1].col, pending[1].col
+            local minRow, maxRow = pending[1].row, pending[1].row
+            for _, p in ipairs(pending) do
+                minCol = math.min(minCol, p.col)
+                maxCol = math.max(maxCol, p.col)
+                minRow = math.min(minRow, p.row)
+                maxRow = math.max(maxRow, p.row)
+            end
+
             if direction == "H" then
+                -- Only allow col-1 and col+1 of the current pending range (or filling gaps)
                 for col = 1, self.BOARD_SIZE do
                     if board:IsEmpty(startRow, col) then
                         local occupied = false
@@ -3018,11 +3180,25 @@ function WordGame:CalculateValidSquares(gameId)
                             end
                         end
                         if not occupied then
-                            self.dragState.validSquares[startRow .. "," .. col] = true
+                            -- Check if this position is adjacent to pending range or fills a gap
+                            local isAdjacent = (col == minCol - 1) or (col == maxCol + 1)
+                            local fillsGap = (col > minCol and col < maxCol)
+                            -- Also check if adjacent to existing board letter within range
+                            local adjacentToBoard = false
+                            if col > minCol and col < maxCol then
+                                -- Check if there's a board letter on either side
+                                if board:GetLetter(startRow, col - 1) or board:GetLetter(startRow, col + 1) then
+                                    adjacentToBoard = true
+                                end
+                            end
+                            if isAdjacent or fillsGap or adjacentToBoard then
+                                self.dragState.validSquares[startRow .. "," .. col] = true
+                            end
                         end
                     end
                 end
             elseif direction == "V" then
+                -- Only allow row-1 and row+1 of the current pending range (or filling gaps)
                 for row = 1, self.BOARD_SIZE do
                     if board:IsEmpty(row, startCol) then
                         local occupied = false
@@ -3033,7 +3209,19 @@ function WordGame:CalculateValidSquares(gameId)
                             end
                         end
                         if not occupied then
-                            self.dragState.validSquares[row .. "," .. startCol] = true
+                            -- Check if this position is adjacent to pending range or fills a gap
+                            local isAdjacent = (row == minRow - 1) or (row == maxRow + 1)
+                            local fillsGap = (row > minRow and row < maxRow)
+                            -- Also check if adjacent to existing board letter within range
+                            local adjacentToBoard = false
+                            if row > minRow and row < maxRow then
+                                if board:GetLetter(row - 1, startCol) or board:GetLetter(row + 1, startCol) then
+                                    adjacentToBoard = true
+                                end
+                            end
+                            if isAdjacent or fillsGap or adjacentToBoard then
+                                self.dragState.validSquares[row .. "," .. startCol] = true
+                            end
                         end
                     end
                 end
@@ -3117,6 +3305,39 @@ function WordGame:IsValidDropTarget(row, col)
 end
 
 --[[
+    Find which board tile (if any) is under the given screen coordinates
+    Returns row, col if found, or nil, nil if not over any board tile
+]]
+function WordGame:GetBoardTileUnderCursor(gameId, screenX, screenY)
+    local game = self.games[gameId]
+    if not game or not game.data or not game.data.ui then return nil, nil end
+
+    local ui = game.data.ui
+    if not ui.tileFrames then return nil, nil end
+
+    for row = 1, self.BOARD_SIZE do
+        for col = 1, self.BOARD_SIZE do
+            local tile = ui.tileFrames[row] and ui.tileFrames[row][col]
+            if tile and tile:IsVisible() then
+                local left = tile:GetLeft()
+                local right = tile:GetRight()
+                local top = tile:GetTop()
+                local bottom = tile:GetBottom()
+
+                if left and right and top and bottom then
+                    if screenX >= left and screenX <= right and
+                       screenY >= bottom and screenY <= top then
+                        return row, col
+                    end
+                end
+            end
+        end
+    end
+
+    return nil, nil
+end
+
+--[[
     End drag - drop tile on board or cancel
 ]]
 function WordGame:EndDrag(targetRow, targetCol)
@@ -3125,8 +3346,9 @@ function WordGame:EndDrag(targetRow, targetCol)
     local gameId = self.dragState.gameId
     local game = self.games[gameId]
 
-    -- Hide drag tile
+    -- Clear OnUpdate script and hide drag tile
     if self.dragState.dragTile then
+        self.dragState.dragTile:SetScript("OnUpdate", nil)
         self.dragState.dragTile:Hide()
     end
 
@@ -3173,9 +3395,11 @@ function WordGame:CancelDrag()
 
     local gameId = self.dragState.gameId
 
-    -- Hide drag tile
+    -- Clear OnUpdate script and release drag tile back to pool
     if self.dragState.dragTile then
-        self.dragState.dragTile:Hide()
+        self.dragState.dragTile:SetScript("OnUpdate", nil)
+        self:ReleaseTileFrame(self.dragState.dragTile)
+        self.dragState.dragTile = nil
     end
 
     -- Hide valid squares
@@ -3232,6 +3456,10 @@ function WordGame:AddPendingTile(gameId, row, col, letter, rackIndex)
 
     -- Update hints when tiles change
     self:UpdateHints(gameId)
+
+    -- Recalculate and show valid squares for next tile placement
+    self:CalculateValidSquares(gameId)
+    self:ShowValidSquares(gameId)
 end
 
 --[[
@@ -3260,6 +3488,10 @@ function WordGame:RemovePendingTile(gameId, row, col)
 
     -- Update hints when tiles change
     self:UpdateHints(gameId)
+
+    -- Recalculate and show valid squares for next tile placement
+    self:CalculateValidSquares(gameId)
+    self:ShowValidSquares(gameId)
 end
 
 --[[
@@ -3612,7 +3844,7 @@ function WordGame:UpdateLiveScore(gameId)
     if not ui.liveScoreText then
         ui.liveScoreText = ui.window:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         ui.liveScoreText:SetPoint("BOTTOM", ui.rackFrame, "TOP", 0, 8)
-        ui.liveScoreText:SetFont("Fonts\\FRIZQT__.TTF", 16, "OUTLINE")
+        ui.liveScoreText:SetFont(HopeAddon.assets.fonts.HEADER, 16, "OUTLINE")
     end
 
     if #pending == 0 then
@@ -3750,7 +3982,7 @@ function WordGame:CreateButtonBar(parent, ui, game)
     ui.playBtn = CreateActionButton("play", "▶ PLAY", btnColors.PLAY, 380, 90, function()
         WordGame:ConfirmPendingWord(gameId)
     end)
-    ui.playBtn.text:SetFont("Fonts\\FRIZQT__.TTF", 14, "OUTLINE")
+    ui.playBtn.text:SetFont(HopeAddon.assets.fonts.HEADER, 14, "OUTLINE")
 
     -- Initial state
     self:UpdateButtonBar(gameId)
@@ -3987,10 +4219,17 @@ function WordGame:ShowScoreToast(gameId, word, score, placedTiles)
     local ui = game.data.ui
     if not ui.boardContainer then return end
 
-    -- Create toast frame (not pooled for simplicity)
-    local toast = CreateFrame("Frame", nil, ui.boardContainer)
-    toast:SetSize(200, 50)
+    -- Acquire toast from pool - pool should always be available
+    -- If pool is unavailable, skip toast to prevent frame leaks
+    if not self.pools.toast then
+        HopeAddon:Debug("WordGame: Toast pool unavailable, skipping score toast")
+        return
+    end
+
+    local toast = self.pools.toast:Acquire()
+    toast:SetParent(ui.boardContainer)
     toast:SetFrameStrata("TOOLTIP")
+    toast:SetAlpha(1)
 
     -- Position at center of placed word
     if placedTiles and #placedTiles > 0 then
@@ -4002,9 +4241,8 @@ function WordGame:ShowScoreToast(gameId, word, score, placedTiles)
         toast:SetPoint("CENTER", ui.boardContainer, "CENTER", 0, 0)
     end
 
-    -- Score text with glow
-    local text = toast:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    text:SetPoint("CENTER")
+    -- Use existing text FontString from pool
+    local text = toast.text
     text:SetFont(HopeAddon.assets.fonts.TITLE, 22, "OUTLINE")
 
     -- Color based on score
@@ -4022,36 +4260,46 @@ function WordGame:ShowScoreToast(gameId, word, score, placedTiles)
     end
 
     -- Animate: Float up and fade out over 1.5 seconds
-    local startTime = GetTime()
-    local duration = 1.5
-    local startY = toast:GetTop() and 0 or 0
+    -- Fix #4: Store animation state on toast frame to reduce closure/local creation
+    toast._animStartTime = GetTime()
+    toast._animDuration = 1.5
+    toast._animBoardContainer = ui.boardContainer
+    toast._animPlacedTiles = placedTiles
 
-    toast:SetScript("OnUpdate", function(self, elapsed)
-        local now = GetTime()
-        local progress = (now - startTime) / duration
+    -- Pre-calculate mid tile position if available
+    if placedTiles and #placedTiles > 0 then
+        local midTile = placedTiles[math.ceil(#placedTiles / 2)]
+        toast._animBaseX = 25 + (midTile.col - 1) * (self.TILE_SIZE + self.TILE_PADDING) + self.TILE_SIZE / 2
+        toast._animBaseY = -20 - (midTile.row - 1) * (self.TILE_SIZE + self.TILE_PADDING) - self.TILE_SIZE / 2
+    else
+        toast._animBaseX = nil
+        toast._animBaseY = nil
+    end
+
+    toast:SetScript("OnUpdate", function(self)
+        local progress = (GetTime() - self._animStartTime) / self._animDuration
 
         if progress >= 1 then
-            self:Hide()
             self:SetScript("OnUpdate", nil)
+            -- Release back to pool (pool is guaranteed to exist since we checked at acquisition)
+            if WordGame.pools.toast then
+                WordGame.pools.toast:Release(self)
+            end
             return
         end
 
         -- Float upward
         local yOffset = progress * 50
         self:ClearAllPoints()
-        if placedTiles and #placedTiles > 0 then
-            local midTile = placedTiles[math.ceil(#placedTiles / 2)]
-            local x = 25 + (midTile.col - 1) * (WordGame.TILE_SIZE + WordGame.TILE_PADDING) + WordGame.TILE_SIZE / 2
-            local y = -20 - (midTile.row - 1) * (WordGame.TILE_SIZE + WordGame.TILE_PADDING) - WordGame.TILE_SIZE / 2
-            self:SetPoint("CENTER", ui.boardContainer, "TOPLEFT", x, y - 20 + yOffset)
+        if self._animBaseX then
+            self:SetPoint("CENTER", self._animBoardContainer, "TOPLEFT", self._animBaseX, self._animBaseY - 20 + yOffset)
         else
-            self:SetPoint("CENTER", ui.boardContainer, "CENTER", 0, yOffset)
+            self:SetPoint("CENTER", self._animBoardContainer, "CENTER", 0, yOffset)
         end
 
         -- Fade out in last 40%
         if progress > 0.6 then
-            local fadeProgress = (progress - 0.6) / 0.4
-            self:SetAlpha(1 - fadeProgress)
+            self:SetAlpha(1 - (progress - 0.6) / 0.4)
         end
     end)
 
@@ -4321,6 +4569,11 @@ function WordGame:ParseAndPlaceWord(gameId, word, direction, row, col, playerNam
 
     if not row or not col then
         return false, "Row and column must be numbers"
+    end
+
+    -- Fix #1: Validate row/col bounds (reject negative and out-of-range values)
+    if row < 1 or row > self.BOARD_SIZE or col < 1 or col > self.BOARD_SIZE then
+        return false, "Row and column must be between 1 and " .. self.BOARD_SIZE
     end
 
     local horizontal = (direction == "H")

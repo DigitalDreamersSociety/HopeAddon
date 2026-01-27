@@ -41,6 +41,19 @@ local ROSTER_REFRESH_INTERVAL = 30  -- seconds between auto-refresh
 local ONLINE_CHECK_INTERVAL = 60    -- seconds between online status broadcasts
 
 --============================================================
+-- API COMPATIBILITY
+--============================================================
+
+-- GuildRoster() was replaced with C_GuildInfo.GuildRoster() in Retail
+local function RequestGuildRoster()
+    if GuildRoster then
+        GuildRoster()
+    elseif C_GuildInfo and C_GuildInfo.GuildRoster then
+        C_GuildInfo.GuildRoster()
+    end
+end
+
+--============================================================
 -- MODULE STATE
 --============================================================
 
@@ -81,6 +94,10 @@ function Guild:OnDisable()
         self.pendingRefresh:Cancel()
         self.pendingRefresh = nil
     end
+
+    -- Issue #20: Clear listeners to prevent callback accumulation
+    wipe(self.listeners)
+    self.listenerCount = 0
 end
 
 --============================================================
@@ -115,7 +132,7 @@ function Guild:Initialize()
 
     -- Initial roster request
     if IsInGuild() then
-        GuildRoster()  -- Triggers GUILD_ROSTER_UPDATE
+        RequestGuildRoster()  -- Triggers GUILD_ROSTER_UPDATE
 
         -- Store guild info
         local guildData = self:GetGuildData()
@@ -127,7 +144,7 @@ function Guild:Initialize()
     -- Set up periodic refresh ticker
     self.refreshTicker = HopeAddon.Timer:NewTicker(ROSTER_REFRESH_INTERVAL, function()
         if IsInGuild() then
-            GuildRoster()
+            RequestGuildRoster()
         end
     end)
 
@@ -294,7 +311,7 @@ end
 function Guild:OnPlayerGuildUpdate()
     if IsInGuild() then
         -- Player joined a guild, request roster
-        GuildRoster()
+        RequestGuildRoster()
     else
         -- Player left guild, clear data
         self:ClearRoster()
@@ -830,7 +847,7 @@ end
 ]]
 function Guild:RefreshRoster()
     if IsInGuild() then
-        GuildRoster()
+        RequestGuildRoster()
     end
 end
 

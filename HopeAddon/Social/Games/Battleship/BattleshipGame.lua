@@ -72,6 +72,14 @@ function BattleshipGame:OnEnable()
 end
 
 function BattleshipGame:OnDisable()
+    -- Unregister network handlers to prevent handler accumulation on /reload
+    local GameComms = HopeAddon:GetModule("GameComms")
+    if GameComms then
+        GameComms:UnregisterHandler("BATTLESHIP", "MOVE")
+        GameComms:UnregisterHandler("BATTLESHIP", "STATE")
+        GameComms:UnregisterHandler("BATTLESHIP", "END")
+    end
+
     -- Cleanup all games
     for gameId in pairs(self.games) do
         self:CleanupGame(gameId)
@@ -1341,14 +1349,20 @@ function BattleshipGame:CleanupGame(gameId)
         BattleshipUI:CleanupGameFrames(gameId)
     end
 
-    -- Hide and cleanup window
+    -- Hide and cleanup window scripts
     if ui.window then
         ui.window:Hide()
         ui.window:SetScript("OnKeyDown", nil)
     end
 
-    -- Clear cell references
+    -- Clear cell references first (prevents dangling references)
     ui.cells = { player = {}, enemy = {} }
+
+    -- Properly destroy the game window (orphans frame and children for GC)
+    local GameUI = HopeAddon:GetModule("GameUI")
+    if GameUI then
+        GameUI:DestroyGameWindow(gameId)
+    end
 
     self.games[gameId] = nil
 end

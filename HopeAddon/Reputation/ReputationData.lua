@@ -110,6 +110,27 @@ Data.TBC_FACTIONS = {
             [6] = "Honored: Flamewrought Key (Heroic Hellfire Citadel)",
             [8] = "Exalted: Honor Hold Tabard",
         },
+        hoverData = {
+            repSources = {
+                "Hellfire Citadel dungeons (Ramparts, Blood Furnace, Shattered Halls)",
+                "Hellfire Peninsula quests (~10,000 rep total)",
+                "Killing Fel Orcs in Hellfire Citadel instances (until Honored)",
+                "Heroic Hellfire dungeons (continues beyond Honored)",
+            },
+            rewards = {
+                [6] = { { itemId = 28286, name = "Flamewrought Key", icon = "INV_Misc_Key_13" } },
+                [7] = { { itemId = 29169, name = "Nethercobra Leg Armor", icon = "INV_Misc_ArmorKit_25" } },
+                [8] = { { itemId = 23999, name = "Honor Hold Tabard", icon = "INV_Misc_Tabard_HonorHold" } },
+            },
+            tips = {
+                "Complete all Hellfire Peninsula quests first for easy early rep",
+                "Shattered Halls gives the most rep per run at 70",
+                "Trash mobs stop giving rep at Honored - run instances after that",
+            },
+            prerequisites = {
+                "Alliance only - Thrallmar is the Horde equivalent",
+            },
+        },
     },
     ["Thrallmar"] = {
         id = 947,
@@ -133,6 +154,27 @@ Data.TBC_FACTIONS = {
         rewards = {
             [6] = "Honored: Flamewrought Key (Heroic Hellfire Citadel)",
             [8] = "Exalted: Thrallmar Tabard",
+        },
+        hoverData = {
+            repSources = {
+                "Hellfire Citadel dungeons (Ramparts, Blood Furnace, Shattered Halls)",
+                "Hellfire Peninsula quests (~10,000 rep total)",
+                "Killing Fel Orcs in Hellfire Citadel instances (until Honored)",
+                "Heroic Hellfire dungeons (continues beyond Honored)",
+            },
+            rewards = {
+                [6] = { { itemId = 28286, name = "Flamewrought Key", icon = "INV_Misc_Key_13" } },
+                [7] = { { itemId = 29165, name = "Cobrahide Leg Armor", icon = "INV_Misc_ArmorKit_25" } },
+                [8] = { { itemId = 24000, name = "Thrallmar Tabard", icon = "INV_Misc_Tabard_Thrallmar" } },
+            },
+            tips = {
+                "Complete all Hellfire Peninsula quests first for easy early rep",
+                "Shattered Halls gives the most rep per run at 70",
+                "Trash mobs stop giving rep at Honored - run instances after that",
+            },
+            prerequisites = {
+                "Horde only - Honor Hold is the Alliance equivalent",
+            },
         },
     },
 
@@ -161,6 +203,26 @@ Data.TBC_FACTIONS = {
             [7] = "Revered: Cenarion War Hippogryph mount",
             [8] = "Exalted: Cenarion Expedition Tabard",
         },
+        hoverData = {
+            repSources = {
+                "Coilfang Reservoir dungeons (Slave Pens, Underbog, Steamvault)",
+                "Zangarmarsh and Blade's Edge quests",
+                "Unidentified Plant Parts turn-in (until Honored)",
+                "Coilfang Armaments turn-in (Honored to Exalted)",
+                "Heroic Coilfang dungeons for fastest rep at 70",
+            },
+            rewards = {
+                [6] = { { itemId = 28287, name = "Reservoir Key", icon = "INV_Misc_Key_13" } },
+                [7] = { { itemId = 33999, name = "Cenarion War Hippogryph", icon = "Ability_Mount_CenarianHippogryph" } },
+                [8] = { { itemId = 31804, name = "Cenarion Expedition Tabard", icon = "INV_Misc_Tabard_CenarionExpedition" } },
+            },
+            tips = {
+                "Farm Unidentified Plant Parts in Zangarmarsh for easy early rep",
+                "Save Coilfang Armaments for after Honored",
+                "Steamvault is the best dungeon for rep at 70",
+                "The Hippogryph mount is one of the most sought-after rewards",
+            },
+        },
     },
     ["Sporeggar"] = {
         id = 970,
@@ -183,6 +245,25 @@ Data.TBC_FACTIONS = {
         },
         rewards = {
             [8] = "Exalted: Tiny Sporebat pet",
+        },
+        hoverData = {
+            repSources = {
+                "Killing Bog Lords and Giants in Zangarmarsh (until Friendly)",
+                "Now That We're Friends... repeatable quest (Glowcaps)",
+                "Bring Me A Shrubbery! repeatable quest (Sanguine Hibiscus)",
+                "Underbog dungeon (Sanguine Hibiscus drops)",
+            },
+            rewards = {
+                [5] = { { itemId = 32689, name = "Recipe: Sporeling Snack", icon = "INV_Misc_Food_62" } },
+                [7] = { { itemId = 30156, name = "Hardened Stone Shard", icon = "INV_Weapon_ShortBlade_39" } },
+                [8] = { { itemId = 34478, name = "Tiny Sporebat", icon = "INV_Pet_Sporebat" } },
+            },
+            tips = {
+                "Farm Sanguine Hibiscus in Underbog - it stacks!",
+                "Glowcaps can be farmed in Zangarmarsh caves",
+                "The Tiny Sporebat is a cute companion pet",
+                "One of the quicker factions to reach Exalted",
+            },
         },
     },
 
@@ -209,6 +290,27 @@ Data.TBC_FACTIONS = {
         rewards = {
             [8] = "Exalted: Talbuk mounts",
         },
+        hoverData = {
+            repSources = {
+                "Nagrand quests (~11,000 rep total)",
+                "Obsidian Warbeads turn-in (10 for 500 rep)",
+                "Killing Ogres in Nagrand (until Honored)",
+                "Killing Kil'sorrow enemies in Nagrand",
+            },
+            rewards = {
+                [7] = { { itemId = 29227, name = "Talbuk Riding Crop", icon = "INV_Misc_Crop_01" } },
+                [8] = { { itemId = 31830, name = "Cobalt Riding Talbuk", icon = "Ability_Mount_Warhippogryph" } },
+            },
+            tips = {
+                "Farm Obsidian Warbeads from Nagrand ogres",
+                "Warbeads continue to give rep after Honored",
+                "Complete Nagrand Slam achievement while farming",
+                "Talbuk mounts are unique to this faction",
+            },
+            prerequisites = {
+                "Alliance only - The Mag'har is the Horde equivalent",
+            },
+        },
     },
     ["The Mag'har"] = {
         id = 941,
@@ -231,6 +333,27 @@ Data.TBC_FACTIONS = {
         },
         rewards = {
             [8] = "Exalted: Talbuk mounts",
+        },
+        hoverData = {
+            repSources = {
+                "Nagrand quests (~11,000 rep total)",
+                "Obsidian Warbeads turn-in (10 for 500 rep)",
+                "Killing Ogres in Nagrand (until Honored)",
+                "Killing Kil'sorrow enemies in Nagrand",
+            },
+            rewards = {
+                [7] = { { itemId = 29227, name = "Talbuk Riding Crop", icon = "INV_Misc_Crop_01" } },
+                [8] = { { itemId = 31836, name = "Cobalt War Talbuk", icon = "Ability_Mount_Warhippogryph" } },
+            },
+            tips = {
+                "Farm Obsidian Warbeads from Nagrand ogres",
+                "Warbeads continue to give rep after Honored",
+                "Meet Garrosh Hellscream - before he became Warchief",
+                "Talbuk mounts are unique to this faction",
+            },
+            prerequisites = {
+                "Horde only - Kurenai is the Alliance equivalent",
+            },
         },
     },
 
@@ -257,6 +380,25 @@ Data.TBC_FACTIONS = {
         rewards = {
             [6] = "Honored: Auchenai Key (Heroic Auchindoun)",
         },
+        hoverData = {
+            repSources = {
+                "Auchindoun dungeons (Mana-Tombs, Auchenai Crypts, Sethekk Halls, Shadow Labyrinth)",
+                "Terokkar Forest quests",
+                "Arakkoa Feathers turn-in (until Honored)",
+                "Heroic Auchindoun dungeons at 70",
+            },
+            rewards = {
+                [6] = { { itemId = 28395, name = "Auchenai Key", icon = "INV_Misc_Key_11" } },
+                [7] = { { itemId = 30832, name = "Glyph of Shadow Warding", icon = "INV_Misc_Rune_04" } },
+                [8] = { { itemId = 31778, name = "Lower City Tabard", icon = "INV_Misc_Tabard_LowerCity" } },
+            },
+            tips = {
+                "Farm Arakkoa Feathers in Terokkar for early rep",
+                "Shadow Labyrinth gives excellent rep at 70",
+                "This is one of the easier Shattrath factions",
+                "Required for heroic Auchindoun access",
+            },
+        },
     },
     ["The Sha'tar"] = {
         id = 935,
@@ -279,6 +421,25 @@ Data.TBC_FACTIONS = {
         },
         rewards = {
             [6] = "Honored: Warpforged Key (Heroic Tempest Keep)",
+        },
+        hoverData = {
+            repSources = {
+                "Tempest Keep dungeons (Mechanar, Botanica, Arcatraz)",
+                "Spillover rep from Aldor/Scryers (50%)",
+                "Shattrath and Netherstorm quests",
+                "Heroic Tempest Keep dungeons at 70",
+            },
+            rewards = {
+                [6] = { { itemId = 28396, name = "Warpforged Key", icon = "INV_Misc_Key_09" } },
+                [7] = { { itemId = 30634, name = "Glyph of Arcane Warding", icon = "INV_Misc_Rune_08" } },
+                [8] = { { itemId = 31781, name = "Sha'tar Tabard", icon = "INV_Misc_Tabard_Shatar" } },
+            },
+            tips = {
+                "Gains 50% spillover from Aldor or Scryers rep",
+                "Run Tempest Keep dungeons for direct rep",
+                "Arcatraz key requires revered with Sha'tar",
+                "Required for heroic Tempest Keep access",
+            },
         },
     },
     ["The Aldor"] = {
@@ -306,6 +467,29 @@ Data.TBC_FACTIONS = {
         rewards = {
             [8] = "Exalted: Aldor shoulder enchants",
         },
+        hoverData = {
+            repSources = {
+                "Marks of Kil'jaeden turn-in (until Honored)",
+                "Marks of Sargeras turn-in (Honored to Exalted)",
+                "Fel Armaments turn-in (350 rep each)",
+                "Shadowmoon Valley quests",
+            },
+            rewards = {
+                [6] = { { itemId = 29129, name = "Medallion of the Aldor", icon = "INV_Jewelry_Necklace_24" } },
+                [7] = { { itemId = 31780, name = "Greater Inscription of Vengeance", icon = "INV_Misc_Note_02" } },
+                [8] = { { itemId = 31779, name = "Greater Inscription of Warding", icon = "INV_Misc_Note_02" } },
+            },
+            tips = {
+                "Farm Marks of Kil'jaeden from demons in Nagrand/Terokkar",
+                "Farm Marks of Sargeras in Shadowmoon Valley",
+                "Fel Armaments give 350 rep but are rarer",
+                "Also gives 50% spillover to Sha'tar",
+            },
+            prerequisites = {
+                "Exclusive with Scryers - choose wisely!",
+                "Cannot easily switch once committed",
+            },
+        },
     },
     ["The Scryers"] = {
         id = 934,
@@ -332,6 +516,29 @@ Data.TBC_FACTIONS = {
         rewards = {
             [8] = "Exalted: Scryer shoulder enchants",
         },
+        hoverData = {
+            repSources = {
+                "Firewing Signets turn-in (until Honored)",
+                "Sunfury Signets turn-in (Honored to Exalted)",
+                "Arcane Tomes turn-in (350 rep each)",
+                "Netherstorm quests",
+            },
+            rewards = {
+                [6] = { { itemId = 31775, name = "Scryer's Bloodgem", icon = "INV_Misc_Gem_BloodGem_01" } },
+                [7] = { { itemId = 31773, name = "Greater Inscription of the Blade", icon = "INV_Misc_Note_02" } },
+                [8] = { { itemId = 31774, name = "Greater Inscription of the Knight", icon = "INV_Misc_Note_02" } },
+            },
+            tips = {
+                "Farm Firewing Signets from blood elves in Terokkar",
+                "Farm Sunfury Signets in Netherstorm",
+                "Arcane Tomes give 350 rep but are rarer",
+                "Also gives 50% spillover to Sha'tar",
+            },
+            prerequisites = {
+                "Exclusive with Aldor - choose wisely!",
+                "Cannot easily switch once committed",
+            },
+        },
     },
 
     -- CAVERNS OF TIME
@@ -356,6 +563,24 @@ Data.TBC_FACTIONS = {
         },
         rewards = {
             [6] = "Honored: Key of Time (Heroic Caverns of Time)",
+        },
+        hoverData = {
+            repSources = {
+                "Caverns of Time dungeons (Old Hillsbrad, Black Morass)",
+                "Caverns of Time quests",
+                "Heroic Caverns of Time at 70",
+            },
+            rewards = {
+                [6] = { { itemId = 28756, name = "Key of Time", icon = "INV_Misc_Key_04" } },
+                [7] = { { itemId = 30635, name = "Glyph of Nature Warding", icon = "INV_Misc_Rune_12" } },
+                [8] = { { itemId = 31777, name = "Keepers of Time Tabard", icon = "INV_Misc_Tabard_KeepersOfTime" } },
+            },
+            tips = {
+                "Black Morass is faster for rep at 70",
+                "Required for Karazhan attunement chain",
+                "Bronze dragons are great allies to have",
+                "One of the smaller faction grinds",
+            },
         },
     },
 
@@ -382,6 +607,26 @@ Data.TBC_FACTIONS = {
         rewards = {
             [8] = "Exalted: Premium gem bags",
         },
+        hoverData = {
+            repSources = {
+                "Mana-Tombs dungeon",
+                "Nagrand and Netherstorm quests",
+                "Oshu'gun Crystal Powder turn-in (until Friendly)",
+                "Ivory Tusks and Pair of Ivory Tusks turn-in",
+                "Monthly gem bag from Gezhe (Friendly+)",
+            },
+            rewards = {
+                [5] = { { itemId = 29115, name = "Consortium Tabard", icon = "INV_Misc_Tabard_Consortium" } },
+                [7] = { { itemId = 31776, name = "Design: Pendant of Sunfire", icon = "INV_Misc_Note_06" } },
+                [8] = { { itemId = 31357, name = "Bag of Premium Gems", icon = "INV_Misc_Bag_17" } },
+            },
+            tips = {
+                "Visit Nagrand monthly for your free gem bag",
+                "Gem bag quality improves with reputation level",
+                "Farm crystal powder from Oshu'gun area mobs",
+                "Good for Jewelcrafters",
+            },
+        },
     },
 
     -- RAID FACTIONS
@@ -407,6 +652,28 @@ Data.TBC_FACTIONS = {
         rewards = {
             [8] = "Exalted: Upgraded Violet Signet",
         },
+        hoverData = {
+            repSources = {
+                "Karazhan raid bosses and trash",
+                "All rep from killing mobs in Karazhan",
+                "Weekly lockout - grind takes several weeks",
+            },
+            rewards = {
+                [6] = { { itemId = 29287, name = "Violet Signet", icon = "INV_Jewelry_Ring_62" } },
+                [7] = { { itemId = 29291, name = "Violet Signet (Upgraded)", icon = "INV_Jewelry_Ring_62" } },
+                [8] = { { itemId = 29290, name = "Violet Signet of the Great Protector", icon = "INV_Jewelry_Ring_62" } },
+            },
+            tips = {
+                "Clear Karazhan weekly for rep",
+                "Ring upgrades are role-specific (tank/healer/caster/melee)",
+                "Exalted ring is very powerful for its slot",
+                "Trash mobs give rep throughout the raid",
+            },
+            prerequisites = {
+                "Requires Karazhan attunement",
+                "Raid-only reputation",
+            },
+        },
     },
     ["Ashtongue Deathsworn"] = {
         id = 1012,
@@ -429,6 +696,27 @@ Data.TBC_FACTIONS = {
         },
         rewards = {
             [8] = "Exalted: Access to Black Temple gear",
+        },
+        hoverData = {
+            repSources = {
+                "Black Temple raid bosses and trash",
+                "Shadowmoon Valley quest chain",
+                "All kills in Black Temple give rep",
+            },
+            rewards = {
+                [7] = { { itemId = 32757, name = "Blessed Medallion of Karabor", icon = "INV_Jewelry_Necklace_24" } },
+                [8] = { { itemId = 32485, name = "Ashtongue Talisman", icon = "INV_Jewelry_Talisman_04" } },
+            },
+            tips = {
+                "Progress through Black Temple weekly",
+                "Trash mobs give rep as well as bosses",
+                "Karabor medallion has a useful on-use effect",
+                "One of the hardest reps to max",
+            },
+            prerequisites = {
+                "Requires Black Temple attunement",
+                "Raid-only reputation",
+            },
         },
     },
 
@@ -455,6 +743,28 @@ Data.TBC_FACTIONS = {
         rewards = {
             [8] = "Exalted: Netherwing Drake mounts",
         },
+        hoverData = {
+            repSources = {
+                "Netherwing Ledge daily quests",
+                "Netherwing Egg turn-ins (rare spawns)",
+                "Racing and gathering dailies",
+                "Infiltrating the Dragonmaw quest chain",
+            },
+            rewards = {
+                [7] = { { itemId = 32694, name = "Skybreaker Whip", icon = "INV_Misc_Crop_02" } },
+                [8] = { { itemId = 32857, name = "Onyx Netherwing Drake", icon = "Ability_Mount_NetherdrakePurple" } },
+            },
+            tips = {
+                "Farm Netherwing Eggs for bonus rep",
+                "Complete all daily quests each day",
+                "Eggs can spawn anywhere on the ledge and mines",
+                "One of the most prestigious mount rewards in TBC",
+            },
+            prerequisites = {
+                "Requires 300 riding skill (epic flying)",
+                "Must complete the initial disguise quest chain",
+            },
+        },
     },
     ["Ogri'la"] = {
         id = 1038,
@@ -477,6 +787,29 @@ Data.TBC_FACTIONS = {
         },
         rewards = {
             [8] = "Exalted: Ogri'la Tabard",
+        },
+        hoverData = {
+            repSources = {
+                "Blade's Edge Plateau daily quests",
+                "Simon Says-style crystal game",
+                "Bombing runs and demon slaying",
+                "Apexis Shard turn-ins",
+            },
+            rewards = {
+                [6] = { { itemId = 32572, name = "Apexis Shard Necklace", icon = "INV_Misc_Gem_FlameSPessarite_01" } },
+                [7] = { { itemId = 32652, name = "Crystalforged Darkrune", icon = "INV_Misc_Gem_Diamond_02" } },
+                [8] = { { itemId = 32828, name = "Ogri'la Tabard", icon = "INV_Misc_Tabard_Ogrila" } },
+            },
+            tips = {
+                "Simon Says game can be tricky - practice!",
+                "Combine with Sha'tari Skyguard dailies for efficiency",
+                "Apexis Shards used for rewards and turn-ins",
+                "Flying mount required for most dailies",
+            },
+            prerequisites = {
+                "Must complete introduction quest chain",
+                "Flying mount required",
+            },
         },
     },
     ["Sha'tari Skyguard"] = {
@@ -501,6 +834,29 @@ Data.TBC_FACTIONS = {
         rewards = {
             [8] = "Exalted: Nether Ray mounts",
         },
+        hoverData = {
+            repSources = {
+                "Skettis and Blade's Edge daily quests",
+                "Killing Arakkoa in Skettis",
+                "Time-Lost Scrolls turn-in",
+                "Bombing runs in Blade's Edge",
+            },
+            rewards = {
+                [6] = { { itemId = 32770, name = "Skyguard Silver Cross", icon = "INV_Jewelry_Amulet_01" } },
+                [7] = { { itemId = 32771, name = "Skyguard's Drape", icon = "INV_Misc_Cape_06" } },
+                [8] = { { itemId = 32319, name = "Purple Riding Nether Ray", icon = "Ability_Mount_Netherray" } },
+            },
+            tips = {
+                "Farm Skettis with a group for Shadow Dust",
+                "Combine with Ogri'la dailies for efficiency",
+                "Nether Ray mounts are unique and colorful",
+                "Terokk summon requires Skull Piles",
+            },
+            prerequisites = {
+                "Must complete introduction quest chain",
+                "Flying mount required",
+            },
+        },
     },
     ["Shattered Sun Offensive"] = {
         id = 1077,
@@ -523,6 +879,28 @@ Data.TBC_FACTIONS = {
         },
         rewards = {
             [8] = "Exalted: Shattered Sun Title and Tabard",
+        },
+        hoverData = {
+            repSources = {
+                "Isle of Quel'Danas daily quests",
+                "Magisters' Terrace dungeon",
+                "Sunwell Plateau raid",
+                "Daily quests unlocked as server progresses",
+            },
+            rewards = {
+                [5] = { { itemId = 34872, name = "Shattered Sun Pendant", icon = "INV_Jewelry_Necklace_36" } },
+                [7] = { { itemId = 35221, name = "Tabard of the Shattered Sun", icon = "INV_Misc_Tabard_ShatteredSun" } },
+                [8] = { { itemId = 35223, name = "Title: of the Shattered Sun", icon = "INV_Misc_QuestionMark" } },
+            },
+            tips = {
+                "Daily quests are the fastest path to Exalted",
+                "Server-wide progress unlocks more content",
+                "Magisters' Terrace has good drops and rep",
+                "The title is prestigious and hard-earned",
+            },
+            prerequisites = {
+                "Phase 5 content (Sunwell patch)",
+            },
         },
     },
 }
@@ -604,6 +982,57 @@ function Data:IsMilestoneStanding(standingId)
         end
     end
     return false
+end
+
+-- Get rewards at a specific standing for a faction
+-- @param factionName string - The faction name
+-- @param standingId number - The standing ID (4-8)
+-- @return table|nil - Array of { itemId, name, icon } or nil
+function Data:GetRewardsAtStanding(factionName, standingId)
+    local faction = self.TBC_FACTIONS[factionName]
+    if not faction or not faction.hoverData or not faction.hoverData.rewards then
+        return nil
+    end
+    return faction.hoverData.rewards[standingId]
+end
+
+-- Get all rewards for a faction organized by standing
+-- @param factionName string - The faction name
+-- @return table|nil - { [standingId] = { items... }, ... } or nil
+function Data:GetAllRewards(factionName)
+    local faction = self.TBC_FACTIONS[factionName]
+    if not faction or not faction.hoverData then
+        return nil
+    end
+    return faction.hoverData.rewards
+end
+
+-- Get hoverData for a faction (for tooltip building)
+-- @param factionName string - The faction name
+-- @return table|nil - The hoverData table or nil
+function Data:GetHoverData(factionName)
+    local faction = self.TBC_FACTIONS[factionName]
+    if not faction then
+        return nil
+    end
+    return faction.hoverData
+end
+
+-- Get the next reward after current standing
+-- @param factionName string - The faction name
+-- @param currentStandingId number - Current standing ID (4-8)
+-- @return standingId, items - Next standing with rewards and items, or nil
+function Data:GetNextReward(factionName, currentStandingId)
+    local rewards = self:GetAllRewards(factionName)
+    if not rewards then return nil end
+
+    -- Look for next standing with rewards
+    for standingId = currentStandingId + 1, 8 do
+        if rewards[standingId] and #rewards[standingId] > 0 then
+            return standingId, rewards[standingId]
+        end
+    end
+    return nil
 end
 
 if HopeAddon.Debug then

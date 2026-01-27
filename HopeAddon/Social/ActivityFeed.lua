@@ -83,6 +83,8 @@ local STATUS_DISPLAY = {
 
 -- Feed limits
 local MAX_FEED_ENTRIES = 50
+local MAX_PENDING_ACTIVITIES = 200  -- Prevent unbounded queue growth
+local MAX_LASTSEEN_ENTRIES = 1000   -- Limit lastSeen deduplication cache
 local FEED_RETENTION_HOURS = 48
 local FEED_RETENTION_SECONDS = FEED_RETENTION_HOURS * 3600
 
@@ -135,6 +137,9 @@ ActivityFeed.currentEncounter = {     -- Track current encounter context
     clearTime = nil,                  -- Time to clear context
 }
 
+-- P1.4: Timer handle tracking (prevents closure leaks on module disable)
+ActivityFeed.pendingTimers = {}
+
 -- Listener system for UI refresh notifications
 -- Allows modules (like Journal) to be notified when new activities arrive
 ActivityFeed.listeners = {}
@@ -143,6 +148,9 @@ ActivityFeed.listeners = {}
 -- LISTENER SYSTEM
 --============================================================
 
+-- Issue #71.10: Maximum listeners to prevent unbounded growth
+local MAX_LISTENERS = 20
+
 --[[
     Register a listener for feed updates
     @param id string - Unique identifier for the listener
@@ -150,8 +158,22 @@ ActivityFeed.listeners = {}
 ]]
 function ActivityFeed:RegisterListener(id, callback)
     if not id or not callback then return end
+
+    -- Issue #71.10: Warn about duplicate registration
+    if self.listeners[id] then
+        HopeAddon:Debug("ActivityFeed: WARNING - Duplicate listener registration:", id)
+    end
+
+    -- Count existing listeners and warn if approaching limit
+    local count = 0
+    for _ in pairs(self.listeners) do count = count + 1 end
+    if count >= MAX_LISTENERS then
+        HopeAddon:Debug("ActivityFeed: WARNING - Listener limit reached, rejecting:", id)
+        return
+    end
+
     self.listeners[id] = callback
-    HopeAddon:Debug("ActivityFeed: Registered listener:", id)
+    HopeAddon:Debug("ActivityFeed: Registered listener:", id, "(total:", count + 1, ")")
 end
 
 --[[
@@ -237,6 +259,36 @@ end
 local function MarkActivitySeen(activityId)
     local social = GetSocialData()
     if not social then return end
+
+    -- Limit lastSeen cache size to prevent unbounded growth
+    -- Count entries and prune oldest if over limit
+    local count = 0
+    for _ in pairs(social.lastSeen) do
+        count = count + 1
+    end
+
+    if count >= MAX_LASTSEEN_ENTRIES then
+        -- Clear ~10% of oldest entries by removing those not in current feed
+        local feedIds = {}
+        for _, activity in ipairs(social.feed) do
+            if activity.id then feedIds[activity.id] = true end
+        end
+
+        local toRemove = {}
+        for id in pairs(social.lastSeen) do
+            if not feedIds[id] then
+                table.insert(toRemove, id)
+            end
+        end
+
+        -- Remove up to 100 stale entries
+        for i = 1, math.min(100, #toRemove) do
+            social.lastSeen[toRemove[i]] = nil
+        end
+
+        HopeAddon:Debug("ActivityFeed: Pruned", math.min(100, #toRemove), "stale lastSeen entries")
+    end
+
     social.lastSeen[activityId] = true
 end
 
@@ -274,6 +326,24 @@ local function CleanupOldActivities()
         end
     end
     social.lastSeen = newLastSeen
+
+    -- P1.2: Clean up expired myRumors (prevents unbounded SavedVariables growth)
+    if social.myRumors then
+        for timestamp, rumor in pairs(social.myRumors) do
+            if rumor.expires and rumor.expires < now then
+                social.myRumors[timestamp] = nil
+            end
+        end
+    end
+
+    -- P1.3: Clean up stale mugsGiven entries (activity no longer in feed)
+    if social.mugsGiven then
+        for activityId in pairs(social.mugsGiven) do
+            if not activeIds[activityId] then
+                social.mugsGiven[activityId] = nil
+            end
+        end
+    end
 
     HopeAddon:Debug("ActivityFeed cleanup: ", #social.feed, "activities retained")
 end
@@ -335,6 +405,13 @@ end
     @param activity table - Activity entry
 ]]
 function ActivityFeed:QueueForBroadcast(activity)
+    -- Limit queue size to prevent unbounded growth during heavy activity spam
+    if #self.pendingActivities >= MAX_PENDING_ACTIVITIES then
+        -- Drop oldest activity to make room
+        table.remove(self.pendingActivities, 1)
+        HopeAddon:Debug("ActivityFeed: Queue full, dropped oldest activity")
+    end
+
     table.insert(self.pendingActivities, activity)
     HopeAddon:Debug("ActivityFeed: Queued for broadcast:", activity.type)
 end
@@ -483,6 +560,9 @@ end
 --[[
     Broadcast pending activities
     Called periodically or when piggybacking on FellowTravelers broadcast
+
+    IMPORTANT: Even if FellowTravelers is not available, we still add activities
+    to our own feed so the player can see their own activity history.
 ]]
 function ActivityFeed:BroadcastActivities()
     HopeAddon:Debug("ActivityFeed: BroadcastActivities called, pending:", #self.pendingActivities)
@@ -499,31 +579,34 @@ function ActivityFeed:BroadcastActivities()
     self.lastBroadcast = now
 
     local FellowTravelers = HopeAddon.FellowTravelers
-    if not FellowTravelers then
-        HopeAddon:Debug("ActivityFeed: No FellowTravelers module")
-        return
+    local canBroadcast = FellowTravelers ~= nil
+
+    if not canBroadcast then
+        HopeAddon:Debug("ActivityFeed: No FellowTravelers module - adding to local feed only")
     end
 
     -- Send up to BROADCAST_BATCH_SIZE activities
     local count = 0
     while #self.pendingActivities > 0 and count < BROADCAST_BATCH_SIZE do
         local activity = table.remove(self.pendingActivities, 1)
-        local msg = self:SerializeActivity(activity)
 
-        HopeAddon:Debug("ActivityFeed: Broadcasting activity:", activity.type, "from", activity.player)
+        -- Broadcast to network if FellowTravelers is available
+        if canBroadcast then
+            local msg = self:SerializeActivity(activity)
+            HopeAddon:Debug("ActivityFeed: Broadcasting activity:", activity.type, "from", activity.player)
+            FellowTravelers:BroadcastMessage(msg)
+        end
 
-        -- Send via FellowTravelers channels
-        FellowTravelers:BroadcastMessage(msg)
         count = count + 1
 
-        -- Also add to our own feed
+        -- Always add to our own feed (even without network)
         self:AddToFeed(activity)
     end
 
     -- Notify listeners that we added our own activities
     if count > 0 then
         self:NotifyListeners(count)
-        HopeAddon:Debug("ActivityFeed: Broadcast", count, "activities, feed size:", #(self:GetFeed()))
+        HopeAddon:Debug("ActivityFeed: Processed", count, "activities, feed size:", #(self:GetFeed()))
     end
 end
 
@@ -830,6 +913,34 @@ function ActivityFeed:OnCalendarSignup(event, playerName, role)
     )
     self:QueueForBroadcast(activity)
     HopeAddon:Debug("ActivityFeed: Calendar signup:", playerName, "for", event.title)
+end
+
+--[[
+    Called when a player sets a soft reserve
+    @param raidKey string - Raid identifier
+    @param itemName string - Item name reserved
+]]
+function ActivityFeed:OnSoftReserve(raidKey, itemName)
+    if not raidKey or not itemName then return end
+    local _, class = UnitClass("player")
+
+    -- Get raid display name
+    local raidNames = {
+        karazhan = "Karazhan",
+        gruul = "Gruul's Lair",
+        magtheridon = "Magtheridon's Lair",
+    }
+    local raidName = raidNames[raidKey] or raidKey
+
+    local data = "SR|" .. raidName .. "|" .. itemName
+    local activity = self:CreateActivity(
+        ACTIVITY.LOOT,
+        UnitName("player"),
+        class,
+        data
+    )
+    self:QueueForBroadcast(activity)
+    HopeAddon:Debug("ActivityFeed: Soft reserve:", itemName, "for", raidName)
 end
 
 --============================================================
@@ -1325,11 +1436,17 @@ function ActivityFeed:QueueLootSharePrompt(itemLink)
         return
     end
 
-    -- Get item info
+    -- Get item info (may return nil if item cache not loaded yet)
     local _, _, quality, _, _, itemType, itemSubType, _, equipLoc, icon = GetItemInfo(itemLink)
 
+    -- Guard against nil returns from GetItemInfo (item not cached)
+    if not quality then
+        HopeAddon:Debug("ActivityFeed: Item not in cache yet:", itemLink)
+        return
+    end
+
     -- Only epic+ items
-    if not quality or quality < LOOT_MIN_QUALITY then
+    if quality < LOOT_MIN_QUALITY then
         HopeAddon:Debug("ActivityFeed: Item quality too low:", quality)
         return
     end
@@ -1359,9 +1476,10 @@ function ActivityFeed:QueueLootSharePrompt(itemLink)
 
     -- If not in combat, show immediately (after delay)
     if not InCombatLockdown() then
-        HopeAddon.Timer:After(LOOT_PROMPT_DELAY, function()
+        local handle = HopeAddon.Timer:After(LOOT_PROMPT_DELAY, function()
             self:ShowNextLootPrompt()
         end)
+        table.insert(self.pendingTimers, handle)
     end
 end
 
@@ -1421,7 +1539,7 @@ function ActivityFeed:ShowLootSharePrompt(prompt)
 
     -- Apply backdrop
     if HopeAddon.Components and HopeAddon.Components.ApplyBackdrop then
-        HopeAddon.Components:ApplyBackdrop(frame, "DARK_GOLD", "DARK_SOLID", "GOLD")
+        HopeAddon.Components:ApplyBackdrop(frame, "DARK_FEL", "BLACK_SOLID", "FEL_GREEN")
     else
         frame:SetBackdrop({
             bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
@@ -1622,9 +1740,10 @@ function ActivityFeed:ShareLoot(prompt, comment)
     HopeAddon:Print("Loot shared with your Fellow Travelers!")
 
     -- Show next prompt if any
-    HopeAddon.Timer:After(0.5, function()
+    local handle = HopeAddon.Timer:After(0.5, function()
         self:ShowNextLootPrompt()
     end)
+    table.insert(self.pendingTimers, handle)
 end
 
 --[[
@@ -1658,9 +1777,10 @@ function ActivityFeed:SkipLootPrompt(prompt)
     end
 
     -- Show next prompt if any
-    HopeAddon.Timer:After(0.5, function()
+    local handle = HopeAddon.Timer:After(0.5, function()
         self:ShowNextLootPrompt()
     end)
+    table.insert(self.pendingTimers, handle)
 end
 
 --[[
@@ -1672,9 +1792,10 @@ function ActivityFeed:OnCombatEnd()
 
     -- Show next prompt if any (after delay)
     if #self.pendingLootPrompts > 0 then
-        HopeAddon.Timer:After(LOOT_PROMPT_DELAY, function()
+        local handle = HopeAddon.Timer:After(LOOT_PROMPT_DELAY, function()
             self:ShowNextLootPrompt()
         end)
+        table.insert(self.pendingTimers, handle)
     end
 end
 
@@ -1693,6 +1814,207 @@ function ActivityFeed:OnLootReceived(message)
 
     -- Queue for prompt
     self:QueueLootSharePrompt(itemLink)
+end
+
+--============================================================
+-- DEMO DATA GENERATION
+--============================================================
+
+--[[
+    Generate sample activities for UI testing
+    Creates 10 varied activities with different types and timestamps
+]]
+function ActivityFeed:GenerateDemoData()
+    local social = GetSocialData()
+    if not social then
+        HopeAddon:Print("Cannot generate demo data: social data not available")
+        return false
+    end
+
+    -- Sample fellow travelers for variety
+    local demoPlayers = {
+        { name = "Thrall", class = "SHAMAN" },
+        { name = "Jaina", class = "MAGE" },
+        { name = "Sylvanas", class = "HUNTER" },
+        { name = "Arthas", class = "PALADIN" },
+    }
+
+    -- Get player info
+    local playerName = UnitName("player")
+    local _, playerClass = UnitClass("player")
+
+    local now = time()
+    local activities = {}
+
+    -- Activity 1: Player level up (recent - 5 min ago)
+    table.insert(activities, {
+        id = "demo_" .. now .. "_1",
+        type = ACTIVITY.LEVEL,
+        player = playerName,
+        class = playerClass,
+        data = "68",
+        time = now - 300,  -- 5 minutes ago
+        mugs = 2,
+    })
+
+    -- Activity 2: Fellow's boss kill (30 min ago)
+    table.insert(activities, {
+        id = "demo_" .. now .. "_2",
+        type = ACTIVITY.BOSS,
+        player = demoPlayers[1].name,
+        class = demoPlayers[1].class,
+        data = "Prince Malchezaar",
+        time = now - 1800,  -- 30 min ago
+        mugs = 5,
+    })
+
+    -- Activity 3: IC Post from fellow (1 hour ago)
+    table.insert(activities, {
+        id = "demo_" .. now .. "_3",
+        type = ACTIVITY.IC_POST,
+        player = demoPlayers[2].name,
+        class = demoPlayers[2].class,
+        data = "The mana here in Shattrath is so refreshing after Netherstorm.",
+        time = now - 3600,  -- 1 hour ago
+        mugs = 3,
+    })
+
+    -- Activity 4: Anonymous tavern rumor (2 hours ago)
+    table.insert(activities, {
+        id = "demo_" .. now .. "_4",
+        type = ACTIVITY.ANON,
+        player = demoPlayers[3].name,  -- Hidden in display
+        class = demoPlayers[3].class,
+        data = "I heard there's a secret passage in Karazhan that leads to an unfinished crypt...",
+        time = now - 7200,  -- 2 hours ago
+        mugs = 8,
+    })
+
+    -- Activity 5: Game win (3 hours ago)
+    table.insert(activities, {
+        id = "demo_" .. now .. "_5",
+        type = ACTIVITY.GAME,
+        player = playerName,
+        class = playerClass,
+        data = "Tetris Battle|W",
+        time = now - 10800,  -- 3 hours ago
+        mugs = 1,
+    })
+
+    -- Activity 6: Badge earned (4 hours ago)
+    table.insert(activities, {
+        id = "demo_" .. now .. "_6",
+        type = ACTIVITY.BADGE,
+        player = demoPlayers[4].name,
+        class = demoPlayers[4].class,
+        data = "karazhan_attuned",
+        time = now - 14400,  -- 4 hours ago
+        mugs = 4,
+    })
+
+    -- Activity 7: Status change (5 hours ago)
+    table.insert(activities, {
+        id = "demo_" .. now .. "_7",
+        type = ACTIVITY.STATUS,
+        player = demoPlayers[1].name,
+        class = demoPlayers[1].class,
+        data = "LF_RP",
+        time = now - 18000,  -- 5 hours ago
+        mugs = 0,
+    })
+
+    -- Activity 8: Romance event (yesterday)
+    table.insert(activities, {
+        id = "demo_" .. now .. "_8",
+        type = ACTIVITY.ROMANCE,
+        player = demoPlayers[2].name,
+        class = demoPlayers[2].class,
+        data = "DATING|" .. demoPlayers[4].name .. "|",
+        time = now - 90000,  -- ~25 hours ago (yesterday)
+        mugs = 12,
+    })
+
+    -- Activity 9: Player boss kill (yesterday)
+    table.insert(activities, {
+        id = "demo_" .. now .. "_9",
+        type = ACTIVITY.BOSS,
+        player = playerName,
+        class = playerClass,
+        data = "Gruul the Dragonkiller",
+        time = now - 100000,  -- ~28 hours ago
+        mugs = 3,
+    })
+
+    -- Activity 10: Fellow level up (2 days ago)
+    table.insert(activities, {
+        id = "demo_" .. now .. "_10",
+        type = ACTIVITY.LEVEL,
+        player = demoPlayers[3].name,
+        class = demoPlayers[3].class,
+        data = "70",
+        time = now - 180000,  -- ~50 hours ago
+        mugs = 7,
+    })
+
+    -- Add all activities to feed (without broadcast)
+    for _, activity in ipairs(activities) do
+        -- Mark as seen to prevent duplicates
+        MarkActivitySeen(activity.id)
+        -- Add to feed
+        table.insert(social.feed, activity)
+    end
+
+    -- Sort feed by time (newest first)
+    table.sort(social.feed, function(a, b)
+        return (a.time or 0) > (b.time or 0)
+    end)
+
+    -- Trim to max size
+    while #social.feed > MAX_FEED_ENTRIES do
+        table.remove(social.feed)
+    end
+
+    HopeAddon:Debug("ActivityFeed: Generated", #activities, "demo activities")
+
+    -- Notify listeners so UI updates
+    self:NotifyListeners(#activities)
+
+    return true
+end
+
+--[[
+    Clear demo data from feed
+    Removes all activities with "demo_" prefix in their ID
+]]
+function ActivityFeed:ClearDemoData()
+    local social = GetSocialData()
+    if not social then return false end
+
+    local newFeed = {}
+    local removed = 0
+
+    for _, activity in ipairs(social.feed) do
+        if activity.id and activity.id:find("^demo_") then
+            removed = removed + 1
+            -- Also clear from lastSeen
+            if social.lastSeen then
+                social.lastSeen[activity.id] = nil
+            end
+        else
+            table.insert(newFeed, activity)
+        end
+    end
+
+    social.feed = newFeed
+
+    HopeAddon:Debug("ActivityFeed: Cleared", removed, "demo activities")
+
+    -- Notify listeners
+    if removed > 0 then
+        self:NotifyListeners(0)
+    end
+
+    return removed
 end
 
 --============================================================
@@ -1748,6 +2070,14 @@ function ActivityFeed:OnDisable()
         self.cleanupTicker:Cancel()
         self.cleanupTicker = nil
     end
+
+    -- P1.4: Cancel all pending Timer:After handles (prevents closure leaks)
+    for _, handle in ipairs(self.pendingTimers or {}) do
+        if handle and handle.Cancel then
+            handle:Cancel()
+        end
+    end
+    self.pendingTimers = {}
 
     -- Clean up event frame
     if self.eventFrame then

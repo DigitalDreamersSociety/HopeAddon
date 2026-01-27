@@ -90,6 +90,14 @@ function TetrisGame:OnEnable()
 end
 
 function TetrisGame:OnDisable()
+    -- Unregister network handlers to prevent handler accumulation on /reload
+    local GameComms = HopeAddon:GetModule("GameComms")
+    if GameComms then
+        GameComms:UnregisterHandler("TETRIS", "MOVE")
+        GameComms:UnregisterHandler("TETRIS", "STATE")
+        GameComms:UnregisterHandler("TETRIS", "END")
+    end
+
     for gameId in pairs(self.games) do
         self:CleanupGame(gameId)
     end

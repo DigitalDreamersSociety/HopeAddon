@@ -8,13 +8,14 @@ A comprehensive TBC adventure journal addon for World of Warcraft with attunemen
 
 ## Features
 
-### Journal System
+### Journal System (7 Tabs)
 - **Timeline**: Chronological view of all character milestones and discoveries
 - **Milestones**: Automatic level-based achievements (levels 5-70)
-- **Zone Discovery**: Track exploration of all 17 Outland zones
-- **Raids**: Complete boss lists for Karazhan, Gruul's Lair, Magtheridon's Lair, SSC, TK, Hyjal, and Black Temple
-- **Reputation**: Milestone tracking for 5 major TBC factions (Aldor, Scryers, Consortium, Netherwing, Ogri'la)
+- **Raids**: Complete boss lists for all TBC raids with Phase 1-5 grouping
+- **Reputation**: Milestone tracking for 18 TBC factions
 - **Statistics**: Deaths by zone/boss, playtime, dungeon runs, combat stats
+- **Armory**: Phase-based BiS gear tracking for your class and spec
+- **Social**: Fellow Travelers directory, RP profiles, and activity feed
 
 ### Attunement Tracking
 - **Karazhan**: Master's Key quest chain
@@ -27,19 +28,36 @@ A comprehensive TBC adventure journal addon for World of Warcraft with attunemen
 Progress bars and chapter-by-chapter tracking for all attunement chains.
 
 ### Social Features
-- **Fellow Travelers**: Automatic detection of other addon users
+- **Fellow Travelers**: Automatic detection of other addon users with nameplate coloring
 - **RP Profiles**: Create and share character backstories, personality traits, and appearance
 - **Badges**: Unlock 20+ achievements based on milestones and accomplishments
-- **Map Pins**: See Fellow Travelers on your minimap
-- **Profile Directory**: Browse profiles of all detected addon users
+- **Map Pins**: See Fellow Travelers on your minimap with RP status coloring
+- **Profile Directory**: Browse and search profiles of all detected addon users
+- **Activity Feed**: Notice board with guild activity and mug reactions
+- **Companions**: Track relationships with NPCs encountered in your journey
+- **Romance System**: Develop relationships with fellow travelers
+- **Rumors**: Share and discover rumors about other players
+- **Guild System**: Guild roster caching, activity tracking, and member insights
+
+### Calendar System
+- **Event Scheduling**: Create and manage guild events and raid signups
+- **Raid Signups**: Track attendance with role selection
+- **Event Validation**: Comprehensive validation for event creation and signups
+
+### Soft Reserve (SR) System
+- **Per-Raid Reserves**: Set soft reserves for specific raids
+- **Guild Overview**: View all guild members' soft reserves
+- **Conflict Detection**: See who else is reserving your desired items
 
 ### Multiplayer Minigames
 - **Dice Roll**: Classic high-roll game using real `/roll` detection
 - **Rock-Paper-Scissors**: Best of 3 with hash-based commit-reveal protocol
 - **Death Roll**: Turn-based gambling with 3-player escrow system
 - **Tetris Battle**: Two-player competitive Tetris with garbage mechanic
-- **Pong**: Classic arcade game with physics
-- **Words with WoW**: Scrabble-style word game with WoW vocabulary
+- **Pong**: Classic arcade game with physics and AI opponent
+- **Words with WoW**: Scrabble-style word game with WoW vocabulary and async multiplayer
+- **Battleship**: Classic naval battle game with AI or multiplayer
+- **WoW Wordle**: Word guessing game with WoW-themed vocabulary
 
 Challenge other Fellow Travelers and track your win/loss records!
 
@@ -61,21 +79,48 @@ Challenge other Fellow Travelers and track your win/loss records!
 ## Usage
 
 ### Basic Commands
-- `/hope` - Open the journal UI
+- `/hope` or `/journal` - Open the journal UI
 - `/hope stats` - Display statistics in chat
 - `/hope debug` - Toggle debug mode
 - `/hope sound` - Toggle sound effects
-- `/hope reset` - Show reset options
+- `/hope combathide` - Toggle auto-hide UI during combat
+- `/hope minimap` - Toggle minimap button visibility
+- `/hope nameplates` - Toggle Fellow nameplate coloring
+- `/hope pins` - Toggle minimap pin RP status coloring
+- `/hope demo` - Populate sample data for UI testing
+- `/hope reset demo` - Clear demo data
+- `/hope reset confirm` - Reset all character data
 
 ### Minigame Commands
-- `/hope challenge <player> [game]` - Challenge a Fellow Traveler (opens selection popup if game not specified)
+- `/hope challenge <player>` - Challenge a Fellow Traveler (opens game selection popup)
 - `/hope tetris [player]` - Start Tetris Battle (local mode if no player specified)
 - `/hope pong [player]` - Start Pong (local mode if no player specified)
 - `/hope deathroll <player>` - Start Death Roll gambling game
-- `/hope words <player>` - Start Words with WoW word game
+- `/hope words` - Start local practice Words game
+- `/hope words <player>` - Resume or start Words vs player
+- `/hope words list` - Show all active Words games
+- `/hope words forfeit <player>` - Forfeit a Words game
+- `/hope battleship [player]` - Start Battleship (local vs AI if no player)
+- `/hope wordle` - Start WoW Wordle (practice mode)
+- `/hope wordle <player>` - Challenge player to Wordle
+- `/hope wordle stats` - Show Wordle statistics
 - `/hope accept` - Accept a pending challenge
 - `/hope decline` - Decline a pending challenge
 - `/hope cancel` - Cancel current game
+
+### In-Game Commands
+- `/word <word> <H/V> <row> <col>` - Place word in Words game
+- `/pass` - Pass turn in Words game
+- `/fire <coord>` - Fire in Battleship (e.g., `/fire A5`)
+- `/ready` - Signal ships placed in Battleship
+- `/surrender` - Forfeit Battleship game
+- `/gc <message>` - Send chat to opponent in any game
+
+### Soft Reserve Commands
+- `/hope sr <raid> <item>` - Set soft reserve for a raid
+- `/hope sr list` - Show your soft reserves
+- `/hope sr clear <raid>` - Clear soft reserve for a raid
+- `/hope sr guild [raid]` - Show guild soft reserves
 
 ## Architecture
 

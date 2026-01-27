@@ -8,6 +8,11 @@ HopeAddon.Constants = HopeAddon.Constants or {}
 local C = HopeAddon.Constants
 
 --============================================================
+-- JOURNAL SETTINGS (Issue #71.6)
+--============================================================
+C.MAX_JOURNAL_ENTRIES = 1000  -- Maximum entries before pruning oldest
+
+--============================================================
 -- LEVEL MILESTONES (Every 5 levels + special)
 --============================================================
 C.LEVEL_MILESTONES = {
@@ -1312,6 +1317,40 @@ function C:BuildBossNameLookup()
     end
 end
 
+-- Validation function to check all boss loot has itemIds
+-- Returns array of missing entries or empty array if all valid
+function C:ValidateBossLoot()
+    local raidBossTables = {
+        { raidKey = "karazhan", bosses = C.KARAZHAN_BOSSES },
+        { raidKey = "gruul", bosses = C.GRUUL_BOSSES },
+        { raidKey = "magtheridon", bosses = C.MAGTHERIDON_BOSSES },
+        { raidKey = "ssc", bosses = C.SSC_BOSSES },
+        { raidKey = "tk", bosses = C.TK_BOSSES },
+        { raidKey = "hyjal", bosses = C.HYJAL_BOSSES },
+        { raidKey = "bt", bosses = C.BT_BOSSES },
+        { raidKey = "za", bosses = C.ZA_BOSSES },
+        { raidKey = "sunwell", bosses = C.SUNWELL_BOSSES },
+    }
+
+    local missing = {}
+
+    for _, raidData in ipairs(raidBossTables) do
+        if raidData.bosses then
+            for _, boss in ipairs(raidData.bosses) do
+                if boss.notableLoot then
+                    for _, item in ipairs(boss.notableLoot) do
+                        if not item.itemId or item.itemId == 0 then
+                            table.insert(missing, raidData.raidKey .. "/" .. boss.name .. ": " .. (item.name or "Unknown"))
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return missing
+end
+
 --============================================================
 -- T4 RAID BOSS DATA
 --============================================================
@@ -1332,8 +1371,20 @@ C.KARAZHAN_BOSSES = {
             "At 25%, they merge - increased damage",
         },
         notableLoot = {
-            { name = "Fiery Warhorse", type = "Mount", dropRate = "~1%" },
-            { name = "Stalker's War Bands", type = "Mail Bracers" },
+            { name = "Fiery Warhorse's Reins", type = "Mount", dropRate = "~1%", itemId = 30480 },
+            { name = "Spectral Band of Innervation", type = "Ring", itemId = 28510 },
+            { name = "Worgen Claw Necklace", type = "Amulet", itemId = 28509 },
+            { name = "Gloves of Saintly Blessings", type = "Cloth Hands", itemId = 28508 },
+            { name = "Handwraps of Flowing Thought", type = "Cloth Hands", itemId = 28507 },
+            { name = "Harbinger Bands", type = "Cloth Wrist", itemId = 28477 },
+            { name = "Gloves of Dexterous Manipulation", type = "Leather Hands", itemId = 28506 },
+            { name = "Bracers of the White Stag", type = "Leather Wrist", itemId = 28453 },
+            { name = "Whirlwind Bracers", type = "Mail Wrist", itemId = 28503 },
+            { name = "Stalker's War Bands", type = "Mail Wrist", itemId = 28454 },
+            { name = "Gauntlets of Renewed Hope", type = "Plate Hands", itemId = 28505 },
+            { name = "Vambraces of Courage", type = "Plate Wrist", itemId = 28502 },
+            { name = "Steelhawk Crossbow", type = "Crossbow", itemId = 28504 },
+            { name = "Schematic: Stabilized Eternium Scope", type = "Recipe", itemId = 23809 },
         },
     },
     {
@@ -1351,8 +1402,19 @@ C.KARAZHAN_BOSSES = {
             "CC the adds, kill one at a time",
         },
         notableLoot = {
-            { name = "Moroes' Lucky Pocket Watch", type = "Trinket" },
-            { name = "Shadow-Cloak of Dalaran", type = "Back" },
+            { name = "Moroes' Lucky Pocket Watch", type = "Trinket", itemId = 28528 },
+            { name = "Brooch of Unquenchable Fury", type = "Amulet", itemId = 28530 },
+            { name = "Signet of Unshakable Faith", type = "Off-Hand", itemId = 28525 },
+            { name = "Royal Cloak of Arathi Kings", type = "Cloak", itemId = 28529 },
+            { name = "Shadow-Cloak of Dalaran", type = "Cloak", itemId = 28570 },
+            { name = "Nethershard Girdle", type = "Cloth Waist", itemId = 28565 },
+            { name = "Edgewalker Longboots", type = "Leather Feet", itemId = 28545 },
+            { name = "Belt of Gale Force", type = "Mail Waist", itemId = 28567 },
+            { name = "Boots of Valiance", type = "Plate Feet", itemId = 28569 },
+            { name = "Crimson Girdle of the Indomitable", type = "Plate Waist", itemId = 28566 },
+            { name = "Emerald Ripper", type = "Dagger", itemId = 28524 },
+            { name = "Idol of the Avian Heart", type = "Idol", itemId = 28568 },
+            { name = "Formula: Enchant Weapon - Mongoose", type = "Recipe", itemId = 22559 },
         },
     },
     {
@@ -1368,6 +1430,20 @@ C.KARAZHAN_BOSSES = {
             "Holy Fire - interruptible, heavy damage",
             "Holy Ground - consecration-like AoE",
         },
+        notableLoot = {
+            { name = "Shard of the Virtuous", type = "Mace", itemId = 28522 },
+            { name = "Barbed Choker of Discipline", type = "Amulet", itemId = 28516 },
+            { name = "Bands of Indwelling", type = "Cloth Wrist", itemId = 28511 },
+            { name = "Bands of Nefarious Deeds", type = "Cloth Wrist", itemId = 28515 },
+            { name = "Boots of Foretelling", type = "Cloth Feet", itemId = 28517 },
+            { name = "Bracers of Maliciousness", type = "Leather Wrist", itemId = 28514 },
+            { name = "Mitts of the Treemender", type = "Leather Hands", itemId = 28521 },
+            { name = "Gloves of Centering", type = "Mail Hands", itemId = 28520 },
+            { name = "Gloves of Quickening", type = "Mail Hands", itemId = 28519 },
+            { name = "Bracers of Justice", type = "Plate Wrist", itemId = 28512 },
+            { name = "Iron Gauntlets of the Maiden", type = "Plate Hands", itemId = 28518 },
+            { name = "Totem of Healing Rains", type = "Totem", itemId = 28523 },
+        },
     },
     {
         id = "opera",
@@ -1381,6 +1457,30 @@ C.KARAZHAN_BOSSES = {
             { name = "Wizard of Oz", strategy = "Kill order: Dorothee > Tito > Roar > Strawman > Tinhead > Crone" },
             { name = "Big Bad Wolf", strategy = "Run if you get Little Red Riding Hood debuff!" },
             { name = "Romulo and Julianne", strategy = "Kill Julianne first, then Romulo, then both together" },
+        },
+        notableLoot = {
+            -- Shared drops (all variants)
+            { name = "Ribbon of Sacrifice", type = "Trinket", itemId = 28590 },
+            { name = "Trial-Fire Trousers", type = "Cloth Legs", itemId = 28594 },
+            { name = "Earthsoul Leggings", type = "Leather Legs", itemId = 28591 },
+            { name = "Beastmaw Pauldrons", type = "Mail Shoulders", itemId = 28589 },
+            { name = "Eternium Greathelm", type = "Plate Head", itemId = 28593 },
+            { name = "Libram of Souls Redeemed", type = "Libram", itemId = 28592 },
+            -- Wizard of Oz
+            { name = "Ruby Slippers", type = "Cloth Feet", itemId = 28585 },
+            { name = "Wicked Witch's Hat", type = "Cloth Head", itemId = 28586 },
+            { name = "Legacy", type = "2H Axe", itemId = 28587 },
+            { name = "Blue Diamond Witchwand", type = "Wand", itemId = 28588 },
+            -- Big Bad Wolf
+            { name = "Red Riding Hood's Cloak", type = "Cloak", itemId = 28582 },
+            { name = "Big Bad Wolf's Head", type = "Mail Head", itemId = 28583 },
+            { name = "Big Bad Wolf's Paw", type = "Fist Weapon", itemId = 28584 },
+            { name = "Wolfslayer Sniper Rifle", type = "Gun", itemId = 28581 },
+            -- Romulo and Julianne
+            { name = "Romulo's Poison Vial", type = "Trinket", itemId = 28579 },
+            { name = "Masquerade Gown", type = "Cloth Chest", itemId = 28578 },
+            { name = "Blade of the Unrequited", type = "Dagger", itemId = 28572 },
+            { name = "Despair", type = "2H Sword", itemId = 28573 },
         },
     },
     {
@@ -1398,8 +1498,15 @@ C.KARAZHAN_BOSSES = {
             "Evocation - 200% damage taken, burn phase!",
         },
         notableLoot = {
-            { name = "Tier 4 Gloves Token", type = "Tier Token" },
-            { name = "Dragon-Quake Shoulderguards", type = "Plate" },
+            { name = "Gloves of the Fallen Hero", type = "Tier Token", itemId = 29756 },
+            { name = "Gloves of the Fallen Champion", type = "Tier Token", itemId = 29757 },
+            { name = "Gloves of the Fallen Defender", type = "Tier Token", itemId = 29758 },
+            { name = "Garona's Signet Ring", type = "Ring", itemId = 28649 },
+            { name = "Pauldrons of the Solace-Giver", type = "Cloth Shoulders", itemId = 28612 },
+            { name = "Forest Wind Shoulderpads", type = "Leather Shoulders", itemId = 28647 },
+            { name = "Dragon-Quake Shoulderguards", type = "Mail Shoulders", itemId = 28631 },
+            { name = "Wrynn Dynasty Greaves", type = "Plate Legs", itemId = 28621 },
+            { name = "Staff of Infinite Mysteries", type = "Staff", itemId = 28633 },
         },
     },
     {
@@ -1416,6 +1523,22 @@ C.KARAZHAN_BOSSES = {
             "Arcane Explosion - run to wall",
             "Water Elementals at 40%",
         },
+        notableLoot = {
+            { name = "Pendant of the Violet Eye", type = "Trinket", itemId = 28727 },
+            { name = "Shermanar Great-Ring", type = "Ring", itemId = 28675 },
+            { name = "Saberclaw Talisman", type = "Amulet", itemId = 28674 },
+            { name = "Drape of the Dark Reavers", type = "Cloak", itemId = 28672 },
+            { name = "Boots of the Incorrupt", type = "Cloth Feet", itemId = 28663 },
+            { name = "Boots of the Infernal Coven", type = "Cloth Feet", itemId = 28670 },
+            { name = "Mantle of the Mind Flayer", type = "Cloth Shoulders", itemId = 28726 },
+            { name = "Rapscallion Boots", type = "Leather Feet", itemId = 28669 },
+            { name = "Steelspine Faceguard", type = "Mail Head", itemId = 28671 },
+            { name = "Pauldrons of the Justice-Seeker", type = "Plate Shoulders", itemId = 28666 },
+            { name = "Aran's Soothing Sapphire", type = "Off-Hand", itemId = 28728 },
+            { name = "Tirisfal Wand of Ascendancy", type = "Wand", itemId = 28673 },
+            { name = "Formula: Enchant Weapon - Sunfire", type = "Recipe", itemId = 22560 },
+            { name = "Medivh's Journal", type = "Quest Item", itemId = 23933 },
+        },
     },
     {
         id = "illhoof",
@@ -1428,6 +1551,21 @@ C.KARAZHAN_BOSSES = {
             "Demon Chains - FREE THE SACRIFICE FAST",
             "Kil'rek imp respawns - just offtank",
             "Imps spawn from portals - AoE them",
+        },
+        notableLoot = {
+            { name = "The Lightning Capacitor", type = "Trinket", itemId = 28785 },
+            { name = "Mender's Heart-Ring", type = "Ring", itemId = 28661 },
+            { name = "Gilded Thorium Cloak", type = "Cloak", itemId = 28660 },
+            { name = "Shadowvine Cloak of Infusion", type = "Cloak", itemId = 28653 },
+            { name = "Cincture of Will", type = "Cloth Wrist", itemId = 28652 },
+            { name = "Malefic Girdle", type = "Cloth Waist", itemId = 28654 },
+            { name = "Cord of Nature's Sustenance", type = "Leather Waist", itemId = 28655 },
+            { name = "Girdle of the Prowler", type = "Mail Waist", itemId = 28656 },
+            { name = "Breastplate of the Lightbinder", type = "Plate Chest", itemId = 28662 },
+            { name = "Fool's Bane", type = "Mace", itemId = 28657 },
+            { name = "Xavian Stiletto", type = "Thrown", itemId = 28659 },
+            { name = "Terestian's Stranglestaff", type = "Staff", itemId = 28658 },
+            { name = "Formula: Enchant Weapon - Soulfrost", type = "Recipe", itemId = 22561 },
         },
     },
     {
@@ -1445,6 +1583,20 @@ C.KARAZHAN_BOSSES = {
             "Blue (Dominance) - DPS soaks",
             "Rotate soakers, avoid debuff stacks",
         },
+        notableLoot = {
+            { name = "Mithril Band of the Unscarred", type = "Ring", itemId = 28730 },
+            { name = "Shining Chain of the Afterworld", type = "Amulet", itemId = 28731 },
+            { name = "Uni-Mind Headdress", type = "Cloth Head", itemId = 28744 },
+            { name = "Pantaloons of Repentance", type = "Cloth Legs", itemId = 28742 },
+            { name = "Cowl of Defiance", type = "Leather Head", itemId = 28732 },
+            { name = "Skulker's Greaves", type = "Leather Legs", itemId = 28741 },
+            { name = "Earthblood Chestguard", type = "Mail Chest", itemId = 28735 },
+            { name = "Rip-Flayer Leggings", type = "Mail Legs", itemId = 28740 },
+            { name = "Mantle of Abrahmis", type = "Plate Shoulders", itemId = 28743 },
+            { name = "Girdle of Truth", type = "Plate Waist", itemId = 28733 },
+            { name = "Spiteblade", type = "Sword", itemId = 28729 },
+            { name = "Jewel of Infinite Possibilities", type = "Off-Hand", itemId = 28734 },
+        },
     },
     {
         id = "chess",
@@ -1458,6 +1610,20 @@ C.KARAZHAN_BOSSES = {
             "Control chess pieces to defeat enemy king",
             "Focus enemy king, protect yours",
             "Medivh cheats - move out of fire",
+        },
+        notableLoot = {
+            { name = "Ring of Recurrence", type = "Ring", itemId = 28753 },
+            { name = "Mithril Chain of Heroism", type = "Amulet", itemId = 28745 },
+            { name = "Headdress of the High Potentate", type = "Cloth Head", itemId = 28756 },
+            { name = "Bladed Shoulderpads of the Merciless", type = "Leather Shoulders", itemId = 28755 },
+            { name = "Forestlord Striders", type = "Leather Feet", itemId = 28752 },
+            { name = "Girdle of Treachery", type = "Leather Waist", itemId = 28750 },
+            { name = "Fiend Slayer Boots", type = "Mail Feet", itemId = 28746 },
+            { name = "Heart-Flame Leggings", type = "Mail Legs", itemId = 28751 },
+            { name = "Legplates of the Innocent", type = "Plate Legs", itemId = 28748 },
+            { name = "Battlescar Boots", type = "Plate Feet", itemId = 28747 },
+            { name = "Triptych Shield of the Ancients", type = "Shield", itemId = 28754 },
+            { name = "King's Defender", type = "Sword (Tank)", itemId = 28749 },
         },
     },
     {
@@ -1477,9 +1643,21 @@ C.KARAZHAN_BOSSES = {
             "Infernals throughout - avoid fire patches",
         },
         notableLoot = {
-            { name = "Tier 4 Helm Token", type = "Tier Token" },
-            { name = "Gorehowl", type = "2H Axe" },
-            { name = "Light's Justice", type = "1H Mace (Healer)" },
+            { name = "Helm of the Fallen Hero", type = "Tier Token", itemId = 29759 },
+            { name = "Helm of the Fallen Defender", type = "Tier Token", itemId = 29761 },
+            { name = "Helm of the Fallen Champion", type = "Tier Token", itemId = 29760 },
+            { name = "Farstrider Wildercloak", type = "Cloak", itemId = 28764 },
+            { name = "Ruby Drape of the Mysticant", type = "Cloak", itemId = 28766 },
+            { name = "Stainless Cloak of the Pure Hearted", type = "Cloak", itemId = 28765 },
+            { name = "Jade Ring of the Everliving", type = "Ring", itemId = 28763 },
+            { name = "Ring of a Thousand Marks", type = "Ring", itemId = 28757 },
+            { name = "Adornment of Stolen Souls", type = "Amulet", itemId = 28762 },
+            { name = "Malchazeen", type = "Dagger", itemId = 28768 },
+            { name = "Nathrezim Mindblade", type = "Dagger", itemId = 28770 },
+            { name = "The Decapitator", type = "1H Axe", itemId = 28767 },
+            { name = "Light's Justice", type = "Mace (Healer)", itemId = 28771 },
+            { name = "Gorehowl", type = "2H Axe", itemId = 28773 },
+            { name = "Sunfury Bow of the Phoenix", type = "Bow", itemId = 28772 },
         },
     },
     {
@@ -1498,8 +1676,20 @@ C.KARAZHAN_BOSSES = {
             "Kill skeletons, avoid Charred Earth",
         },
         notableLoot = {
-            { name = "Shield of Impenetrable Darkness", type = "Shield (Tank)" },
-            { name = "Talisman of Nightbane", type = "Trinket (Melee)" },
+            { name = "Emberspur Talisman", type = "Amulet", itemId = 28609 },
+            { name = "Robe of the Elder Scribes", type = "Cloth Chest", itemId = 28602 },
+            { name = "Stonebough Jerkin", type = "Leather Chest", itemId = 28600 },
+            { name = "Chestguard of the Conniver", type = "Leather Chest", itemId = 28601 },
+            { name = "Scaled Breastplate of Carnage", type = "Mail Chest", itemId = 28599 },
+            { name = "Ferocious Swift-Kickers", type = "Mail Feet", itemId = 28610 },
+            { name = "Ironstriders of Urgency", type = "Plate Feet", itemId = 28608 },
+            { name = "Panzar'Thar Breastplate", type = "Plate Chest", itemId = 28597 },
+            { name = "Nightstaff of the Everliving", type = "Staff", itemId = 28604 },
+            { name = "Talisman of Nightbane", type = "Off-Hand", itemId = 28603 },
+            { name = "Dragonheart Flameshield", type = "Shield", itemId = 28611 },
+            { name = "Shield of Impenetrable Darkness", type = "Shield", itemId = 28606 },
+            { name = "Blazing Signet", type = "Quest Item", itemId = 31751 },
+            { name = "Faint Arcane Essence", type = "Quest Item", itemId = 24139 },
         },
     },
 }
@@ -1524,8 +1714,8 @@ C.GRUUL_BOSSES = {
         },
         strategy = "Kill order: Blindeye > Olm > Kiggler > Krosh > Maulgar",
         notableLoot = {
-            { name = "Tier 4 Shoulder Token", type = "Tier Token" },
-            { name = "Hammer of the Naaru", type = "2H Mace (Healer)" },
+            { name = "Pauldrons of the Fallen Hero", type = "Tier Token", itemId = 29763 },
+            { name = "Hammer of the Naaru", type = "2H Mace (Healer)", itemId = 28800 },
         },
     },
     {
@@ -1545,9 +1735,9 @@ C.GRUUL_BOSSES = {
             "Ground Slam + Shatter - SPREAD OUT!",
         },
         notableLoot = {
-            { name = "Tier 4 Leg Token", type = "Tier Token" },
-            { name = "Dragonspine Trophy", type = "Trinket (Physical DPS)" },
-            { name = "Eye of Gruul", type = "Trinket (Caster)" },
+            { name = "Leggings of the Fallen Hero", type = "Tier Token", itemId = 29766 },
+            { name = "Dragonspine Trophy", type = "Trinket (Physical DPS)", itemId = 28830 },
+            { name = "Eye of Gruul", type = "Trinket (Caster)", itemId = 28823 },
         },
     },
 }
@@ -1583,10 +1773,10 @@ C.MAGTHERIDON_BOSSES = {
             },
         },
         notableLoot = {
-            { name = "Tier 4 Chest Token", type = "Tier Token" },
-            { name = "Eredar Wand of Obliteration", type = "Wand" },
-            { name = "Eye of Magtheridon", type = "Trinket" },
-            { name = "Magtheridon's Head", type = "Quest Item (Ring reward)" },
+            { name = "Chestguard of the Fallen Hero", type = "Tier Token", itemId = 29754 },
+            { name = "Eredar Wand of Obliteration", type = "Wand", itemId = 28734 },
+            { name = "Eye of Magtheridon", type = "Trinket", itemId = 28789 },
+            { name = "Magtheridon's Head", type = "Quest Item (Ring reward)", itemId = 32385 },
         },
     },
 }
@@ -1613,8 +1803,8 @@ C.SSC_BOSSES = {
             "Stack resistance sets - 365 minimum",
         },
         notableLoot = {
-            { name = "Shoulderpads of the Stranger", type = "Leather Shoulders" },
-            { name = "Fathomstone", type = "Caster Off-Hand" },
+            { name = "Shoulderpads of the Stranger", type = "Leather Shoulders", itemId = 30021 },
+            { name = "Fathomstone", type = "Caster Off-Hand", itemId = 30084 },
         },
     },
     {
@@ -1633,8 +1823,8 @@ C.SSC_BOSSES = {
             "Submerge phase - kill Coilfang adds",
         },
         notableLoot = {
-            { name = "Earring of Soulful Meditation", type = "Trinket (Healer)" },
-            { name = "Mallet of the Tides", type = "1H Mace" },
+            { name = "Earring of Soulful Meditation", type = "Trinket (Healer)", itemId = 30026 },
+            { name = "Mallet of the Tides", type = "1H Mace", itemId = 30058 },
         },
     },
     {
@@ -1653,8 +1843,8 @@ C.SSC_BOSSES = {
             "AoE murlocs quickly, they explode on death",
         },
         notableLoot = {
-            { name = "Talon of Azshara", type = "Dagger" },
-            { name = "Girdle of the Tidal Call", type = "Mail Belt" },
+            { name = "Talon of Azshara", type = "Dagger", itemId = 30095 },
+            { name = "Girdle of the Tidal Call", type = "Mail Belt", itemId = 30057 },
         },
     },
     {
@@ -1679,8 +1869,8 @@ C.SSC_BOSSES = {
             "Spread for Spitfire Totem",
         },
         notableLoot = {
-            { name = "Fathom-Brooch of the Tidewalker", type = "Trinket" },
-            { name = "World Breaker", type = "2H Mace" },
+            { name = "Fathom-Brooch of the Tidewalker", type = "Trinket", itemId = 30085 },
+            { name = "World Breaker", type = "2H Mace", itemId = 30082 },
         },
     },
     {
@@ -1700,8 +1890,8 @@ C.SSC_BOSSES = {
             "Kill YOUR inner demon or be mind-controlled!",
         },
         notableLoot = {
-            { name = "Tsunami Talisman", type = "Trinket (Physical DPS)" },
-            { name = "True-Aim Stalker Bands", type = "Mail Wrists" },
+            { name = "Tsunami Talisman", type = "Trinket (Physical DPS)", itemId = 30627 },
+            { name = "True-Aim Stalker Bands", type = "Mail Wrists", itemId = 30041 },
         },
     },
     {
@@ -1736,9 +1926,9 @@ C.SSC_BOSSES = {
             "Kill sporebats in P3 or raid dies to poison",
         },
         notableLoot = {
-            { name = "Tier 5 Helm Token", type = "Tier Token" },
-            { name = "Vashj's Vial Remnant", type = "Quest Item (Hyjal attune)" },
-            { name = "Serpent Spine Longbow", type = "Bow" },
+            { name = "Crown of the Vanquished Hero", type = "Tier Token", itemId = 30244 },
+            { name = "Vashj's Vial Remnant", type = "Quest Item (Hyjal attune)", itemId = 31341 },
+            { name = "Serpent Spine Longbow", type = "Bow", itemId = 30112 },
         },
     },
 }
@@ -1761,8 +1951,8 @@ C.TK_BOSSES = {
             "Phoenix resurrects once at 1 HP",
         },
         notableLoot = {
-            { name = "Talon of the Phoenix", type = "Fist Weapon" },
-            { name = "Phoenix-Wing Cloak", type = "Back" },
+            { name = "Talon of the Phoenix", type = "Fist Weapon", itemId = 29948 },
+            { name = "Phoenix-Wing Cloak", type = "Back", itemId = 29950 },
         },
     },
     {
@@ -1781,8 +1971,8 @@ C.TK_BOSSES = {
             "Often called 'Loot Reaver'",
         },
         notableLoot = {
-            { name = "Tier 5 Shoulder Token", type = "Tier Token" },
-            { name = "Warp-Spring Coil", type = "Trinket" },
+            { name = "Mantle of the Vanquished Hero", type = "Tier Token", itemId = 30249 },
+            { name = "Warp-Spring Coil", type = "Trinket", itemId = 29984 },
         },
     },
     {
@@ -1801,8 +1991,8 @@ C.TK_BOSSES = {
             "Voidwalker form at 20% - burn fast",
         },
         notableLoot = {
-            { name = "Void Star Talisman", type = "Neck" },
-            { name = "Girdle of the Righteous Path", type = "Plate Belt" },
+            { name = "Void Star Talisman", type = "Neck", itemId = 30018 },
+            { name = "Girdle of the Righteous Path", type = "Plate Belt", itemId = 30064 },
         },
     },
     {
@@ -1836,10 +2026,10 @@ C.TK_BOSSES = {
             "Gravity Lapse - swim in air, avoid orbs",
         },
         notableLoot = {
-            { name = "Tier 5 Chest Token", type = "Tier Token" },
-            { name = "Kael's Vial Remnant", type = "Quest Item (Hyjal attune)" },
-            { name = "Ashes of Al'ar", type = "Mount (~1%)" },
-            { name = "Verdant Sphere", type = "Off-Hand" },
+            { name = "Chestguard of the Vanquished Hero", type = "Tier Token", itemId = 30236 },
+            { name = "Kael's Vial Remnant", type = "Quest Item (Hyjal attune)", itemId = 31339 },
+            { name = "Ashes of Al'ar", type = "Mount (~1%)", itemId = 32458 },
+            { name = "Verdant Sphere", type = "Off-Hand", itemId = 30449 },
         },
     },
 }
@@ -1861,6 +2051,7 @@ C.HYJAL_BOSSES = {
         lore = "A lich commanding the Scourge assault on the Alliance base.",
         quote = "Your world is doomed.",
         icon = "Spell_Shadow_DarkRitual",
+        dropsToken = "gloves",
         mechanics = {
             "8 trash waves before boss",
             "Icebolt - frozen in place, healers dispel",
@@ -1869,8 +2060,8 @@ C.HYJAL_BOSSES = {
             "DPS race - relatively simple boss",
         },
         notableLoot = {
-            { name = "Tier 6 Gloves Token", type = "Tier Token" },
-            { name = "Chronicle of Dark Secrets", type = "Off-Hand" },
+            { name = "Gloves of the Forgotten Vanquisher", type = "Tier Token", itemId = 31095 },
+            { name = "Chronicle of Dark Secrets", type = "Off-Hand", itemId = 30872 },
         },
     },
     {
@@ -1884,6 +2075,7 @@ C.HYJAL_BOSSES = {
         lore = "A dreadlord leading the demon assault on the Alliance.",
         quote = "The Legion's final conquest has begun!",
         icon = "Spell_Shadow_CarrionSwarm",
+        dropsToken = "belt",
         mechanics = {
             "8 trash waves before boss",
             "Carrion Swarm - frontal cone, face away",
@@ -1892,8 +2084,8 @@ C.HYJAL_BOSSES = {
             "Sleep - healers be ready to dispel",
         },
         notableLoot = {
-            { name = "Tier 6 Belt Token", type = "Tier Token" },
-            { name = "Don Rodrigo's Poncho", type = "Leather Chest" },
+            { name = "Belt of the Forgotten Vanquisher", type = "Tier Token", itemId = 31089 },
+            { name = "Don Rodrigo's Poncho", type = "Leather Chest", itemId = 30916 },
         },
     },
     {
@@ -1907,6 +2099,7 @@ C.HYJAL_BOSSES = {
         lore = "A doom guard draining the life from Horde defenders.",
         quote = "Cry for mercy! Your meaningless lives will soon be forfeit!",
         icon = "Spell_Shadow_UnholyFrenzy",
+        dropsToken = "boots",
         mechanics = {
             "8 trash waves before boss",
             "Mark of Kaz'rogal - mana drain, EXPLODE when OOM!",
@@ -1915,8 +2108,8 @@ C.HYJAL_BOSSES = {
             "Enrage timer - burn fast",
         },
         notableLoot = {
-            { name = "Tier 6 Boots Token", type = "Tier Token" },
-            { name = "Hammer of Atonement", type = "1H Mace" },
+            { name = "Boots of the Forgotten Vanquisher", type = "Tier Token", itemId = 31092 },
+            { name = "Hammer of Atonement", type = "1H Mace", itemId = 30881 },
         },
     },
     {
@@ -1930,6 +2123,7 @@ C.HYJAL_BOSSES = {
         lore = "The pit lord commanding the Legion assault on the Horde.",
         quote = "Abandon all hope! The Legion has returned to finish what was begun!",
         icon = "Spell_Shadow_RainOfFire",
+        dropsToken = "helm",
         mechanics = {
             "8 trash waves before boss",
             "Doom - 20 sec timer, run out and die alone!",
@@ -1938,8 +2132,8 @@ C.HYJAL_BOSSES = {
             "Howl of Azgalor - 5 sec silence",
         },
         notableLoot = {
-            { name = "Tier 6 Helm Token", type = "Tier Token" },
-            { name = "Tempest of Chaos", type = "Staff" },
+            { name = "Helm of the Forgotten Vanquisher", type = "Tier Token", itemId = 31097 },
+            { name = "Boundless Agony", type = "Dagger", itemId = 30901 },
         },
     },
     {
@@ -1954,6 +2148,7 @@ C.HYJAL_BOSSES = {
         lore = "The Defiler. Commander of the Burning Legion invasion.",
         quote = "Your resistance is insignificant.",
         icon = "INV_Elemental_Primal_Shadow",
+        dropsToken = "shoulders",
         mechanics = {
             "No trash waves - straight to boss",
             "Air Burst - USE YOUR TEARS immediately!",
@@ -1963,9 +2158,9 @@ C.HYJAL_BOSSES = {
             "Fear + Grip - expect movement",
         },
         notableLoot = {
-            { name = "Tier 6 Shoulder Token", type = "Tier Token" },
-            { name = "Cataclysm's Edge", type = "2H Sword" },
-            { name = "Tempest of Chaos", type = "Staff" },
+            { name = "Pauldrons of the Forgotten Vanquisher", type = "Tier Token", itemId = 31103 },
+            { name = "Cataclysm's Edge", type = "2H Sword", itemId = 30903 },
+            { name = "Tempest of Chaos", type = "Staff", itemId = 30910 },
         },
     },
 }
@@ -1988,8 +2183,8 @@ C.BT_BOSSES = {
             "High HP requirement - nature resistance helps",
         },
         notableLoot = {
-            { name = "Halberd of Desolation", type = "Polearm" },
-            { name = "Fists of Mukoa", type = "Leather Gloves" },
+            { name = "Halberd of Desolation", type = "Polearm", itemId = 32254 },
+            { name = "Fists of Mukoa", type = "Leather Gloves", itemId = 32466 },
         },
     },
     {
@@ -2008,8 +2203,8 @@ C.BT_BOSSES = {
             "Gazed target must run, raid helps slow/root",
         },
         notableLoot = {
-            { name = "Syphon of the Nathrezim", type = "Wand" },
-            { name = "Band of the Abyssal Lord", type = "Ring" },
+            { name = "Syphon of the Nathrezim", type = "Wand", itemId = 32262 },
+            { name = "Band of the Abyssal Lord", type = "Ring", itemId = 32361 },
         },
     },
     {
@@ -2028,8 +2223,8 @@ C.BT_BOSSES = {
             "Boss phase is easy once Akama is free",
         },
         notableLoot = {
-            { name = "Amice of Brilliant Light", type = "Cloth Shoulders" },
-            { name = "Shadow-Walker's Cord", type = "Leather Belt" },
+            { name = "Amice of Brilliant Light", type = "Cloth Shoulders", itemId = 32264 },
+            { name = "Shadow-Walker's Cord", type = "Leather Belt", itemId = 32265 },
         },
     },
     {
@@ -2049,8 +2244,8 @@ C.BT_BOSSES = {
             "Incinerate - high tank damage",
         },
         notableLoot = {
-            { name = "Shadowmoon Destroyer's Drape", type = "Back" },
-            { name = "Girdle of Lordaeron's Fallen", type = "Plate Belt" },
+            { name = "Shadowmoon Destroyer's Drape", type = "Back", itemId = 32252 },
+            { name = "Girdle of Lordaeron's Fallen", type = "Plate Belt", itemId = 32232 },
         },
     },
     {
@@ -2070,8 +2265,8 @@ C.BT_BOSSES = {
             "Eject - tank knockback, need 2+ tanks",
         },
         notableLoot = {
-            { name = "Girdle of Mighty Resolve", type = "Plate Belt" },
-            { name = "Shadowmoon Insignia", type = "Trinket" },
+            { name = "Girdle of Mighty Resolve", type = "Plate Belt", itemId = 32251 },
+            { name = "Shadowmoon Insignia", type = "Trinket", itemId = 32496 },
         },
     },
     {
@@ -2095,8 +2290,8 @@ C.BT_BOSSES = {
             "Phase 3: Enrage, burn boss FAST",
         },
         notableLoot = {
-            { name = "Naaru-Blessed Life Rod", type = "Wand" },
-            { name = "Translucent Spellthread Necklace", type = "Neck" },
+            { name = "Naaru-Blessed Life Rod", type = "Wand", itemId = 32348 },
+            { name = "Translucent Spellthread Necklace", type = "Neck", itemId = 32352 },
         },
     },
     {
@@ -2116,8 +2311,8 @@ C.BT_BOSSES = {
             "Beam attacks - random targeting",
         },
         notableLoot = {
-            { name = "Tier 6 Legs Token", type = "Tier Token" },
-            { name = "Heartshatter Breastplate", type = "Plate Chest" },
+            { name = "Leggings of the Forgotten Vanquisher", type = "Tier Token", itemId = 31101 },
+            { name = "Heartshatter Breastplate", type = "Plate Chest", itemId = 32365 },
         },
     },
     {
@@ -2143,8 +2338,8 @@ C.BT_BOSSES = {
             "Gathios Hammer of Justice must be tanked away",
         },
         notableLoot = {
-            { name = "Madness of the Betrayer", type = "Trinket (Physical DPS)" },
-            { name = "Tome of the Lightbringer", type = "Relic" },
+            { name = "Madness of the Betrayer", type = "Trinket (Physical DPS)", itemId = 32505 },
+            { name = "Tome of the Lightbringer", type = "Relic", itemId = 32363 },
         },
     },
     {
@@ -2174,11 +2369,11 @@ C.BT_BOSSES = {
             "Use Maiev's traps to stun during final phase",
         },
         notableLoot = {
-            { name = "Tier 6 Chest Token", type = "Tier Token" },
-            { name = "Warglaive of Azzinoth (MH)", type = "Legendary" },
-            { name = "Warglaive of Azzinoth (OH)", type = "Legendary" },
-            { name = "Bulwark of Azzinoth", type = "Shield (Tank)" },
-            { name = "Skull of Gul'dan", type = "Trinket (Caster)" },
+            { name = "Chestguard of the Forgotten Vanquisher", type = "Tier Token", itemId = 31090 },
+            { name = "Warglaive of Azzinoth (MH)", type = "Legendary", itemId = 32837 },
+            { name = "Warglaive of Azzinoth (OH)", type = "Legendary", itemId = 32838 },
+            { name = "Bulwark of Azzinoth", type = "Shield (Tank)", itemId = 32375 },
+            { name = "Skull of Gul'dan", type = "Trinket (Caster)", itemId = 32483 },
         },
     },
 }
@@ -2204,9 +2399,9 @@ C.ZA_BOSSES = {
             "Tank swap on Mangle debuff",
         },
         notableLoot = {
-            { name = "Fury of the Ursine", type = "Fist Weapon" },
-            { name = "Pauldrons of Primal Fury", type = "Plate Shoulders" },
-            { name = "Bladeangel's Money Belt", type = "Leather Belt" },
+            { name = "Fury of the Ursine", type = "Fist Weapon", itemId = 33497 },
+            { name = "Pauldrons of Primal Fury", type = "Plate Shoulders", itemId = 33516 },
+            { name = "Bladeangel's Money Belt", type = "Leather Belt", itemId = 33490 },
         },
     },
     {
@@ -2226,9 +2421,9 @@ C.ZA_BOSSES = {
             "Call Lightning - random target damage",
         },
         notableLoot = {
-            { name = "Akil'zon's Talonblade", type = "Dagger" },
-            { name = "Signet of Ancient Magics", type = "Ring (Caster)" },
-            { name = "Brooch of Nature's Mercy", type = "Neck (Healer)" },
+            { name = "Akil'zon's Talonblade", type = "Dagger", itemId = 33188 },
+            { name = "Signet of Ancient Magics", type = "Ring (Caster)", itemId = 33504 },
+            { name = "Brooch of Nature's Mercy", type = "Neck (Healer)", itemId = 33281 },
         },
     },
     {
@@ -2249,9 +2444,9 @@ C.ZA_BOSSES = {
             "Fire Bombs - avoid red patches on ground",
         },
         notableLoot = {
-            { name = "Amani Divining Staff", type = "Staff (Healer)" },
-            { name = "Jan'alai's Spaulders", type = "Mail Shoulders" },
-            { name = "Bulwark of the Amani Empire", type = "Shield (Tank)" },
+            { name = "Amani Divining Staff", type = "Staff (Healer)", itemId = 33324 },
+            { name = "Jan'alai's Spaulders", type = "Mail Shoulders", itemId = 33463 },
+            { name = "Bulwark of the Amani Empire", type = "Shield (Tank)", itemId = 33329 },
         },
     },
     {
@@ -2272,9 +2467,9 @@ C.ZA_BOSSES = {
             "Enrage at low health - burn fast",
         },
         notableLoot = {
-            { name = "Avalanche Leggings", type = "Mail Legs" },
-            { name = "The Savage's Choker", type = "Neck (Melee)" },
-            { name = "Wub's Cursed Hexblade", type = "Sword (Caster)" },
+            { name = "Avalanche Leggings", type = "Mail Legs", itemId = 33380 },
+            { name = "The Savage's Choker", type = "Neck (Melee)", itemId = 33505 },
+            { name = "Wub's Cursed Hexblade", type = "Sword (Caster)", itemId = 33479 },
         },
     },
     {
@@ -2295,9 +2490,9 @@ C.ZA_BOSSES = {
             "Bring classes with interruptible abilities only",
         },
         notableLoot = {
-            { name = "Tome of Diabolic Remedy", type = "Off-Hand (Healer)" },
-            { name = "Tiny Voodoo Mask", type = "Trinket" },
-            { name = "Hex Lord's Voodoo Pauldrons", type = "Cloth Shoulders" },
+            { name = "Tome of Diabolic Remedy", type = "Off-Hand (Healer)", itemId = 33509 },
+            { name = "Tiny Voodoo Mask", type = "Trinket", itemId = 33506 },
+            { name = "Hex Lord's Voodoo Pauldrons", type = "Cloth Shoulders", itemId = 33453 },
         },
     },
     {
@@ -2326,10 +2521,10 @@ C.ZA_BOSSES = {
             "Timed event - kill fast for extra loot chest!",
         },
         notableLoot = {
-            { name = "Cleaver of the Unforgiving", type = "Axe (2H)" },
-            { name = "Chestguard of the Warlord", type = "Plate Chest" },
-            { name = "Loop of Cursed Apathy", type = "Ring (Caster)" },
-            { name = "Amani War Bear", type = "Mount (Timed Run)", dropRate = "Timed chest" },
+            { name = "Cleaver of the Unforgiving", type = "Axe (2H)", itemId = 33466 },
+            { name = "Chestguard of the Warlord", type = "Plate Chest", itemId = 33296 },
+            { name = "Loop of Cursed Apathy", type = "Ring (Caster)", itemId = 33498 },
+            { name = "Amani War Bear", type = "Mount (Timed Run)", dropRate = "Timed chest", itemId = 33809 },
         },
     },
 }
@@ -2361,9 +2556,9 @@ C.SUNWELL_BOSSES = {
             "Corrupting Strike - tank debuff in demon realm",
         },
         notableLoot = {
-            { name = "Fang of Kalecgos", type = "Dagger (Caster)" },
-            { name = "Legplates of the Holy Juggernaut", type = "Plate Legs (Healer)" },
-            { name = "Bracers of the Forgotten Conqueror", type = "Tier Token" },
+            { name = "Fang of Kalecgos", type = "Dagger (Caster)", itemId = 34346 },
+            { name = "Legplates of the Holy Juggernaut", type = "Plate Legs (Healer)", itemId = 34384 },
+            { name = "Bracers of the Forgotten Conqueror", type = "Tier Token", itemId = 34848 },
         },
     },
     {
@@ -2385,9 +2580,9 @@ C.SUNWELL_BOSSES = {
             "Tank swap at 3-4 Meteor Slash stacks",
         },
         notableLoot = {
-            { name = "Heart of the Pit", type = "Trinket (Caster)" },
-            { name = "Leggings of Calamity", type = "Cloth Legs" },
-            { name = "Collar of Bones", type = "Neck (Physical DPS)" },
+            { name = "Heart of the Pit", type = "Trinket (Caster)", itemId = 34179 },
+            { name = "Leggings of Calamity", type = "Cloth Legs", itemId = 34386 },
+            { name = "Collar of Bones", type = "Neck (Physical DPS)", itemId = 34358 },
         },
     },
     {
@@ -2413,9 +2608,9 @@ C.SUNWELL_BOSSES = {
             "Skeleton adds spawn during air phase",
         },
         notableLoot = {
-            { name = "Sword Breaker's Bulwark", type = "Shield (Tank)" },
-            { name = "Borderland Paingrips", type = "Leather Gloves" },
-            { name = "Bracers of the Forgotten Protector", type = "Tier Token" },
+            { name = "Sword Breaker's Bulwark", type = "Shield (Tank)", itemId = 34185 },
+            { name = "Borderland Paingrips", type = "Leather Gloves", itemId = 34370 },
+            { name = "Bracers of the Forgotten Protector", type = "Tier Token", itemId = 34851 },
         },
     },
     {
@@ -2441,9 +2636,9 @@ C.SUNWELL_BOSSES = {
             "Dark Strike needs high melee tank threat",
         },
         notableLoot = {
-            { name = "Grip of Mannoroth", type = "Plate Gloves (DPS)" },
-            { name = "Grand Magister's Staff of Torrents", type = "Staff (Caster)" },
-            { name = "Sin'dorei Band of Salvation", type = "Ring (Healer)" },
+            { name = "Grip of Mannoroth", type = "Plate Gloves (DPS)", itemId = 34342 },
+            { name = "Grand Magister's Staff of Torrents", type = "Staff (Caster)", itemId = 34182 },
+            { name = "Sin'dorei Band of Salvation", type = "Ring (Healer)", itemId = 34362 },
         },
     },
     {
@@ -2470,9 +2665,9 @@ C.SUNWELL_BOSSES = {
             "Considered hardest boss of TBC",
         },
         notableLoot = {
-            { name = "Blade of Harbingers", type = "Sword (Tank)" },
-            { name = "Sin'dorei Band of Triumph", type = "Ring (Physical DPS)" },
-            { name = "Bracers of the Forgotten Vanquisher", type = "Tier Token" },
+            { name = "Blade of Harbingers", type = "Sword (Tank)", itemId = 34247 },
+            { name = "Sin'dorei Band of Triumph", type = "Ring (Physical DPS)", itemId = 34189 },
+            { name = "Bracers of the Forgotten Vanquisher", type = "Tier Token", itemId = 34852 },
         },
     },
     {
@@ -2504,11 +2699,11 @@ C.SUNWELL_BOSSES = {
             "Final boss of TBC - the ultimate challenge",
         },
         notableLoot = {
-            { name = "Thori'dal, the Stars' Fury", type = "Legendary Bow", dropRate = "~5%" },
-            { name = "Helm of Burning Righteousness", type = "Plate Helm (Tank)" },
-            { name = "Cover of Ursol the Wise", type = "Leather Helm (Caster)" },
-            { name = "Sunflare", type = "Dagger (Caster)" },
-            { name = "Apolyon, the Soul-Render", type = "Sword (2H)" },
+            { name = "Thori'dal, the Stars' Fury", type = "Legendary Bow", dropRate = "~5%", itemId = 34334 },
+            { name = "Helm of Burning Righteousness", type = "Plate Helm (Tank)", itemId = 34244 },
+            { name = "Cover of Ursol the Wise", type = "Leather Helm (Caster)", itemId = 34245 },
+            { name = "Sunflare", type = "Dagger (Caster)", itemId = 34336 },
+            { name = "Golden Staff of the Sin'dorei", type = "Staff (Healer)", itemId = 34337 },
         },
     },
 }
@@ -2755,15 +2950,6 @@ C.HERO_PAGES = {
 --============================================================
 -- Icon quality tiers using WoW item quality colors
 C.ICON_QUALITY_ORDER = { "UNCOMMON", "RARE", "EPIC", "LEGENDARY" }
-
--- Icon categories
-C.ICON_CATEGORIES = {
-    exploration = { name = "Exploration", icon = "INV_Misc_Map_01" },
-    attunement = { name = "Attunement", icon = "INV_Misc_Key_10" },
-    raiding = { name = "Raiding", icon = "INV_Helmet_06" },
-    reputation = { name = "Reputation", icon = "INV_Misc_Token_Aldor" },
-    social = { name = "Social", icon = "INV_ValentinesCard01" },
-}
 
 -- Traveler icon definitions
 C.TRAVELER_ICONS = {
@@ -3612,6 +3798,23 @@ function C:GetRaidPhase(raidKey)
     return self.RAID_PHASES[raidKey]
 end
 
+-- Raid visual theming data (for Raids tab UI)
+C.RAID_THEMES = {
+    karazhan    = { accentColor = "KARA_ACCENT",  bgTint = "KARA_BG_TINT",  icon = "INV_Misc_Key_10" },
+    gruul       = { accentColor = "GRUUL_ACCENT", bgTint = "GRUUL_BG_TINT", icon = "Ability_Hunter_Pet_Devilsaur" },
+    magtheridon = { accentColor = "MAG_ACCENT",   bgTint = "MAG_BG_TINT",   icon = "Spell_Shadow_SummonFelGuard" },
+    ssc         = { accentColor = "SSC_ACCENT",   bgTint = "SSC_BG_TINT",   icon = "Spell_Frost_SummonWaterElemental" },
+    tk          = { accentColor = "TK_ACCENT",    bgTint = "TK_BG_TINT",    icon = "Spell_Fire_BurnoutGreen" },
+    hyjal       = { accentColor = "HYJAL_ACCENT", bgTint = "HYJAL_BG_TINT", icon = "INV_Misc_Herb_AncientLichen" },
+    bt          = { accentColor = "BT_ACCENT",    bgTint = "BT_BG_TINT",    icon = "INV_Weapon_Glaive_01" },
+    za          = { accentColor = "ZA_ACCENT",    bgTint = "ZA_BG_TINT",    icon = "Spell_Nature_BloodLust" },
+    sunwell     = { accentColor = "SW_ACCENT",    bgTint = "SW_BG_TINT",    icon = "Spell_Holy_SummonLightwell" },
+}
+
+function C:GetRaidTheme(raidKey)
+    return self.RAID_THEMES[raidKey]
+end
+
 --============================================================
 -- MINIGAME DEFINITIONS
 -- Centralized game data for Games Hall UI
@@ -3678,6 +3881,16 @@ C.GAME_DEFINITIONS = {
         system = "gamecore",
         color = "SKY_BLUE",
     },
+    {
+        id = "wordle",
+        name = "WoW Wordle",
+        description = "Guess the 5-letter WoW word in 6 tries!",
+        icon = "Interface\\Icons\\INV_Misc_Note_06",
+        hasLocal = true,
+        hasRemote = true,
+        system = "gamecore",
+        color = "FEL_GREEN",
+    },
 }
 
 -- Game ID to definition lookup
@@ -3727,7 +3940,7 @@ C.WORDS_BONUS_NAMES = {
 }
 
 -- Tile appearance
-C.WORDS_TILE_SIZE = 32  -- Pixels per tile
+-- Note: Tile size is defined directly in WordGame.lua (self.TILE_SIZE) for flexibility
 C.WORDS_TILE_COLORS = {
     PLACED = { r = 0.95, g = 0.90, b = 0.80, a = 1.0 },      -- Placed tile background
     PLACED_BORDER = { r = 0.6, g = 0.5, b = 0.35, a = 1.0 }, -- Placed tile border
@@ -3765,21 +3978,6 @@ C.WORDS_BUTTON_COLORS = {
     PASS = { r = 0.5, g = 0.5, b = 0.5 },      -- Gray
     PLAY = { r = 0.3, g = 0.8, b = 0.3 },      -- Green
     DISABLED = { r = 0.3, g = 0.3, b = 0.3 },  -- Disabled gray
-}
-
--- AI opponent settings (Easy difficulty - ~70% player win rate)
-C.WORDS_AI_SETTINGS = {
-    -- Decision timing (humanlike delays)
-    THINK_TIME_MIN = 1.0,           -- Minimum "thinking" time in seconds
-    THINK_TIME_MAX = 3.0,           -- Maximum "thinking" time in seconds
-
-    -- Difficulty tuning (Easy: makes mistakes, prefers shorter words)
-    MISTAKE_CHANCE = 0.20,          -- 20% chance to pick suboptimal word
-    MAX_WORD_LENGTH = 5,            -- AI prefers words this length or shorter
-    SKIP_LONG_WORD_CHANCE = 0.4,    -- 40% chance to skip words > MAX_WORD_LENGTH
-
-    -- Fallback behavior
-    PASS_IF_NO_WORDS = true,        -- Pass turn if no valid words found
 }
 
 -- Online status indicator thresholds (for remote games)
@@ -3833,6 +4031,100 @@ C.WORDS_HINT_COLORS = {
     HINT_TEXT = { r = 0.9, g = 0.85, b = 0.7, a = 1.0 },      -- Parchment text
     HINT_ERROR = { r = 1.0, g = 0.4, b = 0.4, a = 1.0 },      -- Red - error hints
     CENTER_PULSE = { r = 1.0, g = 0.84, b = 0, a = 0.8 },     -- Gold pulse for center
+}
+
+--============================================================
+-- WOW WORDLE CONSTANTS
+-- Settings for the Wordle-style word guessing game
+--============================================================
+
+-- Game rules
+C.WORDLE = {
+    WORD_LENGTH = 5,
+    MAX_GUESSES = 6,
+
+    -- Animation timings (in seconds)
+    REVEAL_DELAY = 0.3,             -- Delay between each letter reveal
+    FLIP_DURATION = 0.25,           -- Total flip animation duration (shrink + expand)
+    SHAKE_DURATION = 0.4,           -- Row shake duration for invalid word
+    SHAKE_INTENSITY = 8,            -- Horizontal shake distance in pixels
+    BOUNCE_DELAY = 0.1,             -- Delay between each letter bounce on win
+    BOUNCE_HEIGHT = 12,             -- Jump height in pixels
+    BOUNCE_DURATION = 0.3,          -- Single bounce duration
+    TOAST_DURATION = 2.0,           -- Floating message duration
+    POP_SCALE = 1.12,               -- Scale factor for typing pop animation
+    POP_DURATION = 0.05,            -- Pop animation duration
+
+    -- Win messages based on guess count (standard Wordle)
+    WIN_MESSAGES = {
+        [1] = "Genius!",
+        [2] = "Magnificent!",
+        [3] = "Impressive!",
+        [4] = "Splendid!",
+        [5] = "Great!",
+        [6] = "Phew!",
+    },
+}
+
+-- Wordle letter box colors (standard Wordle colors with TBC twist)
+C.WORDLE_COLORS = {
+    -- Letter box states
+    CORRECT = { r = 0.42, g = 0.67, b = 0.39 },     -- Green (#6AAA64)
+    PRESENT = { r = 0.79, g = 0.71, b = 0.35 },     -- Yellow (#C9B458)
+    ABSENT = { r = 0.47, g = 0.49, b = 0.49 },      -- Grey (#787C7E)
+    EMPTY = { r = 0.07, g = 0.07, b = 0.08 },       -- Dark (#121213)
+    TYPING = { r = 0.15, g = 0.15, b = 0.16 },      -- Slightly lighter for current input
+    BORDER = { r = 0.21, g = 0.22, b = 0.24 },      -- Border (#3A3A3C)
+    BORDER_TYPING = { r = 0.34, g = 0.35, b = 0.36 }, -- Active border (#565758)
+    BORDER_FILLED = { r = 0.55, g = 0.55, b = 0.57 }, -- Brighter border when letter typed (#8C8C91)
+
+    -- Keyboard default
+    KEY_DEFAULT = { r = 0.5, g = 0.5, b = 0.52 },   -- Grey key
+    KEY_BORDER = { r = 0.3, g = 0.3, b = 0.3 },     -- Key border
+
+    -- Text colors
+    TEXT_WHITE = { r = 1, g = 1, b = 1 },
+    TEXT_DARK = { r = 0.1, g = 0.1, b = 0.1 },
+
+    -- P2.5-2.7: Toast colors (centralized from hardcoded RGB values)
+    TOAST_SUCCESS = { r = 0, g = 1, b = 0 },      -- Victory toast
+    TOAST_FAILURE = { r = 1, g = 0.3, b = 0.3 },  -- Game over toast
+    TOAST_DEFAULT = { r = 1, g = 1, b = 1 },      -- Standard toast
+}
+
+-- Wordle UI dimensions (expanded for better layout)
+C.WORDLE_UI = {
+    -- Window dimensions (increased height for proper spacing)
+    WINDOW_WIDTH = 420,
+    WINDOW_HEIGHT = 680,            -- Was 620, +60px for layout clearance
+
+    -- Letter box dimensions
+    BOX_SIZE = 56,
+    BOX_GAP = 8,
+    GRID_TOP = -60,                 -- Was -50, more header room
+
+    -- Keyboard dimensions (slightly larger keys)
+    KEY_WIDTH = 36,                 -- Was 32
+    KEY_HEIGHT = 52,                -- Was 48
+    KEY_GAP = 6,                    -- Was 4
+    KEYBOARD_TOP = -460,            -- Was -450, adjusted for grid position
+
+    -- Position offsets
+    TOAST_TOP = -60,                -- Toast position below subtitle
+    STATUS_BOTTOM = 15,             -- Status text offset from bottom
+    TOAST_PADDING = 12,             -- P2.7: Toast frame padding
+
+    -- Font sizes (P2.5: centralized from hardcoded values)
+    LETTER_FONT_SIZE = 28,          -- Letter box text
+    KEY_FONT_SIZE = 14,             -- Keyboard key text
+    TOAST_FONT_SIZE = 14,           -- Toast message text
+
+    -- Keyboard layout
+    KEYBOARD_ROWS = {
+        "QWERTYUIOP",
+        "ASDFGHJKL",
+        "ZXCVBNM"
+    },
 }
 
 --============================================================
@@ -3948,6 +4240,16 @@ C.BACKDROPS = {
         insets = { left = 5, right = 5, top = 5, bottom = 5 }
     },
 
+    -- Dark fel green theme (TBC/Outland aesthetic - notifications, popups)
+    DARK_FEL = {
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",  -- Grayscale, tintable (unlike DialogBox-Border)
+        tile = true,
+        tileSize = 16,
+        edgeSize = 12,  -- Tooltip border uses smaller edge size
+        insets = { left = 3, right = 3, top = 3, bottom = 3 }  -- Match tooltip insets
+    },
+
     -- Dark background with gold border (game windows)
     GAME_WINDOW = {
         bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
@@ -4013,8 +4315,9 @@ C.BACKDROP_COLORS = {
     -- Background colors
     PARCHMENT = { 1, 1, 1, 1 },
     PARCHMENT_DARK = { 0.1, 0.1, 0.15, 0.95 },
-    DARK_TRANSPARENT = { 0.1, 0.1, 0.1, 0.8 },
+    DARK_TRANSPARENT = { 0.1, 0.1, 0.1, 0.9 },
     DARK_SOLID = { 0.05, 0.05, 0.05, 0.9 },
+    BLACK_SOLID = { 0.02, 0.02, 0.02, 0.95 },  -- Very dark for fel theme
     DARK_FAINT = { 0.1, 0.1, 0.1, 0.5 },
     PURPLE_TINT = { 0.15, 0.1, 0.2, 0.9 },
     BLUE_TINT = { 0.1, 0.15, 0.2, 0.9 },
@@ -4029,6 +4332,7 @@ C.BACKDROP_COLORS = {
     GREY_LIGHT = { 0.6, 0.6, 0.6, 1 },
     BROWN = { 0.6, 0.5, 0.3, 1 },
     GREEN = { 0.2, 0.8, 0.2, 1 },
+    FEL_GREEN = { 0.2, 0.8, 0.2, 1 },  -- Alias for Outland fel theme borders
     GREEN_DARK = { 0.4, 0.5, 0.4, 1 },
     GREEN_BTN_BG = { 0.2, 0.3, 0.2, 0.9 },
     ARCANE_BTN_BG = { 0.3, 0.15, 0.4, 0.9 },
@@ -4045,6 +4349,46 @@ C.GAME_BG_TINTS = {
     SKY_BLUE = { 0.1, 0.15, 0.25, 0.9 },
     ARCANE_PURPLE = { 0.18, 0.1, 0.25, 0.9 },
     BRONZE = { 0.18, 0.12, 0.08, 0.9 },
+}
+
+--============================================================
+-- CENTRALIZED UI CONSTANTS
+-- Single source of truth for common sizes and colors
+--============================================================
+
+-- Standard UI element sizes (pixels)
+C.UI_SIZES = {
+    ICON_TINY = 16,
+    ICON_SMALL = 20,
+    ICON_MEDIUM = 32,
+    ICON_LARGE = 40,
+    ICON_XL = 56,
+    ROW_HEIGHT = 28,
+    HEADER_HEIGHT = 24,
+    DIVIDER_HEIGHT = 2,
+    BUTTON_HEIGHT = 22,
+}
+
+-- Common UI colors (r, g, b format for SetTextColor, etc.)
+C.UI_COLORS = {
+    GOLD = { r = 1, g = 0.84, b = 0 },
+    GOLD_DIM = { r = 0.8, g = 0.67, b = 0 },
+    GREY_MUTED = { r = 0.6, g = 0.6, b = 0.6 },
+    GREY_LIGHT = { r = 0.8, g = 0.8, b = 0.8 },
+    GREEN_BRIGHT = { r = 0.2, g = 0.8, b = 0.2 },
+    GREEN_HEAL = { r = 0.2, g = 1.0, b = 0.2 },
+    RED_DEFEAT = { r = 1, g = 0.2, b = 0.2 },
+    RED_DIM = { r = 0.8, g = 0.3, b = 0.3 },
+    BLUE_INFO = { r = 0.4, g = 0.6, b = 1.0 },
+}
+
+-- RP Status colors (bright, neon-style for visibility)
+-- Used by: MapPins, NameplateColors, FellowTravelers
+C.RP_STATUS_COLORS = {
+    IC = { r = 0.2, g = 1.0, b = 0.2 },       -- Bright Green - In Character
+    OOC = { r = 0.0, g = 0.75, b = 1.0 },     -- Sky Blue - Out of Character
+    LF_RP = { r = 1.0, g = 0.2, b = 0.8 },    -- Hot Pink - Looking for RP
+    DEFAULT = { r = 0.0, g = 0.75, b = 1.0 }, -- Default to OOC (Sky Blue)
 }
 
 --============================================================
@@ -4404,18 +4748,6 @@ C.ITEM_QUALITY_COLORS = {
     rare = { r = 0.0, g = 0.44, b = 0.87 },      -- Blue
     uncommon = { r = 0.12, g = 0.75, b = 0.12 }, -- Green
     common = { r = 1.0, g = 1.0, b = 1.0 },      -- White
-}
-
--- Standing names for display
-C.STANDING_NAMES = {
-    [1] = "Hated",
-    [2] = "Hostile",
-    [3] = "Unfriendly",
-    [4] = "Neutral",
-    [5] = "Friendly",
-    [6] = "Honored",
-    [7] = "Revered",
-    [8] = "Exalted",
 }
 
 --[[
@@ -4880,7 +5212,7 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         },
                     },
                 },
-                { itemId = 29388, name = "Libram of Repentance", icon = "INV_Relics_LibramofHope", quality = "epic", slot = "Relic", stats = "Block Value +35", source = "G'eras (15 Badges)", sourceType = "badge", faction = "The Sha'tar", standing = 8,
+                { itemId = 29388, name = "Libram of Repentance", icon = "INV_Relics_LibramofHope", quality = "epic", slot = "Relic", stats = "Block Value +35", source = "G'eras (15 Badges)", sourceType = "badge",
                     hoverData = {
                         repSources = {
                             "Tempest Keep dungeons (Mech, Bot, Arc) - 10-25 rep/kill",
@@ -5089,14 +5421,6 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 3: Shadow (Caster DPS)
         [3] = {
             rep = {
-                { itemId = 29185, name = "Continuum Blade", icon = "INV_Sword_66", quality = "rare", slot = "One-Hand Sword", stats = "+190 Spell Power, +8 Hit", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7,
-                    hoverData = {
-                        repSources = { "Old Hillsbrad/Black Morass (10-25 rep/kill)", "Caverns of Time quests (~4.5k rep total)" },
-                        statPriority = { "Strong caster weapon with Hit Rating", "+8 Hit helps reach spell hit cap (16%)" },
-                        tips = { "Only need Revered - moderate grind", "Buy from Alurmi in Caverns of Time" },
-                        alternatives = { "Greatsword of Horrid Dreams (H Arc)", "Nathrezim Mindblade (Attumen - Kara)" },
-                    },
-                },
                 { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8,
                     hoverData = {
                         repSources = { "Auchenai Crypts/Sethekk Halls (10 rep/kill)", "Shadow Labyrinth (12-25 rep/kill)" },
@@ -5133,14 +5457,6 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 1: Balance (Caster DPS)
         [1] = {
             rep = {
-                { itemId = 29185, name = "Continuum Blade", icon = "INV_Sword_66", quality = "rare", slot = "One-Hand Sword", stats = "+190 Spell Power, +8 Hit", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7,
-                    hoverData = {
-                        repSources = { "Old Hillsbrad/Black Morass (10-25 rep/kill)", "Caverns of Time quests (~4.5k rep total)" },
-                        statPriority = { "Strong caster weapon with Hit Rating", "+8 Hit helps reach spell hit cap (16%)" },
-                        tips = { "Only need Revered - moderate grind", "Buy from Alurmi in Caverns of Time" },
-                        alternatives = { "Greatsword of Horrid Dreams (H Arc)", "Nathrezim Mindblade (Attumen - Kara)" },
-                    },
-                },
                 { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8,
                     hoverData = {
                         repSources = { "Auchenai Crypts/Sethekk Halls (10 rep/kill)", "Shadow Labyrinth (12-25 rep/kill)" },
@@ -5295,7 +5611,7 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         alternatives = { "Ashyen's Gift (Cenarion Expedition Exalted)", "Mana-Etched Band (Quest)", "Sparking Arcanite Ring (Heroic Mech)" },
                     },
                 },
-                { itemId = 28248, name = "Totem of the Void", icon = "Spell_Nature_Groundingtotem", quality = "rare", slot = "Relic", stats = "+55 Lightning Bolt dmg", source = "Cache of the Legion (Mechanar)", sourceType = "dungeon", faction = "Lower City", standing = 7,
+                { itemId = 28248, name = "Totem of the Void", icon = "Spell_Nature_Groundingtotem", quality = "rare", slot = "Relic", stats = "+55 Lightning Bolt dmg", source = "Cache of the Legion (Mechanar)", sourceType = "dungeon",
                     hoverData = {
                         repSources = { "Auchenai Crypts / Sethekk Halls / Shadow Lab (10-25 rep/kill)", "Lower City quests in Terokkar (~6k rep)", "Underbog turn-ins (Arakkoa Feathers - 250 rep per 30)" },
                         statPriority = { "BiS pre-raid totem for Lightning Bolt builds", "+55 damage per Lightning Bolt is massive DPS boost", "Core piece for Elemental DPS rotation" },
@@ -5690,7 +6006,6 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
             drops = {
                 { itemId = 28275, name = "Beast Lord Cuirass", icon = "INV_Chest_Chain_12", quality = "rare", slot = "Chest", stats = "+32 Agi, +32 Sta, +25 Int", source = "Mana-Tombs (Normal)", sourceType = "drops" },
                 { itemId = 28034, name = "Hourglass of the Unraveller", icon = "INV_Misc_PocketWatch_01", quality = "rare", slot = "Trinket", stats = "+32 Hit, Haste proc", source = "Black Morass (Normal)", sourceType = "drops" },
-                { itemId = 27815, name = "Stealthbinder's Chestguard", icon = "INV_Chest_Leather_04", quality = "rare", slot = "Chest", stats = "+26 Agi, +22 Sta, +44 AP", source = "Shadow Labyrinth", sourceType = "drops" },
             },
             crafted = {
                 { itemId = 25695, name = "Fel Leather Gloves", icon = "INV_Gauntlets_25", quality = "rare", slot = "Hands", stats = "+27 Agi, +26 Sta, +15 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
@@ -5761,14 +6076,13 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         repSources = { "Slave Pens / Underbog / Steamvault (10-25 rep/kill)", "Cenarion quests in Zangarmarsh/Blade's Edge (~6k rep)", "Unidentified Plant Parts turn-in (250 rep per 10)" },
                         statPriority = { "Solid Survival Hunter chest with high Agility", "+30 Agi benefits Lightning Reflexes talent", "Good alternative while farming Beast Lord" },
                         tips = { "Plant Parts turn-in works until Honored", "Steamvault Heroic is fastest Revered+", "Buy from Fedryen Swiftspear in Zangarmarsh" },
-                        alternatives = { "Beast Lord Cuirass (Mana-Tombs)", "Stealthbinder's Chestguard (Shadow Lab)", "Fel Leather Vest (Leatherworking)" },
+                        alternatives = { "Beast Lord Cuirass (Mana-Tombs)", "Fel Leather Vest (Leatherworking)", "Primalstrike Vest (Leatherworking)" },
                     },
                 },
             },
             drops = {
                 { itemId = 28034, name = "Hourglass of the Unraveller", icon = "INV_Misc_PocketWatch_01", quality = "rare", slot = "Trinket", stats = "+32 Hit, Haste proc", source = "Black Morass (Normal)", sourceType = "drops" },
                 { itemId = 28275, name = "Beast Lord Cuirass", icon = "INV_Chest_Chain_12", quality = "rare", slot = "Chest", stats = "+32 Agi, +32 Sta, +25 Int", source = "Mana-Tombs (Normal)", sourceType = "drops" },
-                { itemId = 27815, name = "Stealthbinder's Chestguard", icon = "INV_Chest_Leather_04", quality = "rare", slot = "Chest", stats = "+26 Agi, +22 Sta, +44 AP", source = "Shadow Labyrinth", sourceType = "drops" },
             },
             crafted = {
                 { itemId = 25695, name = "Fel Leather Gloves", icon = "INV_Gauntlets_25", quality = "rare", slot = "Hands", stats = "+27 Agi, +26 Sta, +15 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
@@ -5805,7 +6119,7 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         repSources = { "Coilfang dungeons (Slave Pens, Underbog, Steamvault - 5-15 rep/kill)", "Unidentified Plant Parts turn-in (250 rep each, to Honored)", "Cenarion Expedition quests in Zangarmarsh/Blade's Edge" },
                         statPriority = { "Solid pre-raid leather chest for Assassination", "+30 Agility excellent for crit-based builds", "High stamina aids dungeon survival" },
                         tips = { "Get at Revered - easier than Exalted gear", "Steamvault gives most rep at higher levels", "Int is wasted but other stats are strong" },
-                        alternatives = { "Stealthbinder's Chestguard (Shadow Lab)", "Primalstrike Vest (Leatherworking)", "Clefthoof Hide Tunic (Crafted)" },
+                        alternatives = { "Primalstrike Vest (Leatherworking)", "Clefthoof Hide Tunic (Crafted)", "Fel Leather Vest (Leatherworking)" },
                     },
                 },
                 -- Non-rep item: Best pre-raid thrown for Rogues (crafted)
@@ -5837,7 +6151,6 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
             drops = {
                 { itemId = 28189, name = "Liar's Tongue Gloves", icon = "INV_Gauntlets_25", quality = "epic", slot = "Hands", stats = "+32 Agi, +32 Sta, +24 Hit", source = "Heroic Mechanar", sourceType = "drops" },
                 { itemId = 28034, name = "Hourglass of the Unraveller", icon = "INV_Misc_PocketWatch_01", quality = "rare", slot = "Trinket", stats = "+32 Hit, Haste proc", source = "Black Morass (Normal)", sourceType = "drops" },
-                { itemId = 27815, name = "Stealthbinder's Chestguard", icon = "INV_Chest_Leather_04", quality = "rare", slot = "Chest", stats = "+26 Agi, +22 Sta, +44 AP", source = "Shadow Labyrinth", sourceType = "drops" },
             },
             crafted = {
                 { itemId = 25695, name = "Fel Leather Gloves", icon = "INV_Gauntlets_25", quality = "rare", slot = "Hands", stats = "+27 Agi, +26 Sta, +15 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
@@ -5933,7 +6246,7 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         repSources = { "Coilfang dungeons (Slave Pens, Underbog, Steamvault - 5-15 rep/kill)", "Unidentified Plant Parts turn-in (250 rep each, to Honored)", "Cenarion Expedition quests in Zangarmarsh/Blade's Edge" },
                         statPriority = { "Solid leather chest for Subtlety Rogues", "+30 Agility excellent for crit and dodge", "High stamina aids survival in PvP" },
                         tips = { "Get at Revered - faster than Exalted gear", "Subtlety benefits from high agility stacking", "Int stat is wasted but other stats compensate" },
-                        alternatives = { "Stealthbinder's Chestguard (Shadow Lab)", "Primalstrike Vest (Leatherworking)", "Gladiator's Leather Tunic (Arena)" },
+                        alternatives = { "Primalstrike Vest (Leatherworking)", "Gladiator's Leather Tunic (Arena)", "Fel Leather Vest (Leatherworking)" },
                     },
                 },
                 -- Non-rep item: Best pre-raid thrown for Rogues (crafted)
@@ -5965,7 +6278,6 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
             drops = {
                 { itemId = 28189, name = "Liar's Tongue Gloves", icon = "INV_Gauntlets_25", quality = "epic", slot = "Hands", stats = "+32 Agi, +32 Sta, +24 Hit", source = "Heroic Mechanar", sourceType = "drops" },
                 { itemId = 28034, name = "Hourglass of the Unraveller", icon = "INV_Misc_PocketWatch_01", quality = "rare", slot = "Trinket", stats = "+32 Hit, Haste proc", source = "Black Morass (Normal)", sourceType = "drops" },
-                { itemId = 27815, name = "Stealthbinder's Chestguard", icon = "INV_Chest_Leather_04", quality = "rare", slot = "Chest", stats = "+26 Agi, +22 Sta, +44 AP", source = "Shadow Labyrinth", sourceType = "drops" },
             },
             crafted = {
                 { itemId = 25695, name = "Fel Leather Gloves", icon = "INV_Gauntlets_25", quality = "rare", slot = "Hands", stats = "+27 Agi, +26 Sta, +15 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
@@ -6414,9 +6726,9 @@ C.GUILD_DATA_DEFAULTS = {
 
 C.SOCIAL_TAB = {
     -- Tab bar
-    TAB_WIDTH = 70,  -- Slightly narrower to fit 4 tabs
+    TAB_WIDTH = 77,   -- Width to fit 6 tabs including "Companions" label
     TAB_HEIGHT = 24,
-    TAB_SPACING = 2,
+    TAB_SPACING = 3,  -- Wider gaps for visual balance
 
     -- Status bar
     STATUS_BAR_HEIGHT = 36,
@@ -6557,13 +6869,6 @@ C.RELATIONSHIP_TYPES = {
     ENEMY = { id = "ENEMY", label = "Enemy", color = "FF0000", icon = "Ability_Warrior_Rampage", priority = 7 },
 }
 
-C.SHARE_PROMPT_TYPES = {
-    LOOT = { id = "LOOT", icon = "INV_Misc_Bag_10", label = "Loot Received", settingKey = "promptForLoot" },
-    FIRST_KILL = { id = "FIRST_KILL", icon = "Achievement_Boss_Gruul", label = "First Boss Kill", settingKey = "promptForFirstKills" },
-    ATTUNEMENT = { id = "ATTUNEMENT", icon = "INV_Misc_Key_03", label = "Attunement Complete", settingKey = "promptForAttunements" },
-    GAME_WIN = { id = "GAME_WIN", icon = "INV_Misc_Dice_02", label = "Game Victory", settingKey = "promptForGameWins" },
-}
-
 C.RP_STATUS = {
     IC = { id = "IC", label = "In Character", color = "00FF00", icon = "Spell_Holy_MindVision" },
     OOC = { id = "OOC", label = "Out of Character", color = "808080", icon = "Spell_Nature_Sleep" },
@@ -6653,6 +6958,12 @@ C.SOCIAL_DATA_DEFAULTS = {
             sortOption = "last_seen",
         },
         companions = {},
+        calendar = {
+            selectedMonth = nil,
+            selectedYear = nil,
+            selectedDay = nil,
+        },
+        notes = {},
     },
 
     -- Activity Feed
@@ -6720,6 +7031,7 @@ C.SOCIAL_DATA_DEFAULTS = {
         mySignups = {},        -- [eventId] = signup status
         notifications = {},    -- pending notifications
         lastSync = 0,
+        templates = {},        -- [templateId] = template data (saved event configs)
     },
 }
 
@@ -6903,6 +7215,17 @@ C.ARMORY_SPEC_DROPDOWN = {
     MENU_WIDTH = 110,
 }
 
+-- Preset dropdown (wishlist presets)
+C.ARMORY_PRESET_DROPDOWN = {
+    WIDTH = 120,
+    HEIGHT = 28,
+    ANCHOR = "RIGHT",           -- Anchor to phaseBar's RIGHT edge
+    OFFSET_X = -160,            -- 10 (edge gap) + 140 (spec dropdown visual width) + 10 (inter-dropdown gap)
+    OFFSET_Y = 0,
+    MENU_WIDTH = 110,
+    MAX_PRESETS = 5,  -- Maximum saved presets
+}
+
 -- Character View - Centered layout (replaces paperdoll + detail panel)
 -- Full width container with model centered, slots symmetrically positioned
 C.ARMORY_CHARACTER_VIEW = {
@@ -6926,9 +7249,6 @@ C.ARMORY_CHARACTER_VIEW = {
     BG_COLOR = { r = 0.04, g = 0.04, b = 0.04, a = 0.3 },
     BORDER_COLOR = { r = 0.35, g = 0.3, b = 0.2, a = 1 },
 }
-
--- Legacy alias for backwards compatibility
-C.ARMORY_PAPERDOLL = C.ARMORY_CHARACTER_VIEW
 
 -- Model frame - centered between slot columns (compact layout)
 C.ARMORY_MODEL_FRAME = {
@@ -6959,22 +7279,32 @@ C.ARMORY_SLOTS_CONTAINER = {
     COLUMN_GAP = 8,
 }
 
--- Gear popup (floating popup near clicked slot) - Redesigned Phase 60
+-- Gear popup (floating popup near clicked slot) - Redesigned Phase 61
 C.ARMORY_GEAR_POPUP = {
-    -- Dimensions (expanded from 300x420)
-    WIDTH = 480,
-    MAX_HEIGHT = 520,
-    MIN_HEIGHT = 280,
+    -- Dimensions (expanded for filter cards)
+    WIDTH = 640,
+    MAX_HEIGHT = 680,
+    MIN_HEIGHT = 480,  -- Increased from 360 to ensure scroll area of at least ~2.5 items visible
 
     -- Section heights
     HEADER_HEIGHT = 40,
     BIS_SECTION_HEIGHT = 100,      -- BiS showcase card
-    FILTER_BAR_HEIGHT = 32,        -- Source filter buttons
+    FILTER_SECTION_HEIGHT = 120,   -- Compact: 3 rows @ 28px + header + minimal gaps
     SCROLL_CONTENT_PADDING = 8,
     FOOTER_HEIGHT = 36,
 
+    -- Filter card specifications (Phase 61, compacted Phase 66)
+    FILTER_CARD = {
+        WIDTH = 180,
+        HEIGHT = 28,               -- Reduced from 52 (single-line compact)
+        ICON_SIZE = 22,            -- Reduced from 36
+        COLUMNS = 3,
+        GAP = 4,                   -- Reduced from 12
+        ACTIVE_GLOW = 0.6,
+    },
+
     -- Item row styling
-    ITEM_HEIGHT = 54,              -- Reduced from 64
+    ITEM_HEIGHT = 48,              -- Reduced from 54 to match smaller icons
     COMPACT_ITEM_HEIGHT = 44,      -- For dense lists
     ITEM_GAP = 4,                  -- Reduced from 6
     PADDING = 16,                  -- Increased from 12
@@ -7080,7 +7410,8 @@ C.ARMORY_GEAR_POPUP = {
     -- BiS card styling (featured item at top)
     BIS_CARD = {
         HEIGHT = 90,
-        ICON_SIZE = 56,
+        ICON_SIZE = 52,            -- Reduced from 56 to allow larger border
+        BORDER_OFFSET = 8,         -- 52 + 8 = 60px border (15% ratio for visible quality color)
         BORDER_COLOR = { r = 1, g = 0.84, b = 0 },      -- Gold
         GLOW_COLOR = { r = 1, g = 0.84, b = 0, a = 0.3 },
         NAME_FONT = "GameFontNormalLarge",
@@ -7089,7 +7420,8 @@ C.ARMORY_GEAR_POPUP = {
 
     -- Compact item row styling (for alternatives list)
     ITEM = {
-        ICON_SIZE = 40,            -- Reduced from 44
+        ICON_SIZE = 36,            -- Reduced from 40 to allow larger border
+        BORDER_OFFSET = 6,         -- 36 + 6 = 42px border (17% ratio for visible quality color)
         BIS_INDICATOR_SIZE = 16,   -- Reduced from 18
         BIS_COLOR = { r = 1, g = 0.84, b = 0 },  -- Gold star for BiS
         NAME_FONT = "GameFontNormal",
@@ -7098,13 +7430,15 @@ C.ARMORY_GEAR_POPUP = {
         HOVER_BG = { r = 0.3, g = 0.3, b = 0.3, a = 0.3 },
     },
 
-    -- Filter button styling
+    -- Filter card styling (Phase 61 redesign)
     FILTER = {
-        BUTTON_HEIGHT = 24,
-        BUTTON_PADDING = 8,
-        ACTIVE_COLOR = { r = 0.3, g = 0.6, b = 0.3, a = 0.8 },
-        INACTIVE_COLOR = { r = 0.2, g = 0.2, b = 0.2, a = 0.6 },
-        ALL_LABEL = "All Sources",
+        -- Card appearance
+        ACTIVE_BORDER = { r = 0.8, g = 0.7, b = 0.2, a = 1 },     -- Gold border when active
+        INACTIVE_BORDER = { r = 0.3, g = 0.3, b = 0.3, a = 0.6 }, -- Grey border when inactive
+        ACTIVE_BG = { r = 0.2, g = 0.2, b = 0.15, a = 0.9 },      -- Slightly lit background
+        INACTIVE_BG = { r = 0.1, g = 0.1, b = 0.1, a = 0.8 },     -- Dark background
+        DIMMED_ALPHA = 0.4,                                        -- Alpha for zero-count cards
+        HOVER_ALPHA = 0.7,                                         -- Alpha for hover state on inactive
     },
 
     -- Group header styling (collapsible sections)
@@ -7237,41 +7571,43 @@ C.ARMORY_SLOT_PLACEHOLDER_ICONS = {
     ranged    = "Interface\\PaperDoll\\UI-PaperDoll-Slot-Ranged",
 }
 
--- Slot info cards (44x44px cards showing iLvl + upgrade arrow)
+-- Slot info cards (60x44px "Upgrade Banners" showing iLvl + delta + chevron)
 C.ARMORY_INFO_CARD = {
-    SIZE = 44,
-    GAP = 2,  -- Gap between slot and card
+    WIDTH = 60,           -- Expanded from 44px for better readability
+    HEIGHT = 44,          -- Same height as slot
+    GAP = 4,              -- Gap from slot button
 
-    -- Upgrade thresholds (compared to average iLvl)
-    THRESHOLD_GOOD = 5,   -- Above avg + 5 = green
-    THRESHOLD_BAD = -5,   -- Below avg - 5 = red
+    -- Content layout
+    ILVL_FONT = "GameFontNormalLarge",
+    DELTA_FONT = "GameFontNormalSmall",
+    CHEVRON_SIZE = 14,    -- Click indicator "›" size
+    STAR_SIZE = 14,       -- BiS star icon size
 
-    -- Upgrade status indicators (using ReadyCheck icons for reliable rendering)
-    INDICATORS = {
-        GOOD = {
-            texture = "Interface\\RAIDFRAME\\ReadyCheck-Ready",  -- Green checkmark
-            color = { r = 1, g = 1, b = 1 },  -- White (icon is pre-colored green)
-        },
-        OKAY = {
-            texture = "Interface\\RAIDFRAME\\ReadyCheck-Waiting",  -- Yellow question mark
-            color = { r = 1, g = 1, b = 1 },  -- White (icon is pre-colored yellow)
-        },
-        UPGRADE = {
-            texture = "Interface\\RAIDFRAME\\ReadyCheck-NotReady",  -- Red X
-            color = { r = 1, g = 1, b = 1 },  -- White (icon is pre-colored red)
-        },
+    -- Rank-based colors using WoW item quality (brighter for visibility)
+    -- #1 = BiS (bright gold), #2 = Epic purple, #3-5 = Rare blue, #6+ = Uncommon green, nil = Muted grey
+    RANK_COLORS = {
+        [1] = { r = 1.00, g = 0.84, b = 0.00 },  -- GOLD (bright, matches Battleship victory)
+        [2] = { r = 0.64, g = 0.21, b = 0.93 },  -- EPIC (purple) - 2nd best
+        [3] = { r = 0.00, g = 0.44, b = 0.87 },  -- RARE (blue) - good alternatives
+        [4] = { r = 0.00, g = 0.44, b = 0.87 },  -- RARE (blue)
+        [5] = { r = 0.00, g = 0.44, b = 0.87 },  -- RARE (blue)
+        DEFAULT = { r = 0.12, g = 1.00, b = 0.00 },  -- UNCOMMON (green) for rank 6+
+        NONE = { r = 0.6, g = 0.6, b = 0.6 },       -- MUTED grey for not on list (not white - too bright)
     },
 
-    -- Visual style
+    -- Visual style - RPG parchment theme with colorizable gold border
     BACKDROP = {
-        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        edgeSize = 8,
-        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",  -- More colorizable than Tooltip-Border
+        edgeSize = 12,  -- Increased from 8 for visibility
+        insets = { left = 3, right = 3, top = 3, bottom = 3 },
     },
-    BG_COLOR = { r = 0.04, g = 0.04, b = 0.04, a = 0.8 },
+    BG_COLOR = { r = 0.08, g = 0.06, b = 0.04, a = 0.9 },
     BORDER_COLOR = { r = 0.6, g = 0.5, b = 0.2, a = 0.8 },
-    HIGHLIGHT_COLOR = { r = 0.8, g = 0.7, b = 0.4, a = 1 },
+    HIGHLIGHT_COLOR = { r = 1.0, g = 0.84, b = 0.0, a = 1.0 },  -- Bright gold on hover
+
+    -- Glow overlay for hover effect
+    GLOW_INTENSITY = 0.6,
 
     -- Card position offsets by slot (relative to slot button)
     -- LEFT column slots: cards extend LEFT (negative X)
@@ -7279,27 +7615,27 @@ C.ARMORY_INFO_CARD = {
     -- WEAPON slots: cards extend DOWN (negative Y)
     POSITIONS = {
         -- LEFT column: extend LEFT (card RIGHT edge anchors to slot LEFT edge)
-        head      = { anchor = "RIGHT", relAnchor = "LEFT", x = -2, y = 0 },
-        neck      = { anchor = "RIGHT", relAnchor = "LEFT", x = -2, y = 0 },
-        shoulders = { anchor = "RIGHT", relAnchor = "LEFT", x = -2, y = 0 },
-        back      = { anchor = "RIGHT", relAnchor = "LEFT", x = -2, y = 0 },
-        chest     = { anchor = "RIGHT", relAnchor = "LEFT", x = -2, y = 0 },
-        wrist     = { anchor = "RIGHT", relAnchor = "LEFT", x = -2, y = 0 },
+        head      = { anchor = "RIGHT", relAnchor = "LEFT", x = -4, y = 0 },
+        neck      = { anchor = "RIGHT", relAnchor = "LEFT", x = -4, y = 0 },
+        shoulders = { anchor = "RIGHT", relAnchor = "LEFT", x = -4, y = 0 },
+        back      = { anchor = "RIGHT", relAnchor = "LEFT", x = -4, y = 0 },
+        chest     = { anchor = "RIGHT", relAnchor = "LEFT", x = -4, y = 0 },
+        wrist     = { anchor = "RIGHT", relAnchor = "LEFT", x = -4, y = 0 },
 
         -- RIGHT column: extend RIGHT (card LEFT edge anchors to slot RIGHT edge)
-        hands     = { anchor = "LEFT", relAnchor = "RIGHT", x = 2, y = 0 },
-        waist     = { anchor = "LEFT", relAnchor = "RIGHT", x = 2, y = 0 },
-        legs      = { anchor = "LEFT", relAnchor = "RIGHT", x = 2, y = 0 },
-        feet      = { anchor = "LEFT", relAnchor = "RIGHT", x = 2, y = 0 },
-        ring1     = { anchor = "LEFT", relAnchor = "RIGHT", x = 2, y = 0 },
-        ring2     = { anchor = "LEFT", relAnchor = "RIGHT", x = 2, y = 0 },
-        trinket1  = { anchor = "LEFT", relAnchor = "RIGHT", x = 2, y = 0 },
-        trinket2  = { anchor = "LEFT", relAnchor = "RIGHT", x = 2, y = 0 },
+        hands     = { anchor = "LEFT", relAnchor = "RIGHT", x = 4, y = 0 },
+        waist     = { anchor = "LEFT", relAnchor = "RIGHT", x = 4, y = 0 },
+        legs      = { anchor = "LEFT", relAnchor = "RIGHT", x = 4, y = 0 },
+        feet      = { anchor = "LEFT", relAnchor = "RIGHT", x = 4, y = 0 },
+        ring1     = { anchor = "LEFT", relAnchor = "RIGHT", x = 4, y = 0 },
+        ring2     = { anchor = "LEFT", relAnchor = "RIGHT", x = 4, y = 0 },
+        trinket1  = { anchor = "LEFT", relAnchor = "RIGHT", x = 4, y = 0 },
+        trinket2  = { anchor = "LEFT", relAnchor = "RIGHT", x = 4, y = 0 },
 
         -- Weapons: extend DOWN (card TOP anchors to slot BOTTOM)
-        mainhand  = { anchor = "TOP", relAnchor = "BOTTOM", x = 0, y = -2 },
-        offhand   = { anchor = "TOP", relAnchor = "BOTTOM", x = 0, y = -2 },
-        ranged    = { anchor = "TOP", relAnchor = "BOTTOM", x = 0, y = -2 },
+        mainhand  = { anchor = "TOP", relAnchor = "BOTTOM", x = 0, y = -4 },
+        offhand   = { anchor = "TOP", relAnchor = "BOTTOM", x = 0, y = -4 },
+        ranged    = { anchor = "TOP", relAnchor = "BOTTOM", x = 0, y = -4 },
     },
 }
 
@@ -7316,7 +7652,6 @@ C.ARMORY_FOOTER = {
     STATS = {
         { id = "avgIlvl",       label = "Avg iLvl:",    format = "%d" },
         { id = "upgradesAvail", label = "Upgrades:",    format = "%d slots" },
-        { id = "wishlisted",    label = "Wishlisted:",  format = "%d items" },
     },
     BACKDROP = {
         bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
@@ -7487,6 +7822,38 @@ C.ARMORY_ASSETS = {
     },
 }
 
+-- Issue #71.4: Boss Loot Popup constants (used by Journal.lua boss loot pools)
+C.BOSS_LOOT_POPUP = {
+    -- Dimensions
+    WIDTH = 380,
+    MAX_HEIGHT = 450,
+    HEADER_HEIGHT = 44,
+    PADDING = 12,
+    ROW_HEIGHT = 44,
+    ICON_SIZE = 36,
+    BIS_STAR_SIZE = 14,
+    BIS_COLOR = { r = 1, g = 0.84, b = 0 },  -- Gold star for BiS
+
+    -- Backdrop styling
+    BACKDROP = {
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
+        edgeSize = 16,
+        insets = { left = 4, right = 4, top = 4, bottom = 4 },
+    },
+    BG_COLOR = { r = 0.08, g = 0.06, b = 0.04, a = 0.95 },
+    BORDER_COLOR = { r = 0.8, g = 0.7, b = 0.3, a = 1 },
+
+    -- Quality colors for loot items
+    QUALITY_COLORS = {
+        common = { r = 0.62, g = 0.62, b = 0.62 },
+        uncommon = { r = 0.12, g = 1.0, b = 0.0 },
+        rare = { r = 0.0, g = 0.44, b = 0.87 },
+        epic = { r = 0.64, g = 0.21, b = 0.93 },
+        legendary = { r = 1.0, g = 0.5, b = 0.0 },
+    },
+}
+
 --============================================================
 -- ARMORY TAB: GEAR DATABASE (T4 BiS Recommendations)
 --============================================================
@@ -7529,9 +7896,6 @@ C.ARMORY_PHASES = {
         sources = { "raid", "heroic", "badge", "rep", "crafted" },
     },
 }
-
--- Legacy alias for backwards compatibility
-C.ARMORY_TIERS = C.ARMORY_PHASES
 
 -- Source type display info
 C.ARMORY_SOURCE_TYPES = {
@@ -7712,7 +8076,7 @@ C.ARMORY_GEAR_DATABASE = {
                     { itemId = 29115, name = "Consortium Blaster", icon = "INV_Weapon_Rifle_22", quality = "rare", iLvl = 105, stats = "+Sta", source = "Consortium Exalted", sourceType = "rep", repFaction = "The Consortium", repStanding = "Exalted", weaponType = "gun" },
                     -- Paladin/Druid alternatives (libram/idol)
                     { itemId = 29388, name = "Libram of Repentance", icon = "INV_Relics_LibramofGrace", quality = "epic", iLvl = 110, stats = "+Block Value", source = "Badge Vendor", sourceType = "badge", badgeCost = 15, weaponType = "libram" },
-                    { itemId = 33509, name = "Idol of Terror", icon = "INV_Relics_IdolofFerocity", quality = "epic", iLvl = 128, stats = "+Agility proc", source = "G'eras (20 Badges)", sourceType = "badge", weaponType = "idol" },
+                    { itemId = 28990, name = "Idol of the Raven Goddess", icon = "INV_Relics_IdolofFerocity", quality = "rare", iLvl = 115, stats = "+AP in cat/bear", source = "Sethekk Halls", sourceType = "dungeon", sourceDetail = "Sethekk Halls", weaponType = "idol" },
                 },
             },
         },
@@ -7742,7 +8106,7 @@ C.ARMORY_GEAR_DATABASE = {
             ["back"] = {
                 best = { itemId = 28765, name = "Stainless Cloak of the Pure Hearted", icon = "INV_Misc_Cape_18", quality = "epic", iLvl = 115, stats = "+18 Int, +46 Healing", source = "Prince Malchezaar", sourceType = "raid", sourceDetail = "Karazhan" },
                 alternatives = {
-                    { itemId = 31329, name = "Lifegiving Cloak", icon = "INV_Misc_Cape_17", quality = "epic", iLvl = 110, stats = "+15 Int, +40 Healing", source = "World Drop", sourceType = "crafted" },
+                    { itemId = 31329, name = "Lifegiving Cloak", icon = "INV_Misc_Cape_17", quality = "epic", iLvl = 110, stats = "+15 Int, +40 Healing", source = "World Drop", sourceType = "world" },
                 },
             },
             ["chest"] = {
@@ -7809,12 +8173,16 @@ C.ARMORY_GEAR_DATABASE = {
                 best = { itemId = 28771, name = "Light's Justice", icon = "INV_Mace_51", quality = "epic", iLvl = 115, stats = "+22 Int, +59 Healing", source = "Prince Malchezaar", sourceType = "raid", sourceDetail = "Karazhan" },
                 alternatives = {
                     { itemId = 29175, name = "Gavel of Pure Light", icon = "INV_Mace_50", quality = "epic", iLvl = 110, stats = "+18 Int, +51 Healing", source = "Sha'tar Exalted", sourceType = "rep", repFaction = "The Sha'tar", repStanding = "Exalted" },
+                    { itemId = 27538, name = "Epoch-Mender", icon = "INV_Mace_40", quality = "rare", iLvl = 115, stats = "+20 Int, +48 Healing, +7 mp5", source = "Temporus", sourceType = "dungeon", sourceDetail = "Black Morass" },
+                    { itemId = 27772, name = "Hammer of the Penitent", icon = "INV_Mace_42", quality = "rare", iLvl = 112, stats = "+18 Int, +42 Healing", source = "Blackheart the Inciter", sourceType = "heroic", sourceDetail = "Heroic Shadow Labyrinth" },
                 },
             },
             ["offhand"] = {
                 best = { itemId = 29458, name = "Aegis of the Vindicator", icon = "INV_Shield_32", quality = "epic", iLvl = 120, stats = "+18 Int, +48 Healing", source = "Magtheridon", sourceType = "raid", sourceDetail = "Magtheridon's Lair" },
                 alternatives = {
                     { itemId = 27477, name = "Faol's Signet of Cleansing", icon = "INV_Jewelry_Talisman_10", quality = "rare", iLvl = 115, stats = "+15 Int, +40 Healing", source = "Murmur", sourceType = "heroic", sourceDetail = "Heroic Shadow Labyrinth" },
+                    { itemId = 28753, name = "Triptych Shield of the Ancients", icon = "INV_Shield_35", quality = "epic", iLvl = 115, stats = "+15 Int, +40 Healing, +7 mp5", source = "Chess Event", sourceType = "raid", sourceDetail = "Karazhan" },
+                    { itemId = 29274, name = "Lamp of Peaceful Radiance", icon = "INV_Offhand_1h_Draenei_A_01", quality = "rare", iLvl = 105, stats = "+12 Int, +33 Healing, +8 mp5", source = "G'eras", sourceType = "badge", badgeCost = 35 },
                 },
             },
             ["ranged"] = {
@@ -7904,7 +8272,7 @@ C.ARMORY_GEAR_DATABASE = {
             ["trinket1"] = {
                 best = { itemId = 28830, name = "Dragonspine Trophy", icon = "INV_Misc_MonsterScales_15", quality = "epic", iLvl = 125, stats = "+40 AP, Haste proc", source = "Gruul the Dragonkiller", sourceType = "raid", sourceDetail = "Gruul's Lair" },
                 alternatives = {
-                    { itemId = 23206, name = "Mark of the Champion", icon = "INV_Jewelry_Talisman_13", quality = "epic", iLvl = 110, stats = "+AP vs Undead/Demons", source = "Kel'Thuzad", sourceType = "raid", sourceDetail = "Naxxramas" },
+                    { itemId = 28034, name = "Hourglass of the Unraveller", icon = "INV_Misc_PocketWatch_01", quality = "rare", iLvl = 115, stats = "+Crit proc", source = "Temporus", sourceType = "heroic", sourceDetail = "Heroic Black Morass" },
                 },
             },
             ["trinket2"] = {
@@ -7917,7 +8285,7 @@ C.ARMORY_GEAR_DATABASE = {
                 best = { itemId = 28438, name = "Dragonmaw", icon = "INV_Sword_59", quality = "epic", iLvl = 115, stats = "+Str, +Agi", source = "Blacksmithing", sourceType = "crafted" },
                 alternatives = {
                     { itemId = 28295, name = "Gladiator's Slicer", icon = "INV_Sword_58", quality = "epic", iLvl = 115, stats = "+Sta, +Crit", source = "Arena Season 1", sourceType = "pvp" },
-                    { itemId = 31332, name = "Blinkstrike", icon = "INV_Sword_57", quality = "epic", iLvl = 115, stats = "+Agi, Teleport proc", source = "World Drop", sourceType = "crafted" },
+                    { itemId = 31332, name = "Blinkstrike", icon = "INV_Sword_57", quality = "epic", iLvl = 115, stats = "+Agi, Teleport proc", source = "World Drop", sourceType = "world" },
                 },
             },
             ["offhand"] = {
@@ -8003,6 +8371,8 @@ C.ARMORY_GEAR_DATABASE = {
                 best = { itemId = 28545, name = "Edgewalker Longboots", icon = "INV_Boots_Chain_09", quality = "epic", iLvl = 115, stats = "+27 Agi, +25 Sta, +18 Hit", source = "Moroes", sourceType = "raid", sourceDetail = "Karazhan" },
                 alternatives = {
                     { itemId = 27814, name = "Fel Leather Boots", icon = "INV_Boots_08", quality = "rare", iLvl = 100, stats = "+20 Hit Rating", source = "Leatherworking", sourceType = "crafted" },
+                    { itemId = 25686, name = "Boots of the Endless Hunt", icon = "INV_Boots_Chain_08", quality = "rare", iLvl = 110, stats = "+24 Agi, +22 Sta, +18 Hit", source = "G'eras", sourceType = "badge", badgeCost = 60 },
+                    { itemId = 29791, name = "Boots of the Crimson Hawk", icon = "INV_Boots_Chain_07", quality = "epic", iLvl = 115, stats = "+26 Agi, +24 Sta, +52 AP", source = "Quest: The Tempest Key", sourceType = "quest", sourceDetail = "Tempest Key Quest Chain" },
                 },
             },
             ["ring1"] = {
@@ -8236,6 +8606,7 @@ C.CALENDAR_TIMINGS = {
     NOTIFICATION_1HR = 3600,           -- 1 hour in seconds
     NOTIFICATION_15MIN = 900,          -- 15 min in seconds
     EVENT_EXPIRY_HOURS = 24,           -- hours after event ends
+    MAX_TEMPLATES = 10,                -- max saved templates per character
 }
 
 C.CALENDAR_MSG = {
@@ -8252,16 +8623,27 @@ C.CALENDAR_UI = {
     CELL_SPACING = 2,
     GRID_COLS = 7,
     GRID_ROWS = 6,
-    EVENT_CARD_HEIGHT = 18,
-    EVENT_CARD_SPACING = 2,
+    EVENT_CARD_HEIGHT = 50,            -- Increased for color stripe
+    EVENT_CARD_SPACING = 4,
     DAY_PANEL_HEIGHT = 200,
-    DETAIL_POPUP_WIDTH = 350,
-    DETAIL_POPUP_HEIGHT = 400,
+    DETAIL_POPUP_WIDTH = 380,          -- Wider for role columns
+    DETAIL_POPUP_HEIGHT = 480,         -- Taller for matrix UI + needs bar
     CREATE_POPUP_WIDTH = 400,
-    CREATE_POPUP_HEIGHT = 500,
+    CREATE_POPUP_HEIGHT = 560,         -- Taller for template dropdown
     DAY_NAMES = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" },
     MONTH_NAMES = { "January", "February", "March", "April", "May", "June",
                    "July", "August", "September", "October", "November", "December" },
+}
+
+-- Calendar slot-based event indicators
+C.CALENDAR_SLOT_UI = {
+    SLOT_SIZE = 10,           -- 10x10px squares
+    SLOT_SPACING = 2,         -- Gap between squares
+    SERVER_SLOTS = 2,         -- Hardcoded event slots (top row)
+    GUILD_SLOTS = 2,          -- Guild event slots (bottom row)
+    SERVER_ROW_Y = 14,        -- Y offset from slot container bottom for server row
+    GUILD_ROW_Y = 2,          -- Y offset from slot container bottom for guild row
+    OVERFLOW_FONT_SIZE = 8,   -- Font size for "+N" overflow indicator
 }
 
 C.CALENDAR_EVENT_TYPES = {
@@ -8269,6 +8651,16 @@ C.CALENDAR_EVENT_TYPES = {
     DUNGEON = { name = "Dungeon", icon = "Interface\\Icons\\INV_Misc_Key_10" },
     RP_EVENT = { name = "RP Event", icon = "Interface\\Icons\\INV_Drink_02" },
     OTHER = { name = "Other", icon = "Interface\\Icons\\INV_Misc_Note_01" },
+    SERVER = { name = "Server Event", icon = "Interface\\Icons\\INV_Misc_Note_06" },
+}
+
+-- Event Type Color Coding for calendar grid and cards
+C.CALENDAR_EVENT_COLORS = {
+    RAID = { r = 1.0, g = 0.5, b = 0.0 },      -- Orange
+    DUNGEON = { r = 0.0, g = 0.7, b = 1.0 },   -- Blue
+    RP_EVENT = { r = 0.8, g = 0.2, b = 0.8 },  -- Purple
+    OTHER = { r = 0.6, g = 0.6, b = 0.6 },     -- Grey
+    SERVER = { r = 1.0, g = 0.84, b = 0.0 },   -- Gold (legendary)
 }
 
 C.CALENDAR_ROLES = {
@@ -8300,4 +8692,461 @@ C.CALENDAR_SIGNUP_STATUS = {
     DECLINED = { name = "Declined", icon = "Interface\\RAIDFRAME\\ReadyCheck-NotReady" },
     TENTATIVE = { name = "Tentative", icon = "Interface\\RAIDFRAME\\ReadyCheck-Waiting" },
     PENDING = { name = "Pending", icon = "Interface\\Icons\\INV_Misc_QuestionMark" },
+}
+
+-- ============================================================================
+-- CALENDAR VALIDATION CONSTANTS
+-- ============================================================================
+
+C.CALENDAR_VALIDATION = {
+    MIN_NOTICE_MINUTES = 30,        -- Events must be 30+ min in future
+    MAX_FUTURE_DAYS = 60,           -- Max 60 days in advance
+    ALLOW_PAST_EVENTS = false,      -- Prevent past date events
+    ENFORCE_ROLE_LIMITS = true,     -- Enforce tank/healer/dps caps
+    ENFORCE_RAID_SIZE = true,       -- Enforce total raid size
+    -- Note: Signup limits removed - time conflicts shown as warnings only
+}
+
+-- ============================================================================
+-- SERVER EVENTS (Hardcoded, read-only announcements)
+-- ============================================================================
+
+--[[
+    Server Events are hardcoded, read-only events for server-wide announcements.
+    - No signups - these are informational only
+    - Everyone sees the same events (no network sync needed)
+    - Gold/legendary color coding
+    - Updated by addon maintainer ~2 weeks in advance
+
+    Data format:
+    {
+        id = "unique_id",           -- Unique identifier
+        title = "Event Name",       -- Display title
+        eventType = "SERVER",       -- Always "SERVER"
+        date = "YYYY-MM-DD",        -- Date string
+        startTime = "HH:MM",        -- Start time (or "All Day" for all-day events)
+        description = "...",        -- Event description (no length limit)
+        icon = "Icon_Name",         -- Icon texture name (without Interface\\Icons\\)
+        permanent = false,          -- true = repeating yearly, false = one-time
+    }
+]]
+C.SERVER_EVENTS = {
+    -- Example: Dark Portal opening (historical for flavor)
+    {
+        id = "dark_portal_opening",
+        title = "The Dark Portal Opens",
+        eventType = "SERVER",
+        date = "2007-01-16",
+        startTime = "00:01",
+        description = "The Dark Portal has reopened! Journey through to Outland awaits all heroes of Azeroth. Speak with your faction's representative in the Blasted Lands to begin your adventure.",
+        icon = "Interface\\Icons\\Spell_Shadow_DeathPact",
+        permanent = false,
+    },
+    -- Test event for verifying server event display (remove after testing)
+    {
+        id = "test_server_2026",
+        title = "Server Maintenance",
+        eventType = "SERVER",
+        date = "2026-02-04",  -- First Tuesday of Feb 2026
+        startTime = "07:00",
+        description = "Weekly server maintenance. Expect approximately 2 hours of downtime.",
+        icon = "Interface\\Icons\\Spell_Holy_Resurrection",
+        permanent = false,
+    },
+    -- Add future server events here as needed
+    -- Example format for a future event:
+    -- {
+    --     id = "burning_legion_invasion",
+    --     title = "Burning Legion Assault",
+    --     eventType = "SERVER",
+    --     date = "2007-03-15",
+    --     startTime = "All Day",
+    --     description = "The Burning Legion has launched an assault on Outland! Defend Shattrath and the surrounding zones.",
+    --     icon = "Interface\\Icons\\Spell_Fire_FelFlameRing",
+    --     permanent = false,
+    -- },
+}
+
+-- Helper function to get server events for a specific date
+function C:GetServerEventsForDate(dateStr)
+    local events = {}
+    for _, event in ipairs(C.SERVER_EVENTS) do
+        if event.date == dateStr then
+            table.insert(events, event)
+        end
+    end
+    return events
+end
+
+-- Helper function to check if an event is a server event
+function C:IsServerEvent(event)
+    return event and event.eventType == "SERVER"
+end
+
+-- ============================================================================
+-- APP-WIDE MILESTONE EVENTS (Banner Events)
+-- ============================================================================
+
+--[[
+    App-Wide Events are major milestone announcements displayed as banners
+    at the top of the calendar. These support multi-day spans and themed colors.
+
+    - Displayed as colored banners above the calendar grid
+    - Can span multiple days (endDate optional for single-day)
+    - Themed colors for visual distinction
+    - Everyone sees the same events (no network sync needed)
+
+    Data format:
+    {
+        id = "unique_id",           -- Unique identifier
+        title = "Event Name",       -- Display title (keep short for banner)
+        description = "...",        -- Full description for tooltip
+        startDate = "YYYY-MM-DD",   -- Start date
+        endDate = "YYYY-MM-DD",     -- End date (optional, defaults to startDate)
+        time = "HH:MM",             -- Start time (or "WEEKLY_RESET" for reset events)
+        colorName = "COLOR_KEY",    -- Key from APP_WIDE_EVENT_COLORS
+        icon = "IconPath",          -- Full icon path
+    }
+]]
+C.APP_WIDE_EVENTS = {
+    {
+        id = "app_dark_portal",
+        title = "The Dark Portal Opens",
+        description = "Step through the Dark Portal and begin your journey into Outland. The shattered realm of Draenor awaits - explore Hellfire Peninsula, face Illidan's forces, and discover the mysteries of the Burning Crusade.",
+        startDate = "2026-02-05",
+        endDate = "2026-02-05",
+        time = "15:00",  -- 3 PM PST
+        colorName = "FEL_GREEN",
+        icon = "Interface\\Icons\\Spell_Arcane_PortalShattrath",
+    },
+    {
+        id = "app_pvp_season1",
+        title = "PvP Arena Season 1 Begins",
+        description = "Sign of Battle - The Arena gates open. Prove your worth in ranked combat.",
+        startDate = "2026-02-17",
+        endDate = "2026-02-17",
+        time = "WEEKLY_RESET",
+        colorName = "BLOOD_RED",
+        icon = "Interface\\Icons\\INV_Sword_48",
+    },
+    {
+        id = "app_raids_unlock",
+        title = "Raids Unlock: Karazhan, Gruul, Magtheridon",
+        description = "The first raid tier opens. Karazhan, Gruul's Lair, and Magtheridon's Lair await.",
+        startDate = "2026-02-19",
+        endDate = "2026-02-19",
+        time = "15:00",  -- 3 PM PST
+        colorName = "ARCANE_PURPLE",
+        icon = "Interface\\Icons\\Spell_Shadow_SummonInfernal",
+    },
+}
+
+-- Banner color themes for app-wide events
+-- These map colorName to specific banner styling colors
+C.APP_WIDE_EVENT_COLORS = {
+    FEL_GREEN = {
+        bg = { r = 0.08, g = 0.25, b = 0.08, a = 0.95 },
+        border = { r = 0.20, g = 0.80, b = 0.20, a = 1.0 },
+        title = { r = 0.40, g = 1.00, b = 0.40, a = 1.0 },
+        text = { r = 0.70, g = 0.95, b = 0.70, a = 1.0 },
+    },
+    BLOOD_RED = {
+        bg = { r = 0.25, g = 0.06, b = 0.06, a = 0.95 },
+        border = { r = 0.70, g = 0.10, b = 0.10, a = 1.0 },
+        title = { r = 1.00, g = 0.40, b = 0.40, a = 1.0 },
+        text = { r = 0.95, g = 0.70, b = 0.70, a = 1.0 },
+    },
+    ARCANE_PURPLE = {
+        bg = { r = 0.15, g = 0.06, b = 0.25, a = 0.95 },
+        border = { r = 0.61, g = 0.19, b = 1.00, a = 1.0 },
+        title = { r = 0.80, g = 0.50, b = 1.00, a = 1.0 },
+        text = { r = 0.85, g = 0.70, b = 0.95, a = 1.0 },
+    },
+    -- Default/fallback
+    GOLD = {
+        bg = { r = 0.20, g = 0.16, b = 0.06, a = 0.95 },
+        border = { r = 1.00, g = 0.84, b = 0.00, a = 1.0 },
+        title = { r = 1.00, g = 0.84, b = 0.00, a = 1.0 },
+        text = { r = 0.95, g = 0.90, b = 0.70, a = 1.0 },
+    },
+}
+
+-- UI Constants for app-wide event banners
+C.CALENDAR_BANNER_UI = {
+    MAX_BANNERS = 4,          -- Maximum banner rows to display
+    BANNER_HEIGHT = 32,       -- Height of each banner row
+    BANNER_SPACING = 2,       -- Spacing between banners
+    ICON_SIZE = 24,           -- Banner icon size
+    TOOLTIP_WIDTH = 280,      -- Tooltip width
+}
+
+-- Helper function to get app-wide events for display
+-- Returns events that are upcoming or currently active
+function C:GetActiveAppWideEvents()
+    local today = date("%Y-%m-%d")
+    local events = {}
+
+    for _, event in ipairs(C.APP_WIDE_EVENTS) do
+        local endDate = event.endDate or event.startDate
+        -- Include if end date hasn't passed (show past events too if within 7 days)
+        if endDate >= today or (today <= self:AddDaysToDate(endDate, 7)) then
+            table.insert(events, event)
+        end
+    end
+
+    -- Sort by start date
+    table.sort(events, function(a, b)
+        return a.startDate < b.startDate
+    end)
+
+    return events
+end
+
+-- Helper function to get app-wide events for a specific month
+function C:GetAppWideEventsForMonth(year, month)
+    local monthStr = string.format("%04d-%02d", year, month)
+    local events = {}
+
+    for _, event in ipairs(C.APP_WIDE_EVENTS) do
+        local startMonth = event.startDate:sub(1, 7)
+        local endMonth = (event.endDate or event.startDate):sub(1, 7)
+
+        -- Include if event overlaps with the requested month
+        if startMonth <= monthStr and endMonth >= monthStr then
+            table.insert(events, event)
+        end
+    end
+
+    -- Sort by start date
+    table.sort(events, function(a, b)
+        return a.startDate < b.startDate
+    end)
+
+    return events
+end
+
+-- Helper function to add days to a date string
+function C:AddDaysToDate(dateStr, days)
+    local year, month, day = dateStr:match("^(%d+)-(%d+)-(%d+)$")
+    if not year then return dateStr end
+
+    local timestamp = time({
+        year = tonumber(year),
+        month = tonumber(month),
+        day = tonumber(day),
+    })
+
+    return date("%Y-%m-%d", timestamp + (days * 86400))
+end
+
+-- Helper function to format time display for banners
+function C:FormatBannerTime(timeStr)
+    if not timeStr then return "" end
+    if timeStr == "WEEKLY_RESET" then
+        return "Weekly Reset"
+    end
+    return timeStr
+end
+
+-- ============================================================================
+-- JOURNEY TAB NEXT EVENT CARD
+-- ============================================================================
+
+-- UI constants for Next Event card
+C.JOURNEY_NEXT_EVENT = {
+    CONTAINER_HEIGHT = 85,
+    ICON_SIZE = 36,
+    BORDER_WIDTH = 2,
+}
+
+-- Get next upcoming app-wide event (or most recent if all passed)
+function C:GetNextAppWideEvent()
+    local today = date("%Y-%m-%d")
+    local upcomingEvent, pastEvent = nil, nil
+    local pastEventDate = ""
+
+    for _, event in ipairs(C.APP_WIDE_EVENTS) do
+        if event.startDate >= today then
+            if not upcomingEvent or event.startDate < upcomingEvent.startDate then
+                upcomingEvent = event
+            end
+        else
+            if event.startDate > pastEventDate then
+                pastEvent = event
+                pastEventDate = event.startDate
+            end
+        end
+    end
+
+    if upcomingEvent then return upcomingEvent, false end
+    if pastEvent then return pastEvent, true end
+    return nil, nil
+end
+
+-- Get timestamp for event
+function C:GetAppWideEventTimestamp(event)
+    local year, month, day = event.startDate:match("^(%d+)-(%d+)-(%d+)$")
+    if not year then return 0 end
+    local hour, minute = 19, 0
+    if event.time and event.time ~= "WEEKLY_RESET" then
+        hour, minute = event.time:match("^(%d+):(%d+)$")
+        hour, minute = tonumber(hour) or 19, tonumber(minute) or 0
+    elseif event.time == "WEEKLY_RESET" then
+        hour, minute = 11, 0
+    end
+    return time({ year = tonumber(year), month = tonumber(month), day = tonumber(day), hour = hour, min = minute, sec = 0 })
+end
+
+-- Get seconds until event (negative if past)
+function C:GetTimeUntilAppWideEvent(event)
+    return self:GetAppWideEventTimestamp(event) - time()
+end
+
+-- Format date for display (e.g., "Feb 19, 2025")
+function C:FormatAppWideEventDate(dateStr)
+    local year, month, day = dateStr:match("^(%d+)-(%d+)-(%d+)$")
+    if not year then return dateStr end
+    local months = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
+    return months[tonumber(month)] .. " " .. tonumber(day) .. ", " .. year
+end
+
+-- ============================================================================
+-- HAPPENING NOW EVENTS (Active World Bonus Events)
+-- ============================================================================
+
+--[[
+    Happening Now Events are active world bonus events displayed prominently
+    when the current date falls within their range. These are server-wide
+    bonuses like PvP honor weekends, XP boosts, etc.
+
+    Data format:
+    {
+        id = "unique_id",              -- Unique identifier
+        title = "Event Name",          -- Main display title
+        subtitle = "Bonus description", -- What the bonus is (e.g., "Honor increased by 150%")
+        flavorHorde = "Horde text",    -- Flavor text for Horde players
+        flavorAlliance = "Alliance text", -- Flavor text for Alliance players
+        startDate = "YYYY-MM-DD",      -- Start date
+        endDate = "YYYY-MM-DD",        -- End date
+        colorName = "COLOR_KEY",       -- Key from APP_WIDE_EVENT_COLORS
+        icon = "IconPath",             -- Full icon path
+        bonusType = "HONOR",           -- Type of bonus (HONOR, XP, REPUTATION, etc.)
+        bonusAmount = 150,             -- Bonus percentage
+    }
+]]
+C.HAPPENING_NOW_EVENTS = {
+    {
+        id = "sign_of_battle_prepatch",
+        title = "Sign of Battle",
+        subtitle = "Honor increased by 150%",
+        flavorHorde = "Time to purge some Alliance!",
+        flavorAlliance = "Time to cleanse the Horde!",
+        startDate = "2025-01-01",
+        endDate = "2025-02-05",
+        colorName = "BLOOD_RED",
+        icon = "Interface\\Icons\\Spell_Holy_AshesToAshes",
+        bonusType = "HONOR",
+        bonusAmount = 150,
+    },
+    -- Future events can be added here:
+    -- Darkmoon Faire, Battleground bonus weekends, Holiday events, etc.
+}
+
+-- UI Constants for "Happening Now" banners
+C.HAPPENING_NOW_UI = {
+    BANNER_HEIGHT = 48,       -- Taller than regular banners for prominence
+    ICON_SIZE = 32,           -- Larger icon
+    SECTION_PADDING = 12,     -- Padding below section
+}
+
+--[[
+    Get currently active "Happening Now" events
+    @return table - Array of active events
+]]
+function C:GetHappeningNowEvents()
+    local now = time()
+    local todayStr = date("%Y-%m-%d", now)
+    local active = {}
+
+    for _, event in ipairs(C.HAPPENING_NOW_EVENTS) do
+        local startDate = event.startDate
+        local endDate = event.endDate or startDate
+
+        if todayStr >= startDate and todayStr <= endDate then
+            table.insert(active, event)
+        end
+    end
+
+    return active
+end
+
+--[[
+    Calculate days remaining for a "Happening Now" event
+    @param event table - The event data
+    @return number - Days remaining (0 = ends today)
+]]
+function C:GetHappeningNowDaysRemaining(event)
+    if not event or not event.endDate then return 0 end
+
+    local now = time()
+    local todayStr = date("%Y-%m-%d", now)
+
+    -- Parse end date
+    local eYear, eMonth, eDay = event.endDate:match("^(%d+)-(%d+)-(%d+)$")
+    if not eYear then return 0 end
+
+    local endTimestamp = time({
+        year = tonumber(eYear),
+        month = tonumber(eMonth),
+        day = tonumber(eDay),
+        hour = 23,
+        min = 59,
+        sec = 59,
+    })
+
+    local secondsRemaining = endTimestamp - now
+    local daysRemaining = math.ceil(secondsRemaining / 86400)
+
+    return math.max(0, daysRemaining)
+end
+
+-- ============================================================================
+-- SOFT RESERVE SYSTEM CONSTANTS
+-- ============================================================================
+
+C.SOFT_RESERVE = {
+    MAX_RESERVES_PER_RAID = 1,      -- SR 1 system
+    RESET_DAY = 3,                  -- Tuesday (1=Sun, 3=Tue)
+    RESET_HOUR = 11,                -- 11:00 AM server time
+    PHASES = {
+        [1] = { "karazhan", "gruul", "magtheridon" },
+        [2] = { "ssc", "tk" },
+        [3] = { "hyjal", "bt" },
+        [5] = { "sunwell" },
+    },
+}
+
+C.SR_MESSAGE_TYPES = {
+    SR_LIST = "SRLIST",             -- Share full SR list
+    SR_UPDATE = "SRUPD",            -- Single item update
+    SR_QUERY = "SRQRY",             -- Request SR data
+}
+
+-- Lookup: raid key to phase number
+C.RAID_TO_PHASE = {}
+for phase, raids in pairs(C.SOFT_RESERVE.PHASES) do
+    for _, raidKey in ipairs(raids) do
+        C.RAID_TO_PHASE[raidKey] = phase
+    end
+end
+
+-- NOTE: C.WORDLE constants are defined in the WOW WORDLE CONSTANTS section above (line ~4032)
+
+-- ============================================================================
+-- JOURNEY TAB NEXT EVENT
+-- ============================================================================
+
+C.JOURNEY_UPCOMING = {
+    ROW_HEIGHT = 28,
+    SECTION_PADDING = 15,
 }

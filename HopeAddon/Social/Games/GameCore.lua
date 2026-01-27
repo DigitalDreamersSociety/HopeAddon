@@ -72,10 +72,19 @@ function GameCore:OnEnable()
 end
 
 function GameCore:OnDisable()
-    -- Stop all active games
+    -- Stop and destroy all active games (Issue #19: games never destroyed)
+    -- Issue #71.8: Wrap each game cleanup in pcall to prevent cascade failures
     for gameId, game in pairs(self.activeGames) do
-        self:EndGame(gameId, "SHUTDOWN")
+        local success, err = pcall(function()
+            self:EndGame(gameId, "SHUTDOWN")
+            self:DestroyGame(gameId)
+        end)
+        if not success then
+            HopeAddon:Debug("GameCore: Error cleaning up game", gameId, ":", tostring(err))
+        end
     end
+    -- Ensure activeGames table is wiped after destruction loop
+    wipe(self.activeGames)
 
     if self.updateFrame then
         self.updateFrame:SetScript("OnUpdate", nil)

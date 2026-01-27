@@ -353,9 +353,22 @@ function BattleshipUI:CleanupGameFrames(gameId)
 
     -- turnPrompt no longer used (handled by BattleshipGame status bar)
 
+    -- Issue #22: Properly cleanup victory overlay and its button scripts
     if frames.victory then
+        -- Stop any active effects
+        if HopeAddon.Effects then
+            HopeAddon.Effects:StopGlowsOnParent(frames.victory)
+        end
+        -- Clear button scripts to break closure references
+        local children = { frames.victory:GetChildren() }
+        for _, child in ipairs(children) do
+            if child.SetScript then
+                child:SetScript("OnClick", nil)
+            end
+        end
         frames.victory:Hide()
         frames.victory:SetParent(nil)
+        frames.victory = nil
     end
 
     self.gameFrames[gameId] = nil
@@ -582,15 +595,21 @@ function BattleshipUI:ShowVictoryOverlay(gameId, didWin, stats)
     closeBtn:SetSize(80, 24)
     closeBtn:SetPoint("BOTTOM", overlay, "BOTTOM", 0, 20)
     closeBtn:SetText("Close")
+    -- Issue #22: Store references for cleanup, use local captures carefully
+    local overlayRef = overlay
+    local gameIdRef = gameId
     closeBtn:SetScript("OnClick", function()
         -- Clean up victory glow before hiding
         if HopeAddon.Effects then
-            HopeAddon.Effects:StopGlowsOnParent(overlay)
+            HopeAddon.Effects:StopGlowsOnParent(overlayRef)
         end
-        overlay:Hide()
+        -- Clear button scripts to break closure references
+        closeBtn:SetScript("OnClick", nil)
+        overlayRef:Hide()
+        overlayRef:SetParent(nil)
         local GameCore = HopeAddon:GetModule("GameCore")
         if GameCore then
-            GameCore:DestroyGame(gameId)
+            GameCore:DestroyGame(gameIdRef)
         end
     end)
 

@@ -1448,6 +1448,7 @@ function Components:CreateCollapsibleSection(parent, title, colorName, startExpa
     disabled:Hide()
     section.disabledOverlay = disabled
     section.headerBg = headerBg
+    section.header = header  -- Expose header for custom theming (accent bars, icons)
 
     -- Content container (holds child entries)
     local contentContainer = CreateFrame("Frame", nil, section)
@@ -2485,8 +2486,380 @@ function Components:CreateReputationBar(parent, width, height, options)
     return container
 end
 
--- NOTE: CreateSegmentedReputationBar was removed in Reputation tab restructure.
--- Items are now displayed via CreateRecommendedUpgradesSection at the top of the Reputation tab.
+--[[
+    SEGMENTED REPUTATION BAR
+    Shows Neutral → Exalted journey with 5 colored segments
+
+    Features:
+    - 5 segments proportionally sized by rep required (Neutral=3k, Friendly=6k, Honored=12k, Revered=21k)
+    - Standing labels above segments
+    - Item icon containers above segments for reward previews
+    - Fill overlay showing overall progress
+    - Diamond marker at current position
+    - Standing highlight for current tier
+
+    @param parent Frame - Parent frame
+    @param width number - Total bar width
+    @param height number - Bar height (default 18)
+    @param options table - Optional settings
+    @return container Frame - The segmented bar with methods
+]]
+function Components:CreateSegmentedReputationBar(parent, width, height, options)
+    width = width or 250
+    height = height or 18
+    options = options or {}
+
+    -- Segment data (proportional widths based on rep required)
+    -- Total rep: Neutral(3k) + Friendly(6k) + Honored(12k) + Revered(21k) = 42k
+    local SEGMENT_DATA = {
+        { standingId = 4, name = "Neutral",  rep = 3000,  color = { r = 1.0, g = 1.0, b = 0.0 } },   -- Yellow
+        { standingId = 5, name = "Friendly", rep = 6000,  color = { r = 0.0, g = 0.8, b = 0.0 } },   -- Green
+        { standingId = 6, name = "Honored",  rep = 12000, color = { r = 0.0, g = 0.6, b = 0.8 } },   -- Cyan
+        { standingId = 7, name = "Revered",  rep = 21000, color = { r = 0.0, g = 0.4, b = 0.8 } },   -- Blue
+        { standingId = 8, name = "Exalted",  rep = 0,     color = { r = 0.6, g = 0.2, b = 1.0 } },   -- Purple
+    }
+    local TOTAL_REP = 42000
+    local ICON_SIZE = 20
+    local ICON_SPACING = 4
+    local LABEL_HEIGHT = 12
+    local BAR_MARGIN = 2
+
+    -- Calculate segment widths (Exalted gets 12% as endpoint marker)
+    local EXALTED_WIDTH_PCT = 0.12
+    local usableWidth = width * (1 - EXALTED_WIDTH_PCT)
+
+    local segmentWidths = {}
+    for i, seg in ipairs(SEGMENT_DATA) do
+        if i < 5 then
+            segmentWidths[i] = usableWidth * (seg.rep / TOTAL_REP)
+        else
+            segmentWidths[i] = width * EXALTED_WIDTH_PCT
+        end
+    end
+
+    -- Container frame (includes space for icons and labels above bar)
+    local totalHeight = height + ICON_SIZE + ICON_SPACING + LABEL_HEIGHT + 4
+    local container = CreateFrame("Frame", nil, parent)
+    container:SetSize(width, totalHeight)
+
+    -- Store state
+    container.currentStanding = 4
+    container.currentProgress = 0
+    container.totalCurrent = 0
+    container.totalMax = TOTAL_REP
+    container.itemIcons = {}
+    container._effects = {}
+
+    -- Bar background (dark)
+    local barBg = container:CreateTexture(nil, "BACKGROUND", nil, -1)
+    barBg:SetTexture("Interface\\Buttons\\WHITE8x8")
+    barBg:SetPoint("BOTTOMLEFT", container, "BOTTOMLEFT", 0, 0)
+    barBg:SetSize(width, height)
+    barBg:SetVertexColor(0.05, 0.05, 0.05, 0.9)
+    container.barBg = barBg
+
+    -- Create segments
+    container.segments = {}
+    container.segmentFills = {}
+    container.segmentDividers = {}
+    container.standingLabels = {}
+    container.itemContainers = {}
+
+    local xOffset = 0
+    for i, seg in ipairs(SEGMENT_DATA) do
+        local segWidth = segmentWidths[i]
+
+        -- Segment background (faded standing color)
+        local segBg = container:CreateTexture(nil, "ARTWORK", nil, 0)
+        segBg:SetTexture("Interface\\Buttons\\WHITE8x8")
+        segBg:SetPoint("BOTTOMLEFT", container, "BOTTOMLEFT", xOffset, 0)
+        segBg:SetSize(segWidth, height)
+        segBg:SetVertexColor(seg.color.r * 0.3, seg.color.g * 0.3, seg.color.b * 0.3, 0.6)
+        container.segments[i] = segBg
+
+        -- Segment fill (bright when filled)
+        local segFill = container:CreateTexture(nil, "ARTWORK", nil, 1)
+        segFill:SetTexture("Interface\\TARGETINGFRAME\\UI-StatusBar")
+        segFill:SetPoint("BOTTOMLEFT", container, "BOTTOMLEFT", xOffset + BAR_MARGIN, BAR_MARGIN)
+        segFill:SetSize(0, height - BAR_MARGIN * 2)  -- Start empty
+        segFill:SetVertexColor(seg.color.r, seg.color.g, seg.color.b, 1)
+        container.segmentFills[i] = segFill
+        segFill._maxWidth = segWidth - BAR_MARGIN * 2
+        segFill._standingId = seg.standingId
+
+        -- Divider (except after last segment)
+        if i < 5 then
+            local divider = container:CreateTexture(nil, "ARTWORK", nil, 2)
+            divider:SetTexture("Interface\\Buttons\\WHITE8x8")
+            divider:SetSize(2, height + 2)
+            divider:SetPoint("BOTTOMLEFT", container, "BOTTOMLEFT", xOffset + segWidth - 1, -1)
+            divider:SetVertexColor(0.2, 0.2, 0.2, 1)
+            container.segmentDividers[i] = divider
+        end
+
+        -- Standing label above segment
+        local label = container:CreateFontString(nil, "OVERLAY")
+        label:SetFont(HopeAddon.assets.fonts.SMALL, 8, "")
+        label:SetPoint("BOTTOM", segBg, "TOP", 0, ICON_SIZE + ICON_SPACING + 2)
+        label:SetText(seg.name)
+        label:SetTextColor(seg.color.r, seg.color.g, seg.color.b, 0.8)
+        container.standingLabels[i] = label
+
+        -- Item icon container above segment
+        local iconBtn = CreateFrame("Button", nil, container)
+        iconBtn:SetSize(ICON_SIZE, ICON_SIZE)
+        iconBtn:SetPoint("BOTTOM", segBg, "TOP", 0, 2)
+        iconBtn:Hide()  -- Hidden until SetItemIcon is called
+
+        local iconTex = iconBtn:CreateTexture(nil, "ARTWORK")
+        iconTex:SetAllPoints()
+        iconBtn.icon = iconTex
+
+        -- Icon border (quality colored)
+        local iconBorder = iconBtn:CreateTexture(nil, "OVERLAY")
+        iconBorder:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
+        iconBorder:SetBlendMode("ADD")
+        iconBorder:SetPoint("CENTER", iconBtn, "CENTER", 0, 0)
+        iconBorder:SetSize(ICON_SIZE + 8, ICON_SIZE + 8)
+        iconBorder:SetAlpha(0.7)
+        iconBtn.border = iconBorder
+
+        iconBtn.standingId = seg.standingId
+        iconBtn.segmentIndex = i
+        container.itemContainers[i] = iconBtn
+
+        xOffset = xOffset + segWidth
+    end
+
+    -- Diamond progress marker
+    local marker = container:CreateTexture(nil, "OVERLAY", nil, 3)
+    marker:SetTexture("Interface\\MINIMAP\\TRACKING\\Repair")
+    marker:SetSize(14, 14)
+    marker:SetPoint("BOTTOM", container, "BOTTOMLEFT", 0, height - 2)
+    marker:SetVertexColor(1, 1, 1, 1)
+    container.marker = marker
+
+    -- Border frame
+    local borderFrame = CreateFrame("Frame", nil, container, "BackdropTemplate")
+    borderFrame:SetPoint("BOTTOMLEFT", container, "BOTTOMLEFT", -2, -2)
+    borderFrame:SetPoint("TOPRIGHT", barBg, "TOPRIGHT", 2, 2)
+    borderFrame:SetBackdrop({
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 10,
+    })
+    borderFrame:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+    container.borderFrame = borderFrame
+
+    --[[
+        METHODS
+    ]]
+
+    -- Set progress within the bar
+    -- @param standingId number - Current standing (4-8)
+    -- @param current number - Rep within current standing
+    -- @param max number - Rep needed for next standing
+    -- @param totalCurrent number - Total rep from Neutral (optional)
+    -- @param totalMax number - Total rep to Exalted (optional, default 42000)
+    function container:SetProgress(standingId, current, max, totalCurrent, totalMax)
+        standingId = math.max(4, math.min(8, standingId or 4))
+        self.currentStanding = standingId
+        self.currentProgress = current or 0
+        self.totalMax = totalMax or TOTAL_REP
+
+        -- Calculate total progress if not provided
+        if totalCurrent then
+            self.totalCurrent = totalCurrent
+        else
+            -- Sum up completed standings + current progress
+            local completed = 0
+            for i, seg in ipairs(SEGMENT_DATA) do
+                if seg.standingId < standingId then
+                    completed = completed + seg.rep
+                end
+            end
+            self.totalCurrent = completed + self.currentProgress
+        end
+
+        -- Update segment fills
+        local repAccumulated = 0
+        for i, seg in ipairs(SEGMENT_DATA) do
+            local fill = self.segmentFills[i]
+            local segRep = seg.rep
+
+            if i == 5 then
+                -- Exalted segment: fill if at exalted
+                if standingId >= 8 then
+                    fill:SetWidth(fill._maxWidth)
+                else
+                    fill:SetWidth(0.01)
+                end
+            elseif standingId > seg.standingId then
+                -- Completed standing: full fill
+                fill:SetWidth(fill._maxWidth)
+            elseif standingId == seg.standingId then
+                -- Current standing: partial fill
+                local pct = max > 0 and (current / max) or 0
+                fill:SetWidth(math.max(0.01, fill._maxWidth * pct))
+            else
+                -- Future standing: empty
+                fill:SetWidth(0.01)
+            end
+
+            repAccumulated = repAccumulated + segRep
+        end
+
+        -- Update marker position
+        local totalPct = self.totalMax > 0 and (self.totalCurrent / self.totalMax) or 0
+        totalPct = math.min(1, totalPct)
+        local markerX = width * totalPct
+        self.marker:SetPoint("BOTTOM", self, "BOTTOMLEFT", markerX, height - 2)
+    end
+
+    -- Highlight the current standing segment
+    function container:SetStandingHighlight(standingId)
+        for i, seg in ipairs(SEGMENT_DATA) do
+            local label = self.standingLabels[i]
+            if seg.standingId == standingId then
+                label:SetTextColor(seg.color.r, seg.color.g, seg.color.b, 1)
+                label:SetFont(HopeAddon.assets.fonts.SMALL, 9, "OUTLINE")
+            else
+                label:SetTextColor(seg.color.r, seg.color.g, seg.color.b, 0.6)
+                label:SetFont(HopeAddon.assets.fonts.SMALL, 8, "")
+            end
+        end
+
+        -- Update border for exalted
+        if standingId >= 8 then
+            self.borderFrame:SetBackdropBorderColor(0.6, 0.2, 1.0, 1)
+        elseif standingId >= 7 then
+            self.borderFrame:SetBackdropBorderColor(1, 0.84, 0, 0.8)
+        else
+            self.borderFrame:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+        end
+    end
+
+    -- Set an item icon above a standing segment
+    -- Icons are positioned above the DIVIDER leading to that standing
+    -- (e.g., Honored rewards appear above the Friendly->Honored divider)
+    -- @param standingId number - Which standing segment (4-8)
+    -- @param itemId number - Item ID for tooltip
+    -- @param iconPath string - Icon texture path (e.g., "INV_Misc_Tabard_HonorHold")
+    -- @param isObtainable boolean - Whether item can be obtained (desaturated if not)
+    function container:SetItemIcon(standingId, itemId, iconPath, isObtainable)
+        -- Find the segment index for this standing
+        local segmentIndex = standingId - 3  -- 4->1, 5->2, 6->3, 7->4, 8->5
+        if segmentIndex < 1 or segmentIndex > 5 then return end
+
+        local iconBtn = self.itemContainers[segmentIndex]
+        if not iconBtn then return end
+
+        -- Reposition icon above the DIVIDER leading to this standing
+        -- Friendly(5) rewards → above divider[1] (end of Neutral)
+        -- Honored(6) rewards → above divider[2] (end of Friendly)
+        -- Revered(7) rewards → above divider[3] (end of Honored)
+        -- Exalted(8) rewards → above divider[4] (end of Revered)
+        local dividerIndex = standingId - 4  -- 5->1, 6->2, 7->3, 8->4
+        iconBtn:ClearAllPoints()
+        if dividerIndex >= 1 and dividerIndex <= 4 and self.segmentDividers[dividerIndex] then
+            local divider = self.segmentDividers[dividerIndex]
+            iconBtn:SetPoint("BOTTOM", divider, "TOP", 0, 2)
+        else
+            -- Neutral (standingId 4) has no preceding divider, center in segment
+            local segBg = self.segments[segmentIndex]
+            if segBg then
+                iconBtn:SetPoint("BOTTOM", segBg, "TOP", 0, 2)
+            end
+        end
+
+        -- Set icon texture (handle nil/empty iconPath)
+        local fullPath = iconPath or "INV_Misc_QuestionMark"
+        if fullPath and not string.find(fullPath, "Interface") then
+            fullPath = "Interface\\Icons\\" .. fullPath
+        end
+        iconBtn.icon:SetTexture(fullPath)
+
+        -- Desaturate if not obtainable
+        if isObtainable then
+            iconBtn.icon:SetDesaturated(false)
+            iconBtn.icon:SetVertexColor(1, 1, 1, 1)
+            iconBtn.border:SetVertexColor(1, 0.84, 0, 0.7)
+        else
+            iconBtn.icon:SetDesaturated(true)
+            iconBtn.icon:SetVertexColor(0.5, 0.5, 0.5, 0.8)
+            iconBtn.border:SetVertexColor(0.4, 0.4, 0.4, 0.5)
+        end
+
+        -- Store item data
+        iconBtn.itemId = itemId
+        iconBtn.itemIcon = iconPath
+        iconBtn.isObtainable = isObtainable
+
+        -- Setup tooltip
+        iconBtn:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            if self.itemId and self.itemId > 0 then
+                GameTooltip:SetHyperlink("item:" .. self.itemId)
+            end
+            GameTooltip:Show()
+        end)
+        iconBtn:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+        end)
+
+        iconBtn:Show()
+
+        -- Track for cleanup
+        table.insert(self.itemIcons, { standingId = standingId, btn = iconBtn })
+    end
+
+    -- Clear all item icons
+    function container:ClearItemIcons()
+        for _, iconBtn in ipairs(self.itemContainers) do
+            iconBtn:Hide()
+            iconBtn:SetScript("OnEnter", nil)
+            iconBtn:SetScript("OnLeave", nil)
+            iconBtn.itemId = nil
+            iconBtn.itemIcon = nil
+            iconBtn.isObtainable = nil
+        end
+        wipe(self.itemIcons)
+    end
+
+    -- Cleanup the bar (for pooling)
+    function container:Cleanup()
+        self:ClearItemIcons()
+
+        -- Reset fills
+        for _, fill in ipairs(self.segmentFills) do
+            fill:SetWidth(0.01)
+        end
+
+        -- Reset labels
+        for i, label in ipairs(self.standingLabels) do
+            label:SetTextColor(SEGMENT_DATA[i].color.r, SEGMENT_DATA[i].color.g, SEGMENT_DATA[i].color.b, 0.6)
+            label:SetFont(HopeAddon.assets.fonts.SMALL, 8, "")
+        end
+
+        -- Reset border
+        self.borderFrame:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+
+        -- Reset marker
+        self.marker:SetPoint("BOTTOM", self, "BOTTOMLEFT", 0, height - 2)
+
+        -- Clear effects
+        for _, effect in ipairs(self._effects) do
+            if effect.animGroup then effect.animGroup:Stop() end
+            if effect.ticker then effect.ticker:Cancel() end
+        end
+        wipe(self._effects)
+
+        self.currentStanding = 4
+        self.currentProgress = 0
+        self.totalCurrent = 0
+    end
+
+    return container
+end
 
 --[[
     REPUTATION HELPERS
@@ -3377,6 +3750,97 @@ function Components:HideCornerRunes(runes, hide)
             rune:Show()
         end
     end
+end
+
+--[[
+    CREATE OPACITY SLIDER
+    Creates a compact slider for adjusting background opacity
+
+    @param parent Frame - Parent frame
+    @param width number - Width of the slider (default 80)
+    @param initialValue number - Initial value 0.3 to 1.0 (default 0.95)
+    @param onChange function - Callback when value changes, receives (value)
+    @return Frame - Slider container frame
+]]
+function Components:CreateOpacitySlider(parent, width, initialValue, onChange)
+    width = width or 80
+    initialValue = initialValue or 0.95
+
+    local AssetFonts = HopeAddon.assets.fonts
+
+    -- Container frame
+    local container = CreateFrame("Frame", nil, parent)
+    container:SetSize(width + 40, 20)  -- Extra width for label
+
+    -- Label
+    local label = container:CreateFontString(nil, "OVERLAY")
+    label:SetFont(AssetFonts.SMALL, 9, "")
+    label:SetPoint("LEFT", container, "LEFT", 0, 0)
+    label:SetText("Opa")
+    label:SetTextColor(0.7, 0.7, 0.7, 1)
+
+    -- Slider frame
+    local slider = CreateFrame("Slider", nil, container, "OptionsSliderTemplate")
+    slider:SetPoint("LEFT", label, "RIGHT", 4, 0)
+    slider:SetSize(width - 30, 14)
+    slider:SetMinMaxValues(0, 1.0)
+    slider:SetValueStep(0.05)
+    slider:SetObeyStepOnDrag(true)
+    slider:SetValue(initialValue)
+
+    -- Hide default labels (Low/High text)
+    slider.Low:SetText("")
+    slider.High:SetText("")
+    slider.Text:SetText("")
+
+    -- Custom value label (percentage)
+    local valueLabel = container:CreateFontString(nil, "OVERLAY")
+    valueLabel:SetFont(AssetFonts.SMALL, 9, "")
+    valueLabel:SetPoint("LEFT", slider, "RIGHT", 4, 0)
+    valueLabel:SetTextColor(0.9, 0.9, 0.9, 1)
+
+    -- Update display function
+    local function UpdateDisplay(value)
+        local pct = math.floor(value * 100 + 0.5)
+        valueLabel:SetText(pct .. "%")
+    end
+
+    -- Initial display
+    UpdateDisplay(initialValue)
+
+    -- Value changed callback
+    slider:SetScript("OnValueChanged", function(self, value)
+        UpdateDisplay(value)
+        if onChange then
+            onChange(value)
+        end
+    end)
+
+    -- Tooltip
+    slider:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine("Opacity", 1, 0.84, 0)
+        GameTooltip:AddLine("0% = transparent, 100% = solid", 0.8, 0.8, 0.8, true)
+        GameTooltip:Show()
+    end)
+    slider:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
+    container.slider = slider
+    container.valueLabel = valueLabel
+
+    -- Method to set value programmatically
+    function container:SetValue(value)
+        slider:SetValue(value)
+    end
+
+    -- Method to get current value
+    function container:GetValue()
+        return slider:GetValue()
+    end
+
+    return container
 end
 
 -- Register with addon

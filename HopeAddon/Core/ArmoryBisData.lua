@@ -2,9 +2,13 @@
 -- BiS gear database organized by phase and spec
 -- Auto-generated from Wowhead TBC Classic guides
 
-local _, HopeAddon = ...
+-- Use global HopeAddon table (consistent with Constants.lua)
+HopeAddon = HopeAddon or {}
 HopeAddon.Constants = HopeAddon.Constants or {}
 local C = HopeAddon.Constants
+
+-- Issue #71.3: Module-level cache for BiS lookup (prevents Constants table mutation)
+local bisLookupCache = nil
 
 -----------------------------------------------------------
 -- ARMORY SPECS: Maps class to available specs with guide keys
@@ -81,7 +85,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             head = {
                 bis = { id = 29021, name = "Warbringer Battle-Helm", source = "Prince Malchezaar", sourceType = "raid" },
                 alts = {
-                    { id = 32461, name = "Mask of the Deceiver", source = "G'eras (50 Badges)", sourceType = "badge" },
+                    { id = 32087, name = "Mask of the Deceiver", source = "G'eras (50 Badges)", sourceType = "badge" },
                     { id = 28224, name = "Wastewalker Helm", source = "Epoch Hunter", sourceType = "heroic" },
                 }
             },
@@ -103,6 +107,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 24259, name = "Vengeance Wrap", source = "Tailoring", sourceType = "crafted" },
                 alts = {
                     { id = 28672, name = "Drape of the Dark Reavers", source = "Shade of Aran", sourceType = "raid" },
+                    { id = 28582, name = "Red Riding Hood's Cloak", source = "Opera Event", sourceType = "raid" },
                     { id = 27878, name = "Auchenai Death Shroud", source = "Avatar of the Martyred", sourceType = "heroic" },
                 }
             },
@@ -179,6 +184,8 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             mainhand = {
                 bis = { id = 28438, name = "Dragonmaw", source = "Master Hammersmith", sourceType = "crafted" },
                 alts = {
+                    { id = 28773, name = "Gorehowl", source = "Prince Malchezaar", sourceType = "raid" },
+                    { id = 28572, name = "Despair", source = "Opera Event", sourceType = "raid" },
                     { id = 28767, name = "The Decapitator", source = "Prince Malchezaar", sourceType = "raid" },
                     { id = 28429, name = "Lionheart Champion", source = "Master Swordsmith", sourceType = "crafted" },
                 }
@@ -211,7 +218,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             neck = {
-                bis = { id = 28244, name = "Barbed Choker of Discipline", source = "Maiden of Virtue", sourceType = "raid" },
+                bis = { id = 28516, name = "Barbed Choker of Discipline", source = "Maiden of Virtue", sourceType = "raid" },
                 alts = {
                     { id = 29386, name = "Necklace of the Juggernaut", source = "G'eras (25 Badges)", sourceType = "badge" },
                     { id = 27792, name = "Mark of the Ravenguard", source = "Anzu", sourceType = "heroic" },
@@ -239,7 +246,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             wrist = {
-                bis = { id = 28996, name = "Bracers of the Green Fortress", source = "Blacksmithing", sourceType = "crafted" },
+                bis = { id = 23538, name = "Bracers of the Green Fortress", source = "Blacksmithing", sourceType = "crafted" },
                 alts = {
                     { id = 29463, name = "Sha'tari Wrought Armguards", source = "Sha'tar Exalted", sourceType = "reputation" },
                     { id = 28502, name = "Vambraces of Courage", source = "Attumen the Huntsman", sourceType = "raid" },
@@ -248,21 +255,21 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             hands = {
                 bis = { id = 30741, name = "Topaz-Studded Battlegrips", source = "Doom Lord Kazzak", sourceType = "world" },
                 alts = {
-                    { id = 29015, name = "Warbringer Handguards", source = "The Curator", sourceType = "raid" },
+                    { id = 29017, name = "Warbringer Handguards", source = "The Curator", sourceType = "raid" },
                     { id = 27475, name = "Gauntlets of the Bold", source = "Warchief Kargath", sourceType = "heroic" },
                 }
             },
             waist = {
-                bis = { id = 28995, name = "Girdle of the Immovable", source = "Blacksmithing", sourceType = "crafted" },
+                bis = { id = 27672, name = "Girdle of the Immovable", source = "Quagmirran (Slave Pens)", sourceType = "dungeon" },
                 alts = {
-                    { id = 27672, name = "Girdle of Valorous Deeds", source = "Exarch Maladaar", sourceType = "heroic" },
                     { id = 28566, name = "Crimson Girdle of the Indomitable", source = "Moroes", sourceType = "raid" },
+                    { id = 27460, name = "Girdle of Many Blessings", source = "Warlord Kalithresh", sourceType = "heroic" },
                 }
             },
             legs = {
                 bis = { id = 28621, name = "Wrynn Dynasty Greaves", source = "Nightbane", sourceType = "raid" },
                 alts = {
-                    { id = 29014, name = "Warbringer Legguards", source = "Gruul the Dragonkiller", sourceType = "raid" },
+                    { id = 29015, name = "Warbringer Legguards", source = "Gruul the Dragonkiller", sourceType = "raid" },
                     { id = 27839, name = "Legplates of the Righteous", source = "Aeonus", sourceType = "heroic" },
                 }
             },
@@ -305,7 +312,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 28749, name = "King's Defender", source = "Chess Event", sourceType = "raid" },
                 alts = {
                     { id = 29362, name = "The Sun Eater", source = "Pathaleon the Calculator", sourceType = "heroic" },
-                    { id = 28189, name = "Latro's Shifting Sword", source = "Aeonus", sourceType = "dungeon" },
+                    { id = 28189, name = "Latro's Shifting Sword", source = "Aeonus", sourceType = "heroic" },
                 }
             },
             offhand = {
@@ -339,7 +346,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 28609, name = "Emberspur Talisman", source = "Nightbane", sourceType = "raid" },
                 alts = {
                     { id = 29374, name = "Necklace of Eternal Hope", source = "G'eras (25 Badges)", sourceType = "badge" },
-                    { id = 27508, name = "Natasha's Guardian Cord", source = "Quest", sourceType = "quest" },
+                    { id = 31691, name = "Natasha's Guardian Cord", source = "Quest: The Hound-Master", sourceType = "quest" },
                 }
             },
             shoulders = {
@@ -374,7 +381,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 28505, name = "Gauntlets of Renewed Hope", source = "Attumen the Huntsman", sourceType = "raid" },
                 alts = {
                     { id = 29063, name = "Justicar Handguards", source = "The Curator", sourceType = "raid" },
-                    { id = 27465, name = "Prismatic Mittens of Mending", source = "Aeonus", sourceType = "dungeon" },
+                    { id = 28304, name = "Prismatic Mittens of Mending", source = "Commander Sarannis (Botanica)", sourceType = "dungeon" },
                 }
             },
             waist = {
@@ -415,6 +422,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             trinket1 = {
                 bis = { id = 29376, name = "Essence of the Martyr", source = "G'eras (41 Badges)", sourceType = "badge" },
                 alts = {
+                    { id = 28590, name = "Ribbon of Sacrifice", source = "Opera Event", sourceType = "raid" },
                     { id = 28823, name = "Eye of Gruul", source = "Gruul the Dragonkiller", sourceType = "raid" },
                     { id = 30841, name = "Lower City Prayerbook", source = "Lower City Honored", sourceType = "reputation" },
                 }
@@ -422,6 +430,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             trinket2 = {
                 bis = { id = 28823, name = "Eye of Gruul", source = "Gruul the Dragonkiller", sourceType = "raid" },
                 alts = {
+                    { id = 28590, name = "Ribbon of Sacrifice", source = "Opera Event", sourceType = "raid" },
                     { id = 30841, name = "Lower City Prayerbook", source = "Lower City Honored", sourceType = "reputation" },
                     { id = 27828, name = "Warp-Scarab Brooch", source = "Pandemonius", sourceType = "heroic" },
                 }
@@ -441,7 +450,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             ranged = {
-                bis = { id = 28296, name = "Libram of Saints Departed", source = "Auchenai Crypts", sourceType = "dungeon" },
+                bis = { id = 28296, name = "Libram of the Lightbringer", source = "Commander Sarannis (Botanica)", sourceType = "dungeon" },
                 alts = {
                     { id = 23201, name = "Libram of Divinity", source = "Naxxramas Legacy", sourceType = "raid" },
                     { id = 28065, name = "Libram of Wracking", source = "Hellfire Peninsula Quest", sourceType = "quest" },
@@ -477,6 +486,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             back = {
                 bis = { id = 28672, name = "Drape of the Dark Reavers", source = "Shade of Aran", sourceType = "raid" },
                 alts = {
+                    { id = 28582, name = "Red Riding Hood's Cloak", source = "Opera Event", sourceType = "raid" },
                     { id = 24259, name = "Vengeance Wrap", source = "Tailoring", sourceType = "crafted" },
                     { id = 29382, name = "Blood Knight War Cloak", source = "G'eras (25 Badges)", sourceType = "badge" },
                 }
@@ -519,7 +529,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             feet = {
                 bis = { id = 28545, name = "Edgewalker Longboots", source = "Moroes", sourceType = "raid" },
                 alts = {
-                    { id = 28387, name = "Shadowstep Striders", source = "Grandmaster Vorpil", sourceType = "heroic" },
+                    { id = 29248, name = "Shadowstep Striders", source = "Harbinger Skyriss (Heroic Arcatraz)", sourceType = "heroic" },
                     { id = 25686, name = "Fel Leather Boots", source = "Leatherworking", sourceType = "crafted" },
                 }
             },
@@ -540,6 +550,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             trinket1 = {
                 bis = { id = 28830, name = "Dragonspine Trophy", source = "Gruul the Dragonkiller", sourceType = "raid" },
                 alts = {
+                    { id = 28579, name = "Romulo's Poison Vial", source = "Opera Event", sourceType = "raid" },
                     { id = 29383, name = "Bloodlust Brooch", source = "G'eras (41 Badges)", sourceType = "badge" },
                     { id = 28034, name = "Hourglass of the Unraveller", source = "Temporus", sourceType = "heroic" },
                 }
@@ -547,6 +558,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             trinket2 = {
                 bis = { id = 29383, name = "Bloodlust Brooch", source = "G'eras (41 Badges)", sourceType = "badge" },
                 alts = {
+                    { id = 28579, name = "Romulo's Poison Vial", source = "Opera Event", sourceType = "raid" },
                     { id = 28288, name = "Abacus of Violent Odds", source = "Pathaleon the Calculator", sourceType = "heroic" },
                     { id = 28034, name = "Hourglass of the Unraveller", source = "Temporus", sourceType = "heroic" },
                 }
@@ -554,6 +566,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             mainhand = {
                 bis = { id = 28768, name = "Malchazeen", source = "Prince Malchezaar", sourceType = "raid" },
                 alts = {
+                    { id = 28573, name = "Blade of the Unrequited", source = "Opera Event", sourceType = "raid" },
                     { id = 28295, name = "Gladiator's Shiv", source = "Arena Season 1", sourceType = "pvp" },
                     { id = 28438, name = "Dragonmaw", source = "Master Hammersmith", sourceType = "crafted" },
                 }
@@ -561,6 +574,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             offhand = {
                 bis = { id = 28768, name = "Malchazeen", source = "Prince Malchezaar", sourceType = "raid" },
                 alts = {
+                    { id = 28573, name = "Blade of the Unrequited", source = "Opera Event", sourceType = "raid" },
                     { id = 28657, name = "Fool's Bane", source = "Terestian Illhoof", sourceType = "raid" },
                     { id = 27872, name = "The Harvester of Souls", source = "Avatar of the Martyred", sourceType = "heroic" },
                 }
@@ -581,6 +595,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             head = {
                 bis = { id = 29081, name = "Demon Stalker Greathelm", source = "Prince Malchezaar", sourceType = "raid" },
                 alts = {
+                    { id = 28583, name = "Big Bad Wolf's Head", source = "Opera Event", sourceType = "raid" },
                     { id = 32087, name = "Mask of the Deceiver", source = "G'eras (50 Badges)", sourceType = "badge" },
                     { id = 27516, name = "Malefic Mask of the Shadows", source = "High King Maulgar", sourceType = "raid" },
                 }
@@ -602,6 +617,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             back = {
                 bis = { id = 28672, name = "Drape of the Dark Reavers", source = "Shade of Aran", sourceType = "raid" },
                 alts = {
+                    { id = 28582, name = "Red Riding Hood's Cloak", source = "Opera Event", sourceType = "raid" },
                     { id = 24259, name = "Vengeance Wrap", source = "Tailoring", sourceType = "crafted" },
                     { id = 29382, name = "Blood Knight War Cloak", source = "G'eras (25 Badges)", sourceType = "badge" },
                 }
@@ -630,6 +646,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             waist = {
                 bis = { id = 28828, name = "Gronn-Stitched Girdle", source = "Gruul the Dragonkiller", sourceType = "raid" },
                 alts = {
+                    { id = 28567, name = "Belt of Gale Force", source = "Moroes", sourceType = "raid" },
                     { id = 29526, name = "Primalstrike Belt", source = "Elemental Leatherworking", sourceType = "crafted" },
                     { id = 29247, name = "Girdle of the Deathdealer", source = "Aeonus", sourceType = "heroic" },
                 }
@@ -638,7 +655,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 30739, name = "Scaled Greaves of the Marksman", source = "Doom Lord Kazzak", sourceType = "world" },
                 alts = {
                     { id = 28741, name = "Skulker's Greaves", source = "Netherspite", sourceType = "raid" },
-                    { id = 28348, name = "Beast Lord Leggings", source = "Aeonus", sourceType = "dungeon" },
+                    { id = 28348, name = "Beast Lord Leggings", source = "Aeonus", sourceType = "heroic" },
                 }
             },
             feet = {
@@ -677,18 +694,15 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             mainhand = {
-                bis = { id = 28772, name = "Sunfury Bow of the Phoenix", source = "Prince Malchezaar", sourceType = "raid" },
-                alts = {
-                    { id = 28435, name = "Gladiator's Longbow", source = "Arena Season 1", sourceType = "pvp" },
-                    { id = 28504, name = "Steelhawk Crossbow", source = "Attumen the Huntsman", sourceType = "raid" },
-                }
-            },
-            offhand = {
                 bis = { id = 28587, name = "Legacy", source = "Opera Event", sourceType = "raid" },
                 alts = {
                     { id = 28767, name = "The Decapitator", source = "Prince Malchezaar", sourceType = "raid" },
                     { id = 28438, name = "Dragonmaw", source = "Master Hammersmith", sourceType = "crafted" },
                 }
+            },
+            offhand = {
+                bis = { id = 0, name = "N/A (2H Stat Stick)", source = "N/A", sourceType = "none" },
+                alts = {}
             },
             ranged = {
                 bis = { id = 28772, name = "Sunfury Bow of the Phoenix", source = "Prince Malchezaar", sourceType = "raid" },
@@ -707,7 +721,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 24266, name = "Spellstrike Hood", source = "Tailoring", sourceType = "crafted" },
                 alts = {
                     { id = 29076, name = "Collar of the Aldor", source = "Prince Malchezaar", sourceType = "raid" },
-                    { id = 28415, name = "Hood of Oblivion", source = "Grandmaster Vorpil", sourceType = "heroic" },
+                    { id = 28415, name = "Hood of Oblivion", source = "Harbinger Skyriss (Heroic Arcatraz)", sourceType = "heroic" },
                 }
             },
             neck = {
@@ -718,7 +732,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             shoulders = {
-                bis = { id = 29079, name = "Collar of the Incarnate", source = "High King Maulgar", sourceType = "raid" },
+                bis = { id = 29079, name = "Pauldrons of the Aldor", source = "High King Maulgar", sourceType = "raid" },
                 alts = {
                     { id = 27796, name = "Mana-Etched Spaulders", source = "Rokmar the Crackler", sourceType = "heroic" },
                     { id = 27778, name = "Spaulders of Oblivion", source = "Ambassador Hellmaw", sourceType = "dungeon" },
@@ -734,6 +748,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             chest = {
                 bis = { id = 21848, name = "Spellfire Robe", source = "Spellfire Tailoring", sourceType = "crafted" },
                 alts = {
+                    { id = 28578, name = "Masquerade Gown", source = "Opera Event", sourceType = "raid" },
                     { id = 29077, name = "Robe of the Aldor", source = "Magtheridon", sourceType = "raid" },
                     { id = 28230, name = "Hallowed Garments", source = "Murmur", sourceType = "dungeon" },
                 }
@@ -755,6 +770,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             waist = {
                 bis = { id = 21846, name = "Spellfire Belt", source = "Spellfire Tailoring", sourceType = "crafted" },
                 alts = {
+                    { id = 28569, name = "Nethershard Girdle", source = "Moroes", sourceType = "raid" },
                     { id = 24256, name = "Girdle of Ruination", source = "Tailoring", sourceType = "crafted" },
                     { id = 28799, name = "Belt of Divine Inspiration", source = "Terestian Illhoof", sourceType = "raid" },
                 }
@@ -769,13 +785,14 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             feet = {
                 bis = { id = 28517, name = "Boots of Foretelling", source = "Maiden of Virtue", sourceType = "raid" },
                 alts = {
-                    { id = 28585, name = "Ruby Slippers", source = "The Crone", sourceType = "raid" },
+                    { id = 28585, name = "Ruby Slippers", source = "Opera Event", sourceType = "raid" },
                     { id = 28179, name = "Shattrath Jumpers", source = "Quest", sourceType = "quest" },
                 }
             },
             ring1 = {
                 bis = { id = 28793, name = "Band of Crimson Fury", source = "Magtheridon Quest", sourceType = "quest" },
                 alts = {
+                    { id = 28510, name = "Spectral Band of Innervation", source = "Attumen the Huntsman", sourceType = "raid" },
                     { id = 29287, name = "Violet Signet of the Archmage", source = "Violet Eye Exalted", sourceType = "reputation" },
                     { id = 28753, name = "Ring of Recurrence", source = "Chess Event", sourceType = "raid" },
                 }
@@ -783,6 +800,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             ring2 = {
                 bis = { id = 28753, name = "Ring of Recurrence", source = "Chess Event", sourceType = "raid" },
                 alts = {
+                    { id = 28510, name = "Spectral Band of Innervation", source = "Attumen the Huntsman", sourceType = "raid" },
                     { id = 29126, name = "Seer's Signet", source = "Lower City Exalted", sourceType = "reputation" },
                     { id = 28227, name = "Sparking Arcanite Ring", source = "Sunseeker Astromage", sourceType = "heroic" },
                 }
@@ -819,7 +837,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 28783, name = "Eredar Wand of Obliteration", source = "Magtheridon", sourceType = "raid" },
                 alts = {
                     { id = 28673, name = "Tirisfal Wand of Ascendancy", source = "Shade of Aran", sourceType = "raid" },
-                    { id = 28386, name = "Nether Core's Control Rod", source = "Grandmaster Vorpil", sourceType = "heroic" },
+                    { id = 28386, name = "Nether Core's Control Rod", source = "Dalliah the Doomsayer (Heroic Arcatraz)", sourceType = "heroic" },
                 }
             },
         },
@@ -832,7 +850,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 24266, name = "Spellstrike Hood", source = "Tailoring", sourceType = "crafted" },
                 alts = {
                     { id = 28963, name = "Voidheart Crown", source = "Prince Malchezaar", sourceType = "raid" },
-                    { id = 28415, name = "Hood of Oblivion", source = "Grandmaster Vorpil", sourceType = "heroic" },
+                    { id = 28415, name = "Hood of Oblivion", source = "Harbinger Skyriss (Heroic Arcatraz)", sourceType = "heroic" },
                 }
             },
             neck = {
@@ -859,6 +877,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             chest = {
                 bis = { id = 21848, name = "Spellfire Robe", source = "Spellfire Tailoring", sourceType = "crafted" },
                 alts = {
+                    { id = 28578, name = "Masquerade Gown", source = "Opera Event", sourceType = "raid" },
                     { id = 28964, name = "Voidheart Robe", source = "Magtheridon", sourceType = "raid" },
                     { id = 28230, name = "Hallowed Garments", source = "Murmur", sourceType = "dungeon" },
                 }
@@ -873,13 +892,14 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             hands = {
                 bis = { id = 21847, name = "Spellfire Gloves", source = "Spellfire Tailoring", sourceType = "crafted" },
                 alts = {
-                    { id = 28508, name = "Gloves of Saintly Blessings", source = "Attumen the Huntsman", sourceType = "raid" },
                     { id = 28507, name = "Handwraps of Flowing Thought", source = "Attumen the Huntsman", sourceType = "raid" },
+                    { id = 27493, name = "Gloves of the Deadwatcher", source = "Shirrak the Dead Watcher", sourceType = "heroic" },
                 }
             },
             waist = {
                 bis = { id = 21846, name = "Spellfire Belt", source = "Spellfire Tailoring", sourceType = "crafted" },
                 alts = {
+                    { id = 28569, name = "Nethershard Girdle", source = "Moroes", sourceType = "raid" },
                     { id = 24256, name = "Girdle of Ruination", source = "Tailoring", sourceType = "crafted" },
                     { id = 28799, name = "Belt of Divine Inspiration", source = "Terestian Illhoof", sourceType = "raid" },
                 }
@@ -894,13 +914,14 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             feet = {
                 bis = { id = 28517, name = "Boots of Foretelling", source = "Maiden of Virtue", sourceType = "raid" },
                 alts = {
-                    { id = 28585, name = "Ruby Slippers", source = "The Crone", sourceType = "raid" },
+                    { id = 28585, name = "Ruby Slippers", source = "Opera Event", sourceType = "raid" },
                     { id = 28179, name = "Shattrath Jumpers", source = "Quest", sourceType = "quest" },
                 }
             },
             ring1 = {
                 bis = { id = 28793, name = "Band of Crimson Fury", source = "Magtheridon Quest", sourceType = "quest" },
                 alts = {
+                    { id = 28510, name = "Spectral Band of Innervation", source = "Attumen the Huntsman", sourceType = "raid" },
                     { id = 29287, name = "Violet Signet of the Archmage", source = "Violet Eye Exalted", sourceType = "reputation" },
                     { id = 28753, name = "Ring of Recurrence", source = "Chess Event", sourceType = "raid" },
                 }
@@ -908,6 +929,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             ring2 = {
                 bis = { id = 28753, name = "Ring of Recurrence", source = "Chess Event", sourceType = "raid" },
                 alts = {
+                    { id = 28510, name = "Spectral Band of Innervation", source = "Attumen the Huntsman", sourceType = "raid" },
                     { id = 29126, name = "Seer's Signet", source = "Lower City Exalted", sourceType = "reputation" },
                     { id = 28227, name = "Sparking Arcanite Ring", source = "Sunseeker Astromage", sourceType = "heroic" },
                 }
@@ -944,7 +966,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 28783, name = "Eredar Wand of Obliteration", source = "Magtheridon", sourceType = "raid" },
                 alts = {
                     { id = 28673, name = "Tirisfal Wand of Ascendancy", source = "Shade of Aran", sourceType = "raid" },
-                    { id = 28386, name = "Nether Core's Control Rod", source = "Grandmaster Vorpil", sourceType = "heroic" },
+                    { id = 28386, name = "Nether Core's Control Rod", source = "Dalliah the Doomsayer (Heroic Arcatraz)", sourceType = "heroic" },
                 }
             },
         },
@@ -957,7 +979,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 24266, name = "Spellstrike Hood", source = "Tailoring", sourceType = "crafted" },
                 alts = {
                     { id = 29058, name = "Soul-Collar of the Incarnate", source = "Prince Malchezaar", sourceType = "raid" },
-                    { id = 28415, name = "Hood of Oblivion", source = "Grandmaster Vorpil", sourceType = "heroic" },
+                    { id = 28415, name = "Hood of Oblivion", source = "Harbinger Skyriss (Heroic Arcatraz)", sourceType = "heroic" },
                 }
             },
             neck = {
@@ -970,8 +992,8 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             shoulders = {
                 bis = { id = 29060, name = "Soul-Mantle of the Incarnate", source = "High King Maulgar", sourceType = "raid" },
                 alts = {
+                    { id = 21869, name = "Frozen Shadoweave Shoulders", source = "Shadoweave Tailoring", sourceType = "crafted" },
                     { id = 27778, name = "Spaulders of Oblivion", source = "Ambassador Hellmaw", sourceType = "dungeon" },
-                    { id = 27796, name = "Mana-Etched Spaulders", source = "Rokmar the Crackler", sourceType = "heroic" },
                 }
             },
             back = {
@@ -984,6 +1006,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             chest = {
                 bis = { id = 21871, name = "Frozen Shadoweave Robe", source = "Shadoweave Tailoring", sourceType = "crafted" },
                 alts = {
+                    { id = 28578, name = "Masquerade Gown", source = "Opera Event", sourceType = "raid" },
                     { id = 29056, name = "Shroud of the Incarnate", source = "Magtheridon", sourceType = "raid" },
                     { id = 28230, name = "Hallowed Garments", source = "Murmur", sourceType = "dungeon" },
                 }
@@ -996,15 +1019,16 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             hands = {
-                bis = { id = 21869, name = "Frozen Shadoweave Gloves", source = "Shadoweave Tailoring", sourceType = "crafted" },
+                bis = { id = 28507, name = "Handwraps of Flowing Thought", source = "Attumen the Huntsman", sourceType = "raid" },
                 alts = {
-                    { id = 28507, name = "Handwraps of Flowing Thought", source = "Attumen the Huntsman", sourceType = "raid" },
+                    { id = 21847, name = "Spellfire Gloves", source = "Spellfire Tailoring", sourceType = "crafted" },
                     { id = 27493, name = "Gloves of the Deadwatcher", source = "Shirrak the Dead Watcher", sourceType = "heroic" },
                 }
             },
             waist = {
                 bis = { id = 24256, name = "Girdle of Ruination", source = "Tailoring", sourceType = "crafted" },
                 alts = {
+                    { id = 28569, name = "Nethershard Girdle", source = "Moroes", sourceType = "raid" },
                     { id = 28799, name = "Belt of Divine Inspiration", source = "Terestian Illhoof", sourceType = "raid" },
                     { id = 28654, name = "Malefic Girdle", source = "Terestian Illhoof", sourceType = "raid" },
                 }
@@ -1026,6 +1050,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             ring1 = {
                 bis = { id = 28793, name = "Band of Crimson Fury", source = "Magtheridon Quest", sourceType = "quest" },
                 alts = {
+                    { id = 28510, name = "Spectral Band of Innervation", source = "Attumen the Huntsman", sourceType = "raid" },
                     { id = 29287, name = "Violet Signet of the Archmage", source = "Violet Eye Exalted", sourceType = "reputation" },
                     { id = 28753, name = "Ring of Recurrence", source = "Chess Event", sourceType = "raid" },
                 }
@@ -1033,6 +1058,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             ring2 = {
                 bis = { id = 28753, name = "Ring of Recurrence", source = "Chess Event", sourceType = "raid" },
                 alts = {
+                    { id = 28510, name = "Spectral Band of Innervation", source = "Attumen the Huntsman", sourceType = "raid" },
                     { id = 29126, name = "Seer's Signet", source = "Lower City Exalted", sourceType = "reputation" },
                     { id = 28227, name = "Sparking Arcanite Ring", source = "Sunseeker Astromage", sourceType = "heroic" },
                 }
@@ -1069,7 +1095,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 28783, name = "Eredar Wand of Obliteration", source = "Magtheridon", sourceType = "raid" },
                 alts = {
                     { id = 28673, name = "Tirisfal Wand of Ascendancy", source = "Shade of Aran", sourceType = "raid" },
-                    { id = 28386, name = "Nether Core's Control Rod", source = "Grandmaster Vorpil", sourceType = "heroic" },
+                    { id = 28386, name = "Nether Core's Control Rod", source = "Dalliah the Doomsayer (Heroic Arcatraz)", sourceType = "heroic" },
                 }
             },
         },
@@ -1082,7 +1108,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 24266, name = "Spellstrike Hood", source = "Tailoring", sourceType = "crafted" },
                 alts = {
                     { id = 28744, name = "Uni-Mind Headdress", source = "Netherspite", sourceType = "raid" },
-                    { id = 28415, name = "Hood of Oblivion", source = "Grandmaster Vorpil", sourceType = "heroic" },
+                    { id = 28415, name = "Hood of Oblivion", source = "Harbinger Skyriss (Heroic Arcatraz)", sourceType = "heroic" },
                 }
             },
             neck = {
@@ -1109,6 +1135,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             chest = {
                 bis = { id = 21848, name = "Spellfire Robe", source = "Spellfire Tailoring", sourceType = "crafted" },
                 alts = {
+                    { id = 28578, name = "Masquerade Gown", source = "Opera Event", sourceType = "raid" },
                     { id = 29091, name = "Chestpiece of Malorne", source = "Magtheridon", sourceType = "raid" },
                     { id = 29522, name = "Windhawk Hauberk", source = "Tribal Leatherworking", sourceType = "crafted" },
                 }
@@ -1144,13 +1171,14 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             feet = {
                 bis = { id = 28517, name = "Boots of Foretelling", source = "Maiden of Virtue", sourceType = "raid" },
                 alts = {
-                    { id = 28585, name = "Ruby Slippers", source = "The Crone", sourceType = "raid" },
+                    { id = 28585, name = "Ruby Slippers", source = "Opera Event", sourceType = "raid" },
                     { id = 28179, name = "Shattrath Jumpers", source = "Quest", sourceType = "quest" },
                 }
             },
             ring1 = {
                 bis = { id = 28793, name = "Band of Crimson Fury", source = "Magtheridon Quest", sourceType = "quest" },
                 alts = {
+                    { id = 28510, name = "Spectral Band of Innervation", source = "Attumen the Huntsman", sourceType = "raid" },
                     { id = 29287, name = "Violet Signet of the Archmage", source = "Violet Eye Exalted", sourceType = "reputation" },
                     { id = 29172, name = "Ashyen's Gift", source = "Cenarion Expedition Exalted", sourceType = "reputation" },
                 }
@@ -1158,6 +1186,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             ring2 = {
                 bis = { id = 28753, name = "Ring of Recurrence", source = "Chess Event", sourceType = "raid" },
                 alts = {
+                    { id = 28510, name = "Spectral Band of Innervation", source = "Attumen the Huntsman", sourceType = "raid" },
                     { id = 28227, name = "Sparking Arcanite Ring", source = "Sunseeker Astromage", sourceType = "heroic" },
                     { id = 29126, name = "Seer's Signet", source = "Lower City Exalted", sourceType = "reputation" },
                 }
@@ -1218,7 +1247,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             shoulders = {
-                bis = { id = 29100, name = "Shoulderguards of Malorne", source = "High King Maulgar", sourceType = "raid" },
+                bis = { id = 29100, name = "Mantle of Malorne", source = "High King Maulgar", sourceType = "raid" },
                 alts = {
                     { id = 27797, name = "Wastewalker Shoulderpads", source = "Avatar of the Martyred", sourceType = "heroic" },
                     { id = 27434, name = "Mantle of Perenolde", source = "Epoch Hunter", sourceType = "heroic" },
@@ -1315,8 +1344,8 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             ranged = {
                 bis = { id = 29390, name = "Everbloom Idol", source = "G'eras (15 Badges)", sourceType = "badge" },
                 alts = {
-                    { id = 28064, name = "Idol of the Wild", source = "Botanica Quest", sourceType = "quest" },
-                    { id = 27744, name = "Idol of Feral Shadows", source = "Talon King Ikiss", sourceType = "dungeon" },
+                    { id = 28064, name = "Idol of the Wild", source = "Quest: Colossal Menace", sourceType = "quest" },
+                    { id = 28372, name = "Idol of Feral Shadows", source = "Zereketh the Unbound (Arcatraz)", sourceType = "dungeon" },
                 }
             },
         },
@@ -1340,9 +1369,9 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             shoulders = {
-                bis = { id = 29100, name = "Shoulderguards of Malorne", source = "High King Maulgar", sourceType = "raid" },
+                bis = { id = 29100, name = "Mantle of Malorne", source = "High King Maulgar", sourceType = "raid" },
                 alts = {
-                    { id = 28797, name = "Brute Cloak of the Ogre-Magi", source = "High King Maulgar", sourceType = "raid" },
+                    { id = 27797, name = "Wastewalker Shoulderpads", source = "Avatar of the Martyred", sourceType = "heroic" },
                     { id = 27434, name = "Mantle of Perenolde", source = "Epoch Hunter", sourceType = "heroic" },
                 }
             },
@@ -1437,8 +1466,8 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             ranged = {
                 bis = { id = 29390, name = "Everbloom Idol", source = "G'eras (15 Badges)", sourceType = "badge" },
                 alts = {
-                    { id = 28064, name = "Idol of the Wild", source = "Botanica Quest", sourceType = "quest" },
-                    { id = 27744, name = "Idol of Feral Shadows", source = "Talon King Ikiss", sourceType = "dungeon" },
+                    { id = 28064, name = "Idol of the Wild", source = "Quest: Colossal Menace", sourceType = "quest" },
+                    { id = 27744, name = "Idol of Ursoc", source = "Hungarfen (Heroic Underbog)", sourceType = "heroic" },
                 }
             },
         },
@@ -1458,11 +1487,11 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 28609, name = "Emberspur Talisman", source = "Nightbane", sourceType = "raid" },
                 alts = {
                     { id = 29374, name = "Necklace of Eternal Hope", source = "G'eras (25 Badges)", sourceType = "badge" },
-                    { id = 27508, name = "Natasha's Guardian Cord", source = "Quest", sourceType = "quest" },
+                    { id = 31691, name = "Natasha's Guardian Cord", source = "Quest: The Hound-Master", sourceType = "quest" },
                 }
             },
             shoulders = {
-                bis = { id = 29089, name = "Pauldrons of Malorne", source = "High King Maulgar", sourceType = "raid" },
+                bis = { id = 29089, name = "Shoulderguards of Malorne", source = "High King Maulgar", sourceType = "raid" },
                 alts = {
                     { id = 27775, name = "Hallowed Pauldrons", source = "Warlord Kalithresh", sourceType = "heroic" },
                     { id = 21874, name = "Primal Mooncloth Shoulders", source = "Tailoring", sourceType = "crafted" },
@@ -1492,7 +1521,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             hands = {
                 bis = { id = 29088, name = "Gloves of Malorne", source = "The Curator", sourceType = "raid" },
                 alts = {
-                    { id = 27465, name = "Prismatic Mittens of Mending", source = "Aeonus", sourceType = "dungeon" },
+                    { id = 28304, name = "Prismatic Mittens of Mending", source = "Commander Sarannis (Botanica)", sourceType = "dungeon" },
                     { id = 28521, name = "Gloves of Centering", source = "Maiden of Virtue", sourceType = "raid" },
                 }
             },
@@ -1506,6 +1535,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             legs = {
                 bis = { id = 29090, name = "Legguards of Malorne", source = "Gruul the Dragonkiller", sourceType = "raid" },
                 alts = {
+                    { id = 28591, name = "Earthsoul Leggings", source = "Opera Event", sourceType = "raid" },
                     { id = 30543, name = "Pontifex Kilt", source = "Warlord Kalithresh", sourceType = "heroic" },
                     { id = 27875, name = "Kirin Tor Master's Trousers", source = "Epoch Hunter", sourceType = "heroic" },
                 }
@@ -1534,6 +1564,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             trinket1 = {
                 bis = { id = 29376, name = "Essence of the Martyr", source = "G'eras (41 Badges)", sourceType = "badge" },
                 alts = {
+                    { id = 28590, name = "Ribbon of Sacrifice", source = "Opera Event", sourceType = "raid" },
                     { id = 28823, name = "Eye of Gruul", source = "Gruul the Dragonkiller", sourceType = "raid" },
                     { id = 30841, name = "Lower City Prayerbook", source = "Lower City Honored", sourceType = "reputation" },
                 }
@@ -1541,6 +1572,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             trinket2 = {
                 bis = { id = 28823, name = "Eye of Gruul", source = "Gruul the Dragonkiller", sourceType = "raid" },
                 alts = {
+                    { id = 28590, name = "Ribbon of Sacrifice", source = "Opera Event", sourceType = "raid" },
                     { id = 30841, name = "Lower City Prayerbook", source = "Lower City Honored", sourceType = "reputation" },
                     { id = 27828, name = "Warp-Scarab Brooch", source = "Pandemonius", sourceType = "heroic" },
                 }
@@ -1560,7 +1592,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             ranged = {
-                bis = { id = 27886, name = "Idol of the Emerald Queen", source = "Aeonus", sourceType = "heroic" },
+                bis = { id = 27886, name = "Idol of the Emerald Queen", source = "Ambassador Hellmaw (Shadow Labyrinth)", sourceType = "dungeon" },
                 alts = {
                     { id = 22398, name = "Idol of Rejuvenation", source = "Naxxramas Legacy", sourceType = "raid" },
                     { id = 25643, name = "Harold's Rejuvenating Broach", source = "Quest", sourceType = "quest" },
@@ -1576,7 +1608,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 29035, name = "Cyclone Faceguard", source = "Prince Malchezaar", sourceType = "raid" },
                 alts = {
                     { id = 24266, name = "Spellstrike Hood", source = "Tailoring", sourceType = "crafted" },
-                    { id = 28415, name = "Hood of Oblivion", source = "Grandmaster Vorpil", sourceType = "heroic" },
+                    { id = 28415, name = "Hood of Oblivion", source = "Harbinger Skyriss (Heroic Arcatraz)", sourceType = "heroic" },
                 }
             },
             neck = {
@@ -1603,6 +1635,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             chest = {
                 bis = { id = 29033, name = "Cyclone Chestguard", source = "Magtheridon", sourceType = "raid" },
                 alts = {
+                    { id = 28578, name = "Masquerade Gown", source = "Opera Event", sourceType = "raid" },
                     { id = 21848, name = "Spellfire Robe", source = "Spellfire Tailoring", sourceType = "crafted" },
                     { id = 28230, name = "Hallowed Garments", source = "Murmur", sourceType = "dungeon" },
                 }
@@ -1638,13 +1671,14 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             feet = {
                 bis = { id = 28517, name = "Boots of Foretelling", source = "Maiden of Virtue", sourceType = "raid" },
                 alts = {
-                    { id = 28585, name = "Ruby Slippers", source = "The Crone", sourceType = "raid" },
+                    { id = 28585, name = "Ruby Slippers", source = "Opera Event", sourceType = "raid" },
                     { id = 28179, name = "Shattrath Jumpers", source = "Quest", sourceType = "quest" },
                 }
             },
             ring1 = {
                 bis = { id = 28793, name = "Band of Crimson Fury", source = "Magtheridon Quest", sourceType = "quest" },
                 alts = {
+                    { id = 28510, name = "Spectral Band of Innervation", source = "Attumen the Huntsman", sourceType = "raid" },
                     { id = 29287, name = "Violet Signet of the Archmage", source = "Violet Eye Exalted", sourceType = "reputation" },
                     { id = 28753, name = "Ring of Recurrence", source = "Chess Event", sourceType = "raid" },
                 }
@@ -1652,6 +1686,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             ring2 = {
                 bis = { id = 28753, name = "Ring of Recurrence", source = "Chess Event", sourceType = "raid" },
                 alts = {
+                    { id = 28510, name = "Spectral Band of Innervation", source = "Attumen the Huntsman", sourceType = "raid" },
                     { id = 29126, name = "Seer's Signet", source = "Lower City Exalted", sourceType = "reputation" },
                     { id = 28227, name = "Sparking Arcanite Ring", source = "Sunseeker Astromage", sourceType = "heroic" },
                 }
@@ -1685,10 +1720,10 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             ranged = {
-                bis = { id = 27544, name = "Totem of the Void", source = "Mana-Tombs", sourceType = "dungeon" },
+                bis = { id = 28248, name = "Totem of the Void", source = "Cache of the Legion (Mechanar)", sourceType = "dungeon" },
                 alts = {
                     { id = 23199, name = "Totem of the Storm", source = "Naxxramas Legacy", sourceType = "raid" },
-                    { id = 28248, name = "Totem of Lightning", source = "Crafted", sourceType = "crafted" },
+                    { id = 28066, name = "Totem of Lightning", source = "Quest: Colossal Menace", sourceType = "quest" },
                 }
             },
         },
@@ -1700,6 +1735,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             head = {
                 bis = { id = 29040, name = "Cyclone Helm", source = "Prince Malchezaar", sourceType = "raid" },
                 alts = {
+                    { id = 28583, name = "Big Bad Wolf's Head", source = "Opera Event", sourceType = "raid" },
                     { id = 32087, name = "Mask of the Deceiver", source = "G'eras (50 Badges)", sourceType = "badge" },
                     { id = 28224, name = "Wastewalker Helm", source = "Epoch Hunter", sourceType = "heroic" },
                 }
@@ -1714,6 +1750,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             shoulders = {
                 bis = { id = 29043, name = "Cyclone Shoulderplates", source = "High King Maulgar", sourceType = "raid" },
                 alts = {
+                    { id = 28593, name = "Beastmaw Pauldrons", source = "Opera Event", sourceType = "raid" },
                     { id = 27797, name = "Wastewalker Shoulderpads", source = "Avatar of the Martyred", sourceType = "heroic" },
                     { id = 27434, name = "Mantle of Perenolde", source = "Epoch Hunter", sourceType = "heroic" },
                 }
@@ -1721,6 +1758,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             back = {
                 bis = { id = 28672, name = "Drape of the Dark Reavers", source = "Shade of Aran", sourceType = "raid" },
                 alts = {
+                    { id = 28582, name = "Red Riding Hood's Cloak", source = "Opera Event", sourceType = "raid" },
                     { id = 24259, name = "Vengeance Wrap", source = "Tailoring", sourceType = "crafted" },
                     { id = 29382, name = "Blood Knight War Cloak", source = "G'eras (25 Badges)", sourceType = "badge" },
                 }
@@ -1749,6 +1787,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             waist = {
                 bis = { id = 28828, name = "Gronn-Stitched Girdle", source = "Gruul the Dragonkiller", sourceType = "raid" },
                 alts = {
+                    { id = 28567, name = "Belt of Gale Force", source = "Moroes", sourceType = "raid" },
                     { id = 29526, name = "Primalstrike Belt", source = "Elemental Leatherworking", sourceType = "crafted" },
                     { id = 29247, name = "Girdle of the Deathdealer", source = "Aeonus", sourceType = "heroic" },
                 }
@@ -1810,7 +1849,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             ranged = {
-                bis = { id = 27815, name = "Totem of the Astral Winds", source = "The Black Stalker", sourceType = "heroic" },
+                bis = { id = 27815, name = "Totem of the Astral Winds", source = "Pandemonius (Heroic Mana-Tombs)", sourceType = "heroic" },
                 alts = {
                     { id = 23200, name = "Totem of Rage", source = "Naxxramas Legacy", sourceType = "raid" },
                     { id = 22395, name = "Totem of the Maelstrom", source = "Naxxramas Legacy", sourceType = "raid" },
@@ -1833,7 +1872,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 28609, name = "Emberspur Talisman", source = "Nightbane", sourceType = "raid" },
                 alts = {
                     { id = 29374, name = "Necklace of Eternal Hope", source = "G'eras (25 Badges)", sourceType = "badge" },
-                    { id = 27508, name = "Natasha's Guardian Cord", source = "Quest", sourceType = "quest" },
+                    { id = 31691, name = "Natasha's Guardian Cord", source = "Quest: The Hound-Master", sourceType = "quest" },
                 }
             },
             shoulders = {
@@ -1867,7 +1906,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             hands = {
                 bis = { id = 29030, name = "Cyclone Handguards", source = "The Curator", sourceType = "raid" },
                 alts = {
-                    { id = 27465, name = "Prismatic Mittens of Mending", source = "Aeonus", sourceType = "dungeon" },
+                    { id = 28304, name = "Prismatic Mittens of Mending", source = "Commander Sarannis (Botanica)", sourceType = "dungeon" },
                     { id = 28521, name = "Gloves of Centering", source = "Maiden of Virtue", sourceType = "raid" },
                 }
             },
@@ -1909,6 +1948,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             trinket1 = {
                 bis = { id = 29376, name = "Essence of the Martyr", source = "G'eras (41 Badges)", sourceType = "badge" },
                 alts = {
+                    { id = 28590, name = "Ribbon of Sacrifice", source = "Opera Event", sourceType = "raid" },
                     { id = 28823, name = "Eye of Gruul", source = "Gruul the Dragonkiller", sourceType = "raid" },
                     { id = 30841, name = "Lower City Prayerbook", source = "Lower City Honored", sourceType = "reputation" },
                 }
@@ -1916,6 +1956,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             trinket2 = {
                 bis = { id = 28823, name = "Eye of Gruul", source = "Gruul the Dragonkiller", sourceType = "raid" },
                 alts = {
+                    { id = 28590, name = "Ribbon of Sacrifice", source = "Opera Event", sourceType = "raid" },
                     { id = 30841, name = "Lower City Prayerbook", source = "Lower City Honored", sourceType = "reputation" },
                     { id = 27828, name = "Warp-Scarab Brooch", source = "Pandemonius", sourceType = "heroic" },
                 }
@@ -1935,7 +1976,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             ranged = {
-                bis = { id = 27544, name = "Totem of Healing Rains", source = "Auchenai Crypts", sourceType = "dungeon" },
+                bis = { id = 28523, name = "Totem of Healing Rains", source = "Maiden of Virtue", sourceType = "raid" },
                 alts = {
                     { id = 22396, name = "Totem of Sustaining", source = "Naxxramas Legacy", sourceType = "raid" },
                     { id = 23198, name = "Totem of Life", source = "Naxxramas Legacy", sourceType = "raid" },
@@ -2057,9 +2098,9 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 alts = {}
             },
             ranged = {
-                bis = { id = 27484, name = "Libram of Avengement", source = "Old Hillsbrad Foothills", sourceType = "dungeon" },
+                bis = { id = 27484, name = "Libram of Avengement", source = "The Maker (Heroic Blood Furnace)", sourceType = "heroic" },
                 alts = {
-                    { id = 28296, name = "Libram of Saints Departed", source = "Auchenai Crypts", sourceType = "dungeon" },
+                    { id = 28296, name = "Libram of the Lightbringer", source = "Commander Sarannis (Botanica)", sourceType = "dungeon" },
                     { id = 28065, name = "Libram of Wracking", source = "Hellfire Peninsula Quest", sourceType = "quest" },
                 }
             },
@@ -2077,7 +2118,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             neck = {
-                bis = { id = 28244, name = "Barbed Choker of Discipline", source = "Maiden of Virtue", sourceType = "raid" },
+                bis = { id = 28516, name = "Barbed Choker of Discipline", source = "Maiden of Virtue", sourceType = "raid" },
                 alts = {
                     { id = 29386, name = "Necklace of the Juggernaut", source = "G'eras (25 Badges)", sourceType = "badge" },
                     { id = 27792, name = "Mark of the Ravenguard", source = "Anzu", sourceType = "heroic" },
@@ -2105,7 +2146,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             wrist = {
-                bis = { id = 28996, name = "Bracers of the Green Fortress", source = "Blacksmithing", sourceType = "crafted" },
+                bis = { id = 23538, name = "Bracers of the Green Fortress", source = "Blacksmithing", sourceType = "crafted" },
                 alts = {
                     { id = 29463, name = "Sha'tari Wrought Armguards", source = "Sha'tar Exalted", sourceType = "reputation" },
                     { id = 28502, name = "Vambraces of Courage", source = "Attumen the Huntsman", sourceType = "raid" },
@@ -2119,10 +2160,10 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             waist = {
-                bis = { id = 28995, name = "Girdle of the Immovable", source = "Blacksmithing", sourceType = "crafted" },
+                bis = { id = 27672, name = "Girdle of the Immovable", source = "Quagmirran (Slave Pens)", sourceType = "dungeon" },
                 alts = {
-                    { id = 27672, name = "Girdle of Valorous Deeds", source = "Exarch Maladaar", sourceType = "heroic" },
                     { id = 28566, name = "Crimson Girdle of the Indomitable", source = "Moroes", sourceType = "raid" },
+                    { id = 27460, name = "Girdle of Many Blessings", source = "Warlord Kalithresh", sourceType = "heroic" },
                 }
             },
             legs = {
@@ -2182,9 +2223,9 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             ranged = {
-                bis = { id = 27917, name = "Libram of Repentance", source = "Shattered Halls", sourceType = "dungeon" },
+                bis = { id = 29388, name = "Libram of Repentance", source = "G'eras (15 Badges)", sourceType = "badge" },
                 alts = {
-                    { id = 28296, name = "Libram of Saints Departed", source = "Auchenai Crypts", sourceType = "dungeon" },
+                    { id = 27917, name = "Libram of the Eternal Rest", source = "Darkweaver Syth (Sethekk Halls)", sourceType = "dungeon" },
                     { id = 28065, name = "Libram of Wracking", source = "Hellfire Peninsula Quest", sourceType = "quest" },
                 }
             },
@@ -2205,7 +2246,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 28609, name = "Emberspur Talisman", source = "Nightbane", sourceType = "raid" },
                 alts = {
                     { id = 29374, name = "Necklace of Eternal Hope", source = "G'eras (25 Badges)", sourceType = "badge" },
-                    { id = 27508, name = "Natasha's Guardian Cord", source = "Quest", sourceType = "quest" },
+                    { id = 31691, name = "Natasha's Guardian Cord", source = "Quest: The Hound-Master", sourceType = "quest" },
                 }
             },
             shoulders = {
@@ -2239,7 +2280,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             hands = {
                 bis = { id = 29055, name = "Handwraps of the Incarnate", source = "The Curator", sourceType = "raid" },
                 alts = {
-                    { id = 27465, name = "Prismatic Mittens of Mending", source = "Aeonus", sourceType = "dungeon" },
+                    { id = 28304, name = "Prismatic Mittens of Mending", source = "Commander Sarannis (Botanica)", sourceType = "dungeon" },
                     { id = 28521, name = "Gloves of Centering", source = "Maiden of Virtue", sourceType = "raid" },
                 }
             },
@@ -2281,6 +2322,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             trinket1 = {
                 bis = { id = 29376, name = "Essence of the Martyr", source = "G'eras (41 Badges)", sourceType = "badge" },
                 alts = {
+                    { id = 28590, name = "Ribbon of Sacrifice", source = "Opera Event", sourceType = "raid" },
                     { id = 28823, name = "Eye of Gruul", source = "Gruul the Dragonkiller", sourceType = "raid" },
                     { id = 30841, name = "Lower City Prayerbook", source = "Lower City Honored", sourceType = "reputation" },
                 }
@@ -2288,6 +2330,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             trinket2 = {
                 bis = { id = 28823, name = "Eye of Gruul", source = "Gruul the Dragonkiller", sourceType = "raid" },
                 alts = {
+                    { id = 28590, name = "Ribbon of Sacrifice", source = "Opera Event", sourceType = "raid" },
                     { id = 30841, name = "Lower City Prayerbook", source = "Lower City Honored", sourceType = "reputation" },
                     { id = 27828, name = "Warp-Scarab Brooch", source = "Pandemonius", sourceType = "heroic" },
                 }
@@ -2307,10 +2350,10 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             ranged = {
-                bis = { id = 28592, name = "Wand of the Netherspite", source = "Netherspite", sourceType = "raid" },
+                bis = { id = 28588, name = "Blue Diamond Witchwand", source = "Opera Event", sourceType = "raid" },
                 alts = {
-                    { id = 28386, name = "Nether Core's Control Rod", source = "Grandmaster Vorpil", sourceType = "heroic" },
-                    { id = 25295, name = "Wand of the Ancestors", source = "Quest", sourceType = "quest" },
+                    { id = 28386, name = "Nether Core's Control Rod", source = "Dalliah the Doomsayer (Heroic Arcatraz)", sourceType = "heroic" },
+                    { id = 27885, name = "Soul-Wand of the Aldor", source = "Ambassador Hellmaw (Shadow Labyrinth)", sourceType = "dungeon" },
                 }
             },
         },
@@ -2446,4 +2489,411 @@ function C:GetArmoryGearFromSpec(tier, role, slot, classToken)
     end
 
     return self:GetSpecBisGearLegacy(phase, guideKey, slot)
+end
+
+-- =====================================================
+-- BiS LOOKUP HELPERS (for Raids Tab integration)
+-- =====================================================
+
+-- Check if an item from a boss is BiS for a given spec
+-- Returns: { isBis = true, slot = "head", phase = 1 } or nil
+function C:IsItemBisForSpec(itemName, bossName, guideKey, raidPhase)
+    if not itemName or not bossName or not guideKey then return nil end
+
+    -- Check all phases from current down to 1 (items may be BiS from earlier phases)
+    for phase = raidPhase, 1, -1 do
+        local specData = C.ARMORY_SPEC_BIS_DATABASE[phase] and C.ARMORY_SPEC_BIS_DATABASE[phase][guideKey]
+        if specData then
+            for slot, slotData in pairs(specData) do
+                if slotData.bis and slotData.bis.name == itemName and slotData.bis.source == bossName then
+                    return { isBis = true, slot = slot, phase = phase }
+                end
+            end
+        end
+    end
+    return nil
+end
+
+-- Get the guide key for the current player's spec
+function C:GetCurrentPlayerGuideKey()
+    local specName, specTab = HopeAddon:GetPlayerSpec()
+    if not specTab then return nil end
+
+    local _, classToken = UnitClass("player")
+    local role = HopeAddon:GetSpecRole(classToken, specTab)
+    if not role then return nil end
+
+    return C:GetGuideKeyForRole(classToken, role)
+end
+
+-- =====================================================
+-- REPUTATION BiS INTEGRATION
+-- =====================================================
+
+-- Maps Armory source strings to ReputationData faction names and standings
+C.ARMORY_REP_SOURCE_MAP = {
+    -- Lower City
+    ["Lower City Exalted"] = { faction = "Lower City", standing = 8 },
+    ["Lower City Honored"] = { faction = "Lower City", standing = 6 },
+    ["Lower City Revered"] = { faction = "Lower City", standing = 7 },
+
+    -- Violet Eye (Karazhan)
+    ["Violet Eye Exalted"] = { faction = "The Violet Eye", standing = 8 },
+    ["Violet Eye Revered"] = { faction = "The Violet Eye", standing = 7 },
+    ["Violet Eye Honored"] = { faction = "The Violet Eye", standing = 6 },
+
+    -- Sha'tar
+    ["Sha'tar Exalted"] = { faction = "The Sha'tar", standing = 8 },
+    ["Sha'tar Revered"] = { faction = "The Sha'tar", standing = 7 },
+    ["Sha'tar Honored"] = { faction = "The Sha'tar", standing = 6 },
+
+    -- Consortium
+    ["Consortium Exalted"] = { faction = "The Consortium", standing = 8 },
+    ["Consortium Revered"] = { faction = "The Consortium", standing = 7 },
+    ["Consortium Honored"] = { faction = "The Consortium", standing = 6 },
+
+    -- Cenarion Expedition
+    ["Cenarion Expedition Exalted"] = { faction = "Cenarion Expedition", standing = 8 },
+    ["Cenarion Expedition Revered"] = { faction = "Cenarion Expedition", standing = 7 },
+    ["Cenarion Expedition Honored"] = { faction = "Cenarion Expedition", standing = 6 },
+
+    -- Keepers of Time
+    ["Keepers of Time Exalted"] = { faction = "Keepers of Time", standing = 8 },
+    ["Keepers of Time Revered"] = { faction = "Keepers of Time", standing = 7 },
+    ["Keepers of Time Honored"] = { faction = "Keepers of Time", standing = 6 },
+
+    -- Aldor
+    ["Aldor Exalted"] = { faction = "The Aldor", standing = 8 },
+    ["Aldor Revered"] = { faction = "The Aldor", standing = 7 },
+    ["Aldor Honored"] = { faction = "The Aldor", standing = 6 },
+
+    -- Scryers
+    ["Scryers Exalted"] = { faction = "The Scryers", standing = 8 },
+    ["Scryers Revered"] = { faction = "The Scryers", standing = 7 },
+    ["Scryers Honored"] = { faction = "The Scryers", standing = 6 },
+
+    -- Honor Hold / Thrallmar (faction-specific)
+    ["Honor Hold/Thrallmar Exalted"] = { factionAlliance = "Honor Hold", factionHorde = "Thrallmar", standing = 8 },
+    ["Honor Hold/Thrallmar Revered"] = { factionAlliance = "Honor Hold", factionHorde = "Thrallmar", standing = 7 },
+    ["Honor Hold/Thrallmar Honored"] = { factionAlliance = "Honor Hold", factionHorde = "Thrallmar", standing = 6 },
+    ["Honor Hold Exalted"] = { faction = "Honor Hold", standing = 8 },
+    ["Honor Hold Revered"] = { faction = "Honor Hold", standing = 7 },
+    ["Thrallmar Exalted"] = { faction = "Thrallmar", standing = 8 },
+    ["Thrallmar Revered"] = { faction = "Thrallmar", standing = 7 },
+}
+
+-- Parse reputation source string to faction and standing
+-- @param source string - Source string like "Lower City Exalted"
+-- @return table|nil - { faction = "Lower City", standing = 8 } or nil
+function C:ParseReputationSource(source)
+    if not source then return nil end
+
+    -- Check direct mapping first
+    local mapped = C.ARMORY_REP_SOURCE_MAP[source]
+    if mapped then
+        if mapped.factionAlliance then
+            local playerFaction = UnitFactionGroup("player")
+            return {
+                faction = playerFaction == "Alliance" and mapped.factionAlliance or mapped.factionHorde,
+                standing = mapped.standing
+            }
+        end
+        return { faction = mapped.faction, standing = mapped.standing }
+    end
+
+    -- Fallback: Parse dynamically (e.g., "Some Faction Exalted")
+    local standingNames = { ["Exalted"] = 8, ["Revered"] = 7, ["Honored"] = 6, ["Friendly"] = 5 }
+    for standingName, standingId in pairs(standingNames) do
+        if source:find(standingName) then
+            local factionPart = source:gsub(" " .. standingName, "")
+            -- Try with/without "The" prefix
+            if HopeAddon.ReputationData and HopeAddon.ReputationData.TBC_FACTIONS then
+                if HopeAddon.ReputationData.TBC_FACTIONS[factionPart] then
+                    return { faction = factionPart, standing = standingId }
+                elseif HopeAddon.ReputationData.TBC_FACTIONS["The " .. factionPart] then
+                    return { faction = "The " .. factionPart, standing = standingId }
+                end
+            end
+        end
+    end
+    return nil
+end
+
+-- Get all reputation BiS items for a spec organized by faction and standing
+-- @param guideKey string - Spec guide key like "WARRIOR_TANK"
+-- @param phase number - Raid phase (default 1)
+-- @return table - { [factionName] = { [standingId] = { items... } } }
+function C:GetSpecReputationBisItems(guideKey, phase)
+    phase = phase or 1
+    local result = {}
+
+    local specData = C.ARMORY_SPEC_BIS_DATABASE[phase] and C.ARMORY_SPEC_BIS_DATABASE[phase][guideKey]
+    if not specData then return result end
+
+    for slot, slotData in pairs(specData) do
+        -- Check BiS item
+        if slotData.bis and slotData.bis.sourceType == "reputation" then
+            local repInfo = C:ParseReputationSource(slotData.bis.source)
+            if repInfo then
+                result[repInfo.faction] = result[repInfo.faction] or {}
+                result[repInfo.faction][repInfo.standing] = result[repInfo.faction][repInfo.standing] or {}
+                table.insert(result[repInfo.faction][repInfo.standing], {
+                    itemId = slotData.bis.id,
+                    name = slotData.bis.name,
+                    slot = slot,
+                    isBis = true,
+                })
+            end
+        end
+
+        -- Check alts array
+        if slotData.alts then
+            for _, altItem in ipairs(slotData.alts) do
+                if altItem.sourceType == "reputation" then
+                    local repInfo = C:ParseReputationSource(altItem.source)
+                    if repInfo then
+                        result[repInfo.faction] = result[repInfo.faction] or {}
+                        result[repInfo.faction][repInfo.standing] = result[repInfo.faction][repInfo.standing] or {}
+                        table.insert(result[repInfo.faction][repInfo.standing], {
+                            itemId = altItem.id,
+                            name = altItem.name,
+                            slot = slot,
+                            isBis = false,
+                        })
+                    end
+                end
+            end
+        end
+    end
+
+    return result
+end
+
+-- =====================================================
+-- BiS LOOKUP TABLES (Inverted Indexes for O(1) Queries)
+-- =====================================================
+
+-- Main lookup structure - rebuilt when spec/phase changes
+-- Structure:
+--   byFaction[factionName] = { { itemId, name, slot, standing, isBis, raidKey }, ... }
+--   byBoss[bossName] = { { itemId, name, slot, isBis, raidKey }, ... }
+--   byItemId[itemId] = { slot, isBis, sourceType, source }
+--   meta = { guideKey, phase, buildTime }
+-- Issue #71.3: Moved to module-level bisLookupCache to avoid Constants mutation
+
+-- Build boss-to-raid reverse map from Constants boss tables
+-- Uses existing BOSS_NAME_LOOKUP if available, otherwise builds from scratch
+function C:GetBossRaidKey(bossName)
+    if not bossName then return nil end
+
+    -- Use existing lookup if available
+    if C.BOSS_NAME_LOOKUP then
+        local entry = C.BOSS_NAME_LOOKUP[bossName:lower()]
+        if entry then return entry.raid end
+    end
+
+    -- Fallback: Search through raid boss tables
+    local raidBossTables = {
+        { raidKey = "karazhan", bosses = C.KARAZHAN_BOSSES },
+        { raidKey = "gruul", bosses = C.GRUUL_BOSSES },
+        { raidKey = "magtheridon", bosses = C.MAGTHERIDON_BOSSES },
+        { raidKey = "ssc", bosses = C.SSC_BOSSES },
+        { raidKey = "tk", bosses = C.TK_BOSSES },
+        { raidKey = "hyjal", bosses = C.HYJAL_BOSSES },
+        { raidKey = "bt", bosses = C.BT_BOSSES },
+        { raidKey = "za", bosses = C.ZA_BOSSES },
+        { raidKey = "sunwell", bosses = C.SUNWELL_BOSSES },
+    }
+
+    local lowerBossName = bossName:lower()
+    for _, raidData in ipairs(raidBossTables) do
+        if raidData.bosses then
+            for _, boss in ipairs(raidData.bosses) do
+                if boss.name:lower() == lowerBossName then
+                    return raidData.raidKey
+                end
+            end
+        end
+    end
+
+    return nil
+end
+
+-- Index a single BiS item into the lookup tables
+-- @param item table - Item data from BiS database
+-- @param slot string - Equipment slot
+-- @param isBis boolean - True if this is the BiS item (not an alt)
+-- @param phase number - Raid phase
+function C:IndexBisItem(item, slot, isBis, phase)
+    if not bisLookupCache or not item then return end
+
+    local lookup = bisLookupCache
+
+    -- Index by item ID for quick existence checks
+    if item.id and item.id > 0 then
+        lookup.byItemId[item.id] = {
+            slot = slot,
+            isBis = isBis,
+            sourceType = item.sourceType,
+            source = item.source,
+        }
+    end
+
+    -- Index by faction (reputation items)
+    if item.sourceType == "reputation" and item.source then
+        local repInfo = self:ParseReputationSource(item.source)
+        if repInfo and repInfo.faction then
+            lookup.byFaction[repInfo.faction] = lookup.byFaction[repInfo.faction] or {}
+            table.insert(lookup.byFaction[repInfo.faction], {
+                itemId = item.id,
+                name = item.name,
+                slot = slot,
+                standing = repInfo.standing,
+                isBis = isBis,
+            })
+        end
+    end
+
+    -- Index by boss (raid items)
+    if item.sourceType == "raid" and item.source then
+        local raidKey = self:GetBossRaidKey(item.source)
+        lookup.byBoss[item.source] = lookup.byBoss[item.source] or {}
+        table.insert(lookup.byBoss[item.source], {
+            itemId = item.id,
+            name = item.name,
+            slot = slot,
+            isBis = isBis,
+            raidKey = raidKey,
+        })
+    end
+end
+
+-- Build inverted lookup tables for fast O(1) queries
+-- @param guideKey string - Spec guide key (e.g., "warrior-dps")
+-- @param phase number - Raid phase (default 1)
+function C:BuildBisLookupTables(guideKey, phase)
+    phase = phase or 1
+    local startTime = debugprofilestop and debugprofilestop() or 0
+
+    -- Initialize fresh lookup structure
+    bisLookupCache = {
+        byFaction = {},
+        byBoss = {},
+        byItemId = {},
+        meta = {
+            guideKey = guideKey,
+            phase = phase,
+            buildTime = 0,
+        }
+    }
+
+    local specData = C.ARMORY_SPEC_BIS_DATABASE[phase] and C.ARMORY_SPEC_BIS_DATABASE[phase][guideKey]
+    if not specData then
+        if HopeAddon.debug then
+            HopeAddon:Debug("BIS_LOOKUP: No data for", guideKey, "phase", phase)
+        end
+        return
+    end
+
+    -- Index all items from this spec
+    for slot, slotData in pairs(specData) do
+        -- Index BiS item
+        if slotData.bis then
+            self:IndexBisItem(slotData.bis, slot, true, phase)
+        end
+
+        -- Index alternative items
+        if slotData.alts then
+            for _, altItem in ipairs(slotData.alts) do
+                self:IndexBisItem(altItem, slot, false, phase)
+            end
+        end
+    end
+
+    -- Record build time
+    local endTime = debugprofilestop and debugprofilestop() or 0
+    bisLookupCache.meta.buildTime = endTime - startTime
+
+    if HopeAddon.debug then
+        local factionCount = 0
+        for _ in pairs(bisLookupCache.byFaction) do factionCount = factionCount + 1 end
+        local bossCount = 0
+        for _ in pairs(bisLookupCache.byBoss) do bossCount = bossCount + 1 end
+        local itemCount = 0
+        for _ in pairs(bisLookupCache.byItemId) do itemCount = itemCount + 1 end
+
+        HopeAddon:Debug(string.format(
+            "BIS_LOOKUP built: %s phase %d - %d factions, %d bosses, %d items (%.2fms)",
+            guideKey, phase, factionCount, bossCount, itemCount, bisLookupCache.meta.buildTime
+        ))
+    end
+end
+
+-- Ensure lookup tables are current for the given spec/phase
+-- Rebuilds if cache is stale
+-- @param guideKey string - Spec guide key
+-- @param phase number - Raid phase
+function C:EnsureBisLookupCurrent(guideKey, phase)
+    phase = phase or 1
+
+    -- Check if current lookup matches request
+    if bisLookupCache and bisLookupCache.meta then
+        local meta = bisLookupCache.meta
+        if meta.guideKey == guideKey and meta.phase == phase then
+            return -- Already current
+        end
+    end
+
+    -- Rebuild lookup tables
+    self:BuildBisLookupTables(guideKey, phase)
+end
+
+-- Get all BiS items for a given faction
+-- @param factionName string - Faction name (e.g., "Lower City")
+-- @return table - Array of { itemId, name, slot, standing, isBis }
+function C:GetBisItemsForFaction(factionName)
+    if not bisLookupCache or not bisLookupCache.byFaction then
+        return {}
+    end
+    return bisLookupCache.byFaction[factionName] or {}
+end
+
+-- Get all BiS items that drop from a given boss
+-- @param bossName string - Boss name (e.g., "Prince Malchezaar")
+-- @return table - Array of { itemId, name, slot, isBis, raidKey }
+function C:GetBisItemsForBoss(bossName)
+    if not bisLookupCache or not bisLookupCache.byBoss then
+        return {}
+    end
+    return bisLookupCache.byBoss[bossName] or {}
+end
+
+-- Get BiS info for an item by ID
+-- @param itemId number - Item ID
+-- @return table|nil - { slot, isBis, sourceType, source } or nil
+function C:GetBisInfoForItem(itemId)
+    if not bisLookupCache or not bisLookupCache.byItemId then
+        return nil
+    end
+    return bisLookupCache.byItemId[itemId]
+end
+
+-- Check if an item is BiS for the currently indexed spec
+-- @param itemId number - Item ID
+-- @return boolean - True if item is BiS
+function C:IsItemBisInLookup(itemId)
+    local info = self:GetBisInfoForItem(itemId)
+    return info and info.isBis or false
+end
+
+-- Get the currently active lookup metadata
+-- @return table|nil - { guideKey, phase, buildTime } or nil
+function C:GetBisLookupMeta()
+    return bisLookupCache and bisLookupCache.meta
+end
+
+-- Issue #71.3: Getter for external access to lookup cache
+-- @return table|nil - The BiS lookup cache or nil
+function C:GetBisLookup()
+    return bisLookupCache
 end

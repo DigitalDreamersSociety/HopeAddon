@@ -16,19 +16,27 @@ HopeAddon:RegisterModule("NameplateColors", NameplateColors)
 -- CONSTANTS
 --============================================================
 
--- RP Status colors (bright, neon-style for visibility)
-local RP_STATUS_COLORS = {
-    IC = { r = 0.2, g = 1.0, b = 0.2 },      -- Bright Green - In Character
-    OOC = { r = 0.0, g = 0.75, b = 1.0 },    -- Sky Blue - Out of Character
-    LF_RP = { r = 1.0, g = 0.2, b = 0.8 },   -- Hot Pink - Looking for RP
-    DEFAULT = { r = 0.0, g = 0.75, b = 1.0 }, -- Default to OOC (Sky Blue)
-}
+-- RP Status colors - use centralized constants for consistency
+-- Reference: HopeAddon.Constants.RP_STATUS_COLORS (defined in Constants.lua)
+local function GetRPStatusColors()
+    return HopeAddon.Constants and HopeAddon.Constants.RP_STATUS_COLORS or {
+        IC = { r = 0.2, g = 1.0, b = 0.2 },
+        OOC = { r = 0.0, g = 0.75, b = 1.0 },
+        LF_RP = { r = 1.0, g = 0.2, b = 0.8 },
+        DEFAULT = { r = 0.0, g = 0.75, b = 1.0 },
+    }
+end
 
 -- Update interval (100ms for responsiveness without perf hit)
 local UPDATE_INTERVAL = 0.1
 
 -- Cache for nameplate name texts to avoid repeated GetText() calls
 local nameplateCache = {}
+
+-- Fix #1: Reusable tables for WorldFrame:GetChildren() and GetRegions()
+-- Avoids creating new tables every 0.1 seconds
+local childrenCache = {}
+local regionsCache = {}
 
 --============================================================
 -- STATE
@@ -48,13 +56,14 @@ NameplateColors.timer = 0
     @return table - RGB color table { r, g, b }
 ]]
 local function GetFellowColor(fellowName)
+    local colors = GetRPStatusColors()
     if not HopeAddon.FellowTravelers then
-        return RP_STATUS_COLORS.DEFAULT
+        return colors.DEFAULT
     end
 
     local fellow = HopeAddon.FellowTravelers:GetFellow(fellowName)
     if not fellow then
-        return RP_STATUS_COLORS.DEFAULT
+        return colors.DEFAULT
     end
 
     -- Get RP status from profile
@@ -64,11 +73,11 @@ local function GetFellowColor(fellowName)
     end
 
     -- Return appropriate color
-    if status and RP_STATUS_COLORS[status] then
-        return RP_STATUS_COLORS[status]
+    if status and colors[status] then
+        return colors[status]
     end
 
-    return RP_STATUS_COLORS.DEFAULT
+    return colors.DEFAULT
 end
 
 --[[
@@ -115,15 +124,23 @@ local function ScanNameplates()
 
     -- TBC Classic uses WorldFrame children for nameplates
     -- We need to iterate through children of WorldFrame
-    local children = { WorldFrame:GetChildren() }
+    -- Fix #1: Reuse childrenCache table to avoid creating new tables every 0.1s
+    wipe(childrenCache)
+    for i = 1, select("#", WorldFrame:GetChildren()) do
+        childrenCache[i] = select(i, WorldFrame:GetChildren())
+    end
 
-    for _, frame in ipairs(children) do
+    for _, frame in ipairs(childrenCache) do
         -- Check if this looks like a nameplate
         -- TBC nameplates have specific regions we can check
         if frame:IsVisible() and frame:GetName() == nil then
             -- Try to find the name region
-            local regions = { frame:GetRegions() }
-            for _, region in ipairs(regions) do
+            -- Fix #1: Reuse regionsCache table to avoid creating new tables per nameplate
+            wipe(regionsCache)
+            for i = 1, select("#", frame:GetRegions()) do
+                regionsCache[i] = select(i, frame:GetRegions())
+            end
+            for _, region in ipairs(regionsCache) do
                 if region:GetObjectType() == "FontString" then
                     local text = region:GetText()
                     if text and text ~= "" then
@@ -229,7 +246,8 @@ end
     @return table - RGB color table
 ]]
 function NameplateColors:GetStatusColor(status)
-    return RP_STATUS_COLORS[status] or RP_STATUS_COLORS.DEFAULT
+    local colors = GetRPStatusColors()
+    return colors[status] or colors.DEFAULT
 end
 
 --============================================================
@@ -262,6 +280,7 @@ end
 
 function NameplateColors:OnDisable()
     if self.updateFrame then
+        self.updateFrame:SetScript("OnUpdate", nil)
         self.updateFrame:Hide()
     end
 

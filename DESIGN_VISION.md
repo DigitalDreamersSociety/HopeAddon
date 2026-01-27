@@ -1,5 +1,24 @@
-# HopeAddon - Complete Design Document
+# HopeAddon - Original Design Vision
 ## Version 3.0 - "Your Outland Adventure"
+
+> **⚠️ HISTORICAL DOCUMENT**
+>
+> This document represents the **original aspirational vision** for HopeAddon created early in development.
+> Many features were implemented differently than described here, and some planned features were never built.
+>
+> **For accurate current documentation, see:**
+> - `CLAUDE.md` - Quick reference for AI development
+> - `MODULE_API_REFERENCE.md` - Detailed module APIs
+> - `README.md` - User-facing feature list
+>
+> **Implementation Status:**
+> - ✅ Journal system (implemented differently - 7 tabs, not 5)
+> - ✅ Attunement tracking (all 6 TBC attunement chains)
+> - ✅ Fellow Travelers (addon-to-addon communication)
+> - ✅ Minigames (expanded beyond original scope - Tetris, Pong, Words, Battleship, Wordle)
+> - ⚠️ Storybook intro (not implemented as separate module)
+> - ⚠️ Adventure Map (integrated into journal, not standalone)
+> - ❌ File structure differs significantly (see CLAUDE.md for actual structure)
 
 ---
 
@@ -77,23 +96,26 @@ EPILOGUE: The Sunwell
 
 ---
 
-# 2. FILE STRUCTURE
+# 2. FILE STRUCTURE (ASPIRATIONAL - NOT IMPLEMENTED)
+
+> **Note:** The actual file structure differs significantly. See `CLAUDE.md` for the real architecture.
+> The files below were planned but never created as separate modules.
 
 ```
-HopeAddon/
+HopeAddon/                    ← PLANNED (not actual)
 ├── HopeAddon.toc
 ├── Core.lua                 # Foundation
 ├── Components.lua           # UI building blocks
-├── Storybook.lua           # The Awakening (intro)
-├── AdventureMap.lua        # The Road Ahead (progress)
-├── Journal.lua             # Main UI - your adventure journal
-├── Conquests.lua           # Raid progress as story chapters
-├── Treasures.lua           # Loot system (SR + browser)
-├── TavernGames.lua         # Mini-games
-├── Chronicles.lua          # Stats, deaths, achievements
-├── FellowTravelers.lua     # Player detection & markers
-├── Communication.lua       # Sync between adventurers
-└── Sounds.lua              # Audio
+├── Storybook.lua           # The Awakening (intro) ❌ NOT BUILT
+├── AdventureMap.lua        # The Road Ahead (progress) ❌ NOT BUILT
+├── Journal.lua             # Main UI - your adventure journal ✅ (different location)
+├── Conquests.lua           # Raid progress as story chapters ❌ → Raids/ folder instead
+├── Treasures.lua           # Loot system (SR + browser) ✅ → Social/Treasures.lua
+├── TavernGames.lua         # Mini-games ❌ → Social/Games/ folder instead
+├── Chronicles.lua          # Stats, deaths, achievements ❌ → Journal.lua instead
+├── FellowTravelers.lua     # Player detection & markers ✅ (different location)
+├── Communication.lua       # Sync between adventurers ❌ → GameComms.lua instead
+└── Sounds.lua              # Audio ✅ (different location)
 ```
 
 ---

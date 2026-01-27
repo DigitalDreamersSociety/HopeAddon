@@ -18,8 +18,9 @@ HopeAddon.Effects = Effects
 -- Cache for active effects
 Effects.activeGlows = {}
 Effects.glowsByParent = {}  -- O(1) lookup for glows by parent frame
-Effects.activeAnimations = {}
+Effects.activeAnimations = {}  -- Issue #31: Was unused, now tracks fade animations
 Effects.frameSparkles = {}  -- Track sparkles per parent frame to prevent stacking
+Effects.activeFadeAnimations = {}  -- Issue #26: Track fade animations for cleanup
 
 --[[
     GLOW EFFECTS
@@ -463,6 +464,8 @@ function Effects:FadeIn(frame, duration, callback)
     -- Stop any existing fade animation on this frame to prevent overlap
     if frame._fadeAnimGroup then
         frame._fadeAnimGroup:Stop()
+        -- Issue #26: Remove from tracking
+        self.activeFadeAnimations[frame] = nil
     end
 
     duration = duration or 0.3
@@ -477,9 +480,14 @@ function Effects:FadeIn(frame, duration, callback)
     fade:SetDuration(duration)
     fade:SetSmoothing("OUT")
 
+    -- Issue #26: Track for cleanup
+    self.activeFadeAnimations[frame] = ag
+
     ag:SetScript("OnFinished", function()
         frame:SetAlpha(1)
         frame._fadeAnimGroup = nil  -- Clear reference on completion
+        -- Issue #26: Remove from tracking on completion
+        self.activeFadeAnimations[frame] = nil
         if callback then callback() end
     end)
 
@@ -499,6 +507,8 @@ function Effects:FadeOut(frame, duration, callback)
     -- Stop any existing fade animation on this frame to prevent overlap
     if frame._fadeAnimGroup then
         frame._fadeAnimGroup:Stop()
+        -- Issue #26: Remove from tracking
+        self.activeFadeAnimations[frame] = nil
     end
 
     duration = duration or 0.3
@@ -511,10 +521,15 @@ function Effects:FadeOut(frame, duration, callback)
     fade:SetDuration(duration)
     fade:SetSmoothing("IN")
 
+    -- Issue #26: Track for cleanup
+    self.activeFadeAnimations[frame] = ag
+
     ag:SetScript("OnFinished", function()
         frame:Hide()
         frame:SetAlpha(1)
         frame._fadeAnimGroup = nil  -- Clear reference on completion
+        -- Issue #26: Remove from tracking on completion
+        self.activeFadeAnimations[frame] = nil
         if callback then callback() end
     end)
 
@@ -860,7 +875,18 @@ function Effects:OnDisable()
     end
     self.frameSparkles = {}
 
-    -- Clear active animations reference
+    -- Issue #26: Stop all active fade animations to prevent orphaned callbacks
+    for frame, ag in pairs(self.activeFadeAnimations or {}) do
+        if ag and ag.Stop then
+            ag:Stop()
+        end
+        if frame and frame._fadeAnimGroup then
+            frame._fadeAnimGroup = nil
+        end
+    end
+    self.activeFadeAnimations = {}
+
+    -- Clear active animations reference (Issue #31: was unused, now properly cleared)
     self.activeAnimations = {}
 end
 

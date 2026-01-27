@@ -4,6 +4,284 @@ This file contains historical bug fixes and development phases for AI assistant 
 
 ---
 
+## Phase 78: Memory Leak Audit Continuation
+
+### HIGH Priority Fixes (Issues 19-23)
+
+**Issue #19: GameCore.lua - Games Never Destroyed in OnDisable**
+- **Problem**: OnDisable called EndGame() but never DestroyGame(), games remained in activeGames table
+- **Fix**: Call DestroyGame() for each game, then wipe(self.activeGames) in OnDisable
+
+**Issue #20: Guild.lua - Listeners Not Cleared in OnDisable**
+- **Problem**: self.listeners table accumulated callbacks, never wiped in OnDisable
+- **Fix**: Added wipe(self.listeners) and reset listenerCount in OnDisable
+
+**Issue #21: ActivityFeed.lua - Listeners Not Cleared in OnDisable**
+- **Status**: Already fixed (self.listeners = {} exists at line 2046)
+
+**Issue #22: BattleshipUI.lua - Victory Overlay Frame Leak**
+- **Problem**: Victory overlay created with closures capturing gameId/overlay references, not properly destroyed
+- **Fix**: Clear button scripts before hiding, added explicit frame release in CleanupGameFrames
+
+**Issue #23: Journal.lua - Untracked C_Timer.After**
+- **Problem**: Used C_Timer.After() instead of HopeAddon.Timer:After(), timer handle not stored
+- **Fix**: Changed to use HopeAddon.Timer:After() for proper tracking
+
+### MEDIUM Priority Fixes (Issues 24-30)
+
+**Issue #24: Journal.lua - card.lootIcons Table Not Cleared**
+- **Problem**: lootIcons array hidden but never cleared, stale texture references persist
+- **Fix**: Added card.lootIcons = nil after cleanup loop in card pool reset
+
+**Issue #25: Sounds.lua - Missing OnDisable Cleanup**
+- **Problem**: sequenceTimers table accumulates timer handles, no OnDisable exists
+- **Fix**: Added OnDisable that calls CancelSequence(), registered module properly
+
+**Issue #26: Effects.lua - Fade Animations Orphaned Mid-Play**
+- **Problem**: _fadeAnimGroup stored on frame, if frame destroyed mid-animation, animation leaks
+- **Fix**: Track fade animations in activeFadeAnimations table, cleanup all in OnDisable
+
+**Issue #27: WordGame.lua - Drag State Tables Not Wiped**
+- **Problem**: dragState.validSquares, dragState.pendingPlacements not cleared in OnDisable
+- **Fix**: Added wipe() for both tables and cleared all dragState fields in OnDisable
+
+**Issue #28: Wordle/WordleUI.lua - Nested Timer Callbacks Without Tracking**
+- **Problem**: Animation timer chains have no cancellation mechanism if UI closed mid-animation
+- **Fix**: Store timer handles in ui.animationTimers array, cancel all in CloseUI
+
+**Issue #29: Journal.lua - Animation Groups May Persist on Card Release**
+- **Status**: Already handled - armory card pool reset function stops glowAnim and rankGlowAnim
+
+**Issue #30: MapPins.lua - OnDisable Verification**
+- **Status**: Verified - OnDisable already calls ReleaseAllPins()
+
+### LOW Priority Fixes (Issues 31-33)
+
+**Issue #31: Effects.lua - activeAnimations Table Unused**
+- **Status**: Repurposed comment to note it's now cleared in OnDisable for any future use
+
+**Issue #32: Journal.lua - FontString Layout Reset Inefficiency**
+- **Status**: Skipped - repositioning is necessary per notification type, not a memory leak
+
+**Issue #33: FellowTravelers.lua - Timer Race Condition**
+- **Problem**: Timer callback may execute after cancel due to race condition
+- **Fix**: Added guard in callback to check if pendingBroadcast is still valid before executing
+
+### Summary
+| Issue | File | Status |
+|-------|------|--------|
+| #19 | GameCore.lua | FIXED |
+| #20 | Guild.lua | FIXED |
+| #21 | ActivityFeed.lua | Already Fixed |
+| #22 | BattleshipUI.lua | FIXED |
+| #23 | Journal.lua | FIXED |
+| #24 | Journal.lua | FIXED |
+| #25 | Sounds.lua | FIXED |
+| #26 | Effects.lua | FIXED |
+| #27 | WordGame.lua | FIXED |
+| #28 | WordleUI.lua | FIXED |
+| #29 | Journal.lua | Already Fixed |
+| #30 | MapPins.lua | Verified OK |
+| #31 | Effects.lua | N/A (dead code) |
+| #32 | Journal.lua | Skipped (not leak) |
+| #33 | FellowTravelers.lua | FIXED |
+
+---
+
+## Phase 77: TBC API Compatibility Fixes
+
+### Critical API Fix
+- **Journal.lua:2848**: Replaced `GetFactionInfoByID()` with TBC-compatible faction iteration. This API does not exist in TBC Classic 2.4.3 - must iterate through `GetFactionInfo(i)` to find factions by ID.
+
+### Defensive Nil Checks
+- **Journal.lua:5819**: Added nil check for `killTier.colorHex` before calling `:sub()`. Prevents crashes if Constants returns tier data without colorHex property.
+
+### DressUpModel Safety Wrappers
+Wrapped all `DressUpModel:TryOn()` and `Undress()` calls with pcall for TBC compatibility safety:
+- **Journal.lua:14187** (OnBISButtonClick): Undress pcall wrapper
+- **Journal.lua:14218** (OnBISButtonClick TryOn loop): TryOn pcall wrapper with success tracking
+- **Journal.lua:14278** (OnRESETButtonClick): Undress pcall wrapper
+- **Journal.lua:16111** (Preview button click): TryOn pcall wrapper
+- **Journal.lua:16181** (TryOnArmoryItem): TryOn pcall wrapper
+- **Journal.lua:16214** (TryOnBisSet loop): TryOn pcall wrapper with success tracking
+- **Journal.lua:16240** (ResetModelToEquipped): Undress pcall wrapper
+
+### Summary
+| Issue | Severity | Status |
+|-------|----------|--------|
+| GetFactionInfoByID() doesn't exist in TBC | CRITICAL | FIXED |
+| colorHex nil access crash | LOW | FIXED |
+| DressUpModel methods may fail in TBC | LOW | FIXED (pcall wrapped) |
+
+---
+
+## Phase 76: Hot Path Memory Leak Fixes
+
+### Critical Hot Path Fixes (Every-Frame Garbage)
+- **NameplateColors.lua Fix #1**: Replaced `{ WorldFrame:GetChildren() }` and `{ frame:GetRegions() }` table creation with reusable `childrenCache`/`regionsCache` tables using `wipe()`. Eliminates ~10 new tables/second.
+- **WordGame.lua Fix #2**: Added throttling (~60fps) and scale caching to drag tile OnUpdate. Reduced from ~60 variable creations/second to near-zero during drag.
+- **Journal.lua Fix #3**: Added throttling (~60fps) and early exit to armory model frame drag rotation OnUpdate. Only processes when actually dragging and cursor has moved.
+- **WordGame.lua Fix #4**: Refactored toast animation to store state on frame (`_animStartTime`, `_animBaseX`, etc.) instead of creating closure locals every frame.
+
+### High Priority Frame Lifecycle Fixes (Orphaned Frames)
+- **Journal.lua Fix #5**: Added boss loot popup (`HopeBossLootPopup`) cleanup in OnDisable - clears scripts, sets parent nil, releases pooled frames.
+- **Journal.lua Fix #6**: Added rumor popup (`HopePostPopup`) cleanup in OnDisable - clears scripts, sets parent nil.
+- **WordGame.lua Fix #7**: Added drag tile singleton (`WordGameDragTile`) cleanup in OnDisable - clears OnUpdate, sets parent nil.
+- **Journal.lua**: Added armory model frame script cleanup in OnDisable (OnUpdate, OnMouseDown, OnMouseUp).
+
+### Memory Impact Summary
+| Pattern | Before | After |
+|---------|--------|-------|
+| Nameplate scan tables | ~10 tables/sec | 0 (reused) |
+| Drag tile locals | ~60 vars/sec | ~4 vars/sec (throttled) |
+| Model drag locals | ~60 vars/sec | ~4 vars/sec (throttled) |
+| Toast animation locals | ~90 vars/1.5s | ~15 vars/1.5s |
+| Orphaned popup frames | Persisted forever | Cleaned on disable |
+
+---
+
+## Phase 75: Comprehensive Memory Leak Audit & Fixes
+
+### Critical Issues Fixed (Handler Accumulation)
+- **PongGame.lua**: Added UnregisterHandler calls in OnDisable for MOVE/END handlers
+- **TetrisGame.lua**: Added UnregisterHandler calls in OnDisable for MOVE/STATE/END handlers
+- **BattleshipGame.lua**: Added UnregisterHandler calls in OnDisable for MOVE/STATE/END handlers
+- **ScoreChallenge.lua**: Added UnregisterHandler calls in OnDisable for SCORE_TETRIS/SCORE_PONG handlers
+- **FellowTravelers.lua**: Cancel pendingBroadcast timer in OnDisable to prevent orphaned timer reference
+
+### Critical Issues Fixed (Frame/Data Leaks)
+- **WordGame.lua**: ShowScoreToast now requires pool availability - returns early if pool unavailable (prevents frame leak)
+- **ActivityFeed.lua**: Added MAX_PENDING_ACTIVITIES (200) limit to prevent unbounded queue growth
+- **CalendarUI.lua**: Store pools as module fields (self.dayCellPool, self.eventCardPool) for reliable OnDisable access
+
+### Medium Priority Fixes
+- **ActivityFeed.lua**: Added MAX_LASTSEEN_ENTRIES (1000) limit with automatic pruning in MarkActivitySeen
+- **Romance.lua**: Added MAX_HISTORY_ENTRIES (100) limit via new AddHistoryEntry helper function
+- **WordleUI.lua**: Cancel toastTimer in CloseUI to prevent orphaned timer reference
+- **DeathRollGame.lua**: Use wipe(ui) in CleanupGame for complete ui table cleanup
+
+### Impact
+- **Handler accumulation per /reload**: Unbounded → Zero
+- **Toast frames per Words game**: 20+ leaked → 0 leaked
+- **Pending activities queue**: Unbounded → Max 200
+- **lastSeen cache**: Unbounded → Max 1000
+- **Romance history**: Unbounded → Max 100
+
+## Phase 74: BiS Data Cross-Tab Integration
+- **Inverted Lookup Tables**: New `C.BIS_LOOKUP` structure provides O(1) queries for BiS items by faction, boss, or item ID
+- **Core Infrastructure** (ArmoryBisData.lua):
+  - `C:BuildBisLookupTables(guideKey, phase)` - Builds inverted indexes from BiS database
+  - `C:EnsureBisLookupCurrent(guideKey, phase)` - Ensures cache is valid, rebuilds if stale
+  - `C:GetBisItemsForFaction(factionName)` - Returns all BiS items for a faction
+  - `C:GetBisItemsForBoss(bossName)` - Returns all BiS items from a boss
+  - `C:GetBisInfoForItem(itemId)` - Returns BiS metadata for an item
+  - `C:IsItemBisInLookup(itemId)` - Quick boolean check
+  - `C:GetBossRaidKey(bossName)` - Reverse lookup for boss-to-raid mapping
+- **Raids Tab Integration**: `GetBossLootItems()` refactored to use lookup tables
+  - BiS items from current spec automatically added to boss loot popups
+  - Items marked with `isBis` flag for gold star indicator
+  - Merges notableLoot with BiS database cross-reference
+- **Reputation Tab Integration**: Faction cards now show BiS awareness
+  - BiS count badge ("X BiS") on faction cards with spec-relevant items
+  - "BiS for Your Spec" tooltip section with green/grey color coding
+  - Green = obtainable at current standing, grey = not yet obtainable
+- **Performance**: ~10KB memory, <5ms build time, debug output via `/hope debug`
+
+## Phase 71: Reputation Tab Spec-Specific BiS Item Icons
+- **Spec-Aware Icons**: Reputation bar item icons now show spec-specific BiS gear from Armory database instead of generic rewards (keys, tabards)
+- **New Mapping Table**: `C.ARMORY_REP_SOURCE_MAP` maps BiS source strings (e.g., "Lower City Exalted") to ReputationData faction names
+- **New Functions**: `C:ParseReputationSource()` and `C:GetSpecReputationBisItems()` extract reputation BiS items for current spec
+- **Fallback Behavior**: Factions without spec BiS items (Sporeggar, Netherwing) still show generic rewards from ReputationData
+- **Faction Support**: Lower City, Violet Eye, Sha'tar, Consortium, Cenarion Expedition, Keepers of Time, Aldor, Scryers, Honor Hold/Thrallmar
+- **BiS Priority**: When multiple items exist at same standing, BiS items are preferred over alternatives
+
+## Phase 70: Wordle UI Improvements
+- **Enlarged Window**: Window size increased from 360x520 to 420x620 (+60px width, +100px height)
+- **Larger Letter Boxes**: Box size increased from 48x48 to 56x56 pixels with 8px gap (up from 6px)
+- **Larger Keyboard Keys**: Key height increased from 40px to 48px, width from 28px to 32px
+- **Larger Fonts**: Letter font increased from 24pt to 28pt, keyboard font from 12pt to 14pt
+- **Constants Consolidation**: Merged duplicate `C.WORDLE` definitions in Constants.lua (lines 3870 and 8483)
+- **Centralized Colors**: All colors now sourced from `C.WORDLE_COLORS` with fallbacks in WordleUI.lua
+- **Centralized Dimensions**: All dimensions now sourced from `C.WORDLE_UI` with fallbacks
+- **Improved Layout**: Better vertical spacing - grid starts at -50px, keyboard at -450px, status at bottom +25px
+- **Keyboard Layout Constant**: Added `KEYBOARD_ROWS` to `C.WORDLE_UI` for consistency
+
+## Phase 69: Wordle Game Loop Improvements
+- **Tile Flip Animation**: Letters now flip one-by-one with 3D-style scale animation (shrink/expand)
+- **Sequential Reveal**: Each letter reveals with 300ms delay for dramatic effect
+- **Row Shake Animation**: Invalid words trigger horizontal shake effect with decreasing intensity
+- **Win Bounce Animation**: Winning row letters bounce sequentially with easeOutBounce easing
+- **Toast Notifications**: In-UI floating messages replace chat spam (error messages in red, success in grey)
+- **Statistics Tracking**: Games, wins, current/max streaks, and guess distribution saved to charDb
+- **Stats Command**: `/hope wordle stats` shows game statistics
+- **Input Prevention**: Keyboard/mouse input blocked during reveal animation
+- **New Constants**: `C.WORDLE` in Constants.lua with animation timings (REVEAL_DELAY, FLIP_DURATION, etc.)
+
+## Phase 68: WoW Wordle Game
+- **New Game**: WoW-themed Wordle game added to Games Hall
+  - Guess a 5-letter WoW word in 6 attempts
+  - Color feedback: green (correct), yellow (wrong position), grey (not in word)
+  - Virtual keyboard with color-coded used letters
+  - Standard Wordle algorithm for letter evaluation
+- **Practice Mode**: `/hope wordle` starts game with random word from WoW dictionary
+- **Challenge Mode**: `/hope wordle <player>` to challenge - challenger picks a secret word for opponent to guess
+- **New Files**: `Social/Games/Wordle/` directory with WordleWords.lua, WordleGame.lua, WordleUI.lua
+- **Dictionary**: ~150+ valid 5-letter WoW-themed words (classes, races, items, zones, combat terms)
+- **Integration**: Added to Games Hall, C.GAME_DEFINITIONS, slash commands, accept/decline flow
+
+## Phase 67: Calendar Validation & Soft Reserve System
+- **Calendar Validation Module**: New `Social/CalendarValidation.lua` enforces event creation and signup rules
+  - Past date prevention (events cannot be in the past)
+  - Minimum notice (30 minutes before event start)
+  - Maximum future days (60 days in advance)
+  - Role capacity enforcement (auto-assigns standby when full)
+  - Time conflict detection (warns about overlapping signups)
+  - Max signups per player (5 concurrent events)
+- **Soft Reserve (SR) System**: New `Social/Treasures.lua` implements SR 1 loot system
+  - One soft reserve per raid per weekly lockout
+  - Tuesday 11 AM reset (matches WoW lockout schedule)
+  - Guild/raid network sync via FellowTravelers
+  - Phase 1 raids supported: Karazhan, Gruul, Magtheridon
+  - Slash commands: `/hope sr <raid> <item>`, `/hope sr list`, `/hope sr guild`
+- **New Constants**: `CALENDAR_VALIDATION` and `SOFT_RESERVE` in Constants.lua
+- **CalendarUI Enhancement**: Signup buttons now show validation state (dimmed when blocked, tooltips for errors)
+- **ActivityFeed Integration**: SR updates broadcast to activity feed
+
+## Phase 66: Armory Popup Filter Section Compaction
+- **Reduced Filter Section Height**: From 180px to 120px (-60px), giving alternatives scroll list more space (~54% vs ~45%)
+- **Compact Filter Cards**: Height reduced from 52px to 28px, icon from 36px to 22px, gap from 12px to 4px
+- **Single-Line Layout**: Filter cards now use horizontal single-line layout (icon - name - count) instead of multi-line
+- **SubText Hidden**: Unused subText element hidden in compact mode for cleaner appearance
+
+## Phase 65: Boss Loot Popup (Raids Tab)
+- **Clickable Boss Cards**: Boss cards in Raids tab now open a loot table popup when clicked
+- **Loot Table Popup**: 480x560px popup showing all loot drops from the boss
+  - Header: Boss icon, name, close button (draggable)
+  - Info Section: Raid name, location, kill stats
+  - Loot List: Scrollable list of loot items with icons, quality borders, drop rates
+  - BiS Indicator: Gold star on items that are Best in Slot for current spec
+- **Combined Loot Data**: Merges `notableLoot` from boss definitions with BiS database cross-reference
+- **Frame Pooling**: Uses `bossLootPools.lootRow` pool for efficient UI management
+- **Tab Switch Cleanup**: Popup automatically closes when switching journal tabs
+
+## Phase 64: Activity Feed Demo Data & Self-Activity Display
+- **Demo Data Generation**: `/hope demo` now populates Activity Feed with 10 sample activities (boss kills, level ups, IC posts, anonymous rumors, games, badges, romance events)
+- **Self-Activity Display**: Fixed issue where player's own activities wouldn't show if FellowTravelers module was unavailable - activities now always add to local feed
+- **Improved Empty State**: Feed tab shows "The Notice Board is Quiet" header with hint about `/hope demo` command when empty
+- **Documentation**: Updated CLAUDE.md to mark Activity Feed as PARTIAL, added Known Issue for Mug UI
+
+## Phase 63: Armory Popup UI Organization
+- **Section Headers**: Added visual section headers with horizontal lines for "FILTER BY SOURCE" and "ALTERNATIVES" sections
+- **Consistent Dividers**: Footer now has a tan/gold divider matching the addon theme, replacing inconsistent dark grey dividers
+- **Helper Function**: New `CreatePopupSectionHeader()` function creates reusable section headers with text + horizontal line pattern
+
+## Phase 62: Calendar Enhancements
+- **Event Type Color Coding**: Calendar grid dots and event cards now use color coding (Raid=Orange, Dungeon=Blue, RP=Purple, Other=Grey)
+- **Event Templates**: Save/load common raid configurations (max 10 templates) via "Save as Template" button and template dropdown
+- **Signup Matrix UI**: LOIHCal-inspired layout with Needs Bar (shows unfilled slots), role columns (Tank/Healer/DPS with status icons), and Standby section for overflow
+
+---
+
 ## Phase 5: Pooling & Performance Optimizations
 
 - ✅ **COMBAT_LOG Early Filter** (Journal.lua:2356) - Check subEvent with `select(2, ...)` BEFORE unpacking all values; reduces unnecessary work on 50,000+ events per raid session

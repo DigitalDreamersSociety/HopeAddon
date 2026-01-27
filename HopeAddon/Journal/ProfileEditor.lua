@@ -74,7 +74,7 @@ function ProfileEditor:CreateFrame()
     frame:Hide()
 
     -- Backdrop
-    HopeAddon.Components:ApplyBackdrop(frame, "DARK_GOLD", "DARK_SOLID", nil)
+    HopeAddon.Components:ApplyBackdrop(frame, "DARK_FEL", "BLACK_SOLID", "FEL_GREEN")
 
     -- Title
     local title = frame:CreateFontString(nil, "OVERLAY")
@@ -434,8 +434,11 @@ end
 --============================================================
 
 function ProfileEditor:LoadProfile()
+    -- Guard against nil data during early initialization
+    if not HopeAddon.charDb or not HopeAddon.charDb.travelers then return end
     local profile = HopeAddon.charDb.travelers.myProfile
     local settings = HopeAddon.charDb.travelers.fellowSettings
+    if not profile or not settings then return end
 
     -- Load text fields
     if self.pronounsBox then
@@ -482,8 +485,11 @@ function ProfileEditor:LoadProfile()
 end
 
 function ProfileEditor:SaveProfile()
+    -- Guard against nil data during early initialization
+    if not HopeAddon.charDb or not HopeAddon.charDb.travelers then return end
     local profile = HopeAddon.charDb.travelers.myProfile
     local settings = HopeAddon.charDb.travelers.fellowSettings
+    if not profile or not settings then return end
 
     -- Save text fields
     profile.pronouns = self.pronounsBox and self.pronounsBox:GetText() or ""
@@ -516,10 +522,12 @@ end
 function ProfileEditor:InitializeStatusDropdown()
     local dropdown = self.statusDropdown
     if not dropdown then return end
+    if not HopeAddon.charDb or not HopeAddon.charDb.travelers then return end
 
     local FellowTravelers = HopeAddon:GetModule("FellowTravelers")
     local options = FellowTravelers and FellowTravelers.STATUS_OPTIONS or {}
     local profile = HopeAddon.charDb.travelers.myProfile
+    if not profile then return end
 
     UIDropDownMenu_Initialize(dropdown, function(self, level)
         for _, opt in ipairs(options) do
@@ -547,9 +555,11 @@ end
 function ProfileEditor:InitializeColorDropdown()
     local dropdown = self.colorDropdown
     if not dropdown then return end
+    if not HopeAddon.charDb or not HopeAddon.charDb.travelers then return end
 
     local Badges = HopeAddon.Badges
     local profile = HopeAddon.charDb.travelers.myProfile
+    if not profile then return end
 
     UIDropDownMenu_Initialize(dropdown, function(self, level)
         -- Default option
@@ -598,9 +608,11 @@ end
 function ProfileEditor:InitializeTitleDropdown()
     local dropdown = self.titleDropdown
     if not dropdown then return end
+    if not HopeAddon.charDb or not HopeAddon.charDb.travelers then return end
 
     local Badges = HopeAddon.Badges
     local profile = HopeAddon.charDb.travelers.myProfile
+    if not profile then return end
 
     UIDropDownMenu_Initialize(dropdown, function(self, level)
         -- No title option

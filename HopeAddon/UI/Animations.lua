@@ -80,9 +80,12 @@ function Animations:Tween(duration, onUpdate, onComplete, easingFunc)
 
     easingFunc = easingFunc or self.easing.easeOutQuad
     local elapsed = 0
+    local cancelled = false  -- Issue #71.7: Track cancellation state
 
     local ticker
     ticker = HopeAddon.Timer:NewTicker(ANIM_TICK_INTERVAL, function() -- ~30fps
+        if cancelled then return end  -- Skip if cancelled
+
         elapsed = elapsed + ANIM_TICK_INTERVAL
         local progress = math.min(elapsed / duration, 1)
         local easedProgress = easingFunc(progress)
@@ -107,6 +110,20 @@ function Animations:Tween(duration, onUpdate, onComplete, easingFunc)
     end)
 
     table.insert(self.active, ticker)
+
+    -- Issue #71.7: Return cancel function that properly removes from registry
+    ticker._hopeCancel = function()
+        if cancelled then return end
+        cancelled = true
+        ticker:Cancel()
+        for i, t in ipairs(Animations.active) do
+            if t == ticker then
+                table.remove(Animations.active, i)
+                break
+            end
+        end
+    end
+
     return ticker
 end
 
@@ -457,14 +474,20 @@ function Animations:StopAll()
 end
 
 function Animations:Stop(ticker)
-    if ticker and ticker.Cancel then
-        ticker:Cancel()
-    end
+    if not ticker then return end
 
-    for i, t in ipairs(self.active) do
-        if t == ticker then
-            table.remove(self.active, i)
-            break
+    -- Issue #71.7: Use proper cancel function if available
+    if ticker._hopeCancel then
+        ticker._hopeCancel()
+    else
+        if ticker.Cancel then
+            ticker:Cancel()
+        end
+        for i, t in ipairs(self.active) do
+            if t == ticker then
+                table.remove(self.active, i)
+                break
+            end
         end
     end
 end

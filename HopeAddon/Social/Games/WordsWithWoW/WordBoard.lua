@@ -113,6 +113,8 @@ function WordBoard:GetBonus(row, col)
 end
 
 function WordBoard:IsEmpty(row, col)
+    -- Fix #3: Check bounds first - out-of-bounds should return false, not true
+    if not self:IsInBounds(row, col) then return false end
     return self:GetLetter(row, col) == nil
 end
 
@@ -137,7 +139,12 @@ function WordBoard:CanPlaceWord(word, startRow, startCol, horizontal, isFirstWor
     word = word:upper()
     local len = #word
 
-    -- Check bounds
+    -- Fix #2: Check lower bounds first
+    if startRow < 1 or startCol < 1 then
+        return false, "Position must be on the board"
+    end
+
+    -- Check upper bounds
     if horizontal then
         if startCol + len - 1 > self.size then
             return false, "Word extends beyond board"

@@ -135,6 +135,11 @@ local function ScheduleBroadcast(delay)
         return
     end
     FellowTravelers.pendingBroadcast = HopeAddon.Timer:After(delay, function()
+        -- Issue #33: Guard against race condition - check if timer was cancelled
+        -- This can happen if OnDisable runs between timer scheduling and callback
+        if FellowTravelers.pendingBroadcast == nil then
+            return
+        end
         FellowTravelers.pendingBroadcast = nil
         FellowTravelers:BroadcastPresence()
     end)
@@ -204,6 +209,11 @@ function FellowTravelers:OnDisable()
     if self.broadcastTicker then
         self.broadcastTicker:Cancel()
         self.broadcastTicker = nil
+    end
+    -- Cancel pending broadcast timer to prevent orphaned timer reference
+    if self.pendingBroadcast then
+        self.pendingBroadcast:Cancel()
+        self.pendingBroadcast = nil
     end
 end
 
@@ -811,17 +821,27 @@ end
 --[[
     Clean up tables to prevent unbounded growth
     Called on login and can be called periodically
+    Issue #71.5: Fixed deletion order bug - now properly prunes by timestamp
 ]]
 function FellowTravelers:CleanupTables()
     local now = GetTime()
 
-    -- Clean pingCooldowns - remove expired entries and limit size
-    local pingCount = 0
+    -- Clean pingCooldowns - two-pass approach to properly prune oldest entries
+    -- Pass 1: Remove expired entries (5 minutes)
+    local validEntries = {}
     for name, timestamp in pairs(self.pingCooldowns) do
-        pingCount = pingCount + 1
-        -- Remove if expired (5 minutes) or if we have too many
-        if now - timestamp > 300 or pingCount > MAX_PING_COOLDOWNS then
+        if now - timestamp > 300 then
             self.pingCooldowns[name] = nil
+        else
+            table.insert(validEntries, { name = name, time = timestamp })
+        end
+    end
+
+    -- Pass 2: If still over limit, sort by timestamp and remove oldest
+    if #validEntries > MAX_PING_COOLDOWNS then
+        table.sort(validEntries, function(a, b) return a.time < b.time end)
+        for i = 1, #validEntries - MAX_PING_COOLDOWNS do
+            self.pingCooldowns[validEntries[i].name] = nil
         end
     end
 
@@ -856,7 +876,7 @@ function FellowTravelers:CleanupTables()
         end
     end
 
-    HopeAddon:Debug("CleanupTables completed - pingCooldowns:", pingCount)
+    HopeAddon:Debug("CleanupTables completed - pingCooldowns:", #validEntries)
 end
 
 --[[
@@ -1007,6 +1027,9 @@ local function OnTooltipSetUnit(tooltip)
 end
 
 function FellowTravelers:HookTooltip()
+    -- P2.4: Guard against double-hooking (HookScript can't be unhooked)
+    if GameTooltip._hopeTooltipHooked then return end
+    GameTooltip._hopeTooltipHooked = true
     GameTooltip:HookScript("OnTooltipSetUnit", OnTooltipSetUnit)
 end
 
@@ -1031,6 +1054,9 @@ function FellowTravelers:HookChatFrame(chatFrame)
     if chatFrame._hopeHooked then return end
     chatFrame._hopeHooked = true
 
+    -- Store original for proper unhooking (Issue #71.1: Memory leak on /reload)
+    chatFrame._hopeOriginalAddMessage = chatFrame.AddMessage
+
     local originalAddMessage = chatFrame.AddMessage
     chatFrame.AddMessage = function(self, msg, r, g, b, ...)
         -- Early exit check: only process if addon enabled and colorChat enabled
@@ -1044,7 +1070,15 @@ function FellowTravelers:HookChatFrame(chatFrame)
 end
 
 function FellowTravelers:UnhookChat()
-    -- Note: Can't truly unhook, but the coloring checks settings
+    -- Issue #71.1: Properly restore original AddMessage to prevent closure layering
+    for i = 1, NUM_CHAT_WINDOWS do
+        local chatFrame = _G["ChatFrame" .. i]
+        if chatFrame and chatFrame._hopeHooked and chatFrame._hopeOriginalAddMessage then
+            chatFrame.AddMessage = chatFrame._hopeOriginalAddMessage
+            chatFrame._hopeHooked = nil
+            chatFrame._hopeOriginalAddMessage = nil
+        end
+    end
 end
 
 --[[

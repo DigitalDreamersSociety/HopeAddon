@@ -41,6 +41,9 @@ local STATUS_DATING = "DATING"
 local REJECTION_COOLDOWN = 86400  -- 24 hours
 local REQUEST_EXPIRY = 604800     -- 7 days
 
+-- Data limits
+local MAX_HISTORY_ENTRIES = 100   -- Maximum relationship history entries to prevent unbounded growth
+
 --============================================================
 -- MODULE STATE
 --============================================================
@@ -57,6 +60,22 @@ Romance.eventFrame = nil
 ]]
 local function GetRomanceData()
     return HopeAddon:GetSocialRomance()
+end
+
+--[[
+    Add entry to romance history with size limit
+    Removes oldest entries when limit exceeded
+    @param data table - Romance data table
+    @param entry table - History entry to add
+]]
+local function AddHistoryEntry(data, entry)
+    data.history = data.history or {}
+    table.insert(data.history, entry)
+
+    -- Limit history size to prevent unbounded growth
+    while #data.history > MAX_HISTORY_ENTRIES do
+        table.remove(data.history, 1)  -- Remove oldest
+    end
 end
 
 --[[
@@ -407,9 +426,8 @@ function Romance:AcceptProposal(senderName)
     data.partner = senderName
     data.since = time()
 
-    -- Add to history
-    data.history = data.history or {}
-    table.insert(data.history, {
+    -- Add to history (with size limit)
+    AddHistoryEntry(data, {
         partner = senderName,
         started = time(),
         ended = nil,
@@ -665,9 +683,8 @@ function Romance:HandleProposalAccepted(sender, msgData)
     data.partner = sender
     data.since = time()
 
-    -- Add to history
-    data.history = data.history or {}
-    table.insert(data.history, {
+    -- Add to history (with size limit)
+    AddHistoryEntry(data, {
         partner = sender,
         started = time(),
         ended = nil,

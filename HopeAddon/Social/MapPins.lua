@@ -12,14 +12,18 @@ HopeAddon.MapPins = MapPins
 local PIN_UPDATE_INTERVAL = 5  -- Seconds between pin updates
 local LOCATION_STALE_TIME = 300  -- 5 minutes - consider location stale
 local MAX_PINS = 50  -- Maximum pins to display at once
+local MAX_POOLED_PINS = 60  -- Issue #71.11: Maximum pins to keep in pool
 
--- RP Status colors (matching NameplateColors module)
-local RP_STATUS_COLORS = {
-    IC = { r = 0.2, g = 1.0, b = 0.2 },      -- Bright Green - In Character
-    OOC = { r = 0.0, g = 0.75, b = 1.0 },    -- Sky Blue - Out of Character
-    LF_RP = { r = 1.0, g = 0.2, b = 0.8 },   -- Hot Pink - Looking for RP
-    DEFAULT = { r = 0.0, g = 0.75, b = 1.0 }, -- Default to OOC (Sky Blue)
-}
+-- RP Status colors - use centralized constants for consistency
+-- Reference: HopeAddon.Constants.RP_STATUS_COLORS (defined in Constants.lua)
+local function GetRPStatusColors()
+    return HopeAddon.Constants and HopeAddon.Constants.RP_STATUS_COLORS or {
+        IC = { r = 0.2, g = 1.0, b = 0.2 },
+        OOC = { r = 0.0, g = 0.75, b = 1.0 },
+        LF_RP = { r = 1.0, g = 0.2, b = 0.8 },
+        DEFAULT = { r = 0.0, g = 0.75, b = 1.0 },
+    }
+end
 
 -- Star icon texture for Fellow Travelers
 local FELLOW_PIN_ICON = "Interface\\MINIMAP\\TRACKING\\BattleMaster"  -- Sword star icon
@@ -132,7 +136,16 @@ function MapPins:ReleasePin(pin)
     pin.playerStatus = nil
     pin.x = nil
     pin.y = nil
-    table.insert(self.pinPool, pin)
+
+    -- Issue #71.11: Limit pool size to prevent unbounded growth
+    if #self.pinPool < MAX_POOLED_PINS then
+        table.insert(self.pinPool, pin)
+    else
+        -- Destroy excess pins
+        pin:SetScript("OnEnter", nil)
+        pin:SetScript("OnLeave", nil)
+        pin:SetParent(nil)
+    end
 end
 
 --[[
@@ -194,13 +207,14 @@ end
     @return table - RGB color table { r, g, b }
 ]]
 function MapPins:GetFellowStatusColor(fellowName)
+    local colors = GetRPStatusColors()
     if not HopeAddon.FellowTravelers then
-        return RP_STATUS_COLORS.DEFAULT
+        return colors.DEFAULT
     end
 
     local fellow = HopeAddon.FellowTravelers:GetFellow(fellowName)
     if not fellow then
-        return RP_STATUS_COLORS.DEFAULT
+        return colors.DEFAULT
     end
 
     -- Get RP status from profile
@@ -210,11 +224,11 @@ function MapPins:GetFellowStatusColor(fellowName)
     end
 
     -- Return appropriate color
-    if status and RP_STATUS_COLORS[status] then
-        return RP_STATUS_COLORS[status]
+    if status and colors[status] then
+        return colors[status]
     end
 
-    return RP_STATUS_COLORS.DEFAULT
+    return colors.DEFAULT
 end
 
 --[[
@@ -392,7 +406,7 @@ function MapPins:UpdatePins()
                     if fellow.class then
                         color = GetClassColor(HopeAddon, fellow.class)
                     else
-                        color = RP_STATUS_COLORS.DEFAULT
+                        color = GetRPStatusColors().DEFAULT
                     end
                 end
 
@@ -511,6 +525,15 @@ function MapPins:OnDisable()
     end
 
     self:ReleaseAllPins()
+
+    -- P2.1: Destroy pooled frames to prevent memory leaks
+    for _, pin in ipairs(self.pinPool) do
+        pin:Hide()
+        pin:SetParent(nil)
+        pin:SetScript("OnEnter", nil)
+        pin:SetScript("OnLeave", nil)
+    end
+    wipe(self.pinPool)
 end
 
 -- Register with addon

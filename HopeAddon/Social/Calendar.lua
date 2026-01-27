@@ -4,7 +4,6 @@
 ]]
 
 local Calendar = {}
-HopeAddon:RegisterModule("Calendar", Calendar)
 
 -- Module references (populated on enable)
 local C = nil
@@ -12,6 +11,7 @@ local Timer = nil
 local FellowTravelers = nil
 local ActivityFeed = nil
 local SocialToasts = nil
+local CalendarValidation = nil
 
 -- Protocol version for network sync
 local PROTOCOL_VERSION = 1
@@ -33,6 +33,7 @@ function Calendar:OnEnable()
     FellowTravelers = HopeAddon.FellowTravelers
     ActivityFeed = HopeAddon.ActivityFeed
     SocialToasts = HopeAddon.SocialToasts
+    CalendarValidation = HopeAddon.CalendarValidation
 
     -- Ensure calendar data exists
     self:EnsureCalendarData()
@@ -54,6 +55,13 @@ function Calendar:OnDisable()
     if notificationTicker then
         notificationTicker:Cancel()
         notificationTicker = nil
+    end
+
+    -- Unregister network message callbacks
+    if FellowTravelers then
+        FellowTravelers:UnregisterMessageCallback("calendar_event")
+        FellowTravelers:UnregisterMessageCallback("calendar_delete")
+        FellowTravelers:UnregisterMessageCallback("calendar_signup")
     end
 
     HopeAddon:Debug("Calendar: Disabled")
@@ -92,6 +100,7 @@ function Calendar:EnsureCalendarData()
                 fellowEvents = {},
                 mySignups = {},
                 notifiedEvents = {},
+                templates = {},  -- Event templates
                 settings = {
                     defaultView = "month",
                     showPastEvents = true,
@@ -223,6 +232,64 @@ function Calendar:FormatCountdown(seconds)
     end
 end
 
+--============================================================
+-- TIME ZONE UTILITIES
+--============================================================
+
+--[[
+    Calculate the offset between local time and realm time in seconds
+    Uses GetGameTime() which returns realm hour/minute
+    @return number - Offset in seconds (positive = realm is ahead)
+]]
+function Calendar:CalculateRealmOffset()
+    local realmHour, realmMinute = GetGameTime()
+    local localTime = date("*t")
+
+    -- Convert both to minutes from midnight
+    local realmMinutes = realmHour * 60 + realmMinute
+    local localMinutes = localTime.hour * 60 + localTime.min
+
+    -- Calculate difference (accounting for day boundary)
+    local diff = realmMinutes - localMinutes
+    if diff > 720 then diff = diff - 1440 end  -- Cross midnight backward
+    if diff < -720 then diff = diff + 1440 end -- Cross midnight forward
+
+    return diff * 60  -- Return as seconds
+end
+
+--[[
+    Format time string showing both realm and local time
+    @param timeStr string - "HH:MM" time string (assumed realm time)
+    @return string - Formatted dual time display
+]]
+function Calendar:FormatDualTime(timeStr)
+    if not timeStr or timeStr == "All Day" or timeStr == "TBD" then
+        return timeStr
+    end
+
+    local hour, minute = timeStr:match("^(%d+):(%d+)$")
+    if not hour then return timeStr end
+
+    -- Get realm offset in hours
+    local offset = self:CalculateRealmOffset()
+    local offsetHours = math.floor(offset / 3600)
+
+    -- Same timezone - no dual display needed
+    if offsetHours == 0 then
+        return timeStr
+    end
+
+    -- Calculate local time from realm time
+    local realmHour = tonumber(hour)
+    local localHour = realmHour - offsetHours
+
+    -- Handle day wrap
+    if localHour < 0 then localHour = localHour + 24 end
+    if localHour >= 24 then localHour = localHour - 24 end
+
+    return string.format("%02d:%s R / %02d:%s L", realmHour, minute, localHour, minute)
+end
+
 --[[
     Check if event is in the past
     @param event table
@@ -256,12 +323,20 @@ function Calendar:CreateEvent(eventData)
         return nil, "Calendar data not available"
     end
 
-    -- Validate required fields
-    if not eventData.date then
-        return nil, "Date is required"
-    end
-    if not eventData.startTime then
-        return nil, "Start time is required"
+    -- Run validation if module available
+    if CalendarValidation then
+        local isValid, errors = CalendarValidation:ValidateEventCreate(eventData)
+        if not isValid then
+            return nil, table.concat(errors, "; ")
+        end
+    else
+        -- Fallback validation: required fields only
+        if not eventData.date then
+            return nil, "Date is required"
+        end
+        if not eventData.startTime then
+            return nil, "Start time is required"
+        end
     end
 
     -- Check event limit
@@ -396,32 +471,69 @@ function Calendar:IsMyEvent(eventId)
 end
 
 --============================================================
+-- SERVER EVENTS (Hardcoded, read-only)
+--============================================================
+
+--[[
+    Get server events for a specific date
+    Server events are hardcoded in Constants.lua and are read-only announcements
+    @param dateStr string - YYYY-MM-DD
+    @return table - Array of server events
+]]
+function Calendar:GetServerEventsForDate(dateStr)
+    local events = {}
+    for _, event in ipairs(C.SERVER_EVENTS or {}) do
+        if event.date == dateStr then
+            table.insert(events, event)
+        end
+    end
+    return events
+end
+
+--[[
+    Check if an event is a server event (read-only)
+    Server events have no signups and cannot be edited
+    @param event table
+    @return boolean
+]]
+function Calendar:IsServerEvent(event)
+    return event and event.eventType == "SERVER"
+end
+
+--============================================================
 -- EVENT QUERIES
 --============================================================
 
 --[[
-    Get all events for a specific date
+    Get all events for a specific date (guild events + server events)
     @param dateStr string - YYYY-MM-DD
     @return table - Array of events
 ]]
 function Calendar:GetEventsForDate(dateStr)
     local cal = self:GetCalendarData()
-    if not cal then return {} end
-
     local events = {}
 
-    -- My events
-    for _, event in pairs(cal.myEvents) do
-        if event.date == dateStr then
-            table.insert(events, event)
+    -- Guild events (myEvents + fellowEvents)
+    if cal then
+        -- My events
+        for _, event in pairs(cal.myEvents) do
+            if event.date == dateStr then
+                table.insert(events, event)
+            end
+        end
+
+        -- Fellow events
+        for _, event in pairs(cal.fellowEvents) do
+            if event.date == dateStr then
+                table.insert(events, event)
+            end
         end
     end
 
-    -- Fellow events
-    for _, event in pairs(cal.fellowEvents) do
-        if event.date == dateStr then
-            table.insert(events, event)
-        end
+    -- Server events (hardcoded, read-only)
+    local serverEvents = self:GetServerEventsForDate(dateStr)
+    for _, event in ipairs(serverEvents) do
+        table.insert(events, event)
     end
 
     -- Sort by start time
@@ -514,28 +626,106 @@ function Calendar:GetPastEvents()
 end
 
 --[[
+    Get span position for a date within an event's range
+    @param event table - Event with date and optional endDate
+    @param dateStr string - The date to check (YYYY-MM-DD)
+    @return string - "single", "start", "middle", or "end"
+]]
+local function getSpanPosition(event, dateStr)
+    local startDate = event.date
+    local endDate = event.endDate or startDate
+
+    if startDate == endDate then
+        return "single"
+    elseif dateStr == startDate then
+        return "start"
+    elseif dateStr == endDate then
+        return "end"
+    else
+        return "middle"
+    end
+end
+
+--[[
     Get events for a month (for calendar grid display)
     @param year number
     @param month number (1-12)
-    @return table - Map of date string to event count
+    @return table - Map of date string to { count = number, events = { eventType, title, spanPosition } }
 ]]
 function Calendar:GetEventsForMonth(year, month)
     local cal = self:GetCalendarData()
-    if not cal then return {} end
 
     local monthStr = string.format("%04d-%02d", year, month)
     local eventsByDate = {}
 
-    for _, event in pairs(cal.myEvents) do
-        if event.date and event.date:sub(1, 7) == monthStr then
-            eventsByDate[event.date] = (eventsByDate[event.date] or 0) + 1
+    -- Helper to add event entry for a specific date
+    local function addEventForDate(event, dateStr, spanPosition)
+        if not eventsByDate[dateStr] then
+            eventsByDate[dateStr] = { count = 0, events = {} }
+        end
+        eventsByDate[dateStr].count = eventsByDate[dateStr].count + 1
+        table.insert(eventsByDate[dateStr].events, {
+            eventType = event.eventType or "OTHER",
+            title = event.title,
+            spanPosition = spanPosition,
+        })
+    end
+
+    -- Process an event, handling multi-day spans
+    local function addEvent(event)
+        if not event.date then return end
+
+        local startDate = event.date
+        local endDate = event.endDate or startDate
+
+        -- Single-day event: check if it's in this month
+        if startDate == endDate then
+            if startDate:sub(1, 7) == monthStr then
+                addEventForDate(event, startDate, "single")
+            end
+            return
+        end
+
+        -- Multi-day event: iterate through all dates in range
+        local startYear, startMonth, startDay = self:ParseDate(startDate)
+        local endYear, endMonth, endDay = self:ParseDate(endDate)
+        if not startYear or not endYear then return end
+
+        -- Convert to timestamps for iteration
+        local startTime = time({ year = startYear, month = startMonth, day = startDay, hour = 0 })
+        local endTime = time({ year = endYear, month = endMonth, day = endDay, hour = 0 })
+
+        -- Iterate day by day
+        local currentTime = startTime
+        while currentTime <= endTime do
+            local dt = date("*t", currentTime)
+            local dateStr = string.format("%04d-%02d-%02d", dt.year, dt.month, dt.day)
+
+            -- Only add dates that are in the requested month
+            if dateStr:sub(1, 7) == monthStr then
+                local spanPos = getSpanPosition(event, dateStr)
+                addEventForDate(event, dateStr, spanPos)
+            end
+
+            -- Advance to next day (86400 seconds = 1 day)
+            currentTime = currentTime + 86400
         end
     end
 
-    for _, event in pairs(cal.fellowEvents) do
-        if event.date and event.date:sub(1, 7) == monthStr then
-            eventsByDate[event.date] = (eventsByDate[event.date] or 0) + 1
+    -- Guild events
+    if cal then
+        for _, event in pairs(cal.myEvents) do
+            addEvent(event)
         end
+
+        for _, event in pairs(cal.fellowEvents) do
+            addEvent(event)
+        end
+    end
+
+    -- Server events (hardcoded, read-only)
+    for _, event in ipairs(C.SERVER_EVENTS or {}) do
+        addEvent(event)
     end
 
     return eventsByDate
@@ -565,6 +755,25 @@ function Calendar:SignUp(eventId, role, status)
 
     local playerName = UnitName("player")
     local _, playerClass = UnitClass("player")
+
+    -- Run validation if module available
+    if CalendarValidation then
+        local isValid, errors, shouldStandby, warnings = CalendarValidation:ValidateSignup(eventId, playerName, role)
+        if not isValid then
+            return false, table.concat(errors, "; ")
+        end
+        -- If role/raid full but validation passed, mark as standby
+        if shouldStandby then
+            status = "standby"
+            HopeAddon:Debug("Calendar: Automatically assigning standby status due to full slots")
+        end
+        -- Show warnings for time conflicts (informational, doesn't block signup)
+        if warnings and #warnings > 0 then
+            for _, warning in ipairs(warnings) do
+                HopeAddon:Print("|cFFFFD700[Calendar Warning]|r " .. warning)
+            end
+        end
+    end
 
     -- Check if already signed up
     if event.signups[playerName] then
@@ -711,6 +920,262 @@ function Calendar:IsRoleFull(event, role)
     local roleCount = counts[role]
     if not roleCount then return true end
     return roleCount.current >= roleCount.max
+end
+
+--[[
+    Get signups grouped by role with standby overflow
+    @param event table
+    @return table - { tank = { confirmed = {}, tentative = {}, standby = {} }, ... }
+]]
+function Calendar:GetSignupsByRole(event)
+    if not event then return {} end
+
+    local result = {
+        tank = { confirmed = {}, tentative = {}, standby = {} },
+        healer = { confirmed = {}, tentative = {}, standby = {} },
+        dps = { confirmed = {}, tentative = {}, standby = {} },
+    }
+
+    local counts = self:GetSignupCounts(event)
+
+    -- First pass: sort by status and join time
+    local byRole = { tank = {}, healer = {}, dps = {} }
+    for playerName, signup in pairs(event.signups or {}) do
+        if signup.status ~= "declined" then
+            local role = signup.role or "dps"
+            if byRole[role] then
+                table.insert(byRole[role], {
+                    name = playerName,
+                    class = signup.class,
+                    status = signup.status,
+                    joinedAt = signup.joinedAt or 0,
+                    isFellow = signup.isFellow,
+                })
+            end
+        end
+    end
+
+    -- Second pass: assign to confirmed/tentative/standby based on max slots
+    for role, signups in pairs(byRole) do
+        -- Sort by joinedAt (first come first served)
+        table.sort(signups, function(a, b)
+            return (a.joinedAt or 0) < (b.joinedAt or 0)
+        end)
+
+        local maxSlots = counts[role] and counts[role].max or 0
+        local filledSlots = 0
+
+        for _, signup in ipairs(signups) do
+            if filledSlots < maxSlots then
+                -- Has a slot
+                if signup.status == "confirmed" then
+                    table.insert(result[role].confirmed, signup)
+                else
+                    table.insert(result[role].tentative, signup)
+                end
+                filledSlots = filledSlots + 1
+            else
+                -- Standby
+                table.insert(result[role].standby, signup)
+            end
+        end
+    end
+
+    return result
+end
+
+--[[
+    Get all standby signups across all roles
+    @param event table
+    @return table - Array of standby signups
+]]
+function Calendar:GetStandbySignups(event)
+    local byRole = self:GetSignupsByRole(event)
+    local standby = {}
+
+    for _, roleData in pairs(byRole) do
+        for _, signup in ipairs(roleData.standby) do
+            table.insert(standby, signup)
+        end
+    end
+
+    -- Sort by join time
+    table.sort(standby, function(a, b)
+        return (a.joinedAt or 0) < (b.joinedAt or 0)
+    end)
+
+    return standby
+end
+
+--============================================================
+-- EVENT TEMPLATES
+--============================================================
+
+--[[
+    Ensure templates table exists in calendar data
+    @return table - Templates table
+]]
+function Calendar:EnsureTemplates()
+    local cal = self:EnsureCalendarData()
+    if not cal then return {} end
+
+    if not cal.templates then
+        cal.templates = {}
+    end
+
+    return cal.templates
+end
+
+--[[
+    Get all templates
+    @return table - Templates dictionary
+]]
+function Calendar:GetTemplates()
+    local cal = self:GetCalendarData()
+    return cal and cal.templates or {}
+end
+
+--[[
+    Save an event as a template
+    @param eventId string - Event ID to save as template
+    @param templateName string - Name for the template
+    @return string templateId, string|nil error
+]]
+function Calendar:SaveTemplate(eventId, templateName)
+    local event = self:GetEvent(eventId)
+    if not event then
+        return nil, "Event not found"
+    end
+
+    local templates = self:EnsureTemplates()
+
+    -- Check template limit
+    local count = 0
+    for _ in pairs(templates) do
+        count = count + 1
+    end
+    if count >= C.CALENDAR_TIMINGS.MAX_TEMPLATES then
+        return nil, "Maximum templates reached (" .. C.CALENDAR_TIMINGS.MAX_TEMPLATES .. ")"
+    end
+
+    -- Generate template ID
+    local templateId = "tpl_" .. time() .. "_" .. math.random(1000, 9999)
+
+    -- Create template from event
+    templates[templateId] = {
+        name = templateName or event.title or "Template",
+        eventType = event.eventType,
+        raidKey = event.raidKey,
+        raidSize = event.raidSize,
+        maxTanks = event.maxTanks,
+        maxHealers = event.maxHealers,
+        maxDPS = event.maxDPS,
+        description = event.description,
+        defaultTime = event.startTime,
+        createdAt = time(),
+    }
+
+    HopeAddon:Debug("Calendar: Saved template", templateId, templateName)
+    return templateId, nil
+end
+
+--[[
+    Save a new template from raw data
+    @param templateData table - Template data
+    @return string templateId, string|nil error
+]]
+function Calendar:SaveTemplateFromData(templateData)
+    if not templateData or not templateData.name then
+        return nil, "Template name required"
+    end
+
+    local templates = self:EnsureTemplates()
+
+    -- Check template limit
+    local count = 0
+    for _ in pairs(templates) do
+        count = count + 1
+    end
+    if count >= C.CALENDAR_TIMINGS.MAX_TEMPLATES then
+        return nil, "Maximum templates reached (" .. C.CALENDAR_TIMINGS.MAX_TEMPLATES .. ")"
+    end
+
+    -- Generate template ID
+    local templateId = "tpl_" .. time() .. "_" .. math.random(1000, 9999)
+
+    -- Store template
+    templates[templateId] = {
+        name = templateData.name,
+        eventType = templateData.eventType or "RAID",
+        raidKey = templateData.raidKey,
+        raidSize = templateData.raidSize or 10,
+        maxTanks = templateData.maxTanks or 2,
+        maxHealers = templateData.maxHealers or 3,
+        maxDPS = templateData.maxDPS or 5,
+        description = templateData.description or "",
+        defaultTime = templateData.defaultTime or "19:00",
+        createdAt = time(),
+    }
+
+    HopeAddon:Debug("Calendar: Saved template from data", templateId, templateData.name)
+    return templateId, nil
+end
+
+--[[
+    Load a template by ID
+    @param templateId string
+    @return table|nil - Template data
+]]
+function Calendar:LoadTemplate(templateId)
+    local templates = self:GetTemplates()
+    return templates[templateId]
+end
+
+--[[
+    Delete a template
+    @param templateId string
+    @return boolean success
+]]
+function Calendar:DeleteTemplate(templateId)
+    local templates = self:EnsureTemplates()
+    if not templates[templateId] then
+        return false
+    end
+
+    templates[templateId] = nil
+    HopeAddon:Debug("Calendar: Deleted template", templateId)
+    return true
+end
+
+--[[
+    Get templates as array sorted by name
+    @return table - Array of { id, name, ... }
+]]
+function Calendar:GetTemplatesList()
+    local templates = self:GetTemplates()
+    local list = {}
+
+    for id, template in pairs(templates) do
+        table.insert(list, {
+            id = id,
+            name = template.name,
+            eventType = template.eventType,
+            raidKey = template.raidKey,
+            raidSize = template.raidSize,
+            maxTanks = template.maxTanks,
+            maxHealers = template.maxHealers,
+            maxDPS = template.maxDPS,
+            description = template.description,
+            defaultTime = template.defaultTime,
+        })
+    end
+
+    -- Sort by name
+    table.sort(list, function(a, b)
+        return (a.name or "") < (b.name or "")
+    end)
+
+    return list
 end
 
 --============================================================
@@ -1085,7 +1550,8 @@ end
 -- PUBLIC API
 --============================================================
 
--- Make module accessible
+-- Make module accessible and register
 HopeAddon.Calendar = Calendar
+HopeAddon:RegisterModule("Calendar", Calendar)
 
 return Calendar

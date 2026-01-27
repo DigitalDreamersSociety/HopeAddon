@@ -44,6 +44,7 @@ HopeAddon.colors = {
     HELLFIRE_RED    = { r = 1.00, g = 0.27, b = 0.27, a = 1.0, hex = "FF4444" },
     HELLFIRE_ORANGE = { r = 1.00, g = 0.55, b = 0.00, a = 1.0, hex = "FF8C00" },
     LAVA_ORANGE     = { r = 1.00, g = 0.65, b = 0.00, a = 1.0, hex = "FFA500" },
+    BLOOD_RED       = { r = 0.70, g = 0.10, b = 0.10, a = 1.0, hex = "B31A1A" },
 
     -- Netherstorm Purples
     ARCANE_PURPLE   = { r = 0.61, g = 0.19, b = 1.00, a = 1.0, hex = "9B30FF" },
@@ -66,6 +67,17 @@ HopeAddon.colors = {
     BT_FEL          = { r = 0.30, g = 0.80, b = 0.30, a = 1.0, hex = "4DCC4D" },  -- Phase 3
     ZA_TRIBAL       = { r = 0.80, g = 0.55, b = 0.25, a = 1.0, hex = "CC8C40" },  -- Phase 4
     SUNWELL_GOLD    = { r = 1.00, g = 0.90, b = 0.40, a = 1.0, hex = "FFE666" },  -- Phase 5
+
+    -- Raid-Specific Accent Colors (per-raid theming)
+    KARA_ACCENT     = { r = 0.40, g = 0.25, b = 0.55, a = 1.0, hex = "664088" },  -- Gothic purple
+    GRUUL_ACCENT    = { r = 0.55, g = 0.40, b = 0.25, a = 1.0, hex = "8C6640" },  -- Earthy brown
+    MAG_ACCENT      = { r = 0.30, g = 0.60, b = 0.25, a = 1.0, hex = "4D9940" },  -- Fel green
+    SSC_ACCENT      = { r = 0.15, g = 0.50, b = 0.60, a = 1.0, hex = "268099" },  -- Underwater teal
+    TK_ACCENT       = { r = 0.70, g = 0.30, b = 0.35, a = 1.0, hex = "B34D59" },  -- Blood elf red
+    HYJAL_ACCENT    = { r = 0.25, g = 0.55, b = 0.30, a = 1.0, hex = "408C4D" },  -- World Tree green
+    BT_ACCENT       = { r = 0.20, g = 0.50, b = 0.20, a = 1.0, hex = "338033" },  -- Demonic fel
+    ZA_ACCENT       = { r = 0.70, g = 0.45, b = 0.20, a = 1.0, hex = "B37333" },  -- Jungle tribal
+    SW_ACCENT       = { r = 0.90, g = 0.80, b = 0.40, a = 1.0, hex = "E6CC66" },  -- Holy gold
 
     -- Special
     PINK_JOY        = { r = 1.00, g = 0.41, b = 0.71, a = 1.0, hex = "FF69B4" },
@@ -92,8 +104,8 @@ HopeAddon.colors = {
 ]]
 HopeAddon.bgColors = {
     -- Standard dark backgrounds
-    DARK_TRANSPARENT = { r = 0.1, g = 0.1, b = 0.1, a = 0.7 },
-    DARK_SOLID = { r = 0.1, g = 0.1, b = 0.1, a = 0.8 },
+    DARK_TRANSPARENT = { r = 0.1, g = 0.1, b = 0.1, a = 0.9 },
+    DARK_SOLID = { r = 0.05, g = 0.05, b = 0.05, a = 0.9 },
     DARK_OPAQUE = { r = 0.1, g = 0.1, b = 0.1, a = 0.95 },
     DARK_FAINT = { r = 0.1, g = 0.1, b = 0.1, a = 0.6 },
 
@@ -103,6 +115,9 @@ HopeAddon.bgColors = {
     -- Purple-tinted (for arcane/nether themed elements)
     PURPLE_TINT = { r = 0.1, g = 0.08, b = 0.15, a = 0.95 },
     PURPLE_DARK = { r = 0.15, g = 0.05, b = 0.2, a = 0.95 },
+
+    -- Game card background (distinct purple tint for Games Hall)
+    GAME_CARD_BG = { r = 0.12, g = 0.10, b = 0.18, a = 0.9 },
 
     -- Blue-tinted (for frost/water themed elements)
     BLUE_TINT = { r = 0.05, g = 0.1, b = 0.15, a = 0.95 },
@@ -115,6 +130,17 @@ HopeAddon.bgColors = {
 
     -- Transparent (for overlays, note boxes)
     OVERLAY = { r = 0, g = 0, b = 0, a = 0.3 },
+
+    -- Raid-specific background tints (subtle, for headers)
+    KARA_BG_TINT    = { r = 0.12, g = 0.08, b = 0.18, a = 0.95 },
+    GRUUL_BG_TINT   = { r = 0.12, g = 0.10, b = 0.06, a = 0.95 },
+    MAG_BG_TINT     = { r = 0.08, g = 0.14, b = 0.08, a = 0.95 },
+    SSC_BG_TINT     = { r = 0.06, g = 0.12, b = 0.14, a = 0.95 },
+    TK_BG_TINT      = { r = 0.14, g = 0.08, b = 0.10, a = 0.95 },
+    HYJAL_BG_TINT   = { r = 0.08, g = 0.14, b = 0.10, a = 0.95 },
+    BT_BG_TINT      = { r = 0.06, g = 0.12, b = 0.06, a = 0.95 },
+    ZA_BG_TINT      = { r = 0.14, g = 0.10, b = 0.06, a = 0.95 },
+    SW_BG_TINT      = { r = 0.16, g = 0.14, b = 0.08, a = 0.95 },
 }
 
 --[[
@@ -229,7 +255,7 @@ HopeAddon.assets = {
         TITLE = "Fonts\\MORPHEUS.TTF",
         HEADER = "Fonts\\FRIZQT__.TTF",
         BODY = "Fonts\\FRIZQT__.TTF",
-        SMALL = "Fonts\\ARIALN.TTF",
+        SMALL = "Fonts\\FRIZQT__.TTF",  -- Changed from ARIALN for better readability
     },
 
     icons = {
@@ -559,6 +585,13 @@ function HopeAddon:SendChallenge(targetName, gameId, betAmount)
         local GameComms = self:GetModule("GameComms")
         if GameComms then
             GameComms:SendInvite(targetName, gameId:upper(), 0)
+            return true
+        end
+    -- Wordle uses its own WordleGame module
+    elseif gameId == "wordle" then
+        local WordleGame = self:GetModule("WordleGame")
+        if WordleGame then
+            WordleGame:SendChallenge(targetName)
             return true
         end
     else
@@ -967,6 +1000,9 @@ end
     Event Frame & Handler
 ]]
 local eventFrame = CreateFrame("Frame")
+-- Issue #71.2: Store reference for cleanup to prevent memory leak on /reload
+HopeAddon.coreEventFrame = eventFrame
+
 eventFrame:RegisterEvent("ADDON_LOADED")
 eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:RegisterEvent("PLAYER_LOGOUT")
@@ -1066,6 +1102,40 @@ function HopeAddon:MigrateCharacterData()
     -- Ensure social data structure exists using centralized helper
     -- This uses C.SOCIAL_DATA_DEFAULTS as the canonical source of truth
     self:EnsureSocialData()
+
+    -- Issue #71.6: Prune old journal entries to prevent unbounded growth
+    self:PruneJournalEntries()
+end
+
+--[[
+    Prune old journal entries if count exceeds MAX_JOURNAL_ENTRIES
+    Keeps most recent entries to preserve recent gameplay history
+    Issue #71.6: Unbounded journal.entries growth
+]]
+function HopeAddon:PruneJournalEntries()
+    local C = self.Constants
+    local maxEntries = C.MAX_JOURNAL_ENTRIES or 1000
+
+    if not self.charDb or not self.charDb.journal or not self.charDb.journal.entries then
+        return
+    end
+
+    local entries = self.charDb.journal.entries
+    local count = #entries
+
+    if count <= maxEntries then
+        return
+    end
+
+    -- Keep most recent entries
+    local newEntries = {}
+    local startIndex = count - maxEntries + 1
+    for i = startIndex, count do
+        table.insert(newEntries, entries[i])
+    end
+
+    self.charDb.journal.entries = newEntries
+    self:Debug("Pruned journal entries: removed", count - maxEntries, "old entries")
 end
 
 function HopeAddon:OnAddonLoaded()
@@ -1138,6 +1208,12 @@ function HopeAddon:OnPlayerLogout()
                 self:Debug("Module", name, "disable error:", tostring(err))
             end
         end
+    end
+
+    -- Issue #71.2: Clean up core event frame to prevent memory leak on /reload
+    if self.coreEventFrame then
+        self.coreEventFrame:UnregisterAllEvents()
+        self.coreEventFrame:SetScript("OnEvent", nil)
     end
 end
 
@@ -1265,6 +1341,7 @@ function HopeAddon:GetDefaultDB()
             animationsEnabled = true,
             notificationsEnabled = true,
             hideUIDuringCombat = true,  -- Auto-hide UI when entering combat
+            backgroundOpacity = 0.95,   -- Background opacity (0% = transparent, 100% = solid)
         },
 
         -- Minimap button settings
@@ -1365,6 +1442,18 @@ function HopeAddon:GetDefaultCharDB()
                 pendingInvites = {},    -- [senderName] = { state, timestamp }
                 sentInvites = {},       -- [recipientName] = { state, timestamp }
             },
+        },
+
+        -- Wordle game statistics
+        wordle = {
+            stats = {
+                gamesPlayed = 0,
+                gamesWon = 0,
+                currentStreak = 0,
+                maxStreak = 0,
+                guessDistribution = { 0, 0, 0, 0, 0, 0 }, -- Index = guess count (1-6)
+            },
+            lastPlayed = nil,           -- Timestamp of last game
         },
 
         -- Relationships/notes about players
@@ -1749,6 +1838,59 @@ SlashCmdList["HOPE"] = function(msg)
                 HopeAddon:Print("GameCore module not loaded!")
             end
         end
+    elseif cmd:find("^wordle") then
+        -- /hope wordle [player|accept|decline]
+        local _, _, subCmd = cmd:find("^wordle%s*(%S*)")
+        local WordleGame = HopeAddon:GetModule("WordleGame")
+
+        if not WordleGame then
+            HopeAddon:Print("WordleGame module not loaded!")
+            return
+        end
+
+        if not subCmd or subCmd == "" then
+            -- No argument - start practice game
+            WordleGame:StartPractice()
+        elseif subCmd == "accept" then
+            -- Accept pending Wordle challenge: /hope wordle accept [player]
+            local _, _, senderName = cmd:find("^wordle%s+accept%s*(%S*)")
+            if senderName and senderName ~= "" then
+                WordleGame:AcceptChallenge(senderName)
+            elseif WordleGame:HasPendingChallenges() then
+                -- Accept first pending
+                for challenger, _ in pairs(WordleGame:GetPendingChallenges()) do
+                    WordleGame:AcceptChallenge(challenger)
+                    break
+                end
+            else
+                HopeAddon:Print("No pending Wordle challenges.")
+            end
+        elseif subCmd == "decline" then
+            -- Decline pending Wordle challenge: /hope wordle decline [player]
+            local _, _, senderName = cmd:find("^wordle%s+decline%s*(%S*)")
+            if senderName and senderName ~= "" then
+                WordleGame:DeclineChallenge(senderName)
+            elseif WordleGame:HasPendingChallenges() then
+                for challenger, _ in pairs(WordleGame:GetPendingChallenges()) do
+                    WordleGame:DeclineChallenge(challenger)
+                    break
+                end
+            else
+                HopeAddon:Print("No pending Wordle challenges.")
+            end
+        elseif subCmd == "stats" then
+            -- Show Wordle statistics: /hope wordle stats
+            WordleGame:PrintStatistics()
+        else
+            -- Assume it's a player name - send challenge
+            local targetName = subCmd
+            local valid, err = ValidatePlayerName(targetName)
+            if not valid then
+                HopeAddon:Print("|cFFFF0000Error:|r " .. err)
+                return
+            end
+            WordleGame:SendChallenge(targetName)
+        end
     elseif cmd:find("^challenge") then
         -- /hope challenge <player> [rps]
         local _, _, targetName, gameType = cmd:find("^challenge%s+(%S+)%s*(%S*)")
@@ -1771,10 +1913,24 @@ SlashCmdList["HOPE"] = function(msg)
             end
         end
     elseif cmd:find("^accept") then
-        -- Check for pending challenges in order: Words, ScoreChallenge, Minigames
+        -- Check for pending challenges in order: Wordle, Words, ScoreChallenge, Minigames
         local _, _, targetName = cmd:find("^accept%s*(%S*)")
 
-        -- Check Words invites first
+        -- Check Wordle challenges first
+        local WordleGame = HopeAddon:GetModule("WordleGame")
+        if WordleGame and WordleGame:HasPendingChallenges() then
+            if targetName and targetName ~= "" then
+                WordleGame:AcceptChallenge(targetName)
+            else
+                for challenger, _ in pairs(WordleGame:GetPendingChallenges()) do
+                    WordleGame:AcceptChallenge(challenger)
+                    break
+                end
+            end
+            return
+        end
+
+        -- Check Words invites
         local WordGameInvites = HopeAddon:GetModule("WordGameInvites")
         if WordGameInvites and WordGameInvites:HasPendingInvites() then
             if targetName and targetName ~= "" then
@@ -1810,10 +1966,24 @@ SlashCmdList["HOPE"] = function(msg)
         end
 
     elseif cmd:find("^decline") then
-        -- Check for pending challenges in order: Words, ScoreChallenge, Minigames
+        -- Check for pending challenges in order: Wordle, Words, ScoreChallenge, Minigames
         local _, _, targetName = cmd:find("^decline%s*(%S*)")
 
-        -- Check Words invites first
+        -- Check Wordle challenges first
+        local WordleGame = HopeAddon:GetModule("WordleGame")
+        if WordleGame and WordleGame:HasPendingChallenges() then
+            if targetName and targetName ~= "" then
+                WordleGame:DeclineChallenge(targetName)
+            else
+                for challenger, _ in pairs(WordleGame:GetPendingChallenges()) do
+                    WordleGame:DeclineChallenge(challenger)
+                    break
+                end
+            end
+            return
+        end
+
+        -- Check Words invites
         local WordGameInvites = HopeAddon:GetModule("WordGameInvites")
         if WordGameInvites and WordGameInvites:HasPendingInvites() then
             if targetName and targetName ~= "" then
@@ -1958,6 +2128,34 @@ SlashCmdList["HOPE"] = function(msg)
         else
             HopeAddon:Print("Journal not loaded yet!")
         end
+    elseif cmd:sub(1, 2) == "sr" then
+        -- Soft Reserve commands
+        local Treasures = HopeAddon:GetModule("Treasures")
+        if Treasures then
+            local srArgs = cmd:sub(4)  -- Remove "sr " prefix
+            Treasures:HandleSlashCommand(srArgs)
+        else
+            HopeAddon:Print("Treasures module not loaded!")
+        end
+    elseif cmd == "validate loot" then
+        -- Validate boss loot data has itemIds
+        local Constants = HopeAddon.Constants
+        if Constants and Constants.ValidateBossLoot then
+            local missing = Constants:ValidateBossLoot()
+            if #missing == 0 then
+                HopeAddon:Print("|cFF33FF33All boss loot has valid itemIds!|r")
+            else
+                HopeAddon:Print("|cFFFF0000Missing itemIds:|r " .. #missing .. " items")
+                for i = 1, math.min(10, #missing) do
+                    HopeAddon:Print("  - " .. missing[i])
+                end
+                if #missing > 10 then
+                    HopeAddon:Print("  ... and " .. (#missing - 10) .. " more")
+                end
+            end
+        else
+            HopeAddon:Print("Constants module not loaded!")
+        end
     else
         HopeAddon:Print("Commands:")
         HopeAddon:Print("  /hope - Open journal")
@@ -1976,6 +2174,9 @@ SlashCmdList["HOPE"] = function(msg)
         HopeAddon:Print("  /fire <coord> - Fire at coordinate in Battleship (e.g., /fire A5)")
         HopeAddon:Print("  /ready - Signal ships placed in Battleship")
         HopeAddon:Print("  /surrender - Forfeit current Battleship game")
+        HopeAddon:Print("  /hope wordle - Start WoW Wordle (practice mode)")
+        HopeAddon:Print("  /hope wordle <player> - Challenge player to Wordle")
+        HopeAddon:Print("  /hope wordle stats - Show Wordle statistics")
         HopeAddon:Print("  /gc <message> - Send chat to opponent during any game")
         HopeAddon:Print("  /hope challenge <player> [rps] - Challenge to Rock-Paper-Scissors")
         HopeAddon:Print("  /hope accept/decline - Respond to challenge")
@@ -1988,6 +2189,10 @@ SlashCmdList["HOPE"] = function(msg)
         HopeAddon:Print("  /hope reset demo - Clear demo data")
         HopeAddon:Print("  /hope reset confirm - Reset all data")
         HopeAddon:Print("  /hope testbar - Show gaming-style reputation bar demo")
+        HopeAddon:Print("  |cFFFFD700Soft Reserve:|r")
+        HopeAddon:Print("  /hope sr <raid> <item> - Set your soft reserve")
+        HopeAddon:Print("  /hope sr list - Show your reserves")
+        HopeAddon:Print("  /hope sr guild [raid] - Show guild reserves")
     end
 end
 
@@ -2375,6 +2580,12 @@ function HopeAddon:PopulateDemoData()
         journal:InvalidateCounts()
     end
 
+    -- Generate Activity Feed demo data
+    if self.ActivityFeed and self.ActivityFeed.GenerateDemoData then
+        self.ActivityFeed:GenerateDemoData()
+        self:Print("|cFF00FF00Activity Feed demo data generated!|r")
+    end
+
     self:Print("|cFF00FF00Demo data populated!|r")
     self:Print("Open the journal with /hope to see the sample entries.")
     self:Print("Use /hope reset demo to clear demo data.")
@@ -2417,6 +2628,14 @@ function HopeAddon:ClearDemoData()
     for _, badgeId in ipairs(demoBadges) do
         if charDb.travelers.badges then
             charDb.travelers.badges[badgeId] = nil
+        end
+    end
+
+    -- Clear Activity Feed demo data
+    if self.ActivityFeed and self.ActivityFeed.ClearDemoData then
+        local removed = self.ActivityFeed:ClearDemoData()
+        if removed and removed > 0 then
+            self:Print("Cleared " .. removed .. " demo feed activities.")
         end
     end
 

@@ -362,7 +362,26 @@ function Sounds:PlayEpicFanfare()
     })
 end
 
+--============================================================
+-- MODULE LIFECYCLE
+--============================================================
+
+function Sounds:OnInitialize()
+    -- Nothing to initialize
+end
+
+function Sounds:OnEnable()
+    -- Nothing to enable
+end
+
+function Sounds:OnDisable()
+    -- Issue #25: Cancel any pending sound sequence timers
+    self:CancelSequence()
+end
+
 -- Register with addon
+HopeAddon:RegisterModule("Sounds", Sounds)
+
 if HopeAddon.Debug then
     HopeAddon:Debug("Sounds module loaded")
 end

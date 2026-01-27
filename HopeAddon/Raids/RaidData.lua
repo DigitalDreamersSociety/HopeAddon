@@ -487,8 +487,6 @@ end
 -- EVENT HANDLING FOR AUTOMATIC BOSS KILL DETECTION
 --============================================================
 
-local eventFrame = CreateFrame("Frame")
-
 -- Track which bosses we've already recorded kills for this session
 -- (prevents duplicate tracking from both ENCOUNTER_END and COMBAT_LOG)
 local recentKills = {}
@@ -497,24 +495,27 @@ local recentKills = {}
     Register for combat events
 ]]
 function RaidData:RegisterEvents()
+    -- Create event frame on self for proper cleanup in OnDisable
+    self.eventFrame = CreateFrame("Frame")
+
     -- NOTE: ENCOUNTER_END does NOT exist in TBC Classic 2.4.3
     -- Boss detection relies on COMBAT_LOG_EVENT_UNFILTERED UNIT_DIED
     -- Keeping registration for potential compatibility, but it will silently fail to fire
-    eventFrame:RegisterEvent("ENCOUNTER_END")
+    self.eventFrame:RegisterEvent("ENCOUNTER_END")
     -- Always register COMBAT_LOG as fallback (definitely exists in TBC Classic)
-    eventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+    self.eventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 
     -- Chat events for DBM/BigWigs kill time capture
-    eventFrame:RegisterEvent("CHAT_MSG_RAID")
-    eventFrame:RegisterEvent("CHAT_MSG_RAID_WARNING")
-    eventFrame:RegisterEvent("CHAT_MSG_PARTY")
-    eventFrame:RegisterEvent("CHAT_MSG_SAY")
+    self.eventFrame:RegisterEvent("CHAT_MSG_RAID")
+    self.eventFrame:RegisterEvent("CHAT_MSG_RAID_WARNING")
+    self.eventFrame:RegisterEvent("CHAT_MSG_PARTY")
+    self.eventFrame:RegisterEvent("CHAT_MSG_SAY")
 
     -- Combat state tracking (for manual timer fallback)
-    eventFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
-    eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+    self.eventFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
+    self.eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
 
-    eventFrame:SetScript("OnEvent", function(_, event, ...)
+    self.eventFrame:SetScript("OnEvent", function(_, event, ...)
         if event == "ENCOUNTER_END" then
             local success, err = pcall(RaidData.OnEncounterEnd, RaidData, ...)
             if not success then
@@ -822,10 +823,10 @@ end
     Module disable hook
 ]]
 function RaidData:OnDisable()
-    if eventFrame then
-        eventFrame:UnregisterAllEvents()
-        eventFrame:SetScript("OnEvent", nil)
-        eventFrame = nil
+    if self.eventFrame then
+        self.eventFrame:UnregisterAllEvents()
+        self.eventFrame:SetScript("OnEvent", nil)
+        self.eventFrame = nil
     end
     -- Clear recent kills cache
     if recentKills then

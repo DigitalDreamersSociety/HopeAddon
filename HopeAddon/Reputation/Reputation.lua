@@ -15,6 +15,7 @@ end
 Reputation.initialized = false
 Reputation.cachedStandings = {}
 Reputation.notificationPool = nil  -- Frame pool for notifications
+Reputation.pendingTimers = {}  -- P1.4: Timer handle tracking
 
 --[[
     INITIALIZATION
@@ -32,6 +33,14 @@ function Reputation:OnEnable()
 end
 
 function Reputation:OnDisable()
+    -- P1.4: Cancel all pending Timer:After handles
+    for _, handle in ipairs(self.pendingTimers or {}) do
+        if handle and handle.Cancel then
+            handle:Cancel()
+        end
+    end
+    self.pendingTimers = {}
+
     if self.eventFrame then
         self.eventFrame:UnregisterAllEvents()
         self.eventFrame:SetScript("OnEvent", nil)
@@ -107,9 +116,10 @@ function Reputation:RegisterEvents()
             self:OnFactionUpdate()
         elseif event == "PLAYER_LOGIN" then
             -- Delay initial check to ensure data is loaded
-            HopeAddon.Timer:After(2, function()
+            local handle = HopeAddon.Timer:After(2, function()
                 self:CacheCurrentStandings()
             end)
+            table.insert(self.pendingTimers, handle)
         end
     end)
 

@@ -4,6 +4,10 @@
 
 This document standardizes UI organization across all minigames in HopeAddon.
 
+**Related Documentation:**
+- [GAME_SYSTEM_DOCS.md](../../../GAME_SYSTEM_DOCS.md) - Detailed game loop and state machine documentation
+- [CLAUDE.md](../../../CLAUDE.md) - Main AI development reference
+
 ---
 
 ## 1. Window Sizing (GameUI.lua)

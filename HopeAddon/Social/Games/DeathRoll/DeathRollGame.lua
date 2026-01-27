@@ -303,11 +303,8 @@ function DeathRollGame:CleanupGame(gameId)
             ui.window = nil
         end
 
-        -- Clear text references
-        ui.maxValueText = nil
-        ui.turnText = nil
-        ui.historyText = nil
-        ui.proximityText = nil
+        -- Wipe entire ui table to ensure all references are cleared
+        wipe(ui)
     end
 
     -- GameUI handles window destruction

@@ -269,15 +269,13 @@ function Badges:UnlockBadge(badgeId)
 
     -- Fire notification through Journal if available
     local Journal = HopeAddon:GetModule("Journal")
-    if Journal and Journal.ShowNotification then
-        Journal:ShowNotification({
-            title = "Badge Unlocked!",
-            lines = {
-                def.name,
-                def.description,
-            },
-            icon = "Interface\\Icons\\" .. def.icon,
-        })
+    if Journal and Journal.ShowBadgeNotification then
+        Journal:ShowBadgeNotification(
+            "Badge Unlocked!",
+            def.name,
+            def.description,
+            "Interface\\Icons\\" .. def.icon
+        )
     end
 
     return true

@@ -2195,12 +2195,117 @@ When in doubt:
 
 ---
 
+---
+
+## Part 9: Additional UI Standards
+
+### 9.1 Restricted Assets (Do Not Use)
+
+These WoW assets have fixed dimensions and cannot be resized properly for arbitrary frame sizes:
+
+| Asset | Path | Issue |
+|-------|------|-------|
+| Quest Parchment | `Interface\\QUESTFRAME\\QuestBG` | Locked to quest log dimensions |
+| Quest BG Bottom | `Interface\\QUESTFRAME\\QuestBG-Bot` | Fixed quest footer |
+| Quest BG Top | `Interface\\QUESTFRAME\\QuestBG-Top` | Fixed quest header |
+| Achievement Parchment | `Interface\\ACHIEVEMENTFRAME\\UI-Achievement-Parchment` | Fixed achievement frame size |
+
+**For scalable backgrounds, use these tiling textures:**
+- `Interface\\DialogFrame\\UI-DialogBox-Background` (light tan, tiles properly)
+- `Interface\\DialogFrame\\UI-DialogBox-Background-Dark` (dark tan, tiles properly)
+- `Interface\\Tooltips\\UI-Tooltip-Background` (charcoal, tiles properly)
+
+**Backdrop presets that scale properly:**
+| Preset | Background | Border | Use For |
+|--------|------------|--------|---------|
+| `DARK_GOLD` | Dark tan (tiled) | Gold | Popups, notifications |
+| `PARCHMENT_TILED` | Light tan (tiled) | Gold | Main frames |
+| `GAME_WINDOW` | Charcoal (tiled) | Gold | Game windows |
+| `TOOLTIP` | Charcoal (tiled) | Grey | Cards, inputs |
+| `DARK_DIALOG` | Dark tan (tiled) | Grey | Dark frames |
+
+---
+
+### 9.2 Frame Pooling Patterns
+
+**Main Journal Pools (Journal.lua):**
+| Pool | Frame Type | Purpose | Location |
+|------|------------|---------|----------|
+| `notificationPool` | Frame + BackdropTemplate | Pop-up notifications | Journal.lua:130-175 |
+| `containerPool` | Frame | Headers, spacers, sections | Journal.lua:179-205 |
+| `cardPool` | Button + BackdropTemplate | Entry cards | Journal.lua:207-285 |
+| `collapsiblePool` | Frame | Collapsible sections | Journal.lua:288-345 |
+| `bossInfoPool` | Frame | Raid metadata frames | Journal.lua:347-375 |
+| `gameCardPool` | Button + BackdropTemplate | Games Hall cards | Journal.lua:377-430 |
+| `reputationBarPool` | SegmentedReputationBar | Reputation progress bars | Journal.lua:762-782 |
+| `bossLootPools.lootRow` | Button + BackdropTemplate | Boss loot popup rows | Journal.lua:807-912 |
+| `pinPool` | Table-based | Minimap pins | MapPins.lua:20 |
+
+**Lifecycle:** OnEnable -> Create pools | SelectTab -> ReleaseAll + ClearEntries | OnDisable -> Destroy pools
+
+**Memory Management:**
+- Frames released to pool, not destroyed
+- Reset functions clear all references
+- Parent set to nil to hide frames
+- Effects/glows stopped before release
+- Armory pools use unnamed pools (not `NewNamed`) for isolation
+
+---
+
+### 9.3 ColorUtils API
+
+**ColorUtils Namespace** (`HopeAddon.ColorUtils`):
+```lua
+ColorUtils:Lighten(color, percent)          -- Lighten color by percentage
+ColorUtils:Darken(color, percent)           -- Darken color by percentage
+ColorUtils:ApplyVertexColor(texture, name)  -- Apply from color name
+ColorUtils:ApplyTextColor(fontString, name) -- Apply from color name
+ColorUtils:Blend(color1, color2, ratio)     -- Blend two colors
+ColorUtils:HexToRGB(hex)                    -- Convert hex to RGB table
+```
+
+---
+
+### 9.4 Celebration Effects API
+
+**Celebration Effects** (`HopeAddon.Effects`):
+```lua
+Effects:Celebrate(frame, duration, opts)    -- Full effect: glow + sparkles + sound
+Effects:IconGlow(frame, duration)           -- Subtle icon glow (1.5s default)
+Effects:ProgressSparkles(bar, duration)     -- Progress bar completion sparkles
+
+-- Pulsing Glow (persistent until manually stopped)
+-- Use for "victory box" or "active selection" effects
+local glowData = Effects:CreatePulsingGlow(frame, colorName, intensity)
+-- colorName: "FEL_GREEN", "GOLD_BRIGHT", "ARCANE_PURPLE", "HELLFIRE_RED", etc.
+-- intensity: 0.3-1.0 (default 1.0), controls glow brightness
+-- Returns glowData table for manual cleanup later
+
+-- To stop the glow:
+Effects:StopGlowsOnParent(frame)            -- Stops ALL glows on a frame
+
+-- Example: Persistent victory glow
+frame.myGlow = Effects:CreatePulsingGlow(frame, "FEL_GREEN", 0.7)
+-- Later, when done:
+Effects:StopGlowsOnParent(frame)
+```
+
+---
+
 **Document Created:** 2026-01-19
-**Last Updated:** 2026-01-25
-**Status:** Active - v1.3
+**Last Updated:** 2026-01-27
+**Status:** Active - v1.4
 **Maintainer:** AI Assistant (Claude Code)
 
-### Recent Updates (v1.3 - 2026-01-25)
+### Recent Updates (v1.4 - 2026-01-27)
+**Documentation Reorganization**
+- Added Part 9: Additional UI Standards
+- Added Section 9.1: Restricted Assets (moved from CLAUDE.md)
+- Added Section 9.2: Frame Pooling Patterns (detailed table)
+- Added Section 9.3: ColorUtils API
+- Added Section 9.4: Celebration Effects API
+
+### Previous Updates (v1.3 - 2026-01-25)
 **Phase 60: Armory Tab Z-Order Fix + Documentation**
 - ✅ Added Section 1.10: Frame Strata & Z-Ordering Standards
 - ✅ Added Section 2.7: Armory Tab Architecture (full documentation)

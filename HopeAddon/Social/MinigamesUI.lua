@@ -344,8 +344,12 @@ function MinigamesUI:OnEnable()
 end
 
 function MinigamesUI:OnDisable()
-    -- Hide all frames
+    -- Cancel challenge popup timer to prevent orphaned ticker
     if self.challengePopup then
+        if self.challengePopup.timerTicker then
+            self.challengePopup.timerTicker:Cancel()
+            self.challengePopup.timerTicker = nil
+        end
         self.challengePopup:Hide()
     end
     if self.gameFrame then
@@ -1908,7 +1912,7 @@ function MinigamesUI:GetPracticeModePopup()
     popup:SetSize(PRACTICE_MODE_WIDTH, PRACTICE_MODE_HEIGHT)
     popup:SetPoint("CENTER", UIParent, "CENTER", 0, 100)
     popup:SetFrameStrata("DIALOG")
-    HopeAddon.Components:ApplyBackdrop(popup, "DARK_GOLD", "DARK_TRANSPARENT", "GOLD")
+    HopeAddon.Components:ApplyBackdrop(popup, "DARK_FEL", "BLACK_SOLID", "FEL_GREEN")
     popup:EnableMouse(true)
     popup:SetMovable(true)
     popup:RegisterForDrag("LeftButton")

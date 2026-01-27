@@ -54,8 +54,10 @@ Social\ActivityFeed.lua
 Social\Companions.lua
 Social\SocialToasts.lua
 Social\Romance.lua
+Social\CalendarValidation.lua
 Social\Calendar.lua
 Social\CalendarUI.lua
+Social\Treasures.lua
 
 # Game System
 Social\Games\GameCore.lua
@@ -79,3 +81,6 @@ Social\Games\Battleship\BattleshipBoard.lua
 Social\Games\Battleship\BattleshipAI.lua
 Social\Games\Battleship\BattleshipUI.lua
 Social\Games\Battleship\BattleshipGame.lua
+Social\Games\Wordle\WordleWords.lua
+Social\Games\Wordle\WordleGame.lua
+Social\Games\Wordle\WordleUI.lua
