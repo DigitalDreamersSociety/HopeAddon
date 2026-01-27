@@ -392,9 +392,11 @@ function FellowTravelers:OnAddonMessage(prefix, message, channel, sender)
 
     -- Parse sender name (remove realm if present)
     local senderName = strsplit("-", sender)
+    if not senderName or senderName == "" then return end
 
-    -- Parse message
+    -- Parse message - validate we have at least msgType and version
     local msgType, version, data = strsplit(":", message, 3)
+    if not msgType or msgType == "" then return end
     version = tonumber(version) or 0
 
     -- Version check (allow older versions for compatibility)

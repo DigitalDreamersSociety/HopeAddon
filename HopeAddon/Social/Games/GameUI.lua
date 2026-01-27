@@ -111,16 +111,35 @@ function GameUI:OnEnable()
 end
 
 function GameUI:OnDisable()
-    -- Properly destroy all windows
+    -- Properly destroy all windows (Fix #13: Clear scripts to prevent orphaned handlers)
     for gameId, window in pairs(self.gameWindows) do
         if window then
+            window:SetScript("OnKeyDown", nil)
+            if window.closeBtn then
+                window.closeBtn:SetScript("OnClick", nil)
+                window.closeBtn:SetScript("OnEnter", nil)
+                window.closeBtn:SetScript("OnLeave", nil)
+            end
+            if window.titleBar then
+                window.titleBar:SetScript("OnDragStart", nil)
+                window.titleBar:SetScript("OnDragStop", nil)
+            end
             window:Hide()
             window:SetParent(nil)
         end
     end
     self.gameWindows = {}
 
+    -- Fix #8: Clear invite dialog closures before destroying
     if self.inviteDialog then
+        -- Clear button scripts that capture dialog reference
+        for _, child in ipairs({self.inviteDialog:GetChildren()}) do
+            if child.SetScript then
+                child:SetScript("OnClick", nil)
+                child:SetScript("OnEnter", nil)
+                child:SetScript("OnLeave", nil)
+            end
+        end
         self.inviteDialog:Hide()
         self.inviteDialog:SetParent(nil)
         self.inviteDialog = nil

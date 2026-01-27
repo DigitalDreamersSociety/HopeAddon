@@ -60,6 +60,13 @@ HopeAddon.colors = {
     DEEP_BLUE       = { r = 0.25, g = 0.41, b = 0.88, a = 1.0, hex = "4169E1" },
     FROST_BLUE      = { r = 0.53, g = 0.81, b = 0.92, a = 1.0, hex = "87CEEB" },
 
+    -- Raid Phase Colors (TBC content phases)
+    KARA_PURPLE     = { r = 0.50, g = 0.30, b = 0.70, a = 1.0, hex = "804DB3" },  -- Phase 1
+    SSC_BLUE        = { r = 0.20, g = 0.60, b = 0.90, a = 1.0, hex = "3399E6" },  -- Phase 2
+    BT_FEL          = { r = 0.30, g = 0.80, b = 0.30, a = 1.0, hex = "4DCC4D" },  -- Phase 3
+    ZA_TRIBAL       = { r = 0.80, g = 0.55, b = 0.25, a = 1.0, hex = "CC8C40" },  -- Phase 4
+    SUNWELL_GOLD    = { r = 1.00, g = 0.90, b = 0.40, a = 1.0, hex = "FFE666" },  -- Phase 5
+
     -- Special
     PINK_JOY        = { r = 1.00, g = 0.41, b = 0.71, a = 1.0, hex = "FF69B4" },
     NATURE_GREEN    = { r = 0.13, g = 0.55, b = 0.13, a = 1.0, hex = "228B22" },
@@ -497,6 +504,16 @@ function HopeAddon:GetSocialRomance()
     local social = self:EnsureSocialData()
     if not social then return nil end
     return social.romance
+end
+
+--[[
+    Get calendar data with automatic initialization
+    @return table - The social.calendar table
+]]
+function HopeAddon:GetSocialCalendar()
+    local social = self:EnsureSocialData()
+    if not social then return nil end
+    return social.calendar
 end
 
 --[[

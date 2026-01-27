@@ -108,7 +108,44 @@ function WordGamePersistence:SerializeGame(game)
         consecutivePasses = state.consecutivePasses or 0,
         turnCount = state.turnCount or 0,
         state = self.STATE.PLAYING,
+
+        -- Tile bag and hands (for resume)
+        tileBag = state.tileBag and self:CopyArray(state.tileBag) or {},
+        playerHands = state.playerHands and self:CopyPlayerHands(state.playerHands, game.player1, game.player2) or {},
     }
+end
+
+--[[
+    Copy an array (shallow copy)
+    @param arr table
+    @return table
+]]
+function WordGamePersistence:CopyArray(arr)
+    if not arr then return {} end
+    local copy = {}
+    for i, v in ipairs(arr) do
+        copy[i] = v
+    end
+    return copy
+end
+
+--[[
+    Copy player hands
+    @param hands table - playerHands dictionary
+    @param player1 string
+    @param player2 string
+    @return table
+]]
+function WordGamePersistence:CopyPlayerHands(hands, player1, player2)
+    if not hands then return {} end
+    local copy = {}
+    if hands[player1] then
+        copy[player1] = self:CopyArray(hands[player1])
+    end
+    if hands[player2] then
+        copy[player2] = self:CopyArray(hands[player2])
+    end
+    return copy
 end
 
 --[[
@@ -221,6 +258,10 @@ function WordGamePersistence:DeserializeGame(savedState)
         -- Sparse board for restoration
         savedBoard = savedState.board,
 
+        -- Tile bag and hands for restoration
+        savedTileBag = savedState.tileBag,
+        savedPlayerHands = savedState.playerHands,
+
         -- Persistence state
         persistState = savedState.state,
     }
@@ -238,7 +279,14 @@ end
 function WordGamePersistence:SaveGame(opponentName, game)
     self:EnsureStorage()
 
-    local storage = HopeAddon.charDb.savedGames.words
+    -- Guard against storage not being available
+    local storage = HopeAddon.charDb and HopeAddon.charDb.savedGames
+        and HopeAddon.charDb.savedGames.words
+    if not storage then
+        HopeAddon:Debug("WordGamePersistence: storage not available")
+        return
+    end
+
     local serialized = self:SerializeGame(game)
 
     if serialized then
@@ -255,7 +303,11 @@ end
 function WordGamePersistence:LoadGame(opponentName)
     self:EnsureStorage()
 
-    local storage = HopeAddon.charDb.savedGames.words
+    -- Guard against storage not being available
+    local storage = HopeAddon.charDb and HopeAddon.charDb.savedGames
+        and HopeAddon.charDb.savedGames.words
+    if not storage or not storage.games then return nil end
+
     local saved = storage.games[opponentName]
 
     if saved then
@@ -272,7 +324,11 @@ end
 function WordGamePersistence:ClearGame(opponentName)
     self:EnsureStorage()
 
-    local storage = HopeAddon.charDb.savedGames.words
+    -- Guard against storage not being available
+    local storage = HopeAddon.charDb and HopeAddon.charDb.savedGames
+        and HopeAddon.charDb.savedGames.words
+    if not storage or not storage.games then return end
+
     storage.games[opponentName] = nil
 
     HopeAddon:Debug("WordGamePersistence: cleared game vs", opponentName)
@@ -286,7 +342,11 @@ end
 function WordGamePersistence:HasGame(opponentName)
     self:EnsureStorage()
 
-    local storage = HopeAddon.charDb.savedGames.words
+    -- Guard against storage not being available
+    local storage = HopeAddon.charDb and HopeAddon.charDb.savedGames
+        and HopeAddon.charDb.savedGames.words
+    if not storage or not storage.games then return false end
+
     return storage.games[opponentName] ~= nil
 end
 
@@ -297,7 +357,12 @@ end
 function WordGamePersistence:GetAllGames()
     self:EnsureStorage()
 
-    return HopeAddon.charDb.savedGames.words.games
+    -- Guard against storage not being available
+    local storage = HopeAddon.charDb and HopeAddon.charDb.savedGames
+        and HopeAddon.charDb.savedGames.words
+    if not storage or not storage.games then return {} end
+
+    return storage.games
 end
 
 --[[
@@ -306,7 +371,8 @@ end
 ]]
 function WordGamePersistence:GetGameCount()
     local count = 0
-    for _ in pairs(self:GetAllGames()) do
+    local games = self:GetAllGames()
+    for _ in pairs(games) do
         count = count + 1
     end
     return count
@@ -420,10 +486,30 @@ end
 -- CLEANUP
 --============================================================
 
+-- Fix #18: Cleanup lock to prevent race with message processing
+WordGamePersistence.isProcessingMessage = false
+
+--[[
+    Set message processing flag (called by message handlers)
+]]
+function WordGamePersistence:BeginMessageProcessing()
+    self.isProcessingMessage = true
+end
+
+function WordGamePersistence:EndMessageProcessing()
+    self.isProcessingMessage = false
+end
+
 --[[
     Clean up expired invites and inactive games
 ]]
 function WordGamePersistence:CleanupExpired()
+    -- Fix #18: Guard against cleanup during message processing
+    if self.isProcessingMessage then
+        HopeAddon:Debug("WordGamePersistence: Skipping cleanup during message processing")
+        return
+    end
+
     self:EnsureStorage()
 
     local storage = HopeAddon.charDb.savedGames.words
@@ -431,29 +517,47 @@ function WordGamePersistence:CleanupExpired()
     local inviteTimeout = self.CONFIG.INVITE_TIMEOUT
     local inactivityForfeit = self.CONFIG.INACTIVITY_FORFEIT
 
-    -- Clean expired pending invites
+    -- Build lists of items to remove (avoid modifying during iteration)
+    local pendingToRemove = {}
+    local sentToRemove = {}
+    local gamesToRemove = {}
+
+    -- Find expired pending invites
     for sender, invite in pairs(storage.pendingInvites) do
         if now - invite.timestamp > inviteTimeout then
-            storage.pendingInvites[sender] = nil
-            HopeAddon:Debug("WordGamePersistence: expired invite from", sender)
+            table.insert(pendingToRemove, sender)
         end
     end
 
-    -- Clean expired sent invites
+    -- Find expired sent invites
     for recipient, invite in pairs(storage.sentInvites) do
         if now - invite.timestamp > inviteTimeout then
-            storage.sentInvites[recipient] = nil
-            HopeAddon:Debug("WordGamePersistence: expired invite to", recipient)
+            table.insert(sentToRemove, recipient)
         end
     end
 
-    -- Clean inactive games (30 day forfeit)
+    -- Find inactive games (30 day forfeit)
     for opponent, gameState in pairs(storage.games) do
         local lastMove = gameState.lastMoveAt or gameState.createdAt or 0
         if now - lastMove > inactivityForfeit then
-            storage.games[opponent] = nil
-            HopeAddon:Print("Words game vs " .. opponent .. " forfeited due to inactivity.")
+            table.insert(gamesToRemove, opponent)
         end
+    end
+
+    -- Remove expired items
+    for _, sender in ipairs(pendingToRemove) do
+        storage.pendingInvites[sender] = nil
+        HopeAddon:Debug("WordGamePersistence: expired invite from", sender)
+    end
+
+    for _, recipient in ipairs(sentToRemove) do
+        storage.sentInvites[recipient] = nil
+        HopeAddon:Debug("WordGamePersistence: expired invite to", recipient)
+    end
+
+    for _, opponent in ipairs(gamesToRemove) do
+        storage.games[opponent] = nil
+        HopeAddon:Print("Words game vs " .. opponent .. " forfeited due to inactivity.")
     end
 end
 

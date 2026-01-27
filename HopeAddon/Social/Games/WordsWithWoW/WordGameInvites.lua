@@ -92,6 +92,12 @@ end
 function WordGameInvites:HandleSyncMessage(sender, gameId, data)
     if not data or data == "" then return end
 
+    -- Fix #18: Notify persistence that we're processing a message
+    local Persistence = HopeAddon:GetModule("WordGamePersistence")
+    if Persistence then
+        Persistence:BeginMessageProcessing()
+    end
+
     -- Parse prefix
     local prefix, payload = data:match("^(%u+):(.*)$")
     if not prefix then
@@ -110,6 +116,11 @@ function WordGameInvites:HandleSyncMessage(sender, gameId, data)
         self:HandleStateSync(sender, gameId, payload)
     elseif prefix == MSG_PREFIX.RESUME then
         self:HandleResumeRequest(sender, gameId, payload)
+    end
+
+    -- Fix #18: End message processing flag
+    if Persistence then
+        Persistence:EndMessageProcessing()
     end
 end
 
@@ -222,24 +233,35 @@ function WordGameInvites:AcceptInvite(senderName)
     gameState.state = "PLAYING"
     gameState.lastMoveAt = time()
 
-    -- Save game to persistence
+    -- Save game to persistence (Fix #2 & #17: Construct proper game state for SaveGame)
     local Persistence = HopeAddon:GetModule("WordGamePersistence")
     if Persistence then
-        Persistence:SaveGame(senderName, {
-            id = gameState.gameId,
+        -- Create a proper game structure that SerializeGame expects
+        -- For new games from invites, board is empty so we pass an empty sparse board directly
+        local savedState = {
+            version = 1,
+            gameId = gameState.gameId,
+            createdAt = gameState.createdAt,
+            lastMoveAt = time(),
             player1 = gameState.player1,
             player2 = gameState.player2,
-            data = {
-                state = {
-                    gameState = gameState.currentTurn,
-                    scores = gameState.scores,
-                    moveHistory = gameState.moveHistory,
-                    consecutivePasses = gameState.consecutivePasses,
-                    turnCount = gameState.turnCount,
-                },
-            },
-            createdAt = gameState.createdAt,
-        })
+            currentTurn = gameState.currentTurn,
+            board = gameState.board or {},  -- Include board data from invite
+            scores = gameState.scores or {},
+            moveHistory = gameState.moveHistory or {},
+            consecutivePasses = gameState.consecutivePasses or 0,
+            turnCount = gameState.turnCount or 0,
+            state = "PLAYING",
+            tileBag = {},  -- Empty for now, will be created on resume
+            playerHands = {},  -- Empty for now, will be dealt on resume
+        }
+        -- Save directly to storage (bypass SerializeGame since we have raw state)
+        Persistence:EnsureStorage()
+        local storage = HopeAddon.charDb and HopeAddon.charDb.savedGames
+            and HopeAddon.charDb.savedGames.words
+        if storage then
+            storage.games[senderName] = savedState
+        end
         Persistence:ClearPendingInvite(senderName)
     end
 
@@ -346,24 +368,34 @@ function WordGameInvites:HandleAcceptReceived(sender, gameId, payload)
     gameState.state = "PLAYING"
     gameState.lastMoveAt = time()
 
-    -- Save game to persistence
+    -- Save game to persistence (Fix #2 & #17: Construct proper game state for SaveGame)
     local Persistence = HopeAddon:GetModule("WordGamePersistence")
     if Persistence then
-        Persistence:SaveGame(sender, {
-            id = gameState.gameId,
+        -- Create a proper game structure that SerializeGame expects
+        local savedState = {
+            version = 1,
+            gameId = gameState.gameId,
+            createdAt = gameState.createdAt,
+            lastMoveAt = time(),
             player1 = gameState.player1,
             player2 = gameState.player2,
-            data = {
-                state = {
-                    gameState = gameState.currentTurn,
-                    scores = gameState.scores,
-                    moveHistory = gameState.moveHistory,
-                    consecutivePasses = gameState.consecutivePasses,
-                    turnCount = gameState.turnCount,
-                },
-            },
-            createdAt = gameState.createdAt,
-        })
+            currentTurn = gameState.currentTurn,
+            board = gameState.board or {},  -- Include board data from invite
+            scores = gameState.scores or {},
+            moveHistory = gameState.moveHistory or {},
+            consecutivePasses = gameState.consecutivePasses or 0,
+            turnCount = gameState.turnCount or 0,
+            state = "PLAYING",
+            tileBag = {},  -- Empty for now, will be created on resume
+            playerHands = {},  -- Empty for now, will be dealt on resume
+        }
+        -- Save directly to storage (bypass SerializeGame since we have raw state)
+        Persistence:EnsureStorage()
+        local storage = HopeAddon.charDb and HopeAddon.charDb.savedGames
+            and HopeAddon.charDb.savedGames.words
+        if storage then
+            storage.games[sender] = savedState
+        end
         Persistence:ClearSentInvite(sender)
     end
 
@@ -457,7 +489,7 @@ end
 function WordGameInvites:SerializeState(state)
     if not state then return "" end
 
-    -- Simple serialization: just send essential data
+    -- Simple serialization: send essential data (Fix #3: Include moveHistory)
     local parts = {
         "v=" .. (state.version or 1),
         "id=" .. (state.gameId or ""),
@@ -473,6 +505,11 @@ function WordGameInvites:SerializeState(state)
         for player, score in pairs(state.scores) do
             table.insert(parts, "s_" .. player .. "=" .. score)
         end
+    end
+
+    -- Move history count (for validation - full history sent separately via MOVE messages)
+    if state.moveHistory then
+        table.insert(parts, "moves=" .. #state.moveHistory)
     end
 
     return table.concat(parts, "|")

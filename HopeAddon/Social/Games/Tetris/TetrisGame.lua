@@ -1282,8 +1282,10 @@ end
 
 function TetrisGame:OnKeyDown(gameId, key)
     local game = self.games[gameId]
+    if not game then return end  -- Guard BEFORE accessing nested fields
+
     local state = game.data.state
-    if not game or state.paused or state.countdown > 0 or state.gameOver then
+    if state.paused or state.countdown > 0 or state.gameOver then
         return
     end
 

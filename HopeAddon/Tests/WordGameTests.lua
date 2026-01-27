@@ -166,9 +166,9 @@ function Tests:BoardPlacement()
     Assert(not board:IsBoardEmpty(), "Board no longer empty")
 
     -- Verify tiles are where expected
-    local tile = board:GetTile(8, 8)
+    local tile = board:GetLetter(8, 8)
     AssertEquals(tile, "D", "Tile at (8,8) is D")
-    tile = board:GetTile(8, 13)
+    tile = board:GetLetter(8, 13)
     AssertEquals(tile, "N", "Tile at (8,13) is N")
 
     -- Test 7: Disconnected word

@@ -68,6 +68,17 @@ local TOAST_TYPES = {
         color = { 0.5, 0.5, 0.5 },
         sound = "notification",
     },
+    -- Calendar event toasts
+    event_reminder = {
+        icon = "Interface\\Icons\\INV_Misc_Note_02",  -- Calendar scroll
+        color = { 1, 0.84, 0 },  -- Gold
+        sound = "notification",
+    },
+    event_signup = {
+        icon = "Interface\\Icons\\Spell_Holy_ChampionsBond",  -- Person icon
+        color = { 0.4, 0.8, 0.4 },  -- Green
+        sound = "click",
+    },
 }
 
 --============================================================

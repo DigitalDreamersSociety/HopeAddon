@@ -41,6 +41,7 @@ Reputation\Reputation.lua
 
 # Social Features
 Social\Badges.lua
+Social\Guild.lua
 Social\FellowTravelers.lua
 Social\TravelerIcons.lua
 Social\Minigames.lua
@@ -53,6 +54,8 @@ Social\ActivityFeed.lua
 Social\Companions.lua
 Social\SocialToasts.lua
 Social\Romance.lua
+Social\Calendar.lua
+Social\CalendarUI.lua
 
 # Game System
 Social\Games\GameCore.lua

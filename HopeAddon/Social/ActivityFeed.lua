@@ -34,6 +34,8 @@ local ACTIVITY = {
     -- New post types (Phase 50)
     IC_POST = "IC",       -- In-character post (shows name + title)
     ANON = "ANON",        -- Anonymous tavern rumor (hidden identity)
+    -- Calendar events (Phase 61)
+    EVENT = "EVT",        -- Calendar event created/signup
 }
 
 -- Activity icons (Interface\Icons\ prefix) - TBC 2.4.3 compatible
@@ -50,6 +52,8 @@ local ACTIVITY_ICONS = {
     -- New post types (Phase 50)
     [ACTIVITY.IC_POST] = "Spell_Holy_MindVision",    -- Speech/RP icon
     [ACTIVITY.ANON] = "INV_Scroll_01",               -- Anonymous scroll
+    -- Calendar events (Phase 61)
+    [ACTIVITY.EVENT] = "INV_Misc_Note_02",           -- Calendar/event scroll
 }
 
 -- Activity display names
@@ -66,6 +70,8 @@ local ACTIVITY_NAMES = {
     -- New post types (Phase 50)
     [ACTIVITY.IC_POST] = "IC Post",
     [ACTIVITY.ANON] = "Tavern Rumor",
+    -- Calendar events (Phase 61)
+    [ACTIVITY.EVENT] = "Event",
 }
 
 -- Status display strings
@@ -785,6 +791,45 @@ function ActivityFeed:OnRomanceEvent(eventType, partnerName, reason)
     )
     self:QueueForBroadcast(activity)
     HopeAddon:Debug("ActivityFeed: Romance event:", eventType, partnerName)
+end
+
+--[[
+    Called when a calendar event is created
+    @param action string - "CREATED", "UPDATED", "CANCELLED"
+    @param event table - Event data
+]]
+function ActivityFeed:OnCalendarEvent(action, event)
+    if not event then return end
+    local _, class = UnitClass("player")
+    local data = action .. "|" .. (event.title or "Event") .. "|" .. (event.raidKey or "") .. "|" .. (event.date or "") .. "|" .. (event.startTime or "")
+    local activity = self:CreateActivity(
+        ACTIVITY.EVENT,
+        UnitName("player"),
+        class,
+        data
+    )
+    self:QueueForBroadcast(activity)
+    HopeAddon:Debug("ActivityFeed: Calendar event:", action, event.title)
+end
+
+--[[
+    Called when someone signs up for a calendar event
+    @param event table - Event data
+    @param playerName string - Who signed up
+    @param role string - Role they signed up as
+]]
+function ActivityFeed:OnCalendarSignup(event, playerName, role)
+    if not event then return end
+    local _, class = UnitClass("player")
+    local data = "SIGNUP|" .. (event.title or "Event") .. "|" .. (playerName or "") .. "|" .. (role or "")
+    local activity = self:CreateActivity(
+        ACTIVITY.EVENT,
+        UnitName("player"),
+        class,
+        data
+    )
+    self:QueueForBroadcast(activity)
+    HopeAddon:Debug("ActivityFeed: Calendar signup:", playerName, "for", event.title)
 end
 
 --============================================================

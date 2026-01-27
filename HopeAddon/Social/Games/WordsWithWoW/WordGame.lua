@@ -122,6 +122,12 @@ function WordGame:OnDisable()
     end
     self.games = {}
 
+    -- Fix #19: Unregister communication handlers to prevent closure accumulation
+    if self.GameComms then
+        self.GameComms:UnregisterHandler("WORDS", "MOVE")
+        self.GameComms:UnregisterHandler("WORDS", "PASS")
+    end
+
     -- Destroy frame pools
     self:DestroyFramePools()
 end
@@ -348,6 +354,12 @@ function WordGame:CleanupGame(gameId)
     local ui = game.data.ui
     local state = game.data.state
 
+    -- Fix #14: Cancel status ticker if running (also done in OnEnd, but needed here for abrupt cleanup)
+    if state and state.statusTicker then
+        state.statusTicker:Cancel()
+        state.statusTicker = nil
+    end
+
     -- Release board tile frames back to pool
     if ui.tileFrames then
         for row = 1, self.BOARD_SIZE do
@@ -395,8 +407,16 @@ function WordGame:CleanupGame(gameId)
     if ui.rackFrame then ui.rackFrame:Hide(); ui.rackFrame:SetParent(nil); ui.rackFrame = nil end
     if ui.boardContainer then ui.boardContainer:Hide(); ui.boardContainer:SetParent(nil); ui.boardContainer = nil end
 
-    -- Clear game over overlay
+    -- Clear game over overlay (Fix #11: Clean up child frames and effects)
     if ui.gameOverOverlay then
+        -- Stop any victory glow effects on the overlay and its children
+        if HopeAddon.Effects and HopeAddon.Effects.StopGlowsOnParent then
+            HopeAddon.Effects:StopGlowsOnParent(ui.gameOverOverlay)
+            -- Also check child panel for glows
+            for _, child in ipairs({ui.gameOverOverlay:GetChildren()}) do
+                HopeAddon.Effects:StopGlowsOnParent(child)
+            end
+        end
         ui.gameOverOverlay:Hide()
         ui.gameOverOverlay:SetParent(nil)
         ui.gameOverOverlay = nil
@@ -523,8 +543,7 @@ function WordGame:PlaceWord(gameId, word, horizontal, startRow, startCol, player
     -- Place the word
     local placedTiles = state.board:PlaceWord(word, startRow, startCol, horizontal)
 
-    -- Invalidate cached rows that were modified (C3 optimization)
-    self:InvalidateRows(gameId, placedTiles)
+    -- Fix #12: Removed undefined InvalidateRows call (row cache optimization was never implemented)
 
     -- Find all words formed (main word + cross words)
     local formedWords = state.board:FindFormedWords(placedTiles, horizontal)
@@ -540,7 +559,7 @@ function WordGame:PlaceWord(gameId, word, horizontal, startRow, startCol, player
         end
     end
 
-    -- Calculate total score for all formed words
+    -- Calculate total score for all formed words (Fix #5: Nil guard for score)
     local totalScore = 0
     for _, wordData in ipairs(formedWords) do
         local wordScore = state.board:CalculateWordScore(
@@ -550,6 +569,8 @@ function WordGame:PlaceWord(gameId, word, horizontal, startRow, startCol, player
             wordData.horizontal,
             placedTiles
         )
+        wordScore = wordScore or 0  -- Guard against nil return
+        wordData.score = wordScore  -- Store score for display in notification
         totalScore = totalScore + wordScore
     end
 
@@ -597,7 +618,8 @@ function WordGame:PlaceWord(gameId, word, horizontal, startRow, startCol, player
     if #formedWords > 1 then
         local crossWords = {}
         for i = 2, #formedWords do
-            table.insert(crossWords, formedWords[i].word)
+            local wd = formedWords[i]
+            table.insert(crossWords, wd.word .. " (+" .. wd.score .. ")")
         end
         HopeAddon:Print("Cross-words: " .. table.concat(crossWords, ", "))
     end
@@ -852,6 +874,12 @@ function WordGame:StartAIThinking(gameId)
     local state = game.data.state
     local C = HopeAddon.Constants.WORDS_AI_SETTINGS
 
+    -- Fix #10: Mutex check to prevent double AI moves from multiple async calls
+    if state.ai.phase ~= "IDLE" then
+        HopeAddon:Debug("StartAIThinking: Already in phase " .. (state.ai.phase or "nil") .. ", skipping")
+        return
+    end
+
     state.ai.phase = "THINKING"
 
     -- Update UI to show "AI is thinking..." immediately
@@ -996,6 +1024,7 @@ end
 function WordGame:GenerateWordsFromHand(hand)
     local possibleWords = {}
     local dictionary = self.WordDictionary.WORDS
+    local MAX_WORD_CANDIDATES = 100  -- Fix #15: Limit to prevent 5+ second hangs
 
     -- Build letter count from hand
     local letterCount = {}
@@ -1004,10 +1033,14 @@ function WordGame:GenerateWordsFromHand(hand)
         letterCount[upper] = (letterCount[upper] or 0) + 1
     end
 
-    -- Check each dictionary word
+    -- Check each dictionary word (with limit to prevent performance issues)
     for word in pairs(dictionary) do
         if self:CanMakeWord(word, letterCount) then
             table.insert(possibleWords, word)
+            if #possibleWords >= MAX_WORD_CANDIDATES then
+                HopeAddon:Debug("AI: Capped word candidates at", MAX_WORD_CANDIDATES)
+                break
+            end
         end
     end
 
@@ -1437,6 +1470,14 @@ function WordGame:ReleaseTileFrame(tile)
     if tile.points then tile.points:SetText("") end
     if tile.glow then tile.glow:Hide() end
 
+    -- Fix #6: Clear scripts that capture gameId closures to prevent cross-game pollution
+    tile:SetScript("OnMouseDown", nil)
+    tile:SetScript("OnMouseUp", nil)
+    tile:SetScript("OnEnter", nil)
+    tile:SetScript("OnLeave", nil)
+    tile:SetScript("OnClick", nil)
+    tile.rackIndex = nil
+
     -- Return to pool if possible
     local pool = self.pools.boardTile or self.pools.rackTile
     if pool then
@@ -1500,10 +1541,11 @@ function WordGame:RefillHand(gameId, playerName, usedLetters)
     local hand = state.playerHands[playerName]
     if not hand then return end
 
-    -- Remove used letters from hand
+    -- Remove used letters from hand (Fix #4: Normalize case for comparison)
     for _, letter in ipairs(usedLetters) do
+        local upperLetter = letter:upper()
         for i, handLetter in ipairs(hand) do
-            if handLetter == letter then
+            if handLetter:upper() == upperLetter then
                 table.remove(hand, i)
                 break
             end
@@ -1532,6 +1574,12 @@ function WordGame:ShowUI(gameId)
     if not self.GameUI then return end
 
     local ui = game.data.ui
+
+    -- Clean up existing UI before creating new one (prevents tile stacking on resume)
+    if ui.window then
+        self:CleanupGame(gameId)
+    end
+
     local state = game.data.state
     local C = HopeAddon.Constants
 
@@ -2417,10 +2465,7 @@ function WordGame:FlashTurnBanner(gameId)
 
     -- Use Effects module for pulsing if available
     if HopeAddon.Effects and HopeAddon.Effects.CreatePulsingGlow then
-        HopeAddon.Effects:CreatePulsingGlow(ui.turnBanner, 2.0, {
-            color = { r = 1, g = 0.84, b = 0, a = 0.8 },
-            pulseSpeed = 0.5,
-        })
+        HopeAddon.Effects:CreatePulsingGlow(ui.turnBanner, "GOLD_BRIGHT", 0.8)
     else
         -- Fallback: Simple flash using Timer
         local flashCount = 0
@@ -2790,6 +2835,17 @@ function WordGame:StartDrag(gameId, rackIndex)
     local state = game.data.state
     local ui = game.data.ui
 
+    -- Fix #9: Cancel any existing drag from a different game to prevent cross-game state pollution
+    if self.dragState.isDragging and self.dragState.gameId and self.dragState.gameId ~= gameId then
+        HopeAddon:Debug("StartDrag: Cancelling drag from different game")
+        self:CancelDrag()
+        wipe(self.dragState.pendingPlacements)
+        self.dragState.placementDirection = nil
+        self.dragState.startRow = nil
+        self.dragState.startCol = nil
+        wipe(self.dragState.validSquares)
+    end
+
     -- Check if it's player's turn
     local playerName = UnitName("player")
     if not self:IsPlayerTurn(gameId, playerName) then
@@ -2849,29 +2905,48 @@ end
 ]]
 function WordGame:CalculateValidSquares(gameId)
     local game = self.games[gameId]
-    if not game or not game.data or not game.data.state then return end
+    if not game or not game.data or not game.data.state then
+        HopeAddon:Debug("CalculateValidSquares: Invalid game state for", gameId)
+        return
+    end
 
     local state = game.data.state
     local board = state.board
+
+    -- Defensive check: ensure board object exists
+    if not board then
+        HopeAddon:Debug("CalculateValidSquares: board is nil!")
+        return
+    end
+
     local pending = self.dragState.pendingPlacements
 
     wipe(self.dragState.validSquares)
 
     -- Check if board is empty (first word)
-    local isBoardEmpty = board:IsBoardEmpty() and #pending == 0
+    -- Use explicit boolean comparison to handle nil return values
+    local boardIsEmpty = board:IsBoardEmpty()
+    local isBoardEmpty = (boardIsEmpty == true) and (#pending == 0)
+
+    HopeAddon:Debug("CalculateValidSquares: boardIsEmpty=" .. tostring(boardIsEmpty) ..
+        ", pendingCount=" .. #pending .. ", isBoardEmpty=" .. tostring(isBoardEmpty))
 
     if isBoardEmpty then
         -- First word: any empty square that could connect to center
         -- For simplicity, allow any empty square (validation happens on confirm)
+        local count = 0
         for row = 1, self.BOARD_SIZE do
             for col = 1, self.BOARD_SIZE do
                 if board:IsEmpty(row, col) then
                     self.dragState.validSquares[row .. "," .. col] = true
+                    count = count + 1
                 end
             end
         end
+        HopeAddon:Debug("CalculateValidSquares: First word mode - marked " .. count .. " valid squares")
     elseif #pending == 0 then
         -- First tile of a new word: must be adjacent to existing tiles
+        local count = 0
         for row = 1, self.BOARD_SIZE do
             for col = 1, self.BOARD_SIZE do
                 if board:IsEmpty(row, col) then
@@ -2883,12 +2958,14 @@ function WordGame:CalculateValidSquares(gameId)
                     for _, adj in ipairs(adjacents) do
                         if board:GetLetter(adj[1], adj[2]) then
                             self.dragState.validSquares[row .. "," .. col] = true
+                            count = count + 1
                             break
                         end
                     end
                 end
             end
         end
+        HopeAddon:Debug("CalculateValidSquares: Adjacent mode - marked " .. count .. " valid squares")
     else
         -- Subsequent tiles: must be in line with pending placements
         local firstPending = pending[1]
@@ -2970,12 +3047,26 @@ end
 ]]
 function WordGame:ShowValidSquares(gameId)
     local game = self.games[gameId]
-    if not game or not game.data or not game.data.ui then return end
+    if not game or not game.data or not game.data.ui then
+        HopeAddon:Debug("ShowValidSquares: Invalid game or UI for", gameId)
+        return
+    end
 
     local ui = game.data.ui
     local C = HopeAddon.Constants
-    local validColor = C.WORDS_DRAG_COLORS.VALID_DROP
+    local validColor = C.WORDS_DRAG_COLORS and C.WORDS_DRAG_COLORS.VALID_DROP
 
+    if not validColor then
+        HopeAddon:Debug("ShowValidSquares: WORDS_DRAG_COLORS.VALID_DROP is nil!")
+        validColor = { r = 0.3, g = 0.9, b = 0.3, a = 0.5 }  -- Fallback green
+    end
+
+    if not ui.tileFrames then
+        HopeAddon:Debug("ShowValidSquares: ui.tileFrames is nil!")
+        return
+    end
+
+    local highlightCount = 0
     for row = 1, self.BOARD_SIZE do
         for col = 1, self.BOARD_SIZE do
             local tile = ui.tileFrames[row] and ui.tileFrames[row][col]
@@ -2991,10 +3082,12 @@ function WordGame:ShowValidSquares(gameId)
                     end
                     tile.validHighlight:SetColorTexture(validColor.r, validColor.g, validColor.b, validColor.a)
                     tile.validHighlight:Show()
+                    highlightCount = highlightCount + 1
                 end
             end
         end
     end
+    HopeAddon:Debug("ShowValidSquares: Highlighted " .. highlightCount .. " squares")
 end
 
 --[[
@@ -4355,6 +4448,32 @@ function WordGame:ResumeGame(opponentName)
         self.Persistence:DeserializeBoard(savedState.savedBoard, state.board)
     end
 
+    -- Restore tile bag and player hands (Fix #1: Hands not restored on resume)
+    if savedState.savedTileBag and #savedState.savedTileBag > 0 then
+        state.tileBag = savedState.savedTileBag
+    else
+        -- Fallback: create new tile bag if not saved (backwards compat)
+        state.tileBag = self:CreateTileBag()
+    end
+
+    if savedState.savedPlayerHands then
+        -- Restore saved hands
+        if savedState.savedPlayerHands[game.player1] then
+            state.playerHands[game.player1] = savedState.savedPlayerHands[game.player1]
+        end
+        if savedState.savedPlayerHands[game.player2] then
+            state.playerHands[game.player2] = savedState.savedPlayerHands[game.player2]
+        end
+    end
+
+    -- If hands are empty, deal new hands (backwards compat or corruption recovery)
+    if not state.playerHands[game.player1] or #state.playerHands[game.player1] == 0 then
+        state.playerHands[game.player1] = self:DrawTiles(state, self.RACK_SIZE)
+    end
+    if not state.playerHands[game.player2] or #state.playerHands[game.player2] == 0 then
+        state.playerHands[game.player2] = self:DrawTiles(state, self.RACK_SIZE)
+    end
+
     -- Clear row cache to force re-render
     state.rowCache = {}
     state.dirtyRows = {}
@@ -4367,8 +4486,25 @@ function WordGame:ResumeGame(opponentName)
 
     -- Announce resumption
     local currentPlayer = self:GetCurrentPlayer(gameId)
+    local playerName = UnitName("player")
     HopeAddon:Print("Resumed Words with WoW vs " .. opponentName)
     HopeAddon:Print(currentPlayer .. "'s turn. (Turn " .. state.turnCount .. ")")
+
+    -- Fix #16: Check for stale opponent turn and warn about timeout
+    if currentPlayer ~= playerName then
+        local lastMoveAt = savedState.lastMoveAt or savedState.createdAt or time()
+        local inactivityTime = time() - lastMoveAt
+        local TURN_TIMEOUT_WARNING = 5 * 60  -- 5 minutes
+        local TURN_TIMEOUT_FORFEIT = 24 * 60 * 60  -- 24 hours
+
+        if inactivityTime > TURN_TIMEOUT_FORFEIT then
+            HopeAddon:Print("|cFFFF6666Warning: Opponent hasn't moved in over 24 hours.|r")
+            HopeAddon:Print("Use /hope words forfeit " .. opponentName .. " to end this game.")
+        elseif inactivityTime > TURN_TIMEOUT_WARNING then
+            local minsAgo = math.floor(inactivityTime / 60)
+            HopeAddon:Print("|cFFFFFF66Opponent last active " .. minsAgo .. " minutes ago.|r")
+        end
+    end
 
     return gameId
 end

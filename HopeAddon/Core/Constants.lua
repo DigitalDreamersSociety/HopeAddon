@@ -859,12 +859,21 @@ C.BT_QUEST_IDS = {
 -- ALL ATTUNEMENTS LIST
 --============================================================
 C.ALL_ATTUNEMENTS = {
-    { key = "karazhan", data = C.KARAZHAN_ATTUNEMENT, tier = "T4", order = 1 },
-    { key = "ssc", data = C.SSC_ATTUNEMENT, tier = "T5", order = 2 },
-    { key = "tk", data = C.TK_ATTUNEMENT, tier = "T5", order = 3, prerequisite = "cipher" },
-    { key = "hyjal", data = C.HYJAL_ATTUNEMENT, tier = "T6", order = 4 },
-    { key = "bt", data = C.BT_ATTUNEMENT, tier = "T6", order = 5 },
+    { key = "karazhan", data = C.KARAZHAN_ATTUNEMENT, tier = "T4", phase = 1, order = 1 },
+    { key = "ssc", data = C.SSC_ATTUNEMENT, tier = "T5", phase = 2, order = 2 },
+    { key = "tk", data = C.TK_ATTUNEMENT, tier = "T5", phase = 2, order = 3, prerequisite = "cipher" },
+    { key = "hyjal", data = C.HYJAL_ATTUNEMENT, tier = "T6", phase = 3, order = 4 },
+    { key = "bt", data = C.BT_ATTUNEMENT, tier = "T6", phase = 3, order = 5 },
 }
+
+-- Helper to get attunement phase by raid key
+function C:GetAttunementPhase(raidKey)
+    for _, attInfo in ipairs(C.ALL_ATTUNEMENTS) do
+        if attInfo.key == raidKey then return attInfo.phase end
+    end
+    if raidKey == "cipher" then return 2 end
+    return nil
+end
 
 -- Pre-build lookup for all attunement quest IDs
 C.ATTUNEMENT_QUEST_LOOKUP = {}
@@ -1169,6 +1178,20 @@ C.ENCOUNTER_TO_BOSS = {
     [607]  = { raid = "bt", boss = "shahraz" },
     [608]  = { raid = "bt", boss = "council" },
     [609]  = { raid = "bt", boss = "illidan" },
+    -- Zul'Aman (Phase 4)
+    [1189] = { raid = "za", boss = "nalorakk" },
+    [1190] = { raid = "za", boss = "akilzon" },
+    [1191] = { raid = "za", boss = "janalai" },
+    [1192] = { raid = "za", boss = "halazzi" },
+    [1193] = { raid = "za", boss = "hexlord" },
+    [1194] = { raid = "za", boss = "zuljin" },
+    -- Sunwell Plateau (Phase 5)
+    [724]  = { raid = "sunwell", boss = "kalecgos" },
+    [725]  = { raid = "sunwell", boss = "brutallus" },
+    [726]  = { raid = "sunwell", boss = "felmyst" },
+    [727]  = { raid = "sunwell", boss = "eredar_twins" },
+    [728]  = { raid = "sunwell", boss = "muru" },
+    [729]  = { raid = "sunwell", boss = "kiljaeden" },
 }
 
 --============================================================
@@ -1229,6 +1252,23 @@ C.BOSS_NPC_IDS = {
     [22951] = { raid = "bt", boss = "council" },         -- Lady Malande
     [22952] = { raid = "bt", boss = "council" },         -- Veras Darkshadow
     [22917] = { raid = "bt", boss = "illidan" },         -- Illidan Stormrage
+    -- Zul'Aman (Phase 4)
+    [23576] = { raid = "za", boss = "nalorakk" },        -- Nalorakk
+    [23574] = { raid = "za", boss = "akilzon" },         -- Akil'zon
+    [23578] = { raid = "za", boss = "janalai" },         -- Jan'alai
+    [23577] = { raid = "za", boss = "halazzi" },         -- Halazzi
+    [24239] = { raid = "za", boss = "hexlord" },         -- Hex Lord Malacrass
+    [23863] = { raid = "za", boss = "zuljin" },          -- Zul'jin
+    -- Sunwell Plateau (Phase 5)
+    [24850] = { raid = "sunwell", boss = "kalecgos" },   -- Kalecgos
+    [24892] = { raid = "sunwell", boss = "kalecgos" },   -- Sathrovarr (demon inside Kalecgos)
+    [24882] = { raid = "sunwell", boss = "brutallus" },  -- Brutallus
+    [25038] = { raid = "sunwell", boss = "felmyst" },    -- Felmyst
+    [25165] = { raid = "sunwell", boss = "eredar_twins" }, -- Lady Sacrolash
+    [25166] = { raid = "sunwell", boss = "eredar_twins" }, -- Grand Warlock Alythess
+    [25741] = { raid = "sunwell", boss = "muru" },       -- M'uru
+    [25840] = { raid = "sunwell", boss = "muru" },       -- Entropius (void god form)
+    [25315] = { raid = "sunwell", boss = "kiljaeden" },  -- Kil'jaeden
 }
 
 -- Reverse lookup: Boss display name -> { raid, boss }
@@ -1246,6 +1286,8 @@ function C:BuildBossNameLookup()
         { raidKey = "tk", bosses = C.TK_BOSSES },
         { raidKey = "hyjal", bosses = C.HYJAL_BOSSES },
         { raidKey = "bt", bosses = C.BT_BOSSES },
+        { raidKey = "za", bosses = C.ZA_BOSSES },
+        { raidKey = "sunwell", bosses = C.SUNWELL_BOSSES },
     }
 
     for _, raidData in ipairs(raidBossTables) do
@@ -2137,6 +2179,336 @@ C.BT_BOSSES = {
             { name = "Warglaive of Azzinoth (OH)", type = "Legendary" },
             { name = "Bulwark of Azzinoth", type = "Shield (Tank)" },
             { name = "Skull of Gul'dan", type = "Trinket (Caster)" },
+        },
+    },
+}
+
+--============================================================
+-- PHASE 4 RAID BOSS DATA - ZUL'AMAN
+--============================================================
+C.ZA_BOSSES = {
+    {
+        id = "nalorakk",
+        name = "Nalorakk",
+        location = "Bear Den",
+        optional = false,
+        order = 1,
+        lore = "The Bear Avatar of the Amani. His savage strength is matched only by his cunning.",
+        quote = "You be da first to charge, but da last to fall!",
+        icon = "Ability_Druid_ChallangingRoar",
+        mechanics = {
+            "Two phases: Troll Form and Bear Form",
+            "Troll Form: Brutal Strike (cleave), Mangle",
+            "Bear Form: Lacerating Slash (bleed), Deafening Roar",
+            "Surge - charges furthest target, have ranged stack",
+            "Tank swap on Mangle debuff",
+        },
+        notableLoot = {
+            { name = "Fury of the Ursine", type = "Fist Weapon" },
+            { name = "Pauldrons of Primal Fury", type = "Plate Shoulders" },
+            { name = "Bladeangel's Money Belt", type = "Leather Belt" },
+        },
+    },
+    {
+        id = "akilzon",
+        name = "Akil'zon",
+        location = "Eagle's Nest",
+        optional = false,
+        order = 2,
+        lore = "The Eagle Avatar commands the storms. His lightning strikes without warning.",
+        quote = "I be da predator! You be da prey!",
+        icon = "Spell_Nature_CallStorm",
+        mechanics = {
+            "Electrical Storm - lifted player needs to be stacked under",
+            "ALL raid must collapse under lifted player or wipe",
+            "Static Disruption - AoE damage, spread when not collapsing",
+            "Soaring Eagles - add spawns, kill quickly",
+            "Call Lightning - random target damage",
+        },
+        notableLoot = {
+            { name = "Akil'zon's Talonblade", type = "Dagger" },
+            { name = "Signet of Ancient Magics", type = "Ring (Caster)" },
+            { name = "Brooch of Nature's Mercy", type = "Neck (Healer)" },
+        },
+    },
+    {
+        id = "janalai",
+        name = "Jan'alai",
+        location = "Dragonhawk Platform",
+        optional = false,
+        order = 3,
+        lore = "The Dragonhawk Avatar breeds an army of fiery minions.",
+        quote = "Burn, you gonna burn!",
+        icon = "Ability_Hunter_Pet_DragonHawk",
+        mechanics = {
+            "Two Hatchers spawn eggs on each side",
+            "Control egg hatching - don't let too many hatch at once",
+            "Kill one Hatcher early, let other hatch slowly",
+            "At 35% ALL remaining eggs hatch - be ready for AoE",
+            "Flame Breath - frontal cone, tank faces away",
+            "Fire Bombs - avoid red patches on ground",
+        },
+        notableLoot = {
+            { name = "Amani Divining Staff", type = "Staff (Healer)" },
+            { name = "Jan'alai's Spaulders", type = "Mail Shoulders" },
+            { name = "Bulwark of the Amani Empire", type = "Shield (Tank)" },
+        },
+    },
+    {
+        id = "halazzi",
+        name = "Halazzi",
+        location = "Lynx Temple",
+        optional = false,
+        order = 4,
+        lore = "The Lynx Avatar is swift and deadly. His spirit cannot be contained.",
+        quote = "Get on ya knees and bow to da fang and claw!",
+        icon = "Ability_Mount_JungleTiger",
+        mechanics = {
+            "Phase 1: Normal tanking, Saber Lash (split damage)",
+            "Phase 2 (at 75%, 50%, 25%): Spirit splits off",
+            "Kill Spirit of the Lynx to return to Phase 1",
+            "Corrupted Lightning Totem - KILL IT IMMEDIATELY",
+            "Flame Shock - dispel if possible",
+            "Enrage at low health - burn fast",
+        },
+        notableLoot = {
+            { name = "Avalanche Leggings", type = "Mail Legs" },
+            { name = "The Savage's Choker", type = "Neck (Melee)" },
+            { name = "Wub's Cursed Hexblade", type = "Sword (Caster)" },
+        },
+    },
+    {
+        id = "hexlord",
+        name = "Hex Lord Malacrass",
+        location = "Malacrass's Terrace",
+        optional = false,
+        order = 5,
+        lore = "The dark prophet steals the powers of his enemies to use against them.",
+        quote = "Da shadow gonna fall on you!",
+        icon = "Spell_Shadow_ShadowWordPain",
+        mechanics = {
+            "STEALS abilities from random raid members",
+            "Stolen abilities depend on class composition",
+            "Interrupt Spirit Bolts at all costs",
+            "Siphon Soul - drains random player, heals boss",
+            "2 random adds from a pool - CC or kill based on type",
+            "Bring classes with interruptible abilities only",
+        },
+        notableLoot = {
+            { name = "Tome of Diabolic Remedy", type = "Off-Hand (Healer)" },
+            { name = "Tiny Voodoo Mask", type = "Trinket" },
+            { name = "Hex Lord's Voodoo Pauldrons", type = "Cloth Shoulders" },
+        },
+    },
+    {
+        id = "zuljin",
+        name = "Zul'jin",
+        location = "Zul'jin's Arena",
+        optional = false,
+        finalBoss = true,
+        order = 6,
+        lore = "The legendary Amani warlord. He sacrificed his own arm to escape captivity, and now commands all four animal spirits.",
+        quote = "Nobody baddah den me!",
+        icon = "Spell_Nature_BloodLust",
+        phases = {
+            { name = "Phase 1: Troll", description = "Whirlwind and Grievous Throw" },
+            { name = "Phase 2: Bear (80%)", description = "Creeping Paralysis - keep moving!" },
+            { name = "Phase 3: Eagle (60%)", description = "Energy Storm - cannot cast, use instants" },
+            { name = "Phase 4: Lynx (40%)", description = "Claw Rage - increased attack speed" },
+            { name = "Phase 5: Dragonhawk (20%)", description = "Flame Pillars - fire everywhere!" },
+        },
+        mechanics = {
+            "Phase 1: Avoid Whirlwind, heal Grievous Throw to full",
+            "Phase 2: KEEP MOVING or Paralysis wipes raid",
+            "Phase 3: NO CASTING - use wands, instants, melee only",
+            "Phase 4: High tank damage, Lynx Rush charges random",
+            "Phase 5: Avoid fire columns, burn boss FAST",
+            "Timed event - kill fast for extra loot chest!",
+        },
+        notableLoot = {
+            { name = "Cleaver of the Unforgiving", type = "Axe (2H)" },
+            { name = "Chestguard of the Warlord", type = "Plate Chest" },
+            { name = "Loop of Cursed Apathy", type = "Ring (Caster)" },
+            { name = "Amani War Bear", type = "Mount (Timed Run)", dropRate = "Timed chest" },
+        },
+    },
+}
+
+--============================================================
+-- PHASE 5 RAID BOSS DATA - SUNWELL PLATEAU
+--============================================================
+C.SUNWELL_BOSSES = {
+    {
+        id = "kalecgos",
+        name = "Kalecgos",
+        location = "Outer Courtyard",
+        optional = false,
+        order = 1,
+        lore = "A blue dragon corrupted by the dreadlord Sathrovarr. Save him from within!",
+        quote = "I will not be beaten back! Not again!",
+        icon = "Spell_Arcane_PortalIronforge",
+        phases = {
+            { name = "Normal Realm", description = "Fight Kalecgos the dragon" },
+            { name = "Demon Realm", description = "Fight Sathrovarr inside Kalecgos" },
+        },
+        mechanics = {
+            "Raid splits between two realms via portals",
+            "Normal Realm: Tank dragon, avoid Frost Breath",
+            "Spectral Blast - teleports players to Demon Realm",
+            "Demon Realm: Fight Sathrovarr, curse management",
+            "Both bosses share health - damage either",
+            "Coordinate DPS between realms",
+            "Corrupting Strike - tank debuff in demon realm",
+        },
+        notableLoot = {
+            { name = "Fang of Kalecgos", type = "Dagger (Caster)" },
+            { name = "Legplates of the Holy Juggernaut", type = "Plate Legs (Healer)" },
+            { name = "Bracers of the Forgotten Conqueror", type = "Tier Token" },
+        },
+    },
+    {
+        id = "brutallus",
+        name = "Brutallus",
+        location = "Dead Scar",
+        optional = false,
+        order = 2,
+        lore = "A pit lord of immense power. Pure DPS race - no gimmicks, just survival.",
+        quote = "Gorgonna, Madrigosa... you'll need more help than that!",
+        icon = "Spell_Shadow_SummonFelGuard",
+        mechanics = {
+            "PURE DPS RACE - ~6 minute enrage",
+            "Meteor Slash - stacks debuff, need 2 tank groups",
+            "Burn - DoT that spreads to nearby players",
+            "Burned players MUST spread out immediately",
+            "Stomp - massive tank damage",
+            "Requires extremely high raid DPS",
+            "Tank swap at 3-4 Meteor Slash stacks",
+        },
+        notableLoot = {
+            { name = "Heart of the Pit", type = "Trinket (Caster)" },
+            { name = "Leggings of Calamity", type = "Cloth Legs" },
+            { name = "Collar of Bones", type = "Neck (Physical DPS)" },
+        },
+    },
+    {
+        id = "felmyst",
+        name = "Felmyst",
+        location = "Dead Scar",
+        optional = false,
+        order = 3,
+        lore = "Madrigosa reborn as an undead fel dragon. She guards the path to the Sunwell.",
+        quote = "I am stronger than ever before!",
+        icon = "Spell_Shadow_Possession",
+        phases = {
+            { name = "Ground Phase", description = "Tank and spank with positioning" },
+            { name = "Air Phase", description = "Avoid breath, kill skeletons" },
+        },
+        mechanics = {
+            "Ground Phase: Gas Nova (nature damage), Encapsulate",
+            "Encapsulate - player floats up, raid must move away",
+            "Corrosion - frontal cone, tank faces away from raid",
+            "Air Phase: Deep Breath down the raid - MOVE!",
+            "Fog of Corruption - AVOID THE GREEN FOG",
+            "Mind Control from fog = instant wipe risk",
+            "Skeleton adds spawn during air phase",
+        },
+        notableLoot = {
+            { name = "Sword Breaker's Bulwark", type = "Shield (Tank)" },
+            { name = "Borderland Paingrips", type = "Leather Gloves" },
+            { name = "Bracers of the Forgotten Protector", type = "Tier Token" },
+        },
+    },
+    {
+        id = "eredar_twins",
+        name = "Eredar Twins",
+        location = "Witch's Sanctum",
+        optional = false,
+        order = 4,
+        lore = "Lady Sacrolash and Grand Warlock Alythess. Sisters bound by shadow and flame.",
+        quote = "Sacrolash: Your are not alone in this struggle! | Alythess: With my power, you cannot fall!",
+        icon = "Spell_Fire_Burnout",
+        council = {
+            { name = "Lady Sacrolash", role = "Shadow - melee tank, Confounding Blow" },
+            { name = "Grand Warlock Alythess", role = "Fire - ranged tank, Conflagration" },
+        },
+        mechanics = {
+            "Two bosses with shared health pool",
+            "Sacrolash (Shadow): Tank away from Alythess",
+            "Alythess (Fire): Ranged tank, Conflagration spreads",
+            "Shadow Nova/Flame Sear - raid-wide damage",
+            "Confounding Blow - tank swap mechanic",
+            "Conflagration - move away from raid immediately",
+            "Dark Strike needs high melee tank threat",
+        },
+        notableLoot = {
+            { name = "Grip of Mannoroth", type = "Plate Gloves (DPS)" },
+            { name = "Grand Magister's Staff of Torrents", type = "Staff (Caster)" },
+            { name = "Sin'dorei Band of Salvation", type = "Ring (Healer)" },
+        },
+    },
+    {
+        id = "muru",
+        name = "M'uru",
+        location = "Shrine of the Eclipse",
+        optional = false,
+        order = 5,
+        lore = "A captured naaru, drained of light and transformed into a void god.",
+        quote = nil, -- M'uru is silent, void whispers only
+        icon = "Spell_Holy_PrayerOfSpirit",
+        phases = {
+            { name = "Phase 1: M'uru", description = "Naaru form with add waves" },
+            { name = "Phase 2: Entropius", description = "Void god form - burn phase" },
+        },
+        mechanics = {
+            "Phase 1: M'uru is stationary, spawns adds",
+            "Void Sentinels - must be tanked and killed",
+            "Shadowsword adds from portals - humanoids first",
+            "Darkness - pulsing shadow damage",
+            "Phase 2 (at 0% M'uru): Transforms to Entropius",
+            "Entropius: Pure burn phase, black holes spawn",
+            "Black Holes pull players in - avoid at all costs",
+            "Considered hardest boss of TBC",
+        },
+        notableLoot = {
+            { name = "Blade of Harbingers", type = "Sword (Tank)" },
+            { name = "Sin'dorei Band of Triumph", type = "Ring (Physical DPS)" },
+            { name = "Bracers of the Forgotten Vanquisher", type = "Tier Token" },
+        },
+    },
+    {
+        id = "kiljaeden",
+        name = "Kil'jaeden",
+        location = "Sunwell",
+        optional = false,
+        finalBoss = true,
+        order = 6,
+        lore = "The Deceiver himself. The lord of the Burning Legion attempts to enter Azeroth through the Sunwell.",
+        quote = "You are not prepared for what awaits you in the Sunwell!",
+        icon = "Spell_Fire_FelFlameRing",
+        phases = {
+            { name = "Phase 1 (100-85%)", description = "Introduction, basic abilities" },
+            { name = "Phase 2 (85-55%)", description = "Shield Orbs, Flame Darts" },
+            { name = "Phase 3 (55-25%)", description = "Shadow Spikes, Armageddon" },
+            { name = "Phase 4 (25-0%)", description = "Darkness of a Thousand Souls" },
+            { name = "Dragon Phase", description = "Blue dragons assist periodically" },
+        },
+        mechanics = {
+            "Phase 1: Soul Flay tank damage, Fire Bloom on raid",
+            "Phase 2: Shield Orbs - destroy them quickly",
+            "Flame Darts - spread out, don't chain",
+            "Phase 3: Shadow Spikes - MOVE from ground effects",
+            "Armageddon - massive meteors, heal through",
+            "Phase 4: Darkness - use Dragon Orbs to shield raid",
+            "Blue Dragon Orbs activate periodically - CRITICAL",
+            "Sinister Reflection - copies of players spawn",
+            "Final boss of TBC - the ultimate challenge",
+        },
+        notableLoot = {
+            { name = "Thori'dal, the Stars' Fury", type = "Legendary Bow", dropRate = "~5%" },
+            { name = "Helm of Burning Righteousness", type = "Plate Helm (Tank)" },
+            { name = "Cover of Ursol the Wise", type = "Leather Helm (Caster)" },
+            { name = "Sunflare", type = "Dagger (Caster)" },
+            { name = "Apolyon, the Soul-Render", type = "Sword (2H)" },
         },
     },
 }
@@ -3191,10 +3563,12 @@ C.RAID_TIERS = {
     tk = "T5",
     hyjal = "T6",
     bt = "T6",
+    za = "T6",        -- Phase 4: Catch-up raid with T6-equivalent gear
+    sunwell = "T6",   -- Phase 5: Final tier
 }
 
--- All raid keys (includes non-attunement raids like Gruul/Magtheridon)
-C.ALL_RAID_KEYS = { "karazhan", "gruul", "magtheridon", "ssc", "tk", "hyjal", "bt" }
+-- All raid keys (includes non-attunement raids like Gruul/Magtheridon/ZA/Sunwell)
+C.ALL_RAID_KEYS = { "karazhan", "gruul", "magtheridon", "ssc", "tk", "hyjal", "bt", "za", "sunwell" }
 
 -- Attunement-only raid keys (raids with attunement quest chains)
 C.ATTUNEMENT_RAID_KEYS = { "karazhan", "ssc", "tk", "hyjal", "bt" }
@@ -3203,12 +3577,39 @@ C.ATTUNEMENT_RAID_KEYS = { "karazhan", "ssc", "tk", "hyjal", "bt" }
 C.RAIDS_BY_TIER = {
     T4 = { "karazhan", "gruul", "magtheridon" },
     T5 = { "ssc", "tk" },
-    T6 = { "hyjal", "bt" },
+    T6 = { "hyjal", "bt", "za", "sunwell" },
 }
 
 -- Get tier for a given raid key
 function C:GetRaidTier(raidKey)
     return self.RAID_TIERS[raidKey]
+end
+
+-- Raid phase mapping (Phase 1-5 for TBC content)
+C.RAID_PHASES = {
+    karazhan = 1,
+    gruul = 1,
+    magtheridon = 1,
+    ssc = 2,
+    tk = 2,
+    hyjal = 3,
+    bt = 3,
+    za = 4,
+    sunwell = 5,
+}
+
+-- Raids organized by phase (for UI display)
+C.RAIDS_BY_PHASE = {
+    [1] = { "karazhan", "gruul", "magtheridon" },  -- Phase 1: T4 raids
+    [2] = { "ssc", "tk" },                          -- Phase 2: T5 raids
+    [3] = { "hyjal", "bt" },                        -- Phase 3: T6 raids
+    [4] = { "za" },                                 -- Phase 4: Zul'Aman
+    [5] = { "sunwell" },                            -- Phase 5: Sunwell Plateau
+}
+
+-- Get phase for a given raid key
+function C:GetRaidPhase(raidKey)
+    return self.RAID_PHASES[raidKey]
 end
 
 --============================================================
@@ -4079,12 +4480,12 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         },
                     },
                 },
-                { itemId = 29187, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "Thrallmar @ Exalted", sourceType = "rep", faction = "Thrallmar", standing = 8,
+                { itemId = 29383, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "G'eras (41 Badges)", sourceType = "badge",
                     hoverData = {
-                        repSources = {
-                            "Hellfire Ramparts/Blood Furnace (10 rep/kill)",
-                            "Shattered Halls (15-25 rep/kill, best rep/hour)",
-                            "Hellfire Peninsula quests (Horde only)",
+                        badgeSources = {
+                            "Heroic dungeons (1 badge per boss)",
+                            "Karazhan bosses (1-2 badges each)",
+                            "Gruul/Magtheridon (2 badges each)",
                         },
                         statPriority = {
                             "BiS trinket for physical DPS until T5",
@@ -4092,9 +4493,9 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                             "20 sec duration, 2 min cooldown",
                         },
                         tips = {
-                            "Shattered Halls spam is fastest to Exalted",
-                            "Grind this early - used through T5",
-                            "Buy from Quartermaster Urgronn in Thrallmar",
+                            "Priority badge purchase for melee/hunters",
+                            "Use on-use with Heroism/Bloodlust",
+                            "Buy from G'eras in Shattrath (Terrace of Light)",
                         },
                         alternatives = {
                             "Abacus of Violent Odds (H Mech)",
@@ -4166,12 +4567,12 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         },
                     },
                 },
-                { itemId = 29187, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "Thrallmar @ Exalted", sourceType = "rep", faction = "Thrallmar", standing = 8,
+                { itemId = 29383, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "G'eras (41 Badges)", sourceType = "badge",
                     hoverData = {
-                        repSources = {
-                            "Hellfire Ramparts/Blood Furnace (10 rep/kill)",
-                            "Shattered Halls (15-25 rep/kill, best rep/hour)",
-                            "Hellfire Peninsula quests (Horde only)",
+                        badgeSources = {
+                            "Heroic dungeons (1 badge per boss)",
+                            "Karazhan bosses (1-2 badges each)",
+                            "Gruul/Magtheridon (2 badges each)",
                         },
                         statPriority = {
                             "BiS trinket for physical DPS until T5",
@@ -4179,9 +4580,9 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                             "20 sec duration, 2 min cooldown",
                         },
                         tips = {
-                            "Shattered Halls spam is fastest to Exalted",
-                            "Grind this early - used through T5",
-                            "Buy from Quartermaster Urgronn in Thrallmar",
+                            "Priority badge purchase for melee/hunters",
+                            "Use on-use with Heroism/Bloodlust",
+                            "Buy from G'eras in Shattrath (Terrace of Light)",
                         },
                         alternatives = {
                             "Abacus of Violent Odds (H Mech)",
@@ -4229,27 +4630,27 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         },
                     },
                 },
-                { itemId = 29151, name = "Veteran's Plate Belt", icon = "INV_Belt_03", quality = "epic", slot = "Waist", stats = "+40 Sta, +23 Def, +22 Block", source = "Honor Hold @ Exalted", sourceType = "rep", faction = "Honor Hold", standing = 8,
+                { itemId = 27672, name = "Girdle of the Immovable", icon = "INV_Belt_29", quality = "rare", slot = "Waist", stats = "+33 Sta, +21 Def, +23 Shield Block", source = "Quagmirran (Slave Pens)", sourceType = "dungeon",
                     hoverData = {
-                        repSources = {
-                            "Hellfire Ramparts/Blood Furnace (10 rep/kill)",
-                            "Shattered Halls (15-25 rep/kill)",
-                            "Hellfire Peninsula quests (~10k total)",
+                        dropInfo = {
+                            "Drops from Quagmirran in Slave Pens",
+                            "~18% drop rate on Normal",
+                            "Also available in Heroic mode",
                         },
                         statPriority = {
-                            "Best pre-raid tank belt",
-                            "+23 Defense + 22 Block Rating",
-                            "+40 Stamina for massive EH",
+                            "Excellent early tank belt",
+                            "+21 Defense + 23 Shield Block Rating",
+                            "+33 Stamina for solid HP",
                         },
                         tips = {
-                            "Long grind - start early while leveling",
-                            "Shattered Halls is most efficient",
-                            "Buy from Logistics Officer Ulrike",
+                            "Easy to farm - Slave Pens is quick",
+                            "Good stepping stone to raid gear",
+                            "Quagmirran is the final boss",
                         },
                         alternatives = {
                             "Sha'tari Vindicator's Waistguard (H Mech)",
-                            "Girdle of the Immovable (H SL)",
                             "Belt of the Guardian (BS craft)",
+                            "Crimson Girdle of the Indomitable (H SH)",
                         },
                     },
                 },
@@ -4368,22 +4769,22 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         },
                     },
                 },
-                { itemId = 29181, name = "Light's Justice", icon = "INV_Mace_37", quality = "epic", slot = "Main Hand", stats = "+264 Healing, +10 MP5", source = "The Aldor @ Exalted", sourceType = "rep", faction = "The Aldor", standing = 8,
+                { itemId = 28771, name = "Light's Justice", icon = "INV_Mace_37", quality = "epic", slot = "Main Hand", stats = "+264 Healing, +22 Int, +10 MP5", source = "Prince Malchezaar (Karazhan)", sourceType = "raid",
                     hoverData = {
-                        repSources = {
-                            "Turn in Marks of Kil'jaeden (25 rep each, until Honored)",
-                            "Turn in Marks of Sargeras (25 rep, Honored+)",
-                            "Turn in Fel Armaments (350 rep each)",
+                        dropInfo = {
+                            "Drops from Prince Malchezaar (final boss)",
+                            "Karazhan raid (10-man)",
+                            "~15% drop rate",
                         },
                         statPriority = {
                             "+264 Healing - highest pre-raid weapon",
+                            "+22 Intellect for larger mana pool",
                             "+10 MP5 for sustained healing",
-                            "Slightly better than Gavel for pure output",
                         },
                         tips = {
-                            "Expensive grind - need 1000s of turn-ins",
-                            "Farm Marks at Shadow Council camps (Nagrand)",
-                            "Buy from Quartermaster Endarin (Aldor Rise)",
+                            "Best pre-raid healing mace in TBC",
+                            "Prince can be challenging - practice fight",
+                            "Competes with caster DPS for drop",
                         },
                         alternatives = {
                             "Gavel of Pure Light (Sha'tar Exalted)",
@@ -4455,31 +4856,31 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         },
                     },
                 },
-                { itemId = 29151, name = "Veteran's Plate Belt", icon = "INV_Belt_03", quality = "epic", slot = "Waist", stats = "+40 Sta, +23 Def, +22 Block", source = "Honor Hold @ Exalted", sourceType = "rep", faction = "Honor Hold", standing = 8,
+                { itemId = 27672, name = "Girdle of the Immovable", icon = "INV_Belt_29", quality = "rare", slot = "Waist", stats = "+33 Sta, +21 Def, +23 Shield Block", source = "Quagmirran (Slave Pens)", sourceType = "dungeon",
                     hoverData = {
-                        repSources = {
-                            "Hellfire Ramparts/Blood Furnace (10 rep/kill)",
-                            "Shattered Halls (15-25 rep/kill)",
-                            "Hellfire Peninsula quests (~8k rep total)",
+                        dropInfo = {
+                            "Drops from Quagmirran in Slave Pens",
+                            "~18% drop rate on Normal",
+                            "Also available in Heroic mode",
                         },
                         statPriority = {
-                            "Excellent tank belt with triple stats",
-                            "+23 Defense + +22 Block Rating",
-                            "+40 Stamina is massive for HP",
+                            "Excellent early tank belt",
+                            "+21 Defense + 23 Shield Block Rating",
+                            "+33 Stamina for solid HP",
                         },
                         tips = {
-                            "Shattered Halls is fastest for rep",
-                            "Do all HFP quests first for easy rep",
-                            "Buy from Logistics Officer Ulrike (Honor Hold)",
+                            "Easy to farm - Slave Pens is quick",
+                            "Good stepping stone to raid gear",
+                            "Quagmirran is the final boss",
                         },
                         alternatives = {
+                            "Sha'tari Vindicator's Waistguard (H Mech)",
+                            "Belt of the Guardian (BS craft)",
                             "Crimson Girdle of the Indomitable (H SH)",
-                            "Belt of the Guardian (Blacksmithing)",
-                            "Girdle of Living Flame (SV)",
                         },
                     },
                 },
-                { itemId = 29183, name = "Libram of Repentance", icon = "INV_Relics_LibramofHope", quality = "epic", slot = "Relic", stats = "Block Value +35", source = "The Sha'tar @ Exalted", sourceType = "rep", faction = "The Sha'tar", standing = 8,
+                { itemId = 29388, name = "Libram of Repentance", icon = "INV_Relics_LibramofHope", quality = "epic", slot = "Relic", stats = "Block Value +35", source = "G'eras (15 Badges)", sourceType = "badge", faction = "The Sha'tar", standing = 8,
                     hoverData = {
                         repSources = {
                             "Tempest Keep dungeons (Mech, Bot, Arc) - 10-25 rep/kill",
@@ -4566,7 +4967,7 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         },
                     },
                 },
-                { itemId = 29182, name = "Libram of Avengement", icon = "INV_Relics_LibramofGrace", quality = "rare", slot = "Relic", stats = "+Crusader Strike dmg", source = "The Scryers @ Revered", sourceType = "rep", faction = "The Scryers", standing = 7,
+                { itemId = 27484, name = "Libram of Avengement", icon = "INV_Relics_LibramofGrace", quality = "rare", slot = "Relic", stats = "+Crusader Strike dmg", source = "The Maker (Blood Furnace)", sourceType = "dungeon", faction = "The Scryers", standing = 7,
                     hoverData = {
                         repSources = {
                             "Turn in Firewing Signets (25 rep each, until Honored)",
@@ -4748,7 +5149,7 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         alternatives = { "Ashyen's Gift (Cenarion Exalted)", "Ring of Cryptic Dreams (H Mana-Tombs)" },
                     },
                 },
-                { itemId = 29172, name = "Idol of the Raven Goddess", icon = "INV_Relics_IdolofRejuvenation", quality = "epic", slot = "Relic", stats = "+Moonfire/Wrath dmg", source = "Cenarion Expedition @ Exalted", sourceType = "rep", faction = "Cenarion Expedition", standing = 8,
+                { itemId = 32387, name = "Idol of the Raven Goddess", icon = "INV_Relics_IdolofRejuvenation", quality = "epic", slot = "Relic", stats = "+Moonfire/Wrath dmg", source = "Quest: Vanquish the Raven God", sourceType = "quest", faction = "Cenarion Expedition", standing = 8,
                     hoverData = {
                         repSources = { "Coilfang dungeons (10-25 rep/kill)", "Turn in Unidentified Plant Parts (250 rep/10)" },
                         statPriority = { "BiS Balance idol for Moonfire/Wrath", "Essential for raiding Balance Druid" },
@@ -4787,7 +5188,7 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         alternatives = { "Lamp of Peaceful Repose (H Bot)", "Tears of Heaven (Aldor Exalted)" },
                     },
                 },
-                { itemId = 29173, name = "Idol of Ursoc", icon = "INV_Relics_IdolofFerocity", quality = "epic", slot = "Relic", stats = "+Maul damage +54", source = "Cenarion Expedition @ Revered", sourceType = "rep", faction = "Cenarion Expedition", standing = 7,
+                { itemId = 27744, name = "Idol of Ursoc", icon = "INV_Relics_IdolofFerocity", quality = "rare", slot = "Relic", stats = "+Maul damage +54", source = "Hungarfen (Heroic Underbog)", sourceType = "heroic", faction = "Cenarion Expedition", standing = 7,
                     hoverData = {
                         repSources = { "Coilfang dungeons (10-25 rep/kill)", "Turn in Plant Parts (250 rep/10, until Honored)" },
                         statPriority = { "BiS Feral tank idol for threat", "+54 Maul damage massive for TPS" },
@@ -4834,23 +5235,23 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         alternatives = { "Lamp of Peaceful Repose (H Bot)", "Tears of Heaven (Aldor Exalted)" },
                     },
                 },
-                -- Non-rep item: Best pre-raid Resto Druid Idol (badge vendor)
-                { itemId = 27886, name = "Idol of the Emerald Queen", icon = "INV_Relics_IdolofRejuvenation", quality = "rare", slot = "Relic", stats = "+47 Healing to Lifebloom", source = "G'eras (15 Badges)", sourceType = "badge",
+                -- Non-rep item: Best pre-raid Resto Druid Idol (dungeon drop)
+                { itemId = 27886, name = "Idol of the Emerald Queen", icon = "INV_Relics_IdolofRejuvenation", quality = "rare", slot = "Relic", stats = "+88 Lifebloom periodic heal", source = "Ambassador Hellmaw (Shadow Lab)", sourceType = "dungeon",
                     hoverData = {
                         repSources = {
-                            "Badge of Justice vendor in Shattrath",
-                            "15 Badges of Justice",
-                            "Badges from Heroics and Karazhan",
+                            "Drops from Ambassador Hellmaw in Shadow Labyrinth",
+                            "Normal mode - no Heroic key needed",
+                            "~15-20% drop rate",
                         },
                         statPriority = {
                             "BiS pre-raid Idol for Resto Druids",
-                            "+47 Healing per Lifebloom tick",
+                            "+88 Healing per Lifebloom tick",
                             "Core part of rolling Lifebloom rotation",
                         },
                         tips = {
-                            "Priority badge purchase for Resto",
-                            "Heroics drop 3-5 badges each",
-                            "Karazhan drops many badges",
+                            "First boss in Shadow Lab - quick runs",
+                            "Normal mode works fine for this drop",
+                            "No reputation required",
                         },
                         alternatives = {
                             "Harold's Rejuvenating Broach (Kara Quest)",
@@ -4894,7 +5295,7 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         alternatives = { "Ashyen's Gift (Cenarion Expedition Exalted)", "Mana-Etched Band (Quest)", "Sparking Arcanite Ring (Heroic Mech)" },
                     },
                 },
-                { itemId = 29389, name = "Totem of the Void", icon = "Spell_Nature_Groundingtotem", quality = "rare", slot = "Relic", stats = "+55 Lightning Bolt dmg", source = "Lower City @ Revered", sourceType = "rep", faction = "Lower City", standing = 7,
+                { itemId = 28248, name = "Totem of the Void", icon = "Spell_Nature_Groundingtotem", quality = "rare", slot = "Relic", stats = "+55 Lightning Bolt dmg", source = "Cache of the Legion (Mechanar)", sourceType = "dungeon", faction = "Lower City", standing = 7,
                     hoverData = {
                         repSources = { "Auchenai Crypts / Sethekk Halls / Shadow Lab (10-25 rep/kill)", "Lower City quests in Terokkar (~6k rep)", "Underbog turn-ins (Arakkoa Feathers - 250 rep per 30)" },
                         statPriority = { "BiS pre-raid totem for Lightning Bolt builds", "+55 damage per Lightning Bolt is massive DPS boost", "Core piece for Elemental DPS rotation" },
@@ -4925,15 +5326,15 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         alternatives = { "Natasha's Ember Necklace (Quest: Nagrand)", "Necklace of the Deep (Fishing)", "Worgen Claw Necklace (H Underbog)" },
                     },
                 },
-                { itemId = 29187, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "Thrallmar @ Exalted", sourceType = "rep", faction = "Thrallmar", standing = 8,
+                { itemId = 29383, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "G'eras (41 Badges)", sourceType = "badge",
                     hoverData = {
-                        repSources = { "Hellfire Ramparts / Blood Furnace / Shattered Halls (10-25 rep/kill)", "Hellfire Peninsula quests (~8k rep)", "Marks of Thrallmar PvP turn-in (250 rep per mark)" },
+                        badgeSources = { "Heroic dungeons (1 badge per boss)", "Karazhan bosses (1-2 badges each)", "Gruul/Magtheridon (2 badges each)" },
                         statPriority = { "BiS pre-raid trinket for physical DPS specs", "+72 permanent AP + 278 AP on use (2min CD)", "Stacks with all enhancement buffs" },
-                        tips = { "Shattered Halls gives best rep per run", "Use on-use with Heroism/Bloodlust", "Buy from Quartermaster Urgronn in Thrallmar" },
+                        tips = { "Priority badge purchase for melee/hunters", "Use on-use with Heroism/Bloodlust", "Buy from G'eras in Shattrath (Terrace of Light)" },
                         alternatives = { "Hourglass of the Unraveller (H Black Morass)", "Abacus of Violent Odds (H Mechanar)", "Icon of Unyielding Courage (Quest)" },
                     },
                 },
-                { itemId = 29390, name = "Totem of the Astral Winds", icon = "Spell_Nature_Windfury", quality = "rare", slot = "Relic", stats = "+80 Stormstrike AP", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7,
+                { itemId = 27815, name = "Totem of the Astral Winds", icon = "Spell_Nature_Windfury", quality = "rare", slot = "Relic", stats = "+80 Stormstrike AP", source = "Pandemonius (Mana-Tombs)", sourceType = "dungeon", faction = "The Sha'tar", standing = 7,
                     hoverData = {
                         repSources = { "Botanica / Mechanar / Arcatraz (10-25 rep/kill)", "Sha'tar quests in Shattrath and Netherstorm (~4k rep)", "Aldor/Scryer spillover (50% of their rep gains)" },
                         statPriority = { "BiS pre-raid totem for Enhancement Shaman", "+80 AP on Stormstrike is huge (~5% DPS increase)", "Core piece for melee enhancement rotation" },
@@ -4972,12 +5373,29 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         alternatives = { "Bangle of Endless Blessings (H Slave Pens)", "Essence of the Martyr (41 Badges)", "Ribbon of Sacrifice (Opera - Kara)" },
                     },
                 },
-                { itemId = 29388, name = "Totem of Healing Rains", icon = "Spell_Nature_HealingWaveGreater", quality = "rare", slot = "Relic", stats = "+79 Chain Heal heal", source = "The Sha'tar @ Revered", sourceType = "rep", faction = "The Sha'tar", standing = 7,
+                -- Non-rep item: Best pre-raid totem for Resto Shaman (dungeon drop)
+                { itemId = 27544, name = "Totem of Spontaneous Regrowth", icon = "INV_Relics_Totem03", quality = "rare", slot = "Relic", stats = "+88 Healing Wave heal", source = "Mennu the Betrayer (Slave Pens)", sourceType = "dungeon",
                     hoverData = {
-                        repSources = { "Botanica / Mechanar / Arcatraz (10-25 rep/kill)", "Sha'tar quests in Shattrath and Netherstorm (~4k rep)", "Aldor/Scryer spillover (50% of their rep gains)" },
-                        statPriority = { "BiS pre-raid totem for Resto Shaman", "+79 healing per Chain Heal is significant throughput", "Core piece for raid healing rotation" },
-                        tips = { "Get this at Revered - same faction as Gavel", "Chain Heal is your primary raid heal", "Buy from Almaador in Shattrath Terrace of Light" },
-                        alternatives = { "Totem of Spontaneous Regrowth (H Underbog)", "Totem of the Plains (Quest)", "Totem of Sustaining (Steamvault)" },
+                        repSources = {
+                            "Drops from Mennu the Betrayer in Slave Pens",
+                            "Available in Normal and Heroic modes",
+                            "~15-20% drop rate",
+                        },
+                        statPriority = {
+                            "BiS pre-raid totem for Resto Shaman",
+                            "+88 Healing to Healing Wave is massive throughput",
+                            "Healing Wave is your primary tank heal",
+                        },
+                        tips = {
+                            "First boss in Slave Pens - quick runs",
+                            "Normal mode works fine for this drop",
+                            "No reputation required",
+                        },
+                        alternatives = {
+                            "Totem of Healing Rains (Maiden - Karazhan)",
+                            "Totem of the Plains (Quest)",
+                            "Totem of Life (25 Badges)",
+                        },
                     },
                 },
             },
@@ -5260,11 +5678,11 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         alternatives = { "Natasha's Ember Necklace (Quest: Nagrand)", "Necklace of the Deep (Fishing)", "Worgen Claw Necklace (H Underbog)" },
                     },
                 },
-                { itemId = 29187, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "Thrallmar @ Exalted", sourceType = "rep", faction = "Thrallmar", standing = 8,
+                { itemId = 29383, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "G'eras (41 Badges)", sourceType = "badge",
                     hoverData = {
-                        repSources = { "Hellfire Ramparts / Blood Furnace / Shattered Halls (10-25 rep/kill)", "Hellfire Peninsula quests (~8k rep)", "Marks of Thrallmar PvP turn-in (250 rep per mark)" },
+                        badgeSources = { "Heroic dungeons (1 badge per boss)", "Karazhan bosses (1-2 badges each)", "Gruul/Magtheridon (2 badges each)" },
                         statPriority = { "BiS pre-raid trinket for all physical DPS", "+72 permanent AP + 278 AP on use (2min CD)", "Pop with Bestial Wrath for massive burst" },
-                        tips = { "Use on-use with Kill Command and Bestial Wrath", "Shattered Halls gives best rep per run", "Buy from Quartermaster Urgronn in Thrallmar" },
+                        tips = { "Use on-use with Kill Command and Bestial Wrath", "Priority badge purchase for hunters", "Buy from G'eras in Shattrath (Terrace of Light)" },
                         alternatives = { "Hourglass of the Unraveller (H Black Morass)", "Abacus of Violent Odds (H Mechanar)", "Icon of Unyielding Courage (Quest)" },
                     },
                 },
@@ -5299,11 +5717,11 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         alternatives = { "Natasha's Ember Necklace (Quest: Nagrand)", "Necklace of the Deep (Fishing)", "Worgen Claw Necklace (H Underbog)" },
                     },
                 },
-                { itemId = 29187, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "Thrallmar @ Exalted", sourceType = "rep", faction = "Thrallmar", standing = 8,
+                { itemId = 29383, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "G'eras (41 Badges)", sourceType = "badge",
                     hoverData = {
-                        repSources = { "Hellfire Ramparts / Blood Furnace / Shattered Halls (10-25 rep/kill)", "Hellfire Peninsula quests (~8k rep)", "Marks of Thrallmar PvP turn-in (250 rep per mark)" },
+                        badgeSources = { "Heroic dungeons (1 badge per boss)", "Karazhan bosses (1-2 badges each)", "Gruul/Magtheridon (2 badges each)" },
                         statPriority = { "BiS pre-raid trinket for Marksmanship", "+72 permanent AP + 278 AP on use (2min CD)", "Use with Rapid Fire for burst damage" },
-                        tips = { "Stack with Rapid Fire and haste effects", "Shattered Halls gives best rep per run", "Buy from Quartermaster Urgronn in Thrallmar" },
+                        tips = { "Stack with Rapid Fire and haste effects", "Priority badge purchase for hunters", "Buy from G'eras in Shattrath (Terrace of Light)" },
                         alternatives = { "Hourglass of the Unraveller (H Black Morass)", "Abacus of Violent Odds (H Mechanar)", "Icon of Unyielding Courage (Quest)" },
                     },
                 },
@@ -5446,11 +5864,11 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         alternatives = { "Ring of Umbral Doom (H Sethekk)", "Delicate Eternium Ring (Jewelcrafting)", "A'dal's Command (The Sha'tar)" },
                     },
                 },
-                { itemId = 29187, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "Thrallmar @ Exalted", sourceType = "rep", faction = "Thrallmar", standing = 8,
+                { itemId = 29383, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "G'eras (41 Badges)", sourceType = "badge",
                     hoverData = {
-                        repSources = { "Hellfire Ramparts / Blood Furnace / Shattered Halls (5-25 rep/kill)", "Thrallmar quests in Hellfire Peninsula (~8k rep)", "Fel Orc Blood turn-ins (Honored to Exalted)" },
+                        badgeSources = { "Heroic dungeons (1 badge per boss)", "Karazhan bosses (1-2 badges each)", "Gruul/Magtheridon (2 badges each)" },
                         statPriority = { "BiS on-use trinket for Combat burst", "+72 passive AP always active", "Use effect stacks with Blade Flurry + Adrenaline Rush" },
-                        tips = { "Macro to Blade Flurry for cleave burst", "2 min cooldown syncs with major cooldowns", "Buy from Quartermaster in Thrallmar" },
+                        tips = { "Macro to Blade Flurry for cleave burst", "2 min cooldown syncs with major cooldowns", "Buy from G'eras in Shattrath (Terrace of Light)" },
                         alternatives = { "Abacus of Violent Odds (H Mech)", "Hourglass of the Unraveller (Black Morass)", "Dragonspine Trophy (Gruul)" },
                     },
                 },
@@ -5881,18 +6299,134 @@ C.SOCIAL_SECTION_THEMES = {
 C.CORNER_RUNE_TEXTURE = "Interface\\Buttons\\UI-ActionButton-Border"
 
 --============================================================
+-- GUILD SYSTEM CONSTANTS
+--============================================================
+
+-- Guild Hall theming
+C.GUILD_HALL = {
+    -- Header styling
+    HEADER_HEIGHT = 50,
+    MOTD_HEIGHT = 40,
+
+    -- Member cards
+    MEMBER_ROW_HEIGHT = 44,
+    MEMBER_VISIBLE_ROWS = 10,
+
+    -- Activity chronicles
+    ACTIVITY_ROW_HEIGHT = 36,
+    ACTIVITY_VISIBLE_ROWS = 5,
+    MAX_ACTIVITY_ENTRIES = 100,
+    ACTIVITY_RETENTION_DAYS = 7,
+
+    -- Online thresholds (matches SOCIAL_TAB for consistency)
+    ONLINE_THRESHOLD = 300,   -- 5 minutes
+    AWAY_THRESHOLD = 900,     -- 15 minutes
+
+    -- Roster refresh
+    ROSTER_REFRESH_INTERVAL = 30,  -- seconds
+}
+
+-- Guild activity types (wire codes for storage)
+C.GUILD_ACTIVITY_TYPES = {
+    LOGIN = "LOGIN",
+    LOGOUT = "LOGOUT",
+    LEVELUP = "LEVELUP",
+    ZONE = "ZONE",
+    RANK = "RANK",
+    JOIN = "JOIN",
+    LEAVE = "LEAVE",
+}
+
+-- RP-flavored activity messages for Guild Chronicles
+C.GUILD_ACTIVITY_MESSAGES = {
+    LOGIN = "%s has entered the hall",
+    LOGOUT = "%s has departed for distant lands",
+    LEVELUP = "%s has grown stronger (Level %d)",
+    ZONE = "%s ventures into %s",
+    RANK = "%s has been promoted to %s",
+    JOIN = "%s has joined the guild",
+    LEAVE = "%s has left the guild",
+}
+
+-- Activity icons for Guild Chronicles
+C.GUILD_ACTIVITY_ICONS = {
+    LOGIN = "Interface\\Icons\\Spell_Holy_Resurrection",
+    LOGOUT = "Interface\\Icons\\Spell_Shadow_Teleport",
+    LEVELUP = "Interface\\Icons\\Spell_Holy_SurgeOfLight",
+    ZONE = "Interface\\Icons\\INV_Misc_Map_01",
+    RANK = "Interface\\Icons\\INV_Crown_02",
+    JOIN = "Interface\\Icons\\Spell_Holy_AuraOfLight",
+    LEAVE = "Interface\\Icons\\Ability_Vanish",
+}
+
+-- Activity border colors (themed to match addon)
+C.GUILD_ACTIVITY_BORDERS = {
+    LOGIN = { 0.2, 0.8, 0.2 },      -- Fel green
+    LOGOUT = { 0.5, 0.5, 0.5 },     -- Grey
+    LEVELUP = { 1.0, 0.84, 0 },     -- Gold
+    ZONE = { 0.4, 0.6, 1.0 },       -- Light blue
+    RANK = { 0.64, 0.21, 0.93 },    -- Epic purple
+    JOIN = { 0.2, 0.8, 0.2 },       -- Fel green
+    LEAVE = { 0.8, 0.2, 0.1 },      -- Hellfire red
+}
+
+-- Sort options for guild roster
+C.GUILD_SORT_OPTIONS = {
+    { id = "online", label = "Online First" },
+    { id = "name", label = "Name (A-Z)" },
+    { id = "rank", label = "Rank" },
+    { id = "level", label = "Level (High-Low)" },
+    { id = "class", label = "Class" },
+}
+
+-- Quick filter options for guild roster
+C.GUILD_FILTERS = {
+    { id = "all", label = "All" },
+    { id = "online", label = "Online" },
+}
+
+-- Badge indicators for guild members
+C.GUILD_BADGES = {
+    GUILD_ONLY = { icon = "G", color = { 0.5, 0.8, 0.3 }, tooltip = "Guild Member" },
+    FELLOW_ONLY = { icon = "F", color = { 0.61, 0.19, 1.0 }, tooltip = "Fellow Traveler" },
+    BOTH = { icon = "GF", color = { 1.0, 0.84, 0 }, tooltip = "Guild Member with Addon" },
+}
+
+-- Default guild data structure (used by EnsureGuildData)
+C.GUILD_DATA_DEFAULTS = {
+    name = "",
+    rank = "",
+    rankIndex = 0,
+    roster = {},
+    activity = {},
+    motd = "",
+    lastRosterUpdate = 0,
+    settings = {
+        trackActivity = true,
+        showOffline = true,
+        sortBy = "online",
+    },
+}
+
+--============================================================
 -- SOCIAL TAB CONSTANTS
 --============================================================
 
 C.SOCIAL_TAB = {
     -- Tab bar
-    TAB_WIDTH = 90,
+    TAB_WIDTH = 70,  -- Slightly narrower to fit 4 tabs
     TAB_HEIGHT = 24,
     TAB_SPACING = 2,
 
     -- Status bar
     STATUS_BAR_HEIGHT = 36,
     RUMOR_INPUT_HEIGHT = 50,
+
+    -- Guild Hall
+    GUILD_HEADER_HEIGHT = 50,
+    GUILD_MOTD_HEIGHT = 40,
+    GUILD_ROW_HEIGHT = 44,
+    GUILD_ACTIVITY_HEIGHT = 36,
 
     -- Feed
     FEED_ROW_HEIGHT = 48,
@@ -6102,7 +6636,13 @@ C.BREAKUP_REASON_TEXT = {
 C.SOCIAL_DATA_DEFAULTS = {
     -- UI State (persisted across sessions)
     ui = {
-        activeTab = "travelers",
+        activeTab = "guild",  -- Default to Guild Hall tab
+        guild = {
+            quickFilter = "all",
+            searchText = "",
+            sortOption = "online",
+            showActivity = true,
+        },
         feed = {
             filter = "all",
             lastSeenTimestamp = 0,
@@ -6173,6 +6713,14 @@ C.SOCIAL_DATA_DEFAULTS = {
         CompanionLfrp = true,
         FellowDiscovered = true,
     },
+
+    -- Calendar System
+    calendar = {
+        events = {},           -- [eventId] = event data
+        mySignups = {},        -- [eventId] = signup status
+        notifications = {},    -- pending notifications
+        lastSync = 0,
+    },
 }
 
 --============================================================
@@ -6223,7 +6771,7 @@ C.ARMORY_PHASE_BUTTON = {
         [1] = {
             label = "1",
             tooltip = "Phase 1: Karazhan Era",
-            color = "FEL_GREEN",
+            color = "KARA_PURPLE",
             raids = { "Karazhan (10)", "Gruul's Lair (25)", "Magtheridon's Lair (25)" },
             gearSources = { "Raid Drops", "Heroic Dungeons", "Badge of Justice", "Reputation Rewards", "Crafted BoE" },
             recommendedILvl = "100-115",
@@ -6231,7 +6779,7 @@ C.ARMORY_PHASE_BUTTON = {
         [2] = {
             label = "2",
             tooltip = "Phase 2: Serpentshrine & Tempest Keep",
-            color = "SKY_BLUE",
+            color = "SSC_BLUE",
             raids = { "Serpentshrine Cavern (25)", "Tempest Keep: The Eye (25)" },
             gearSources = { "Raid Drops", "Heroic Badge Gear", "Nether Vortex Crafting" },
             recommendedILvl = "115-128",
@@ -6239,7 +6787,7 @@ C.ARMORY_PHASE_BUTTON = {
         [3] = {
             label = "3",
             tooltip = "Phase 3: Hyjal & Black Temple",
-            color = "HELLFIRE_RED",
+            color = "BT_FEL",
             raids = { "Hyjal Summit (25)", "Black Temple (25)" },
             gearSources = { "Raid Drops", "Hearts of Darkness Crafting" },
             recommendedILvl = "128-141",
@@ -6247,7 +6795,7 @@ C.ARMORY_PHASE_BUTTON = {
         [4] = {
             label = "4",
             tooltip = "Phase 4: Zul'Aman",
-            color = "GOLD_BRIGHT",
+            color = "ZA_TRIBAL",
             raids = { "Zul'Aman (10)" },
             gearSources = { "Raid Drops", "Bear Run Loot" },
             recommendedILvl = "128-138",
@@ -6255,7 +6803,7 @@ C.ARMORY_PHASE_BUTTON = {
         [5] = {
             label = "5",
             tooltip = "Phase 5: Sunwell Plateau",
-            color = "LEGENDARY_ORANGE",
+            color = "SUNWELL_GOLD",
             raids = { "Sunwell Plateau (25)" },
             gearSources = { "Raid Drops", "Sunmote Crafting", "Isle of Quel'Danas" },
             recommendedILvl = "141-154",
@@ -6267,6 +6815,83 @@ C.ARMORY_PHASE_BUTTON = {
         hover = { bgAlpha = 0.35, borderAlpha = 0.8, textAlpha = 0.9, showGlow = false },
     },
 }
+
+--============================================================
+-- ATTUNEMENT PHASE BUTTON CONFIGURATION
+--============================================================
+
+-- Phase bar container for Attunements tab
+C.ATTUNEMENT_PHASE_BAR = {
+    HEIGHT = 32,
+    PADDING_H = 10,
+    BACKDROP = {
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 12,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    },
+    BG_COLOR = { r = 0.06, g = 0.06, b = 0.06, a = 0.95 },
+    BORDER_COLOR = { r = 0.4, g = 0.35, b = 0.25, a = 1 },
+    LABEL_TEXT = "PHASE",
+    LABEL_WIDTH = 50,
+}
+
+-- Attunement Phase Button Configuration
+C.ATTUNEMENT_PHASE_BUTTON = {
+    WIDTH = 38,
+    HEIGHT = 24,
+    GAP = 4,
+    FIRST_OFFSET = 60,  -- After "PHASE" label
+    FONT = "GameFontNormal",
+    FONT_SIZE = 11,
+    PHASES = {
+        [0] = {
+            label = "All",
+            tooltip = "Show All Attunements",
+            color = "ARCANE_PURPLE",
+            attunements = {},  -- Shows all
+        },
+        [1] = {
+            label = "1",
+            tooltip = "Phase 1: Karazhan",
+            color = "KARA_PURPLE",
+            attunements = { "karazhan" },
+        },
+        [2] = {
+            label = "2",
+            tooltip = "Phase 2: SSC & Tempest Keep",
+            color = "SSC_BLUE",
+            attunements = { "ssc", "tk", "cipher" },
+        },
+        [3] = {
+            label = "3",
+            tooltip = "Phase 3: Hyjal & Black Temple",
+            color = "BT_FEL",
+            attunements = { "hyjal", "bt" },
+        },
+    },
+    STATES = {
+        active = { bgAlpha = 0.5, borderAlpha = 1.0, textAlpha = 1.0, showGlow = true },
+        inactive = { bgAlpha = 0.15, borderAlpha = 0.4, textAlpha = 0.6, showGlow = false },
+        hover = { bgAlpha = 0.35, borderAlpha = 0.8, textAlpha = 0.9, showGlow = false },
+    },
+}
+
+-- Returns the phase color name for a given item level
+-- Uses boundary-based logic (higher phases take priority at boundaries)
+function C:GetPhaseColorForItemLevel(iLvl)
+    if not iLvl or iLvl < 100 then
+        return nil  -- Pre-raid gear, use default gray
+    elseif iLvl >= 141 then
+        return "SUNWELL_GOLD"   -- Phase 5
+    elseif iLvl >= 128 then
+        return "BT_FEL"         -- Phase 3 (skip Phase 4 ZA catch-up)
+    elseif iLvl >= 115 then
+        return "SSC_BLUE"       -- Phase 2
+    else
+        return "KARA_PURPLE"    -- Phase 1 (100-114)
+    end
+end
 
 -- Spec dropdown
 C.ARMORY_SPEC_DROPDOWN = {
@@ -6621,11 +7246,20 @@ C.ARMORY_INFO_CARD = {
     THRESHOLD_GOOD = 5,   -- Above avg + 5 = green
     THRESHOLD_BAD = -5,   -- Below avg - 5 = red
 
-    -- Arrow indicators
-    ARROWS = {
-        GOOD = { symbol = "↓", color = { r = 0.2, g = 1, b = 0.2 } },     -- Green (above avg)
-        OKAY = { symbol = "→", color = { r = 1, g = 0.84, b = 0 } },      -- Gold (at avg)
-        UPGRADE = { symbol = "↑", color = { r = 1, g = 0.2, b = 0.2 } },  -- Red (needs upgrade)
+    -- Upgrade status indicators (using ReadyCheck icons for reliable rendering)
+    INDICATORS = {
+        GOOD = {
+            texture = "Interface\\RAIDFRAME\\ReadyCheck-Ready",  -- Green checkmark
+            color = { r = 1, g = 1, b = 1 },  -- White (icon is pre-colored green)
+        },
+        OKAY = {
+            texture = "Interface\\RAIDFRAME\\ReadyCheck-Waiting",  -- Yellow question mark
+            color = { r = 1, g = 1, b = 1 },  -- White (icon is pre-colored yellow)
+        },
+        UPGRADE = {
+            texture = "Interface\\RAIDFRAME\\ReadyCheck-NotReady",  -- Red X
+            color = { r = 1, g = 1, b = 1 },  -- White (icon is pre-colored red)
+        },
     },
 
     -- Visual style
@@ -6694,6 +7328,12 @@ C.ARMORY_FOOTER = {
     BORDER_COLOR = { r = 0.3, g = 0.3, b = 0.3, a = 1 },
     LABEL_COLOR = { r = 0.6, g = 0.6, b = 0.6, a = 1 },
     VALUE_COLOR = { r = 1, g = 0.84, b = 0, a = 1 },
+    PHASE_COLOR = { r = 0.3, g = 0.8, b = 1.0, a = 1 },  -- Cyan for phase indicator
+    DIVIDER_COLOR = { r = 0.4, g = 0.4, b = 0.4, a = 1 }, -- Grey dividers between stats
+    LAYOUT = {
+        STATS_RIGHT_MARGIN = 15,
+        STAT_GAP = 16,
+    },
     -- Action buttons (BIS on LEFT, RESET on RIGHT)
     BUTTONS = {
         GAP = 8,
@@ -7071,8 +7711,8 @@ C.ARMORY_GEAR_DATABASE = {
                 alternatives = {
                     { itemId = 29115, name = "Consortium Blaster", icon = "INV_Weapon_Rifle_22", quality = "rare", iLvl = 105, stats = "+Sta", source = "Consortium Exalted", sourceType = "rep", repFaction = "The Consortium", repStanding = "Exalted", weaponType = "gun" },
                     -- Paladin/Druid alternatives (libram/idol)
-                    { itemId = 28296, name = "Libram of Repentance", icon = "INV_Relics_LibramofGrace", quality = "rare", iLvl = 100, stats = "+Block Value", source = "Badge Vendor", sourceType = "badge", badgeCost = 15, weaponType = "libram" },
-                    { itemId = 28064, name = "Idol of Terror", icon = "INV_Relics_IdolofFerocity", quality = "epic", iLvl = 115, stats = "+Agility proc", source = "Heroic Mana-Tombs", sourceType = "heroic", weaponType = "idol" },
+                    { itemId = 29388, name = "Libram of Repentance", icon = "INV_Relics_LibramofGrace", quality = "epic", iLvl = 110, stats = "+Block Value", source = "Badge Vendor", sourceType = "badge", badgeCost = 15, weaponType = "libram" },
+                    { itemId = 33509, name = "Idol of Terror", icon = "INV_Relics_IdolofFerocity", quality = "epic", iLvl = 128, stats = "+Agility proc", source = "G'eras (20 Badges)", sourceType = "badge", weaponType = "idol" },
                 },
             },
         },
@@ -7180,7 +7820,7 @@ C.ARMORY_GEAR_DATABASE = {
             ["ranged"] = {
                 best = { itemId = 28592, name = "Libram of Souls Redeemed", icon = "INV_Relics_LibramofHope", quality = "epic", iLvl = 115, stats = "+Healing to Flash of Light", source = "Opera Event", sourceType = "raid", sourceDetail = "Karazhan", weaponType = "libram" },
                 alternatives = {
-                    { itemId = 28296, name = "Libram of Mending", icon = "INV_Relics_LibramofGrace", quality = "rare", iLvl = 100, stats = "+Healing", source = "Badge Vendor", sourceType = "badge", badgeCost = 15, weaponType = "libram" },
+                    { itemId = 28296, name = "Libram of the Lightbringer", icon = "INV_Relics_LibramofGrace", quality = "rare", iLvl = 115, stats = "+Healing to Holy Light", source = "Botanica (Normal)", sourceType = "dungeon", weaponType = "libram" },
                 },
             },
         },
@@ -7292,11 +7932,11 @@ C.ARMORY_GEAR_DATABASE = {
                     { itemId = 29151, name = "Veteran's Musket", icon = "INV_Weapon_Rifle_24", quality = "rare", iLvl = 100, stats = "+Agi", source = "Honor Hold Exalted", sourceType = "rep", repFaction = "Honor Hold", repStanding = "Exalted", weaponType = "gun" },
                     { itemId = 29152, name = "Marksman's Bow", icon = "INV_Weapon_Bow_25", quality = "rare", iLvl = 100, stats = "+Agi", source = "Thrallmar Exalted", sourceType = "rep", repFaction = "Thrallmar", repStanding = "Exalted", weaponType = "bow" },
                     -- Paladin alternative (libram)
-                    { itemId = 23203, name = "Libram of Avengement", icon = "INV_Relics_LibramofTruth", quality = "rare", iLvl = 65, stats = "+Crit Rating", source = "Cenarion Hold Rep", sourceType = "rep", repFaction = "Cenarion Circle", repStanding = "Revered", weaponType = "libram" },
+                    { itemId = 27484, name = "Libram of Avengement", icon = "INV_Relics_LibramofTruth", quality = "rare", iLvl = 115, stats = "+Crit Rating", source = "The Maker (Blood Furnace)", sourceType = "dungeon", weaponType = "libram" },
                     -- Druid alternative (idol)
                     { itemId = 28064, name = "Idol of the Wild", icon = "INV_Relics_IdolofFerocity", quality = "epic", iLvl = 115, stats = "+AP proc", source = "Heroic Mana-Tombs", sourceType = "heroic", weaponType = "idol" },
                     -- Shaman alternative (totem)
-                    { itemId = 27947, name = "Totem of the Astral Winds", icon = "INV_Relics_Totem04", quality = "rare", iLvl = 115, stats = "+AP", source = "Anzu", sourceType = "heroic", sourceDetail = "Heroic Sethekk Halls", weaponType = "totem" },
+                    { itemId = 27815, name = "Totem of the Astral Winds", icon = "INV_Relics_Totem04", quality = "rare", iLvl = 115, stats = "+AP", source = "Pandemonius (Mana-Tombs)", sourceType = "dungeon", weaponType = "totem" },
                 },
             },
         },
@@ -7584,3 +8224,80 @@ end
 
 -- Build the boss name lookup table now that all boss data is defined
 C:BuildBossNameLookup()
+
+-- ============================================================================
+-- CALENDAR SYSTEM CONSTANTS
+-- ============================================================================
+
+C.CALENDAR_TIMINGS = {
+    MAX_EVENTS_PER_PLAYER = 10,
+    MAX_DESCRIPTION_LENGTH = 200,
+    NOTIFICATION_CHECK_INTERVAL = 60,  -- seconds
+    NOTIFICATION_1HR = 3600,           -- 1 hour in seconds
+    NOTIFICATION_15MIN = 900,          -- 15 min in seconds
+    EVENT_EXPIRY_HOURS = 24,           -- hours after event ends
+}
+
+C.CALENDAR_MSG = {
+    EVENT_CREATE = "CAL_CREATE",
+    EVENT_UPDATE = "CAL_UPDATE",
+    EVENT_DELETE = "CAL_DELETE",
+    SIGNUP = "CAL_SIGNUP",
+    SIGNUP_UPDATE = "CAL_SIGNUP_UPD",
+}
+
+C.CALENDAR_UI = {
+    CELL_WIDTH = 68,
+    CELL_HEIGHT = 55,
+    CELL_SPACING = 2,
+    GRID_COLS = 7,
+    GRID_ROWS = 6,
+    EVENT_CARD_HEIGHT = 18,
+    EVENT_CARD_SPACING = 2,
+    DAY_PANEL_HEIGHT = 200,
+    DETAIL_POPUP_WIDTH = 350,
+    DETAIL_POPUP_HEIGHT = 400,
+    CREATE_POPUP_WIDTH = 400,
+    CREATE_POPUP_HEIGHT = 500,
+    DAY_NAMES = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" },
+    MONTH_NAMES = { "January", "February", "March", "April", "May", "June",
+                   "July", "August", "September", "October", "November", "December" },
+}
+
+C.CALENDAR_EVENT_TYPES = {
+    RAID = { name = "Raid", icon = "Interface\\Icons\\Spell_Shadow_SummonInfernal" },
+    DUNGEON = { name = "Dungeon", icon = "Interface\\Icons\\INV_Misc_Key_10" },
+    RP_EVENT = { name = "RP Event", icon = "Interface\\Icons\\INV_Drink_02" },
+    OTHER = { name = "Other", icon = "Interface\\Icons\\INV_Misc_Note_01" },
+}
+
+C.CALENDAR_ROLES = {
+    tank = { name = "Tank", color = { r = 0.2, g = 0.5, b = 1.0 } },
+    healer = { name = "Healer", color = { r = 0.2, g = 0.8, b = 0.2 } },
+    dps = { name = "DPS", color = { r = 0.8, g = 0.2, b = 0.2 } },
+}
+
+C.CALENDAR_RAID_OPTIONS = {
+    { name = "Karazhan", key = "karazhan", size = 10 },
+    { name = "Gruul's Lair", key = "gruul", size = 25 },
+    { name = "Magtheridon's Lair", key = "magtheridon", size = 25 },
+    { name = "Serpentshrine Cavern", key = "ssc", size = 25 },
+    { name = "Tempest Keep", key = "tk", size = 25 },
+    { name = "Hyjal Summit", key = "hyjal", size = 25 },
+    { name = "Black Temple", key = "bt", size = 25 },
+    { name = "Zul'Aman", key = "za", size = 10 },
+    { name = "Sunwell Plateau", key = "sunwell", size = 25 },
+    { name = "Custom", key = "custom" },
+}
+
+C.CALENDAR_RAID_SIZES = {
+    [10] = { maxPlayers = 10, defaultTanks = 2, defaultHealers = 2, defaultDPS = 6 },
+    [25] = { maxPlayers = 25, defaultTanks = 3, defaultHealers = 6, defaultDPS = 16 },
+}
+
+C.CALENDAR_SIGNUP_STATUS = {
+    ACCEPTED = { name = "Accepted", icon = "Interface\\RAIDFRAME\\ReadyCheck-Ready" },
+    DECLINED = { name = "Declined", icon = "Interface\\RAIDFRAME\\ReadyCheck-NotReady" },
+    TENTATIVE = { name = "Tentative", icon = "Interface\\RAIDFRAME\\ReadyCheck-Waiting" },
+    PENDING = { name = "Pending", icon = "Interface\\Icons\\INV_Misc_QuestionMark" },
+}

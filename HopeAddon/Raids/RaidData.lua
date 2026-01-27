@@ -72,29 +72,41 @@ local function ParseKillTimeMessage(msg)
     return nil, nil
 end
 
--- Raid tiers
-RaidData.TIERS = {
-    T4 = {
-        name = "Tier 4",
+-- Raid phases (TBC content release phases)
+RaidData.PHASES = {
+    [1] = {
+        name = "Phase 1",
         raids = { "Karazhan", "Gruul's Lair", "Magtheridon's Lair" },
     },
-    T5 = {
-        name = "Tier 5",
+    [2] = {
+        name = "Phase 2",
         raids = { "Serpentshrine Cavern", "Tempest Keep: The Eye" },
     },
-    T6 = {
-        name = "Tier 6",
+    [3] = {
+        name = "Phase 3",
         raids = { "Mount Hyjal", "Black Temple" },
+    },
+    [4] = {
+        name = "Phase 4",
+        raids = { "Zul'Aman" },
+    },
+    [5] = {
+        name = "Phase 5",
+        raids = { "Sunwell Plateau" },
     },
 }
 
+-- Backward compatibility alias
+RaidData.TIERS = RaidData.PHASES
+
 -- Raid categories
 RaidData.RAIDS = {
+    -- Phase 1 Raids
     karazhan = {
         name = "Karazhan",
         shortName = "Kara",
         size = 10,
-        tier = "T4",
+        phase = 1,
         location = "Deadwind Pass",
         requiresAttunement = true,
         icon = "INV_Misc_Key_10",
@@ -105,7 +117,7 @@ RaidData.RAIDS = {
         name = "Gruul's Lair",
         shortName = "Gruul",
         size = 25,
-        tier = "T4",
+        phase = 1,
         location = "Blade's Edge Mountains",
         requiresAttunement = false,
         icon = "Ability_Hunter_Pet_Devilsaur",
@@ -116,19 +128,19 @@ RaidData.RAIDS = {
         name = "Magtheridon's Lair",
         shortName = "Mag",
         size = 25,
-        tier = "T4",
+        phase = 1,
         location = "Hellfire Citadel",
         requiresAttunement = false,
         icon = "Spell_Shadow_SummonFelGuard",
         lore = "The former Lord of Outland, Magtheridon was defeated by Illidan and imprisoned.",
         bosses = HopeAddon.Constants.MAGTHERIDON_BOSSES,
     },
-    -- Tier 5 Raids
+    -- Phase 2 Raids
     ssc = {
         name = "Serpentshrine Cavern",
         shortName = "SSC",
         size = 25,
-        tier = "T5",
+        phase = 2,
         location = "Coilfang Reservoir, Zangarmarsh",
         requiresAttunement = true,
         attunementKey = "ssc",
@@ -140,7 +152,7 @@ RaidData.RAIDS = {
         name = "Tempest Keep: The Eye",
         shortName = "TK",
         size = 25,
-        tier = "T5",
+        phase = 2,
         location = "Netherstorm",
         requiresAttunement = true,
         attunementKey = "tk",
@@ -148,12 +160,12 @@ RaidData.RAIDS = {
         lore = "Kael'thas Sunstrider plots his return to power from this floating fortress.",
         bosses = HopeAddon.Constants.TK_BOSSES,
     },
-    -- Tier 6 Raids
+    -- Phase 3 Raids
     hyjal = {
         name = "Mount Hyjal",
         shortName = "Hyjal",
         size = 25,
-        tier = "T6",
+        phase = 3,
         location = "Caverns of Time, Tanaris",
         requiresAttunement = true,
         attunementKey = "hyjal",
@@ -165,13 +177,38 @@ RaidData.RAIDS = {
         name = "Black Temple",
         shortName = "BT",
         size = 25,
-        tier = "T6",
+        phase = 3,
         location = "Shadowmoon Valley",
         requiresAttunement = true,
         attunementKey = "bt",
-        icon = "INV_Weapon_Glaive_01",  -- TBC compatible (Illidan's Warglaive)
+        icon = "INV_Weapon_Glaive_01",
         lore = "Illidan Stormrage rules Outland from the Black Temple, former Temple of Karabor.",
         bosses = HopeAddon.Constants.BT_BOSSES,
+    },
+    -- Phase 4 Raids
+    za = {
+        name = "Zul'Aman",
+        shortName = "ZA",
+        size = 10,
+        phase = 4,
+        location = "Ghostlands",
+        requiresAttunement = false,
+        timedEvent = true,
+        icon = "Spell_Nature_BloodLust",
+        lore = "The Amani trolls have rebuilt their forces in Zul'Aman. Time is of the essence!",
+        bosses = HopeAddon.Constants.ZA_BOSSES,
+    },
+    -- Phase 5 Raids
+    sunwell = {
+        name = "Sunwell Plateau",
+        shortName = "SWP",
+        size = 25,
+        phase = 5,
+        location = "Isle of Quel'Danas",
+        requiresAttunement = false,
+        icon = "Spell_Fire_FelFlameRing",
+        lore = "The Legion's final assault on Azeroth. Kil'jaeden himself awaits.",
+        bosses = HopeAddon.Constants.SUNWELL_BOSSES,
     },
 }
 
@@ -243,6 +280,12 @@ end
     @return table - Kill entry
 ]]
 function RaidData:RecordBossKill(raidKey, bossId)
+    -- Early guard for data availability
+    if not HopeAddon.charDb or not HopeAddon.charDb.journal then
+        HopeAddon:Debug("RecordBossKill: charDb not ready")
+        return nil
+    end
+
     local boss = self:GetBoss(raidKey, bossId)
     if not boss then
         HopeAddon:Debug("Unknown boss:", raidKey, bossId)
@@ -251,6 +294,11 @@ function RaidData:RecordBossKill(raidKey, bossId)
 
     local raid = self:GetRaid(raidKey)
     local key = raidKey .. "_" .. bossId
+
+    -- Ensure bossKills table exists
+    if not HopeAddon.charDb.journal.bossKills then
+        HopeAddon.charDb.journal.bossKills = {}
+    end
 
     -- Initialize or update kill record
     local kills = HopeAddon.charDb.journal.bossKills
@@ -343,12 +391,15 @@ end
     @return table - Kill statistics
 ]]
 function RaidData:GetKillStats(raidKey)
-    local kills = HopeAddon.charDb.journal.bossKills
+    local kills = HopeAddon.charDb and HopeAddon.charDb.journal
+        and HopeAddon.charDb.journal.bossKills
     local stats = {
         totalBossKills = 0,
         uniqueBosses = 0,
         raids = {},
     }
+
+    if not kills then return stats end
 
     for key, killData in pairs(kills) do
         if not raidKey or killData.raidKey == raidKey then
@@ -548,10 +599,12 @@ end
 ]]
 function RaidData:OnCombatLogEvent(...)
     -- TBC 2.4.3 format: timestamp, subEvent, srcGUID, srcName, srcFlags, destGuid, destName, destFlags
-    local timestamp, subEvent, srcGuid, srcName, srcFlags, destGuid, destName = ...
+    local args = {...}
+    if #args < 7 then return end  -- Guard against malformed combat log events
+    local timestamp, subEvent, srcGuid, srcName, srcFlags, destGuid, destName = unpack(args)
 
     -- Only care about deaths
-    if subEvent ~= "UNIT_DIED" then return end
+    if not subEvent or subEvent ~= "UNIT_DIED" then return end
 
     -- Check if the dying unit is a raid boss
     local npcId = GetNpcIdFromGuid(destGuid)

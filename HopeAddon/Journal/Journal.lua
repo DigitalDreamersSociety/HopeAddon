@@ -177,11 +177,9 @@ function Journal:OnDisable()
         HopeAddon.Effects.activeAnimations = {}
     end
 
-    -- Stop all glows tracked by Glow module
-    if HopeAddon.Glow then
-        HopeAddon.Glow:StopAll()
-        HopeAddon.Glow.registry = {}
-        HopeAddon.Glow.glowsByParent = {}
+    -- Stop all glows tracked by Effects module
+    if HopeAddon.Effects then
+        HopeAddon.Effects:StopAllGlows()
     end
 
     -- Clear cached data
@@ -465,6 +463,16 @@ function Journal:CreateCardPool()
         if card.standingProgress then
             card.standingProgress:SetText("")
             card.standingProgress:Hide()
+        end
+        -- Clean up loot icons (created in PopulateRaids boss cards)
+        if card.lootIcons then
+            for _, lootIcon in ipairs(card.lootIcons) do
+                lootIcon:Hide()
+                lootIcon:SetScript("OnEnter", nil)
+                lootIcon:SetScript("OnLeave", nil)
+                lootIcon.itemData = nil
+                lootIcon.qualityColor = nil
+            end
         end
         card._pooled = true
         card._poolType = nil  -- Clear pool type on reset
@@ -837,21 +845,20 @@ function Journal:AcquireUpgradeCard(parent, itemData, factionProgress)
         card.icon:SetVertexColor(0.7, 0.7, 0.7)
     end
 
-    -- Tooltip
+    -- Tooltip - use the Armory tooltip system for proper item display and hoverData
     card:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        if self.itemData and self.itemData.itemId then
-            GameTooltip:SetHyperlink("item:" .. self.itemData.itemId)
-        else
-            GameTooltip:AddLine(self.itemData and self.itemData.name or "Unknown", qualityColor.r, qualityColor.g, qualityColor.b)
-        end
+        -- Use BuildArmoryGearTooltip for consistent tooltip display with proper item link format
+        Journal:BuildArmoryGearTooltip(self.itemData, self)
+
+        -- Add rep-specific status after the hoverData sections
         GameTooltip:AddLine(" ")
         if isNonRepItem then
             GameTooltip:AddLine("Source: " .. (itemData.source or "Unknown"), 0.6, 0.8, 1)
+            GameTooltip:AddLine("Status: Available", 0, 1, 0)
         elseif isObtainable then
-            GameTooltip:AddLine("Available for purchase!", 0, 1, 0)
+            GameTooltip:AddLine("Status: Available for purchase!", 0, 1, 0)
         else
-            GameTooltip:AddLine("Requires: " .. (standingNames[reqStanding] or "Unknown"), 1, 0.5, 0)
+            GameTooltip:AddLine("Status: Requires " .. (standingNames[reqStanding] or "Unknown"), 1, 0.5, 0)
         end
         GameTooltip:Show()
         if HopeAddon.Sounds then HopeAddon.Sounds:PlayHover() end
@@ -1051,8 +1058,12 @@ end
 function Journal:GetCachedCounts()
     if not self.cachedCounts then
         local milestoneCount = 0
-        for _ in pairs(HopeAddon.charDb.journal.levelMilestones) do
-            milestoneCount = milestoneCount + 1
+        local milestones = HopeAddon.charDb and HopeAddon.charDb.journal
+            and HopeAddon.charDb.journal.levelMilestones
+        if milestones then
+            for _ in pairs(milestones) do
+                milestoneCount = milestoneCount + 1
+            end
         end
 
         self.cachedCounts = {
@@ -1217,6 +1228,23 @@ function Journal:CreateMainFrame()
     footer:SetTextColor(HopeAddon:GetTextColor("SUBTLE"))
     frame.footer = footer
 
+    -- Author credit box (bottom-right)
+    local authorBox = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+    authorBox:SetSize(155, 24)
+    authorBox:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -12, 18)
+    authorBox:SetBackdrop(HopeAddon.Constants.BACKDROPS.TOOLTIP_SMALL)
+    authorBox:SetBackdropColor(0.05, 0.05, 0.08, 0.85)
+    authorBox:SetBackdropBorderColor(0.4, 0.4, 0.4, 0.6)
+
+    local authorCredit = authorBox:CreateFontString(nil, "OVERLAY")
+    authorCredit:SetFont(HopeAddon.assets.fonts.HEADER, 10, "")  -- FRIZQT - WoW's most readable font
+    authorCredit:SetPoint("CENTER", authorBox, "CENTER", 0, 0)
+    -- Rainbow gradient for "PhilFestive": P-h-i-l-F-e-s-t-i-v-e
+    local rainbowName = "|cFFFF0000P|r|cFFFF5500h|r|cFFFFAA00i|r|cFFFFFF00l|r|cFFAAFF00F|r|cFF00FF00e|r|cFF00FFAAs|r|cFF00AAFFt|r|cFF0055FFi|r|cFF5500FFv|r|cFFAA00FFe|r"
+    authorCredit:SetText("Inscribed by " .. rainbowName)
+    frame.authorBox = authorBox
+    frame.authorCredit = authorCredit
+
     -- Store reference
     self.mainFrame = frame
 
@@ -1263,9 +1291,8 @@ function Journal:SelectTab(tabId)
     end
 
     -- Stop any active glow effects before clearing content to prevent memory leaks
-    local Glow = HopeAddon.Glow
-    if Glow and Glow.StopAll then
-        Glow:StopAll()
+    if HopeAddon.Effects then
+        HopeAddon.Effects:StopAllGlows()
     end
 
     -- Release pooled frames in correct order:
@@ -1361,13 +1388,16 @@ end
     UPDATE FOOTER
 ]]
 function Journal:UpdateFooter()
-    local stats = HopeAddon.charDb.stats
-    local entryCount = #HopeAddon.charDb.journal.entries
+    local stats = HopeAddon.charDb and HopeAddon.charDb.stats
+    local entries = HopeAddon.charDb and HopeAddon.charDb.journal
+        and HopeAddon.charDb.journal.entries
+    local entryCount = entries and #entries or 0
     local counts = self:GetCachedCounts()
+    local deathTotal = stats and stats.deaths and stats.deaths.total or 0
 
     self.mainFrame.footer:SetText(string.format(
         "Journal Entries: %d | Milestones: %d | Deaths: %d",
-        entryCount, counts.milestones, stats.deaths.total
+        entryCount, counts.milestones, deathTotal
     ))
 end
 
@@ -3544,356 +3574,340 @@ end
 
 function Journal:PopulateAttunements()
     local Components = HopeAddon.Components
-    local Attunements = HopeAddon.Attunements
-    local C = HopeAddon.Constants
+    local scrollContainer = self.mainFrame.scrollContainer
 
     -- Header - properly added to scroll
-    local header = self:CreateSectionHeader("RAID ATTUNEMENTS", "ARCANE_PURPLE", "Your path through TBC raid content")
-    self.mainFrame.scrollContainer:AddEntry(header)
+    local header = self:CreateSectionHeader("RAID ATTUNEMENTS", "GOLD_BRIGHT", "Your path through TBC raid content")
+    scrollContainer:AddEntry(header)
 
-    -- Tier colors
-    local tierColors = {
-        T4 = "GOLD_BRIGHT",
-        T5 = "SKY_BLUE",
-        T6 = "HELLFIRE_RED",
+    -- Phase filter bar
+    self:CreateAttunementsPhaseBar()
+
+    -- Content based on selected phase
+    self:PopulateAttunementsContent()
+
+    self:UpdateFooter()
+end
+
+--[[
+    Create the phase selection bar for Attunements tab
+    Shows [All] [1] [2] [3] buttons for filtering by phase
+]]
+function Journal:CreateAttunementsPhaseBar()
+    local scrollContainer = self.mainFrame.scrollContainer
+    local C = HopeAddon.Constants.ATTUNEMENT_PHASE_BAR
+
+    -- Create phase bar container
+    local phaseBarContainer = self:AcquireContainer(scrollContainer.content, C.HEIGHT + 5)
+
+    if not self.attunementsUI.phaseBar then
+        local phaseBar = CreateFrame("Frame", "HopeAttunementsPhaseBar", phaseBarContainer, "BackdropTemplate")
+        phaseBar:SetHeight(C.HEIGHT)
+        phaseBar:SetPoint("TOPLEFT", phaseBarContainer, "TOPLEFT", 0, 0)
+        phaseBar:SetPoint("TOPRIGHT", phaseBarContainer, "TOPRIGHT", 0, 0)
+        phaseBar:SetBackdrop(C.BACKDROP)
+        phaseBar:SetBackdropColor(C.BG_COLOR.r, C.BG_COLOR.g, C.BG_COLOR.b, C.BG_COLOR.a)
+        phaseBar:SetBackdropBorderColor(C.BORDER_COLOR.r, C.BORDER_COLOR.g, C.BORDER_COLOR.b, C.BORDER_COLOR.a)
+
+        -- "PHASE" label
+        local label = phaseBar:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        label:SetPoint("LEFT", phaseBar, "LEFT", C.PADDING_H, 0)
+        label:SetText(C.LABEL_TEXT)
+        label:SetTextColor(0.7, 0.7, 0.7, 1)
+        phaseBar.label = label
+
+        self.attunementsUI.phaseBar = phaseBar
+        self.attunementsUI.phaseButtons = {}
+    end
+
+    local phaseBar = self.attunementsUI.phaseBar
+    phaseBar:SetParent(phaseBarContainer)
+    phaseBar:ClearAllPoints()
+    phaseBar:SetPoint("TOPLEFT", phaseBarContainer, "TOPLEFT", 0, 0)
+    phaseBar:SetPoint("TOPRIGHT", phaseBarContainer, "TOPRIGHT", 0, 0)
+    phaseBar:Show()
+
+    -- Create phase buttons
+    self:CreateAttunementsPhaseButtons()
+
+    scrollContainer:AddEntry(phaseBarContainer)
+end
+
+--[[
+    Create the phase selection buttons for Attunements tab
+    Buttons: [All] [1] [2] [3]
+]]
+function Journal:CreateAttunementsPhaseButtons()
+    local phaseBar = self.attunementsUI.phaseBar
+    local C = HopeAddon.Constants.ATTUNEMENT_PHASE_BUTTON
+
+    -- Phases to show: 0 (All), 1, 2, 3
+    local phasesToShow = { 0, 1, 2, 3 }
+
+    for buttonIndex, phase in ipairs(phasesToShow) do
+        local phaseConfig = C.PHASES[phase]
+
+        if not self.attunementsUI.phaseButtons[phase] then
+            local btn = CreateFrame("Button", "HopeAttunementsPhase" .. phase .. "Button", phaseBar, "BackdropTemplate")
+            local btnWidth = (phase == 0) and (C.WIDTH + 8) or C.WIDTH  -- "All" button slightly wider
+            btn:SetSize(btnWidth, C.HEIGHT)
+
+            -- Position: left to right after "PHASE" label with gaps
+            local xOffset = C.FIRST_OFFSET + (buttonIndex - 1) * (C.WIDTH + C.GAP + 2)
+            btn:SetPoint("LEFT", phaseBar, "LEFT", xOffset, 0)
+
+            -- Backdrop
+            btn:SetBackdrop({
+                bgFile = "Interface\\BUTTONS\\WHITE8X8",
+                edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+                edgeSize = 8,
+                insets = { left = 1, right = 1, top = 1, bottom = 1 },
+            })
+
+            -- Text: Phase label ("All", "1", "2", "3")
+            local label = btn:CreateFontString(nil, "OVERLAY", C.FONT)
+            label:SetPoint("CENTER", btn, "CENTER", 0, 0)
+            label:SetText(phaseConfig.label)
+            btn.label = label
+
+            -- Glow texture (for active state)
+            local glow = btn:CreateTexture(nil, "OVERLAY")
+            glow:SetPoint("CENTER", btn, "CENTER", 0, 0)
+            glow:SetSize(btnWidth + 8, C.HEIGHT + 8)
+            glow:SetTexture("Interface\\BUTTONS\\UI-ActionButton-Border")
+            glow:SetBlendMode("ADD")
+            glow:SetAlpha(0.5)
+            glow:Hide()
+            btn.glow = glow
+
+            -- Store phase reference
+            btn.phase = phase
+            btn.phaseColor = HopeAddon.colors[phaseConfig.color]
+
+            -- Click handler
+            btn:SetScript("OnClick", function()
+                if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+                self:SelectAttunementsPhase(phase)
+            end)
+
+            -- Hover handlers with tooltip
+            btn:SetScript("OnEnter", function()
+                if HopeAddon.Sounds then HopeAddon.Sounds:PlayHover() end
+                self:SetAttunementsPhaseButtonState(btn, "hover")
+                GameTooltip:SetOwner(btn, "ANCHOR_BOTTOM")
+                GameTooltip:SetText(phaseConfig.tooltip, 1, 0.84, 0)
+
+                -- Show attunements in this phase
+                if phaseConfig.attunements and #phaseConfig.attunements > 0 then
+                    GameTooltip:AddLine(" ")
+                    GameTooltip:AddLine("Attunements:", 0.2, 0.8, 0.2)
+                    for _, attKey in ipairs(phaseConfig.attunements) do
+                        local attName = attKey
+                        if attKey == "cipher" then
+                            attName = "Cipher of Damnation (TK Prereq)"
+                        elseif attKey == "karazhan" then
+                            attName = "The Master's Key (Karazhan)"
+                        elseif attKey == "ssc" then
+                            attName = "Hand of A'dal (SSC)"
+                        elseif attKey == "tk" then
+                            attName = "The Tempest Key (TK)"
+                        elseif attKey == "hyjal" then
+                            attName = "Battle for Mount Hyjal"
+                        elseif attKey == "bt" then
+                            attName = "Black Temple Attunement"
+                        end
+                        GameTooltip:AddLine("  - " .. attName, 0.9, 0.9, 0.9)
+                    end
+                end
+
+                GameTooltip:Show()
+            end)
+
+            btn:SetScript("OnLeave", function()
+                local state = (self.attunementsState.selectedPhase == phase) and "active" or "inactive"
+                self:SetAttunementsPhaseButtonState(btn, state)
+                GameTooltip:Hide()
+            end)
+
+            self.attunementsUI.phaseButtons[phase] = btn
+        end
+
+        -- Set initial state
+        local state = (self.attunementsState.selectedPhase == phase) and "active" or "inactive"
+        self:SetAttunementsPhaseButtonState(self.attunementsUI.phaseButtons[phase], state)
+    end
+end
+
+--[[
+    Set visual state for attunements phase button
+]]
+function Journal:SetAttunementsPhaseButtonState(btn, stateName)
+    local C = HopeAddon.Constants.ATTUNEMENT_PHASE_BUTTON
+    local state = C.STATES[stateName]
+    local phaseColor = btn.phaseColor or HopeAddon.colors.ARCANE_PURPLE
+
+    -- Background color (phase color at configured alpha)
+    btn:SetBackdropColor(
+        phaseColor.r * 0.3,
+        phaseColor.g * 0.3,
+        phaseColor.b * 0.3,
+        state.bgAlpha
+    )
+
+    -- Border color
+    btn:SetBackdropBorderColor(
+        phaseColor.r,
+        phaseColor.g,
+        phaseColor.b,
+        state.borderAlpha
+    )
+
+    -- Text color
+    btn.label:SetTextColor(phaseColor.r, phaseColor.g, phaseColor.b, state.textAlpha)
+
+    -- Glow (for active state)
+    if state.showGlow and btn.glow then
+        btn.glow:SetVertexColor(phaseColor.r, phaseColor.g, phaseColor.b, 0.5)
+        btn.glow:Show()
+    elseif btn.glow then
+        btn.glow:Hide()
+    end
+end
+
+--[[
+    Select a phase filter for the Attunements tab
+    @param phase number - 0 = All, 1-3 = specific phase
+]]
+function Journal:SelectAttunementsPhase(phase)
+    self.attunementsState.selectedPhase = phase
+
+    -- Update all button states
+    for p, btn in pairs(self.attunementsUI.phaseButtons) do
+        local state = (p == phase) and "active" or "inactive"
+        self:SetAttunementsPhaseButtonState(btn, state)
+    end
+
+    -- Refresh the attunements list
+    self:RefreshAttunementsList()
+end
+
+--[[
+    Refresh the attunements list (called after phase filter change)
+]]
+function Journal:RefreshAttunementsList()
+    local scrollContainer = self.mainFrame.scrollContainer
+
+    -- Release all pooled frames
+    scrollContainer:ClearEntries(self.containerPool)
+
+    -- Repopulate the entire tab
+    self:PopulateAttunements()
+end
+
+--[[
+    Populate attunements content based on selected phase
+]]
+function Journal:PopulateAttunementsContent()
+    local selectedPhase = self.attunementsState.selectedPhase
+
+    if selectedPhase == 0 then
+        -- Show all phases grouped with headers
+        for phase = 1, 3 do
+            self:CreatePhaseGroupHeader(phase)
+            self:PopulateAttunementsForPhase(phase)
+        end
+    else
+        -- Show only selected phase
+        self:PopulateAttunementsForPhase(selectedPhase)
+    end
+
+    -- Always show Heroic Keys at the bottom
+    self:PopulateHeroicKeys()
+end
+
+--[[
+    Create a phase group header divider
+    @param phase number - Phase number (1, 2, or 3)
+]]
+function Journal:CreatePhaseGroupHeader(phase)
+    local Components = HopeAddon.Components
+    local C = HopeAddon.Constants.ATTUNEMENT_PHASE_BUTTON
+    local scrollContainer = self.mainFrame.scrollContainer
+
+    local phaseConfig = C.PHASES[phase]
+    local phaseColor = phaseConfig.color
+
+    -- Spacer before header
+    local spacer = self:CreateSpacer(10)
+    scrollContainer:AddEntry(spacer)
+
+    -- Divider line with phase color
+    local divider = Components:CreateDivider(scrollContainer.content, phaseColor)
+    scrollContainer:AddEntry(divider)
+
+    -- Phase header
+    local headerContainer = self:AcquireContainer(scrollContainer.content, 25)
+    local headerText = headerContainer.headerText
+    if not headerText then
+        headerText = headerContainer:CreateFontString(nil, "OVERLAY")
+        headerContainer.headerText = headerText
+    end
+    headerText:ClearAllPoints()
+    headerText:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
+    headerText:SetPoint("TOPLEFT", headerContainer, "TOPLEFT", Components.MARGIN_NORMAL, -3)
+    headerText:SetText(HopeAddon:ColorText("=== PHASE " .. phase .. " ===", phaseColor))
+    scrollContainer:AddEntry(headerContainer)
+
+    -- Spacer after header
+    local spacer2 = self:CreateSpacer(5)
+    scrollContainer:AddEntry(spacer2)
+end
+
+--[[
+    Populate attunements for a specific phase
+    @param phase number - Phase number (1, 2, or 3)
+]]
+function Journal:PopulateAttunementsForPhase(phase)
+    local Components = HopeAddon.Components
+    local Attunements = HopeAddon.Attunements
+    local C = HopeAddon.Constants
+    local scrollContainer = self.mainFrame.scrollContainer
+
+    -- Phase colors
+    local phaseColors = {
+        [1] = "KARA_PURPLE",
+        [2] = "SSC_BLUE",
+        [3] = "BT_FEL",
     }
+    local phaseColor = phaseColors[phase] or "ARCANE_PURPLE"
 
-    -- Display all attunements
+    -- In Phase 2, show Cipher of Damnation first (TK prerequisite)
+    if phase == 2 then
+        self:PopulateCipherSection(phaseColor)
+    end
+
+    -- Get attunements for this phase
     local allAttunements = Attunements:GetAllAttunements()
 
     for _, attunementInfo in ipairs(allAttunements) do
-        local raidKey = attunementInfo.key
-        local tier = attunementInfo.tier
-        local tierColor = tierColors[tier] or "ARCANE_PURPLE"
-
-        local summary = Attunements:GetSummary(raidKey)
-        local attunementData = Attunements:GetAttunementData(raidKey)
-        if not attunementData then
-            -- Skip if no data
-        else
-            -- Attunement section header - FontString properly parented to container
-            local headerContainer = self:AcquireContainer(self.mainFrame.scrollContainer.content, 25)
-            local raidHeader = headerContainer.headerText
-            if not raidHeader then
-                raidHeader = headerContainer:CreateFontString(nil, "OVERLAY")
-                headerContainer.headerText = raidHeader
-            end
-            raidHeader:ClearAllPoints()
-            raidHeader:SetFont(HopeAddon.assets.fonts.HEADER, 13, "")
-            raidHeader:SetPoint("TOPLEFT", headerContainer, "TOPLEFT", Components.MARGIN_NORMAL, -3)
-            raidHeader:SetText(HopeAddon:ColorText(
-                string.format("[%s] %s", tier, summary.raidName),
-                tierColor
-            ))
-            self.mainFrame.scrollContainer:AddEntry(headerContainer)
-
-            -- Sub-title with attunement chain name - FontString parented to container
-            local chainContainer = self:AcquireContainer(self.mainFrame.scrollContainer.content, 18)
-            local chainName = chainContainer.headerText
-            if not chainName then
-                chainName = chainContainer:CreateFontString(nil, "OVERLAY")
-                chainContainer.headerText = chainName
-            end
-            chainName:ClearAllPoints()
-            chainName:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
-            chainName:SetPoint("TOPLEFT", chainContainer, "TOPLEFT", Components.MARGIN_NORMAL, -2)
-            chainName:SetText(summary.name)
-            chainName:SetTextColor(HopeAddon:GetTextColor("SECONDARY"))
-            self.mainFrame.scrollContainer:AddEntry(chainContainer)
-
-            -- Show level requirements
-            if attunementData.minLevel or attunementData.recommendedLevel then
-                local levelContainer = self:AcquireContainer(self.mainFrame.scrollContainer.content, 15)
-                local levelText = levelContainer.headerText
-                if not levelText then
-                    levelText = levelContainer:CreateFontString(nil, "OVERLAY")
-                    levelContainer.headerText = levelText
-                end
-                levelText:ClearAllPoints()
-                levelText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
-                levelText:SetPoint("TOPLEFT", levelContainer, "TOPLEFT", Components.MARGIN_NORMAL, -2)
-
-                local levelStr = ""
-                if attunementData.minLevel then
-                    levelStr = "Minimum Level: " .. attunementData.minLevel
-                end
-                if attunementData.recommendedLevel then
-                    if levelStr ~= "" then
-                        levelStr = levelStr .. " | "
-                    end
-                    levelStr = levelStr .. "Recommended: " .. attunementData.recommendedLevel
-                end
-                levelText:SetText(HopeAddon:ColorText(levelStr, "GOLD_BRIGHT"))
-                self.mainFrame.scrollContainer:AddEntry(levelContainer)
-            end
-
-            -- Show detailed prerequisites (keys, reputation, etc.)
-            if attunementData.prerequisites and #attunementData.prerequisites > 0 then
-                local prereqHeader = self:AcquireContainer(self.mainFrame.scrollContainer.content, 16)
-                local prereqHeaderText = prereqHeader.headerText
-                if not prereqHeaderText then
-                    prereqHeaderText = prereqHeader:CreateFontString(nil, "OVERLAY")
-                    prereqHeader.headerText = prereqHeaderText
-                end
-                prereqHeaderText:ClearAllPoints()
-                prereqHeaderText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
-                prereqHeaderText:SetPoint("TOPLEFT", prereqHeader, "TOPLEFT", Components.MARGIN_NORMAL, -2)
-                prereqHeaderText:SetText(HopeAddon:ColorText("Prerequisites:", "HELLFIRE_ORANGE"))
-                self.mainFrame.scrollContainer:AddEntry(prereqHeader)
-
-                for _, prereq in ipairs(attunementData.prerequisites) do
-                    local prereqItem = self:AcquireContainer(self.mainFrame.scrollContainer.content, 14)
-                    local prereqItemText = prereqItem.headerText
-                    if not prereqItemText then
-                        prereqItemText = prereqItem:CreateFontString(nil, "OVERLAY")
-                        prereqItem.headerText = prereqItemText
-                    end
-                    prereqItemText:ClearAllPoints()
-                    prereqItemText:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
-                    prereqItemText:SetPoint("TOPLEFT", prereqItem, "TOPLEFT", Components.MARGIN_NORMAL + 10, -1)
-
-                    local prereqStr = "  \226\128\162 " .. prereq.name
-                    if prereq.source then
-                        prereqStr = prereqStr .. " - " .. prereq.source
-                    end
-                    prereqItemText:SetText(prereqStr)
-                    prereqItemText:SetTextColor(0.9, 0.7, 0.5, 1)
-                    prereqItemText:SetWidth(self.mainFrame.scrollContainer.content:GetWidth() - 50)
-                    prereqItemText:SetWordWrap(true)
-                    self.mainFrame.scrollContainer:AddEntry(prereqItem)
-                end
-            end
-
-            -- Show prerequisite if any (legacy single prerequisite)
-            if summary.prerequisite and not (attunementData.prerequisites and #attunementData.prerequisites > 0) then
-                local prereqContainer = self:AcquireContainer(self.mainFrame.scrollContainer.content, 15)
-                local prereqText = prereqContainer.headerText
-                if not prereqText then
-                    prereqText = prereqContainer:CreateFontString(nil, "OVERLAY")
-                    prereqContainer.headerText = prereqText
-                end
-                prereqText:ClearAllPoints()
-                prereqText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
-                prereqText:SetPoint("TOPLEFT", prereqContainer, "TOPLEFT", Components.MARGIN_NORMAL, -2)
-                prereqText:SetText("Requires: " .. summary.prerequisite)
-                prereqText:SetTextColor(1, 0.5, 0.3, 1)
-                self.mainFrame.scrollContainer:AddEntry(prereqContainer)
-            end
-
-            -- Progress bar container (fixes memory leak - progressBar now properly tracked)
-            local progressContainer = self:AcquireContainer(self.mainFrame.scrollContainer.content, 25)
-
-            -- Progress bar parented to container so it gets cleaned up on tab switch
-            local progressBar = Components:CreateProgressBar(
-                progressContainer,
-                self.mainFrame.scrollContainer.content:GetWidth() - 30,
-                20,
-                summary.isAttuned and "FEL_GREEN" or tierColor
-            )
-            progressBar:SetPoint("TOP", progressContainer, "TOP", 0, -2)
-            progressBar:SetProgress(summary.percentage)
-            -- Hide the built-in percentage text to avoid overlap with our custom text
-            progressBar.text:Hide()
-
-            -- Progress text overlay
-            local progressText = progressBar:CreateFontString(nil, "OVERLAY")
-            progressText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
-            progressText:SetPoint("CENTER", progressBar, "CENTER", 0, 0)
-            progressText:SetText(string.format("%d/%d Chapters (%d%%)",
-                summary.completedChapters, summary.totalChapters, summary.percentage))
-            progressText:SetTextColor(1, 1, 1, 1)
-
-            self.mainFrame.scrollContainer:AddEntry(progressContainer)
-
-            -- Add glow if complete
-            if summary.isAttuned then
-                HopeAddon.Effects:CreatePulsingGlow(progressBar, "GOLD_BRIGHT", 0.4)
-
-                -- Show title if applicable - FontString parented to container
-                if summary.title then
-                    local titleContainer = self:AcquireContainer(self.mainFrame.scrollContainer.content, 18)
-                    local titleText = titleContainer.headerText
-                    if not titleText then
-                        titleText = titleContainer:CreateFontString(nil, "OVERLAY")
-                        titleContainer.headerText = titleText
-                    end
-                    titleText:ClearAllPoints()
-                    titleText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
-                    titleText:SetPoint("TOPLEFT", titleContainer, "TOPLEFT", Components.MARGIN_NORMAL, -2)
-                    titleText:SetText("Title: " .. HopeAddon:ColorText(summary.title, "GOLD_BRIGHT"))
-                    self.mainFrame.scrollContainer:AddEntry(titleContainer)
-                end
-            end
-
-            -- Show chapters (collapsed by default, expandable)
-            local chapters = Attunements:GetChaptersForRaid(raidKey)
-
-            for i, chapter in ipairs(chapters) do
-                local chapterDetails = Attunements:GetChapterDetails(raidKey, i)
-                local isComplete = chapterDetails and chapterDetails.complete
-
-                local statusIcon = isComplete and "|cFF44CC44[X]|r " or "|cFF666666[ ]|r "
-
-                -- Build description using table.concat for efficiency
-                local descParts = { chapter.story or "" }
-
-                -- Add level requirement
-                if chapter.minLevel then
-                    descParts[#descParts + 1] = HopeAddon:ColorText("Requires Level " .. chapter.minLevel, "GOLD_BRIGHT")
-                end
-
-                -- Add quest giver and location
-                if chapter.questGiver then
-                    local locText = chapter.questGiver
-                    if chapter.location then
-                        locText = locText .. " - " .. chapter.location
-                    end
-                    descParts[#descParts + 1] = HopeAddon:ColorText("Quest Giver: " .. locText, "GOLD_BRIGHT")
-                end
-
-                -- Add turn-in location if different from quest giver
-                if chapter.turnIn then
-                    descParts[#descParts + 1] = HopeAddon:ColorText("Turn In: " .. chapter.turnIn, "GOLD_BRIGHT")
-                end
-
-                -- Add difficulty badge
-                if chapter.difficulty then
-                    local diffData = C.ATTUNEMENT_DIFFICULTY[chapter.difficulty]
-                    if diffData then
-                        descParts[#descParts + 1] = HopeAddon:ColorText("Difficulty: " .. diffData.label, diffData.color)
-                    end
-                end
-
-                -- Add dungeon/raid requirements with level
-                if chapter.dungeon then
-                    local dungeonText = chapter.dungeon
-                    if chapter.dungeonLevel then
-                        dungeonText = dungeonText .. " (Level " .. chapter.dungeonLevel .. ")"
-                    end
-                    descParts[#descParts + 1] = HopeAddon:ColorText("Dungeon: " .. dungeonText, "SKY_BLUE")
-                end
-                if chapter.dungeons then
-                    descParts[#descParts + 1] = HopeAddon:ColorText("Dungeons: " .. table.concat(chapter.dungeons, ", "), "SKY_BLUE")
-                end
-                if chapter.raid then
-                    descParts[#descParts + 1] = HopeAddon:ColorText("Raid: " .. chapter.raid, "HELLFIRE_RED")
-                end
-                if chapter.boss then
-                    descParts[#descParts + 1] = HopeAddon:ColorText("Boss: " .. chapter.boss, "HELLFIRE_ORANGE")
-                end
-
-                -- Add prerequisite (key/rep requirements)
-                if chapter.prerequisite then
-                    descParts[#descParts + 1] = HopeAddon:ColorText("Prerequisite: " .. chapter.prerequisite, "HELLFIRE_ORANGE")
-                end
-
-                if chapter.requires and type(chapter.requires) == "string" then
-                    descParts[#descParts + 1] = HopeAddon:ColorText("Requires: " .. chapter.requires, "BRONZE")
-                elseif chapter.requires and type(chapter.requires) == "table" then
-                    descParts[#descParts + 1] = HopeAddon:ColorText("Requires: " .. table.concat(chapter.requires, ", "), "BRONZE")
-                end
-                local descText = table.concat(descParts, "\n")
-
-                local card = self:AcquireCard(self.mainFrame.scrollContainer.content, {
-                    icon = "Interface\\Icons\\" .. attunementData.icon,
-                    title = statusIcon .. "Ch. " .. i .. ": " .. chapter.name,
-                    description = descText,
-                    timestamp = isComplete and (chapterDetails.completedDate or "Complete") or "",
-                })
-
-                -- Store detailed info for enhanced tooltip
-                card.chapterName = chapter.name
-                card.tips = chapter.tips
-                card.objectives = chapter.objectives
-                card.rewards = chapter.rewards
-                card.quests = chapter.quests
-
-                if isComplete then
-                    card:SetBackdropBorderColor(0.2, 0.8, 0.2, 1)
-                elseif chapter.noFactionChosen then
-                    card:SetBackdropBorderColor(1, 0.5, 0.3, 1) -- Orange for no faction chosen
-                else
-                    card:SetAlpha(0.7)
-                end
-
-                -- Enhanced tooltip with objectives, rewards, tips on hover
-                local oldOnEnter = card:GetScript("OnEnter")
-                card:SetScript("OnEnter", function(self)
-                    if oldOnEnter then oldOnEnter(self) end
-
-                    local hasContent = (self.objectives and #self.objectives > 0) or
-                                      (self.rewards) or
-                                      (self.quests and #self.quests > 0) or
-                                      (self.tips and #self.tips > 0)
-
-                    if hasContent then
-                        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                        GameTooltip:SetText(self.chapterName, 1, 0.84, 0)
-
-                        -- Show objectives
-                        if self.objectives and #self.objectives > 0 then
-                            GameTooltip:AddLine(" ")
-                            GameTooltip:AddLine("Objectives:", 0.2, 0.8, 1)
-                            for _, obj in ipairs(self.objectives) do
-                                GameTooltip:AddLine("  \226\128\162 " .. obj, 0.9, 0.9, 0.9, true)
-                            end
-                        end
-
-                        -- Show quests
-                        if self.quests and #self.quests > 0 then
-                            GameTooltip:AddLine(" ")
-                            GameTooltip:AddLine("Quests:", 1, 0.84, 0)
-                            for _, quest in ipairs(self.quests) do
-                                GameTooltip:AddLine("  \226\128\162 " .. quest.name, 0.9, 0.9, 0.7, true)
-                            end
-                        end
-
-                        -- Show rewards
-                        if self.rewards then
-                            GameTooltip:AddLine(" ")
-                            GameTooltip:AddLine("Rewards:", 0.1, 0.9, 0.1)
-                            if self.rewards.xp then
-                                GameTooltip:AddLine("  XP: " .. self.rewards.xp, 0.8, 0.6, 1)
-                            end
-                            if self.rewards.reputation then
-                                local rep = self.rewards.reputation
-                                GameTooltip:AddLine("  " .. rep.name .. ": +" .. rep.amount, 0.4, 0.8, 0.4)
-                            end
-                        end
-
-                        -- Show tips
-                        if self.tips and #self.tips > 0 then
-                            GameTooltip:AddLine(" ")
-                            GameTooltip:AddLine("Tips:", 1, 0.5, 0)
-                            for _, tip in ipairs(self.tips) do
-                                GameTooltip:AddLine("  \226\128\162 " .. tip, 0.8, 0.8, 0.8, true)
-                            end
-                        end
-
-                        GameTooltip:Show()
-                    end
-                end)
-                local oldOnLeave = card:GetScript("OnLeave")
-                card:SetScript("OnLeave", function(self)
-                    if oldOnLeave then oldOnLeave(self) end
-                    GameTooltip:Hide()
-                end)
-
-                self.mainFrame.scrollContainer:AddEntry(card)
-            end
-
-            -- Spacer between attunements
-            local attuneSpacer = self:CreateSpacer(20)
-            self.mainFrame.scrollContainer:AddEntry(attuneSpacer)
+        if attunementInfo.phase == phase then
+            local raidKey = attunementInfo.key
+            self:PopulateSingleAttunement(raidKey, phaseColor)
         end
     end
+end
 
-    -- Cipher of Damnation section (TK prerequisite)
-    local cipherSpacer = self:CreateSpacer(10)
-    self.mainFrame.scrollContainer:AddEntry(cipherSpacer)
+--[[
+    Populate the Cipher of Damnation section (Phase 2 prerequisite for TK)
+    @param phaseColor string - Color name to use for the section
+]]
+function Journal:PopulateCipherSection(phaseColor)
+    local Components = HopeAddon.Components
+    local Attunements = HopeAddon.Attunements
+    local scrollContainer = self.mainFrame.scrollContainer
 
-    -- Cipher header - FontStrings properly parented to container
-    local cipherHeaderContainer = self:AcquireContainer(self.mainFrame.scrollContainer.content, 40)
+    -- Cipher header
+    local cipherHeaderContainer = self:AcquireContainer(scrollContainer.content, 40)
     local cipherHeader = cipherHeaderContainer.headerText
     if not cipherHeader then
         cipherHeader = cipherHeaderContainer:CreateFontString(nil, "OVERLAY")
@@ -3902,7 +3916,7 @@ function Journal:PopulateAttunements()
     cipherHeader:ClearAllPoints()
     cipherHeader:SetFont(HopeAddon.assets.fonts.HEADER, 13, "")
     cipherHeader:SetPoint("TOPLEFT", cipherHeaderContainer, "TOPLEFT", Components.MARGIN_NORMAL, -3)
-    cipherHeader:SetText(HopeAddon:ColorText("[PREREQUISITE] Cipher of Damnation", "HELLFIRE_ORANGE"))
+    cipherHeader:SetText(HopeAddon:ColorText("[PREREQ] Cipher of Damnation", phaseColor))
 
     local cipherSubHeader = cipherHeaderContainer.subText
     if not cipherSubHeader then
@@ -3914,17 +3928,19 @@ function Journal:PopulateAttunements()
     cipherSubHeader:SetPoint("TOPLEFT", cipherHeader, "BOTTOMLEFT", 0, -3)
     cipherSubHeader:SetText("Required before starting Tempest Key attunement")
     cipherSubHeader:SetTextColor(HopeAddon:GetTextColor("TERTIARY"))
-    self.mainFrame.scrollContainer:AddEntry(cipherHeaderContainer)
+    scrollContainer:AddEntry(cipherHeaderContainer)
 
+    -- Progress bar container
+    local progressContainer = self:AcquireContainer(scrollContainer.content, 25)
     local cipherSummary = Attunements:GetSummary("cipher")
     local cipherProgressBar = Components:CreateProgressBar(
-        self.mainFrame.scrollContainer.content,
-        self.mainFrame.scrollContainer.content:GetWidth() - 30,
+        progressContainer,
+        scrollContainer.content:GetWidth() - 30,
         18,
-        cipherSummary.isAttuned and "FEL_GREEN" or "HELLFIRE_ORANGE"
+        cipherSummary.isAttuned and "FEL_GREEN" or phaseColor
     )
+    cipherProgressBar:SetPoint("TOP", progressContainer, "TOP", 0, -2)
     cipherProgressBar:SetProgress(cipherSummary.percentage)
-    -- Hide the built-in percentage text to avoid overlap with our custom text
     cipherProgressBar.text:Hide()
 
     local cipherProgressText = cipherProgressBar:CreateFontString(nil, "OVERLAY")
@@ -3934,11 +3950,351 @@ function Journal:PopulateAttunements()
         cipherSummary.completedChapters, cipherSummary.totalChapters, cipherSummary.percentage))
     cipherProgressText:SetTextColor(1, 1, 1, 1)
 
-    local cipherProgressContainer = self:CreateSpacer(25)
-    self.mainFrame.scrollContainer:AddEntry(cipherProgressContainer)
+    if cipherSummary.isAttuned then
+        HopeAddon.Effects:CreatePulsingGlow(cipherProgressBar, "GOLD_BRIGHT", 0.4)
+    end
 
-    -- Add Heroic Keys section
-    self:PopulateHeroicKeys()
+    scrollContainer:AddEntry(progressContainer)
+
+    -- Spacer after cipher
+    local spacer = self:CreateSpacer(15)
+    scrollContainer:AddEntry(spacer)
+end
+
+--[[
+    Populate a single attunement chain
+    @param raidKey string - Raid key (e.g., "karazhan", "ssc")
+    @param phaseColor string - Color name to use for the section
+]]
+function Journal:PopulateSingleAttunement(raidKey, phaseColor)
+    local Components = HopeAddon.Components
+    local Attunements = HopeAddon.Attunements
+    local C = HopeAddon.Constants
+    local scrollContainer = self.mainFrame.scrollContainer
+
+    local summary = Attunements:GetSummary(raidKey)
+    local attunementData = Attunements:GetAttunementData(raidKey)
+    if not attunementData then return end
+
+    local attunementInfo = nil
+    for _, info in ipairs(C.ALL_ATTUNEMENTS) do
+        if info.key == raidKey then
+            attunementInfo = info
+            break
+        end
+    end
+    local attunementPhase = attunementInfo and attunementInfo.phase or 1
+
+    -- Attunement section header
+    local headerContainer = self:AcquireContainer(scrollContainer.content, 25)
+    local raidHeader = headerContainer.headerText
+    if not raidHeader then
+        raidHeader = headerContainer:CreateFontString(nil, "OVERLAY")
+        headerContainer.headerText = raidHeader
+    end
+    raidHeader:ClearAllPoints()
+    raidHeader:SetFont(HopeAddon.assets.fonts.HEADER, 13, "")
+    raidHeader:SetPoint("TOPLEFT", headerContainer, "TOPLEFT", Components.MARGIN_NORMAL, -3)
+    raidHeader:SetText(HopeAddon:ColorText(
+        string.format("[P%d] %s", attunementPhase, summary.raidName),
+        phaseColor
+    ))
+    scrollContainer:AddEntry(headerContainer)
+
+    -- Sub-title with attunement chain name
+    local chainContainer = self:AcquireContainer(scrollContainer.content, 18)
+    local chainName = chainContainer.headerText
+    if not chainName then
+        chainName = chainContainer:CreateFontString(nil, "OVERLAY")
+        chainContainer.headerText = chainName
+    end
+    chainName:ClearAllPoints()
+    chainName:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
+    chainName:SetPoint("TOPLEFT", chainContainer, "TOPLEFT", Components.MARGIN_NORMAL, -2)
+    chainName:SetText(summary.name)
+    chainName:SetTextColor(HopeAddon:GetTextColor("SECONDARY"))
+    scrollContainer:AddEntry(chainContainer)
+
+    -- Show level requirements
+    if attunementData.minLevel or attunementData.recommendedLevel then
+        local levelContainer = self:AcquireContainer(scrollContainer.content, 15)
+        local levelText = levelContainer.headerText
+        if not levelText then
+            levelText = levelContainer:CreateFontString(nil, "OVERLAY")
+            levelContainer.headerText = levelText
+        end
+        levelText:ClearAllPoints()
+        levelText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
+        levelText:SetPoint("TOPLEFT", levelContainer, "TOPLEFT", Components.MARGIN_NORMAL, -2)
+
+        local levelStr = ""
+        if attunementData.minLevel then
+            levelStr = "Minimum Level: " .. attunementData.minLevel
+        end
+        if attunementData.recommendedLevel then
+            if levelStr ~= "" then levelStr = levelStr .. " | " end
+            levelStr = levelStr .. "Recommended: " .. attunementData.recommendedLevel
+        end
+        levelText:SetText(HopeAddon:ColorText(levelStr, "GOLD_BRIGHT"))
+        scrollContainer:AddEntry(levelContainer)
+    end
+
+    -- Show detailed prerequisites (keys, reputation, etc.)
+    if attunementData.prerequisites and #attunementData.prerequisites > 0 then
+        local prereqHeader = self:AcquireContainer(scrollContainer.content, 16)
+        local prereqHeaderText = prereqHeader.headerText
+        if not prereqHeaderText then
+            prereqHeaderText = prereqHeader:CreateFontString(nil, "OVERLAY")
+            prereqHeader.headerText = prereqHeaderText
+        end
+        prereqHeaderText:ClearAllPoints()
+        prereqHeaderText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
+        prereqHeaderText:SetPoint("TOPLEFT", prereqHeader, "TOPLEFT", Components.MARGIN_NORMAL, -2)
+        prereqHeaderText:SetText(HopeAddon:ColorText("Prerequisites:", phaseColor))
+        scrollContainer:AddEntry(prereqHeader)
+
+        for _, prereq in ipairs(attunementData.prerequisites) do
+            local prereqItem = self:AcquireContainer(scrollContainer.content, 14)
+            local prereqItemText = prereqItem.headerText
+            if not prereqItemText then
+                prereqItemText = prereqItem:CreateFontString(nil, "OVERLAY")
+                prereqItem.headerText = prereqItemText
+            end
+            prereqItemText:ClearAllPoints()
+            prereqItemText:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
+            prereqItemText:SetPoint("TOPLEFT", prereqItem, "TOPLEFT", Components.MARGIN_NORMAL + 10, -1)
+
+            local prereqStr = "  - " .. prereq.name
+            if prereq.source then
+                prereqStr = prereqStr .. " - " .. prereq.source
+            end
+            prereqItemText:SetText(prereqStr)
+            local bronzeColor = HopeAddon.colors.BRONZE or { r = 0.9, g = 0.7, b = 0.5 }
+            prereqItemText:SetTextColor(bronzeColor.r, bronzeColor.g, bronzeColor.b, 1)
+            prereqItemText:SetWidth(scrollContainer.content:GetWidth() - 50)
+            prereqItemText:SetWordWrap(true)
+            scrollContainer:AddEntry(prereqItem)
+        end
+    end
+
+    -- Show prerequisite if any (legacy single prerequisite)
+    if summary.prerequisite and not (attunementData.prerequisites and #attunementData.prerequisites > 0) then
+        local prereqContainer = self:AcquireContainer(scrollContainer.content, 15)
+        local prereqText = prereqContainer.headerText
+        if not prereqText then
+            prereqText = prereqContainer:CreateFontString(nil, "OVERLAY")
+            prereqContainer.headerText = prereqText
+        end
+        prereqText:ClearAllPoints()
+        prereqText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
+        prereqText:SetPoint("TOPLEFT", prereqContainer, "TOPLEFT", Components.MARGIN_NORMAL, -2)
+        prereqText:SetText("Requires: " .. summary.prerequisite)
+        local orangeColor = HopeAddon.colors.HELLFIRE_ORANGE or { r = 1, g = 0.5, b = 0.3 }
+        prereqText:SetTextColor(orangeColor.r, orangeColor.g, orangeColor.b, 1)
+        scrollContainer:AddEntry(prereqContainer)
+    end
+
+    -- Progress bar container
+    local progressContainer = self:AcquireContainer(scrollContainer.content, 25)
+    local progressBar = Components:CreateProgressBar(
+        progressContainer,
+        scrollContainer.content:GetWidth() - 30,
+        20,
+        summary.isAttuned and "FEL_GREEN" or phaseColor
+    )
+    progressBar:SetPoint("TOP", progressContainer, "TOP", 0, -2)
+    progressBar:SetProgress(summary.percentage)
+    progressBar.text:Hide()
+
+    local progressText = progressBar:CreateFontString(nil, "OVERLAY")
+    progressText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
+    progressText:SetPoint("CENTER", progressBar, "CENTER", 0, 0)
+    progressText:SetText(string.format("%d/%d Chapters (%d%%)",
+        summary.completedChapters, summary.totalChapters, summary.percentage))
+    progressText:SetTextColor(1, 1, 1, 1)
+
+    scrollContainer:AddEntry(progressContainer)
+
+    -- Add glow if complete
+    if summary.isAttuned then
+        HopeAddon.Effects:CreatePulsingGlow(progressBar, "GOLD_BRIGHT", 0.4)
+
+        -- Show title if applicable
+        if summary.title then
+            local titleContainer = self:AcquireContainer(scrollContainer.content, 18)
+            local titleText = titleContainer.headerText
+            if not titleText then
+                titleText = titleContainer:CreateFontString(nil, "OVERLAY")
+                titleContainer.headerText = titleText
+            end
+            titleText:ClearAllPoints()
+            titleText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+            titleText:SetPoint("TOPLEFT", titleContainer, "TOPLEFT", Components.MARGIN_NORMAL, -2)
+            titleText:SetText("Title: " .. HopeAddon:ColorText(summary.title, "GOLD_BRIGHT"))
+            scrollContainer:AddEntry(titleContainer)
+        end
+    end
+
+    -- Show chapters
+    local chapters = Attunements:GetChaptersForRaid(raidKey)
+
+    for i, chapter in ipairs(chapters) do
+        local chapterDetails = Attunements:GetChapterDetails(raidKey, i)
+        local isComplete = chapterDetails and chapterDetails.complete
+
+        local statusIcon = isComplete and "|cFF44CC44[X]|r " or "|cFF666666[ ]|r "
+
+        -- Build description using table.concat for efficiency
+        local descParts = { chapter.story or "" }
+
+        -- Add level requirement
+        if chapter.minLevel then
+            descParts[#descParts + 1] = HopeAddon:ColorText("Requires Level " .. chapter.minLevel, "GOLD_BRIGHT")
+        end
+
+        -- Add quest giver and location
+        if chapter.questGiver then
+            local locText = chapter.questGiver
+            if chapter.location then
+                locText = locText .. " - " .. chapter.location
+            end
+            descParts[#descParts + 1] = HopeAddon:ColorText("Quest Giver: " .. locText, "GOLD_BRIGHT")
+        end
+
+        -- Add turn-in location if different from quest giver
+        if chapter.turnIn then
+            descParts[#descParts + 1] = HopeAddon:ColorText("Turn In: " .. chapter.turnIn, "GOLD_BRIGHT")
+        end
+
+        -- Add difficulty badge
+        if chapter.difficulty then
+            local diffData = C.ATTUNEMENT_DIFFICULTY[chapter.difficulty]
+            if diffData then
+                descParts[#descParts + 1] = HopeAddon:ColorText("Difficulty: " .. diffData.label, diffData.color)
+            end
+        end
+
+        -- Add dungeon/raid requirements with level
+        if chapter.dungeon then
+            local dungeonText = chapter.dungeon
+            if chapter.dungeonLevel then
+                dungeonText = dungeonText .. " (Level " .. chapter.dungeonLevel .. ")"
+            end
+            descParts[#descParts + 1] = HopeAddon:ColorText("Dungeon: " .. dungeonText, "SKY_BLUE")
+        end
+        if chapter.dungeons then
+            descParts[#descParts + 1] = HopeAddon:ColorText("Dungeons: " .. table.concat(chapter.dungeons, ", "), "SKY_BLUE")
+        end
+        if chapter.raid then
+            descParts[#descParts + 1] = HopeAddon:ColorText("Raid: " .. chapter.raid, phaseColor)
+        end
+        if chapter.boss then
+            descParts[#descParts + 1] = HopeAddon:ColorText("Boss: " .. chapter.boss, phaseColor)
+        end
+
+        -- Add prerequisite (key/rep requirements)
+        if chapter.prerequisite then
+            descParts[#descParts + 1] = HopeAddon:ColorText("Prerequisite: " .. chapter.prerequisite, phaseColor)
+        end
+
+        if chapter.requires and type(chapter.requires) == "string" then
+            descParts[#descParts + 1] = HopeAddon:ColorText("Requires: " .. chapter.requires, "BRONZE")
+        elseif chapter.requires and type(chapter.requires) == "table" then
+            descParts[#descParts + 1] = HopeAddon:ColorText("Requires: " .. table.concat(chapter.requires, ", "), "BRONZE")
+        end
+        local descText = table.concat(descParts, "\n")
+
+        local card = self:AcquireCard(scrollContainer.content, {
+            icon = "Interface\\Icons\\" .. attunementData.icon,
+            title = statusIcon .. "Ch. " .. i .. ": " .. chapter.name,
+            description = descText,
+            timestamp = isComplete and (chapterDetails.completedDate or "Complete") or "",
+        })
+
+        -- Store detailed info for enhanced tooltip
+        card.chapterName = chapter.name
+        card.tips = chapter.tips
+        card.objectives = chapter.objectives
+        card.rewards = chapter.rewards
+        card.quests = chapter.quests
+
+        if isComplete then
+            card:SetBackdropBorderColor(0.2, 0.8, 0.2, 1)
+        elseif chapter.noFactionChosen then
+            card:SetBackdropBorderColor(1, 0.5, 0.3, 1) -- Orange for no faction chosen
+        else
+            card:SetAlpha(0.7)
+        end
+
+        -- Enhanced tooltip with objectives, rewards, tips on hover
+        local oldOnEnter = card:GetScript("OnEnter")
+        card:SetScript("OnEnter", function(self)
+            if oldOnEnter then oldOnEnter(self) end
+
+            local hasContent = (self.objectives and #self.objectives > 0) or
+                              (self.rewards) or
+                              (self.quests and #self.quests > 0) or
+                              (self.tips and #self.tips > 0)
+
+            if hasContent then
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:SetText(self.chapterName, 1, 0.84, 0)
+
+                -- Show objectives
+                if self.objectives and #self.objectives > 0 then
+                    GameTooltip:AddLine(" ")
+                    GameTooltip:AddLine("Objectives:", 0.2, 0.8, 1)
+                    for _, obj in ipairs(self.objectives) do
+                        GameTooltip:AddLine("  - " .. obj, 0.9, 0.9, 0.9, true)
+                    end
+                end
+
+                -- Show quests
+                if self.quests and #self.quests > 0 then
+                    GameTooltip:AddLine(" ")
+                    GameTooltip:AddLine("Quests:", 1, 0.84, 0)
+                    for _, quest in ipairs(self.quests) do
+                        GameTooltip:AddLine("  - " .. quest.name, 0.9, 0.9, 0.7, true)
+                    end
+                end
+
+                -- Show rewards
+                if self.rewards then
+                    GameTooltip:AddLine(" ")
+                    GameTooltip:AddLine("Rewards:", 0.1, 0.9, 0.1)
+                    if self.rewards.xp then
+                        GameTooltip:AddLine("  XP: " .. self.rewards.xp, 0.8, 0.6, 1)
+                    end
+                    if self.rewards.reputation then
+                        local rep = self.rewards.reputation
+                        GameTooltip:AddLine("  " .. rep.name .. ": +" .. rep.amount, 0.4, 0.8, 0.4)
+                    end
+                end
+
+                -- Show tips
+                if self.tips and #self.tips > 0 then
+                    GameTooltip:AddLine(" ")
+                    GameTooltip:AddLine("Tips:", 1, 0.5, 0)
+                    for _, tip in ipairs(self.tips) do
+                        GameTooltip:AddLine("  - " .. tip, 0.8, 0.8, 0.8, true)
+                    end
+                end
+
+                GameTooltip:Show()
+            end
+        end)
+        local oldOnLeave = card:GetScript("OnLeave")
+        card:SetScript("OnLeave", function(self)
+            if oldOnLeave then oldOnLeave(self) end
+            GameTooltip:Hide()
+        end)
+
+        scrollContainer:AddEntry(card)
+    end
+
+    -- Spacer between attunements
+    local attuneSpacer = self:CreateSpacer(20)
+    scrollContainer:AddEntry(attuneSpacer)
 end
 
 --[[
@@ -3969,8 +4325,8 @@ function Journal:PopulateHeroicKeys()
     local divider = Components:CreateDivider(self.mainFrame.scrollContainer.content)
     self.mainFrame.scrollContainer:AddEntry(divider)
 
-    -- Header
-    local header = self:CreateSectionHeader("HEROIC DUNGEON KEYS", "ARCANE_PURPLE", "Reputation-gated heroic access")
+    -- Header (uses KARA_PURPLE since heroic keys are Phase 1 content)
+    local header = self:CreateSectionHeader("HEROIC DUNGEON KEYS", "KARA_PURPLE", "Reputation-gated heroic access")
     self.mainFrame.scrollContainer:AddEntry(header)
 
     -- Get player faction for dual-faction keys
@@ -4081,8 +4437,8 @@ function Journal:PopulateRaids()
     local scrollContainer = self.mainFrame.scrollContainer
 
     -- Early validation - ensure required data is available
-    if not HopeAddon.Constants or not HopeAddon.Constants.RAIDS_BY_TIER then
-        HopeAddon:Debug("ERROR: PopulateRaids - RAIDS_BY_TIER not loaded")
+    if not HopeAddon.Constants or not HopeAddon.Constants.RAIDS_BY_PHASE then
+        HopeAddon:Debug("ERROR: PopulateRaids - RAIDS_BY_PHASE not loaded")
         local errorHeader = self:CreateSectionHeader("RAID PROGRESS", "HELLFIRE_RED", "Error: Raid data not loaded")
         scrollContainer:AddEntry(errorHeader)
         return
@@ -4100,32 +4456,34 @@ function Journal:PopulateRaids()
     scrollContainer:AddEntry(header)
 
     -- ===== PROGRESS SUMMARY BAR =====
-    -- Color name mapping for tiers (these are color NAMES, not color tables)
-    local tierColorNames = {
-        T4 = "GOLD_BRIGHT",
-        T5 = "SKY_BLUE",
-        T6 = "HELLFIRE_RED",
+    -- Color name mapping for phases (these are color NAMES, not color tables)
+    local phaseColorNames = {
+        [1] = "KARA_PURPLE",   -- Phase 1: Karazhan purple
+        [2] = "SSC_BLUE",      -- Phase 2: SSC blue
+        [3] = "BT_FEL",        -- Phase 3: BT fel green
+        [4] = "ZA_TRIBAL",     -- Phase 4: ZA tribal gold
+        [5] = "SUNWELL_GOLD",  -- Phase 5: Sunwell gold
     }
 
-    -- Calculate overall raid progress across all tiers
-    local raidsByTier = HopeAddon.Constants.RAIDS_BY_TIER
-    local tierOrder = { "T4", "T5", "T6" }
-    local tierProgress = {}
+    -- Calculate overall raid progress across all phases
+    local raidsByPhase = HopeAddon.Constants.RAIDS_BY_PHASE
+    local phaseOrder = { 1, 2, 3, 4, 5 }
+    local phaseProgress = {}
     local totalKilled, totalBosses = 0, 0
 
-    for _, tier in ipairs(tierOrder) do
-        local raids = raidsByTier[tier]
-        local tierKilled, tierTotal = 0, 0
+    for _, phase in ipairs(phaseOrder) do
+        local raids = raidsByPhase[phase]
+        local phaseKilled, phaseTotal = 0, 0
         if raids then
             for _, raidKey in ipairs(raids) do
                 local killed, total = RaidData:GetRaidProgress(raidKey)
-                tierKilled = tierKilled + (killed or 0)
-                tierTotal = tierTotal + (total or 0)
+                phaseKilled = phaseKilled + (killed or 0)
+                phaseTotal = phaseTotal + (total or 0)
             end
         end
-        tierProgress[tier] = { killed = tierKilled, total = tierTotal }
-        totalKilled = totalKilled + tierKilled
-        totalBosses = totalBosses + tierTotal
+        phaseProgress[phase] = { killed = phaseKilled, total = phaseTotal }
+        totalKilled = totalKilled + phaseKilled
+        totalBosses = totalBosses + phaseTotal
     end
 
     -- Create progress summary container
@@ -4163,31 +4521,31 @@ function Journal:PopulateRaids()
         barBg:SetAllPoints()
         barBg:SetColorTexture(0.1, 0.1, 0.1, 0.8)
 
-        -- Mini tier progress bars (horizontal layout)
-        local miniBarWidth = (containerWidth - 40) / 3
+        -- Mini phase progress bars (horizontal layout - 5 narrower bars)
+        local miniBarWidth = (containerWidth - 60) / 5
         local miniBarHeight = 12
 
-        for i, tier in ipairs(tierOrder) do
-            local prog = tierProgress[tier]
-            local tierPercent = prog.total > 0 and math.floor((prog.killed / prog.total) * 100) or 0
-            local tierColorName = tierColorNames[tier]
-            local tierColor = HopeAddon:GetSafeColor(tierColorName)
+        for i, phase in ipairs(phaseOrder) do
+            local prog = phaseProgress[phase]
+            local phasePercent = prog.total > 0 and math.floor((prog.killed / prog.total) * 100) or 0
+            local phaseColorName = phaseColorNames[phase]
+            local phaseColor = HopeAddon:GetSafeColor(phaseColorName)
 
-            -- Tier label
-            local tierLabel = progressContainer:CreateFontString(nil, "OVERLAY")
-            tierLabel:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
-            tierLabel:SetPoint("TOPLEFT", progressContainer, "TOPLEFT", 10 + (i-1) * (miniBarWidth + 10), -48)
-            tierLabel:SetText(HopeAddon:ColorText(string.format("%s: %d/%d", tier, prog.killed, prog.total), tierColorName))
+            -- Phase label
+            local phaseLabel = progressContainer:CreateFontString(nil, "OVERLAY")
+            phaseLabel:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
+            phaseLabel:SetPoint("TOPLEFT", progressContainer, "TOPLEFT", 10 + (i-1) * (miniBarWidth + 8), -48)
+            phaseLabel:SetText(HopeAddon:ColorText(string.format("P%d: %d/%d", phase, prog.killed, prog.total), phaseColorName))
 
             -- Mini progress bar
             local miniBar = CreateFrame("StatusBar", nil, progressContainer)
-            miniBar:SetSize(miniBarWidth - 10, miniBarHeight)
-            miniBar:SetPoint("TOPLEFT", progressContainer, "TOPLEFT", 10 + (i-1) * (miniBarWidth + 10), -62)
+            miniBar:SetSize(miniBarWidth - 8, miniBarHeight)
+            miniBar:SetPoint("TOPLEFT", progressContainer, "TOPLEFT", 10 + (i-1) * (miniBarWidth + 8), -62)
             miniBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
             miniBar:SetMinMaxValues(0, 100)
-            miniBar:SetValue(tierPercent)
-            if tierColor then
-                miniBar:SetStatusBarColor(tierColor.r, tierColor.g, tierColor.b)
+            miniBar:SetValue(phasePercent)
+            if phaseColor then
+                miniBar:SetStatusBarColor(phaseColor.r, phaseColor.g, phaseColor.b)
             end
 
             -- Mini bar background
@@ -4200,21 +4558,22 @@ function Journal:PopulateRaids()
     end
     -- ===== END PROGRESS SUMMARY BAR =====
 
-    -- Quick jump tier buttons
+    -- Quick jump phase buttons
     local jumpBar = self:AcquireContainer(scrollContainer.content, 30)
-    self.tierSections = {}
+    self.phaseSections = {}
 
-    local buttonWidth = 60
-    local buttonSpacing = 10
+    local buttonWidth = 45
+    local buttonSpacing = 8
 
-    for i, tier in ipairs(tierOrder) do
-        local tierColorName = tierColorNames[tier]
-        local tierColor = HopeAddon:GetSafeColor(tierColorName)
+    for i, phase in ipairs(phaseOrder) do
+        local phaseColorName = phaseColorNames[phase]
+        local phaseColor = HopeAddon:GetSafeColor(phaseColorName)
+        local buttonLabel = "P" .. phase
 
         -- Create nav button using component (includes click sound)
-        local jumpBtn = Components:CreateNavButton(jumpBar, tier, buttonWidth, tierColorName, function()
-            if self.tierSections[tier] then
-                local section = self.tierSections[tier]
+        local jumpBtn = Components:CreateNavButton(jumpBar, buttonLabel, buttonWidth, phaseColorName, function()
+            if self.phaseSections[phase] then
+                local section = self.phaseSections[phase]
                 local yOffset = 0
                 for _, entry in ipairs(scrollContainer.entries) do
                     if entry == section then
@@ -4230,10 +4589,10 @@ function Journal:PopulateRaids()
         -- Add tooltip with safe color access
         jumpBtn:SetScript("OnEnter", function(btn)
             GameTooltip:SetOwner(btn, "ANCHOR_RIGHT")
-            if tierColor then
-                GameTooltip:SetText("Jump to " .. tier .. " Raids", tierColor.r, tierColor.g, tierColor.b)
+            if phaseColor then
+                GameTooltip:SetText("Jump to Phase " .. phase .. " Raids", phaseColor.r, phaseColor.g, phaseColor.b)
             else
-                GameTooltip:SetText("Jump to " .. tier .. " Raids")
+                GameTooltip:SetText("Jump to Phase " .. phase .. " Raids")
             end
             GameTooltip:Show()
         end)
@@ -4243,26 +4602,26 @@ function Journal:PopulateRaids()
     end
     scrollContainer:AddEntry(jumpBar)
 
-    for _, tier in ipairs(tierOrder) do
-        local tierColorName = tierColorNames[tier]
-        local raids = raidsByTier[tier]
+    for _, phase in ipairs(phaseOrder) do
+        local phaseColorName = phaseColorNames[phase]
+        local raids = raidsByPhase[phase]
 
-        -- Tier header - FontString properly parented to container
-        local tierHeaderContainer = self:AcquireContainer(scrollContainer.content, 30)
-        if not tierHeaderContainer then
-            HopeAddon:Debug("ERROR: Failed to acquire container for tier header:", tier)
+        -- Phase header - FontString properly parented to container
+        local phaseHeaderContainer = self:AcquireContainer(scrollContainer.content, 30)
+        if not phaseHeaderContainer then
+            HopeAddon:Debug("ERROR: Failed to acquire container for phase header:", phase)
         else
-            local tierHeader = tierHeaderContainer.headerText
-            if not tierHeader then
-                tierHeader = tierHeaderContainer:CreateFontString(nil, "OVERLAY")
-                tierHeaderContainer.headerText = tierHeader
+            local phaseHeader = phaseHeaderContainer.headerText
+            if not phaseHeader then
+                phaseHeader = phaseHeaderContainer:CreateFontString(nil, "OVERLAY")
+                phaseHeaderContainer.headerText = phaseHeader
             end
-            tierHeader:ClearAllPoints()
-            tierHeader:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
-            tierHeader:SetPoint("LEFT", tierHeaderContainer, "LEFT", Components.MARGIN_SMALL, 0)
-            tierHeader:SetText(HopeAddon:ColorText("--- " .. tier .. " RAIDS ---", tierColorName))
-            scrollContainer:AddEntry(tierHeaderContainer)
-            self.tierSections[tier] = tierHeaderContainer
+            phaseHeader:ClearAllPoints()
+            phaseHeader:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
+            phaseHeader:SetPoint("LEFT", phaseHeaderContainer, "LEFT", Components.MARGIN_SMALL, 0)
+            phaseHeader:SetText(HopeAddon:ColorText("--- PHASE " .. phase .. " ---", phaseColorName))
+            scrollContainer:AddEntry(phaseHeaderContainer)
+            self.phaseSections[phase] = phaseHeaderContainer
         end
 
         for _, raidKey in ipairs(raids) do
@@ -4280,7 +4639,7 @@ function Journal:PopulateRaids()
                 local raidSection = self:AcquireCollapsibleSection(
                     scrollContainer.content,
                     raidTitle,
-                    raidIsCleared and "FEL_GREEN" or tierColorName,
+                    raidIsCleared and "FEL_GREEN" or phaseColorName,
                     false -- Start collapsed
                 )
 
@@ -4358,12 +4717,6 @@ function Journal:PopulateRaids()
                                 end
                             end
 
-                            -- Add boss quote if available
-                            if boss.quote then
-                                table.insert(descLines, "")
-                                table.insert(descLines, HopeAddon:ColorText('"' .. boss.quote .. '"', "GOLD_BRIGHT"))
-                            end
-
                             description = table.concat(descLines, "\n")
                         else
                             description = boss.lore or boss.location
@@ -4377,14 +4730,163 @@ function Journal:PopulateRaids()
                         })
 
                         if card then
+                            -- ===== LOOT ICON STRIP =====
+                            -- Show up to 4 notable loot icons on the right side of the card
+                            local lootItems = boss.notableLoot or {}
+                            local maxLootIcons = math.min(4, #lootItems)
+                            local LOOT_ICON_SIZE = 20
+                            local LOOT_ICON_SPACING = 2
+                            local LOOT_STRIP_RIGHT_MARGIN = 8
+                            local LOOT_STRIP_TOP_MARGIN = 8
+
+                            -- Create or reuse loot icon container
+                            if not card.lootIcons then
+                                card.lootIcons = {}
+                            end
+
+                            -- Hide all existing loot icons first
+                            for _, lootIcon in ipairs(card.lootIcons) do
+                                lootIcon:Hide()
+                            end
+
+                            -- Create/show loot icons
+                            for i = 1, maxLootIcons do
+                                local item = lootItems[i]
+                                local lootIcon = card.lootIcons[i]
+
+                                if not lootIcon then
+                                    -- Create new loot icon frame
+                                    lootIcon = CreateFrame("Frame", nil, card)
+                                    lootIcon:SetSize(LOOT_ICON_SIZE, LOOT_ICON_SIZE)
+
+                                    -- Icon texture
+                                    lootIcon.texture = lootIcon:CreateTexture(nil, "ARTWORK")
+                                    lootIcon.texture:SetAllPoints()
+
+                                    -- Quality border
+                                    lootIcon.border = lootIcon:CreateTexture(nil, "OVERLAY")
+                                    lootIcon.border:SetPoint("TOPLEFT", -1, 1)
+                                    lootIcon.border:SetPoint("BOTTOMRIGHT", 1, -1)
+                                    lootIcon.border:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
+                                    lootIcon.border:SetBlendMode("ADD")
+
+                                    card.lootIcons[i] = lootIcon
+                                end
+
+                                -- Position the icon (vertical strip on the right)
+                                lootIcon:ClearAllPoints()
+                                lootIcon:SetPoint("TOPRIGHT", card, "TOPRIGHT",
+                                    -LOOT_STRIP_RIGHT_MARGIN,
+                                    -LOOT_STRIP_TOP_MARGIN - (i - 1) * (LOOT_ICON_SIZE + LOOT_ICON_SPACING))
+
+                                -- Get item icon - use generic icon based on type
+                                local iconPath = "Interface\\Icons\\INV_Misc_QuestionMark"
+                                local itemType = item.type and item.type:lower() or ""
+
+                                -- Map item types to appropriate icons
+                                if itemType:find("mount") then
+                                    iconPath = "Interface\\Icons\\Ability_Mount_Ridinghorse"
+                                elseif itemType:find("legendary") or (itemType:find("bow") and not itemType:find("elbow")) then
+                                    iconPath = "Interface\\Icons\\INV_Weapon_Bow_39"
+                                elseif itemType:find("trinket") then
+                                    iconPath = "Interface\\Icons\\INV_Jewelry_Talisman_07"
+                                elseif itemType:find("tier") or itemType:find("token") then
+                                    iconPath = "Interface\\Icons\\INV_Chest_Plate16"
+                                elseif itemType:find("sword") and itemType:find("2h") then
+                                    iconPath = "Interface\\Icons\\INV_Sword_39"
+                                elseif itemType:find("axe") and itemType:find("2h") then
+                                    iconPath = "Interface\\Icons\\INV_Axe_22"
+                                elseif itemType:find("sword") or itemType:find("weapon") then
+                                    iconPath = "Interface\\Icons\\INV_Sword_04"
+                                elseif itemType:find("axe") then
+                                    iconPath = "Interface\\Icons\\INV_Axe_01"
+                                elseif itemType:find("mace") then
+                                    iconPath = "Interface\\Icons\\INV_Mace_01"
+                                elseif itemType:find("dagger") then
+                                    iconPath = "Interface\\Icons\\INV_Weapon_ShortBlade_05"
+                                elseif itemType:find("staff") then
+                                    iconPath = "Interface\\Icons\\INV_Staff_08"
+                                elseif itemType:find("shield") then
+                                    iconPath = "Interface\\Icons\\INV_Shield_04"
+                                elseif itemType:find("helm") or itemType:find("head") then
+                                    iconPath = "Interface\\Icons\\INV_Helmet_08"
+                                elseif itemType:find("shoulder") then
+                                    iconPath = "Interface\\Icons\\INV_Shoulder_02"
+                                elseif itemType:find("chest") or itemType:find("robe") then
+                                    iconPath = "Interface\\Icons\\INV_Chest_Cloth_17"
+                                elseif itemType:find("leg") then
+                                    iconPath = "Interface\\Icons\\INV_Pants_06"
+                                elseif itemType:find("ring") then
+                                    iconPath = "Interface\\Icons\\INV_Jewelry_Ring_36"
+                                elseif itemType:find("neck") or itemType:find("amulet") then
+                                    iconPath = "Interface\\Icons\\INV_Jewelry_Necklace_07"
+                                elseif itemType:find("back") or itemType:find("cloak") then
+                                    iconPath = "Interface\\Icons\\INV_Misc_Cape_20"
+                                elseif itemType:find("wand") then
+                                    iconPath = "Interface\\Icons\\INV_Wand_06"
+                                elseif itemType:find("off-hand") then
+                                    iconPath = "Interface\\Icons\\INV_Offhand_Tome_02"
+                                elseif itemType:find("fist") then
+                                    iconPath = "Interface\\Icons\\INV_Gauntlets_04"
+                                elseif itemType:find("polearm") then
+                                    iconPath = "Interface\\Icons\\INV_Spear_02"
+                                elseif itemType:find("glove") or itemType:find("hands") then
+                                    iconPath = "Interface\\Icons\\INV_Gauntlets_23"
+                                elseif itemType:find("belt") or itemType:find("waist") then
+                                    iconPath = "Interface\\Icons\\INV_Belt_03"
+                                elseif itemType:find("bracer") or itemType:find("wrist") then
+                                    iconPath = "Interface\\Icons\\INV_Bracer_07"
+                                elseif itemType:find("boot") or itemType:find("feet") then
+                                    iconPath = "Interface\\Icons\\INV_Boots_Chain_01"
+                                elseif itemType:find("relic") then
+                                    iconPath = "Interface\\Icons\\INV_Relics_LibramOfGrace"
+                                end
+
+                                lootIcon.texture:SetTexture(iconPath)
+
+                                -- Set quality border color (default to epic purple)
+                                local qualityR, qualityG, qualityB = 0.64, 0.21, 0.93  -- Epic purple
+                                if item.type and item.type:lower():find("legendary") then
+                                    qualityR, qualityG, qualityB = 1.0, 0.5, 0.0  -- Legendary orange
+                                elseif item.type and item.type:lower():find("rare") then
+                                    qualityR, qualityG, qualityB = 0.0, 0.44, 0.87  -- Rare blue
+                                end
+                                lootIcon.border:SetVertexColor(qualityR, qualityG, qualityB, 0.8)
+
+                                -- Store item data for tooltip
+                                lootIcon.itemData = item
+                                lootIcon.qualityColor = { qualityR, qualityG, qualityB }
+
+                                -- Tooltip on hover
+                                lootIcon:EnableMouse(true)
+                                lootIcon:SetScript("OnEnter", function(self)
+                                    GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+                                    local qr, qg, qb = unpack(self.qualityColor)
+                                    GameTooltip:AddLine(self.itemData.name, qr, qg, qb)
+                                    if self.itemData.type then
+                                        GameTooltip:AddLine(self.itemData.type, 0.8, 0.8, 0.8)
+                                    end
+                                    if self.itemData.dropRate then
+                                        GameTooltip:AddLine("Drop Rate: " .. self.itemData.dropRate, 0.6, 0.6, 0.6)
+                                    end
+                                    GameTooltip:Show()
+                                end)
+                                lootIcon:SetScript("OnLeave", function()
+                                    GameTooltip:Hide()
+                                end)
+
+                                lootIcon:Show()
+                            end
+                            -- ===== END LOOT ICON STRIP =====
+
                             -- Add boss tooltip with mechanics and loot
                             card:SetScript("OnEnter", function(self)
                                 GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 
                                 -- Boss name header
-                                local tierColor = HopeAddon:GetSafeColor(tierColorName)
-                                if tierColor then
-                                    GameTooltip:AddLine(boss.name, tierColor.r, tierColor.g, tierColor.b)
+                                local bossColor = HopeAddon:GetSafeColor(phaseColorName)
+                                if bossColor then
+                                    GameTooltip:AddLine(boss.name, bossColor.r, bossColor.g, bossColor.b)
                                 else
                                     GameTooltip:AddLine(boss.name, 1, 0.84, 0)
                                 end
@@ -4396,29 +4898,39 @@ function Journal:PopulateRaids()
                                     GameTooltip:AddLine(boss.lore, 1, 1, 1, true)
                                 end
 
+                                -- Boss quote if available
+                                if boss.quote then
+                                    GameTooltip:AddLine(" ")
+                                    GameTooltip:AddLine('"' .. boss.quote .. '"', 1, 0.84, 0, true)
+                                end
+
                                 -- Mechanics section
                                 if boss.mechanics and #boss.mechanics > 0 then
                                     GameTooltip:AddLine(" ")
                                     GameTooltip:AddLine("Mechanics:", 1, 0.84, 0)
                                     for _, mechanic in ipairs(boss.mechanics) do
-                                        GameTooltip:AddLine("  • " .. mechanic, 0.9, 0.9, 0.9)
+                                        GameTooltip:AddLine("  • " .. mechanic, 0.9, 0.9, 0.9, true)
                                     end
                                 end
 
-                                -- Notable loot section
-                                if boss.loot and #boss.loot > 0 then
+                                -- Notable loot section (fixed: use notableLoot not loot)
+                                if boss.notableLoot and #boss.notableLoot > 0 then
                                     GameTooltip:AddLine(" ")
                                     GameTooltip:AddLine("Notable Loot:", 0.6, 0.3, 0.9)
-                                    for _, item in ipairs(boss.loot) do
+                                    for _, item in ipairs(boss.notableLoot) do
                                         if type(item) == "table" then
-                                            -- Item with quality color
-                                            local qualityColor = HopeAddon.Constants.ITEM_QUALITY_COLORS and
-                                                HopeAddon.Constants.ITEM_QUALITY_COLORS[item.quality or "epic"]
-                                            if qualityColor then
-                                                GameTooltip:AddLine("  • " .. item.name, qualityColor.r, qualityColor.g, qualityColor.b)
-                                            else
-                                                GameTooltip:AddLine("  • " .. item.name, 0.64, 0.21, 0.93)
+                                            -- Determine quality color
+                                            local qualityR, qualityG, qualityB = 0.64, 0.21, 0.93  -- Epic
+                                            if item.type and item.type:lower():find("legendary") then
+                                                qualityR, qualityG, qualityB = 1.0, 0.5, 0.0
+                                            elseif item.type and item.type:lower():find("rare") then
+                                                qualityR, qualityG, qualityB = 0.0, 0.44, 0.87
                                             end
+                                            local lootText = "  • " .. item.name
+                                            if item.type then
+                                                lootText = lootText .. " (" .. item.type .. ")"
+                                            end
+                                            GameTooltip:AddLine(lootText, qualityR, qualityG, qualityB)
                                         else
                                             GameTooltip:AddLine("  • " .. item, 0.64, 0.21, 0.93)
                                         end
@@ -4493,7 +5005,7 @@ function Journal:PopulateRaids()
                                 -- Unkilled boss: grey border, reduced alpha
                                 card:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
                                 card.defaultBorderColor = { 0.4, 0.4, 0.4, 1 }
-                                card:SetAlpha(0.6)
+                                card:SetAlpha(0.7)
                             end
                             raidSection:AddChild(card)
                         end
@@ -4677,10 +5189,9 @@ function Journal:CreateLookingForRPBoard(parent, fellows)
     container:SetBackdrop(HopeAddon.Constants.BACKDROPS.TOOLTIP)
     container:SetBackdropBorderColor(1, 0.2, 0.8, 1)  -- Hot pink
 
-    -- Add subtle pink glow
-    local glowColor = { r = 1, g = 0.2, b = 0.8 }
+    -- Add subtle purple glow (closest to pink in existing colors)
     if HopeAddon.Effects and HopeAddon.Effects.CreateBorderGlow then
-        container._glowEffect = HopeAddon.Effects:CreateBorderGlow(container, nil, glowColor)
+        container._glowEffect = HopeAddon.Effects:CreateBorderGlow(container, "ARCANE_PURPLE")
     end
 
     -- Get theme from constants
@@ -4947,7 +5458,8 @@ function Journal:CreateMyProfileSection(parent)
     local FellowTravelers = HopeAddon:GetModule("FellowTravelers")
     local Effects = HopeAddon.Effects
 
-    local profile = HopeAddon.charDb.travelers.myProfile or {}
+    local travelers = HopeAddon.charDb and HopeAddon.charDb.travelers
+    local profile = travelers and travelers.myProfile or {}
     local playerName = UnitName("player")
     local _, playerClass = UnitClass("player")
     local classColor = HopeAddon:GetClassColor(playerClass)
@@ -6226,7 +6738,7 @@ end
 
 --[[
     Create the Social Sub-Tab Bar
-    Shows: [Feed] [Travelers] [Companions] tabs
+    Shows: [Guild] [Travelers] [Companions] [Feed] tabs
     @param parent Frame - Parent frame
     @return Frame - Tab bar frame
 ]]
@@ -6241,13 +6753,14 @@ function Journal:CreateSocialTabBar(parent)
 
     -- Use centralized helper for social UI access
     local socialUI = HopeAddon:GetSocialUI()
-    local activeTab = socialUI and socialUI.activeTab or "travelers"
+    local activeTab = socialUI and socialUI.activeTab or "guild"
 
-    -- Create sub-tabs
+    -- Create sub-tabs - Guild first, then Travelers, Companions, Feed
     local tabs = {
-        { id = "feed", label = "Feed" },
+        { id = "guild", label = "Guild" },
         { id = "travelers", label = "Travelers" },
         { id = "companions", label = "Companions" },
+        { id = "feed", label = "Feed" },
     }
 
     local xOffset = 8
@@ -6312,7 +6825,7 @@ end
 
 --[[
     Select a social sub-tab and refresh content
-    @param tabId string - Tab identifier (feed, travelers, companions)
+    @param tabId string - Tab identifier (guild, travelers, companions, feed)
 ]]
 function Journal:SelectSocialSubTab(tabId)
     -- Use centralized helper for social UI access
@@ -6333,7 +6846,9 @@ function Journal:SelectSocialSubTab(tabId)
     self:ClearSocialContent()
 
     -- Populate based on selected tab
-    if tabId == "feed" then
+    if tabId == "guild" then
+        self:PopulateSocialGuild()
+    elseif tabId == "feed" then
         self:PopulateSocialFeed()
     elseif tabId == "travelers" then
         self:PopulateSocialTravelers()
@@ -6560,6 +7075,14 @@ function Journal:UpdateSocialTabBadges()
     local socialUI = HopeAddon:GetSocialUI()
     if not socialUI then return end
 
+    -- Guild: Show online member count
+    if HopeAddon.Guild then
+        local onlineGuildMembers = HopeAddon.Guild:GetOnlineCount()
+        if self.socialSubTabs.guild then
+            self.socialSubTabs.guild:SetBadge(onlineGuildMembers > 0 and tostring(onlineGuildMembers) or "")
+        end
+    end
+
     -- Feed: Show unread count
     if HopeAddon.ActivityFeed then
         local feed = HopeAddon.ActivityFeed:GetRecentFeed(50)
@@ -6599,6 +7122,486 @@ end
 --============================================================
 -- SOCIAL SUB-TAB CONTENT FUNCTIONS
 --============================================================
+
+--[[
+    Populate the Guild sub-tab with "Guild Hall" themed roster and activity
+]]
+function Journal:PopulateSocialGuild()
+    local content = self.socialContainers.content
+    if not content then return end
+
+    local C = HopeAddon.Constants
+    local Components = HopeAddon.Components
+    local Guild = HopeAddon.Guild
+
+    -- Check if player is in a guild
+    if not IsInGuild() then
+        -- Show "not in guild" message
+        local noGuildFrame = CreateFrame("Frame", nil, content)
+        noGuildFrame:SetHeight(120)
+        noGuildFrame:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
+        noGuildFrame:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+
+        local icon = noGuildFrame:CreateTexture(nil, "ARTWORK")
+        icon:SetSize(48, 48)
+        icon:SetPoint("TOP", noGuildFrame, "TOP", 0, -10)
+        icon:SetTexture("Interface\\Icons\\Achievement_GuildPerk_EverybodysFriend")
+        self:TrackSocialRegion(icon)
+
+        local text = noGuildFrame:CreateFontString(nil, "OVERLAY")
+        text:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
+        text:SetPoint("TOP", icon, "BOTTOM", 0, -10)
+        text:SetText("|cFFFFD700You are not in a guild|r")
+        self:TrackSocialRegion(text)
+
+        local subtext = noGuildFrame:CreateFontString(nil, "OVERLAY")
+        subtext:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
+        subtext:SetPoint("TOP", text, "BOTTOM", 0, -6)
+        subtext:SetText("|cFF808080Join a guild to see your Guild Hall|r")
+        self:TrackSocialRegion(subtext)
+
+        content:SetHeight(120)
+        return
+    end
+
+    -- Get guild data
+    local guildName = Guild and Guild:GetGuildName() or GetGuildInfo("player") or "Unknown Guild"
+    local motd = Guild and Guild:GetMOTD() or ""
+
+    local socialUI = HopeAddon:GetSocialUI()
+    local guildUI = socialUI and socialUI.guild or {}
+    local quickFilter = guildUI.quickFilter or "all"
+    local sortBy = guildUI.sortBy or "online"
+
+    local yOffset = 0
+
+    -- HEADER: "Guild Hall of [Guild Name]"
+    local header = CreateFrame("Frame", nil, content, "BackdropTemplate")
+    header:SetHeight(C.SOCIAL_TAB.GUILD_HEADER_HEIGHT or 50)
+    header:SetPoint("TOPLEFT", content, "TOPLEFT", 0, yOffset)
+    header:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+    header:SetBackdrop({
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+        edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+        edgeSize = 12,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    })
+    header:SetBackdropColor(0.12, 0.1, 0.08, 0.95)
+    header:SetBackdropBorderColor(0.6, 0.5, 0.3, 1)
+
+    -- Guild crest icon
+    local crest = header:CreateTexture(nil, "ARTWORK")
+    crest:SetSize(36, 36)
+    crest:SetPoint("LEFT", header, "LEFT", 10, 0)
+    crest:SetTexture("Interface\\Icons\\Achievement_GuildPerk_EverybodysFriend")
+    self:TrackSocialRegion(crest)
+
+    -- Guild name title
+    local title = header:CreateFontString(nil, "OVERLAY")
+    title:SetFont(HopeAddon.assets.fonts.HEADER, 16, "")
+    title:SetPoint("LEFT", crest, "RIGHT", 12, 6)
+    title:SetText("|cFFFFD700Guild Hall of|r |cFF4FC3F7" .. guildName .. "|r")
+    self:TrackSocialRegion(title)
+
+    -- Subtitle with member counts
+    local onlineCount = Guild and Guild:GetOnlineCount() or 0
+    local totalCount = Guild and Guild:GetMemberCount() or 0
+    local subtitle = header:CreateFontString(nil, "OVERLAY")
+    subtitle:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+    subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -2)
+    subtitle:SetText(string.format("|cFF808080%d online of %d members|r", onlineCount, totalCount))
+    self:TrackSocialRegion(subtitle)
+
+    yOffset = yOffset - (C.SOCIAL_TAB.GUILD_HEADER_HEIGHT or 50) - 4
+
+    -- MOTD Section (if exists)
+    if motd and motd ~= "" then
+        local motdFrame = CreateFrame("Frame", nil, content, "BackdropTemplate")
+        motdFrame:SetHeight(C.SOCIAL_TAB.GUILD_MOTD_HEIGHT or 40)
+        motdFrame:SetPoint("TOPLEFT", content, "TOPLEFT", 0, yOffset)
+        motdFrame:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+        motdFrame:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8x8",
+            edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+            edgeSize = 8,
+            insets = { left = 2, right = 2, top = 2, bottom = 2 },
+        })
+        motdFrame:SetBackdropColor(0.15, 0.12, 0.1, 0.9)
+        motdFrame:SetBackdropBorderColor(0.4, 0.35, 0.3, 0.8)
+
+        local motdLabel = motdFrame:CreateFontString(nil, "OVERLAY")
+        motdLabel:SetFont(HopeAddon.assets.fonts.HEADER, 9, "")
+        motdLabel:SetPoint("TOPLEFT", motdFrame, "TOPLEFT", 8, -4)
+        motdLabel:SetText("|cFFFFD700MOTD:|r")
+        self:TrackSocialRegion(motdLabel)
+
+        local motdText = motdFrame:CreateFontString(nil, "OVERLAY")
+        motdText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+        motdText:SetPoint("TOPLEFT", motdLabel, "BOTTOMLEFT", 0, -2)
+        motdText:SetPoint("RIGHT", motdFrame, "RIGHT", -8, 0)
+        motdText:SetText("|cFFCCCCCC" .. motd .. "|r")
+        motdText:SetWordWrap(true)
+        motdText:SetJustifyH("LEFT")
+        self:TrackSocialRegion(motdText)
+
+        yOffset = yOffset - (C.SOCIAL_TAB.GUILD_MOTD_HEIGHT or 40) - 4
+    end
+
+    -- FILTER BAR: Online / All
+    local filterBar = self:CreateGuildQuickFilters(content, quickFilter)
+    filterBar:SetPoint("TOPLEFT", content, "TOPLEFT", 0, yOffset)
+    filterBar:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+    yOffset = yOffset - 32
+
+    -- MEMBER ROSTER
+    local filter = {
+        showOffline = (quickFilter == "all"),
+    }
+    local roster = Guild and Guild:GetFilteredRoster(filter, sortBy) or {}
+
+    for _, member in ipairs(roster) do
+        local row = self:CreateGuildMemberRow(content, member)
+        row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, yOffset)
+        row:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+        yOffset = yOffset - (C.SOCIAL_TAB.GUILD_ROW_HEIGHT or 44) - 2
+    end
+
+    -- Show "no members" message if roster is empty
+    if #roster == 0 then
+        local emptyText = content:CreateFontString(nil, "OVERLAY")
+        emptyText:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
+        emptyText:SetPoint("TOPLEFT", content, "TOPLEFT", 10, yOffset)
+        emptyText:SetText("|cFF808080No guild members " .. (quickFilter == "online" and "online" or "found") .. "|r")
+        self:TrackSocialRegion(emptyText)
+        yOffset = yOffset - 30
+    end
+
+    -- ACTIVITY CHRONICLES Section
+    yOffset = yOffset - 10
+    local activityHeader = content:CreateFontString(nil, "OVERLAY")
+    activityHeader:SetFont(HopeAddon.assets.fonts.HEADER, 12, "")
+    activityHeader:SetPoint("TOPLEFT", content, "TOPLEFT", 8, yOffset)
+    activityHeader:SetText("|cFFFFD700Guild Chronicles|r")
+    self:TrackSocialRegion(activityHeader)
+    yOffset = yOffset - 20
+
+    local activities = Guild and Guild:GetRecentActivity(10) or {}
+    if #activities > 0 then
+        for _, activity in ipairs(activities) do
+            local activityRow = self:CreateGuildActivityRow(content, activity)
+            activityRow:SetPoint("TOPLEFT", content, "TOPLEFT", 0, yOffset)
+            activityRow:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+            yOffset = yOffset - (C.SOCIAL_TAB.GUILD_ACTIVITY_HEIGHT or 36) - 2
+        end
+    else
+        local noActivity = content:CreateFontString(nil, "OVERLAY")
+        noActivity:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+        noActivity:SetPoint("TOPLEFT", content, "TOPLEFT", 10, yOffset)
+        noActivity:SetText("|cFF808080No recent guild activity|r")
+        self:TrackSocialRegion(noActivity)
+        yOffset = yOffset - 24
+    end
+
+    -- Adjust content height
+    content:SetHeight(math.abs(yOffset) + 20)
+end
+
+--[[
+    Create quick filter buttons for Guild tab
+    @param parent Frame - Parent frame
+    @param activeFilter string - Currently active filter
+    @return Frame - Filter bar frame
+]]
+function Journal:CreateGuildQuickFilters(parent, activeFilter)
+    local bar = CreateFrame("Frame", nil, parent)
+    bar:SetHeight(28)
+
+    local filters = {
+        { id = "all", label = "All Members" },
+        { id = "online", label = "Online Only" },
+    }
+
+    local xOffset = 0
+    for _, filterInfo in ipairs(filters) do
+        local isActive = (filterInfo.id == activeFilter)
+
+        local btn = CreateFrame("Button", nil, bar, "BackdropTemplate")
+        btn:SetSize(90, 24)
+        btn:SetPoint("LEFT", bar, "LEFT", xOffset, 0)
+        btn:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8x8",
+            edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+            edgeSize = 8,
+            insets = { left = 1, right = 1, top = 1, bottom = 1 },
+        })
+
+        local btnText = btn:CreateFontString(nil, "OVERLAY")
+        btnText:SetFont(HopeAddon.assets.fonts.HEADER, 10, "")
+        btnText:SetPoint("CENTER")
+        btnText:SetText(filterInfo.label)
+        btn.text = btnText
+
+        btn.isActive = isActive
+        btn.filterId = filterInfo.id
+
+        local function SetActive(active)
+            active = (active == true)
+            btn.isActive = active
+            if active then
+                btn:SetBackdropColor(0.2, 0.5, 0.2, 0.9)
+                btn:SetBackdropBorderColor(0.4, 1.0, 0.4, 1)
+                btnText:SetTextColor(0.4, 1.0, 0.4)
+            else
+                btn:SetBackdropColor(0.15, 0.15, 0.15, 0.8)
+                btn:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+                btnText:SetTextColor(0.7, 0.7, 0.7)
+            end
+        end
+        btn.SetActive = SetActive
+        SetActive(isActive)
+
+        btn:SetScript("OnClick", function()
+            HopeAddon.Sounds:PlayClick()
+            self:SetGuildQuickFilter(filterInfo.id)
+        end)
+
+        btn:SetScript("OnEnter", function(self)
+            self:SetBackdropBorderColor(1, 0.84, 0, 1)
+        end)
+        btn:SetScript("OnLeave", function(self)
+            if self.isActive then
+                self:SetBackdropBorderColor(0.4, 1.0, 0.4, 1)
+            else
+                self:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+            end
+        end)
+
+        xOffset = xOffset + 94
+    end
+
+    return bar
+end
+
+--[[
+    Set guild quick filter and refresh
+    @param filterId string - Filter ID (all, online)
+]]
+function Journal:SetGuildQuickFilter(filterId)
+    local socialUI = HopeAddon:GetSocialUI()
+    if not socialUI then return end
+
+    if not socialUI.guild then
+        socialUI.guild = { quickFilter = "all", sortBy = "online", showActivity = true }
+    end
+    socialUI.guild.quickFilter = filterId
+
+    -- Refresh guild content
+    self:ClearSocialContent()
+    self:PopulateSocialGuild()
+end
+
+--[[
+    Create a guild member row
+    @param parent Frame - Parent frame
+    @param member table - Guild member data
+    @return Frame - Row frame
+]]
+function Journal:CreateGuildMemberRow(parent, member)
+    local C = HopeAddon.Constants
+    local Guild = HopeAddon.Guild
+
+    local row = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    row:SetHeight(C.SOCIAL_TAB.GUILD_ROW_HEIGHT or 44)
+    row:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+        edgeSize = 10,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    })
+
+    -- Get class color
+    local classColor = member.classToken and RAID_CLASS_COLORS[member.classToken]
+    if not classColor then classColor = { r = 0.5, g = 0.5, b = 0.5 } end
+
+    -- Background and border based on online status
+    if member.isOnline then
+        row:SetBackdropColor(0.1, 0.15, 0.1, 0.9)
+        row:SetBackdropBorderColor(classColor.r, classColor.g, classColor.b, 0.8)
+    else
+        row:SetBackdropColor(0.08, 0.08, 0.08, 0.7)
+        row:SetBackdropBorderColor(0.3, 0.3, 0.3, 0.5)
+    end
+
+    -- Online status indicator
+    local statusDot = row:CreateTexture(nil, "OVERLAY")
+    statusDot:SetSize(10, 10)
+    statusDot:SetPoint("LEFT", row, "LEFT", 8, 0)
+    statusDot:SetTexture("Interface\\COMMON\\Indicator-Green")
+    if member.isOnline then
+        if member.status == 1 then  -- AFK
+            statusDot:SetVertexColor(1.0, 0.8, 0.2)
+        elseif member.status == 2 then  -- DND
+            statusDot:SetVertexColor(1.0, 0.3, 0.3)
+        else
+            statusDot:SetVertexColor(0.2, 1.0, 0.2)
+        end
+    else
+        statusDot:SetVertexColor(0.5, 0.5, 0.5)
+    end
+
+    -- Class icon
+    local classIcon = row:CreateTexture(nil, "ARTWORK")
+    classIcon:SetSize(24, 24)
+    classIcon:SetPoint("LEFT", statusDot, "RIGHT", 6, 0)
+    local classCoords = CLASS_ICON_TCOORDS[member.classToken]
+    if classCoords then
+        classIcon:SetTexture("Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES")
+        classIcon:SetTexCoord(unpack(classCoords))
+    else
+        classIcon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+    end
+
+    -- Check if member is also a Fellow Traveler
+    local isFellow = Guild and Guild:IsFellowTraveler(member.name) or false
+
+    -- Name with class color
+    local nameText = row:CreateFontString(nil, "OVERLAY")
+    nameText:SetFont(HopeAddon.assets.fonts.HEADER, 12, "")
+    nameText:SetPoint("LEFT", classIcon, "RIGHT", 8, 4)
+    local nameColor = string.format("|cFF%02x%02x%02x", classColor.r * 255, classColor.g * 255, classColor.b * 255)
+    local displayName = nameColor .. member.name .. "|r"
+
+    -- Add badge indicator if Fellow Traveler
+    if isFellow then
+        displayName = displayName .. " |cFF9B30FF[F]|r"
+    end
+    nameText:SetText(displayName)
+
+    -- Level and Rank
+    local infoText = row:CreateFontString(nil, "OVERLAY")
+    infoText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+    infoText:SetPoint("TOPLEFT", nameText, "BOTTOMLEFT", 0, -2)
+    infoText:SetText(string.format("|cFFAAAAAAlvl %d|r  |cFF888888<%s>|r", member.level or 0, member.rank or "Member"))
+
+    -- Zone or last seen
+    local zoneText = row:CreateFontString(nil, "OVERLAY")
+    zoneText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+    zoneText:SetPoint("RIGHT", row, "RIGHT", -10, 0)
+    zoneText:SetJustifyH("RIGHT")
+
+    if member.isOnline then
+        zoneText:SetText("|cFF4FC3F7" .. (member.zone or "Unknown") .. "|r")
+    else
+        local lastOnline = member.lastOnline
+        if lastOnline then
+            local timeAgo = Guild and Guild:FormatRelativeTime(lastOnline) or "Unknown"
+            zoneText:SetText("|cFF666666Last seen " .. timeAgo .. "|r")
+        else
+            zoneText:SetText("|cFF666666Offline|r")
+        end
+    end
+
+    -- Hover effects
+    row:SetScript("OnEnter", function(self)
+        self:SetBackdropBorderColor(1, 0.84, 0, 1)
+        if HopeAddon.Sounds then HopeAddon.Sounds:PlayHover() end
+
+        -- Show tooltip with more info
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine(member.name, classColor.r, classColor.g, classColor.b)
+        GameTooltip:AddLine(string.format("Level %d %s", member.level or 0, member.class or "Unknown"), 1, 1, 1)
+        GameTooltip:AddLine(member.rank or "Member", 0.6, 0.6, 0.6)
+        if member.isOnline then
+            GameTooltip:AddLine("Currently in: " .. (member.zone or "Unknown"), 0.3, 0.76, 0.97)
+        end
+        if member.note and member.note ~= "" then
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine("Note: " .. member.note, 0.7, 0.7, 0.7, true)
+        end
+        if isFellow then
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine("Fellow Traveler - Has HopeAddon", 0.61, 0.19, 1.0)
+        end
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine("Click to whisper", 0.5, 0.5, 0.5)
+        GameTooltip:Show()
+    end)
+
+    row:SetScript("OnLeave", function(self)
+        if member.isOnline then
+            self:SetBackdropBorderColor(classColor.r, classColor.g, classColor.b, 0.8)
+        else
+            self:SetBackdropBorderColor(0.3, 0.3, 0.3, 0.5)
+        end
+        GameTooltip:Hide()
+    end)
+
+    -- Click to whisper
+    row:SetScript("OnClick", function()
+        if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+        if member.isOnline then
+            ChatFrame_OpenChat("/w " .. member.name .. " ")
+        else
+            HopeAddon:Print(member.name .. " is offline")
+        end
+    end)
+
+    return row
+end
+
+--[[
+    Create a guild activity row
+    @param parent Frame - Parent frame
+    @param activity table - Activity entry { type, player, data, timestamp }
+    @return Frame - Row frame
+]]
+function Journal:CreateGuildActivityRow(parent, activity)
+    local C = HopeAddon.Constants
+    local Guild = HopeAddon.Guild
+
+    local row = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    row:SetHeight(C.SOCIAL_TAB.GUILD_ACTIVITY_HEIGHT or 36)
+    row:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+        edgeSize = 8,
+        insets = { left = 1, right = 1, top = 1, bottom = 1 },
+    })
+    row:SetBackdropColor(0.1, 0.1, 0.1, 0.7)
+
+    -- Get activity border color
+    local borderColor = C.GUILD_ACTIVITY_BORDERS and C.GUILD_ACTIVITY_BORDERS[activity.type] or { 0.4, 0.4, 0.4 }
+    row:SetBackdropBorderColor(borderColor[1], borderColor[2], borderColor[3], 0.8)
+
+    -- Activity icon
+    local icon = row:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(20, 20)
+    icon:SetPoint("LEFT", row, "LEFT", 8, 0)
+    local iconPath = C.GUILD_ACTIVITY_ICONS and C.GUILD_ACTIVITY_ICONS[activity.type] or "Interface\\Icons\\INV_Misc_QuestionMark"
+    icon:SetTexture(iconPath)
+    self:TrackSocialRegion(icon)
+
+    -- Activity message
+    local message = Guild and Guild:FormatActivity(activity) or ""
+    local msgText = row:CreateFontString(nil, "OVERLAY")
+    msgText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+    msgText:SetPoint("LEFT", icon, "RIGHT", 8, 0)
+    msgText:SetPoint("RIGHT", row, "RIGHT", -60, 0)
+    msgText:SetText("|cFFCCCCCC" .. message .. "|r")
+    msgText:SetJustifyH("LEFT")
+    msgText:SetWordWrap(false)
+    self:TrackSocialRegion(msgText)
+
+    -- Timestamp
+    local timeText = row:CreateFontString(nil, "OVERLAY")
+    timeText:SetFont(HopeAddon.assets.fonts.BODY, 9, "")
+    timeText:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+    local timeAgo = Guild and Guild:FormatRelativeTime(activity.timestamp) or ""
+    timeText:SetText("|cFF888888" .. timeAgo .. "|r")
+    self:TrackSocialRegion(timeText)
+
+    return row
+end
 
 --[[
     Populate the Travelers sub-tab with quick filters and traveler list
@@ -8244,6 +9247,62 @@ function Journal:CreateCompanionCard(parent, companion, status)
 end
 
 --[[
+    Populate the Calendar sub-tab with event calendar
+]]
+function Journal:PopulateSocialCalendar()
+    local content = self.socialContainers.content
+    if not content then return end
+
+    local CalendarUI = HopeAddon.CalendarUI
+    if not CalendarUI then
+        -- Fallback if CalendarUI not loaded
+        local noCalendar = content:CreateFontString(nil, "OVERLAY")
+        noCalendar:SetFont(HopeAddon.assets.fonts.BODY, 12, "")
+        noCalendar:SetPoint("TOP", content, "TOP", 0, -40)
+        noCalendar:SetText("Calendar module not available")
+        noCalendar:SetTextColor(0.7, 0.7, 0.7)
+        self:TrackSocialRegion(noCalendar)
+        return
+    end
+
+    local C = HopeAddon.Constants
+    local UI = C.CALENDAR_UI
+
+    -- Create calendar header
+    local header = CalendarUI:CreateCalendarHeader(content)
+    header:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
+    header:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, 0)
+
+    -- Create month navigation bar
+    local navBar = CalendarUI:CreateMonthNavigation(content)
+    navBar:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -8)
+    navBar:SetPoint("TOPRIGHT", header, "BOTTOMRIGHT", 0, -8)
+    content.navBar = navBar
+
+    -- Create month grid
+    local monthGrid = CalendarUI:CreateMonthGrid(content)
+    monthGrid:SetPoint("TOP", navBar, "BOTTOM", 0, -8)
+
+    -- Populate the grid
+    CalendarUI:PopulateMonthGrid(monthGrid)
+
+    -- Create selected day panel
+    local dayPanel = CalendarUI:CreateSelectedDayPanel(content)
+    dayPanel:SetPoint("TOPLEFT", monthGrid, "BOTTOMLEFT", 0, -15)
+    dayPanel:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+
+    -- Restore selected date if any
+    local socialUI = HopeAddon:GetSocialUI()
+    if socialUI and socialUI.calendar and socialUI.calendar.selectedDate then
+        CalendarUI:SelectDate(socialUI.calendar.selectedDate)
+    end
+
+    -- Update content height
+    local totalHeight = header:GetHeight() + navBar:GetHeight() + monthGrid:GetHeight() + dayPanel:GetHeight() + 40
+    content:SetHeight(totalHeight)
+end
+
+--[[
     Get party members who are Fellow Travelers (addon users)
     @return table - Array of party fellow data
 ]]
@@ -9329,6 +10388,16 @@ Journal.armoryState = {
     },
 }
 
+-- Attunements tab state (Phase 61 - phase-based theming)
+Journal.attunementsState = {
+    selectedPhase = 0,  -- 0 = All, 1-3 = specific phase
+}
+
+Journal.attunementsUI = {
+    phaseBar = nil,
+    phaseButtons = {},
+}
+
 Journal.armoryPools = {
     upgradeCard = nil,
     sectionHeader = nil,
@@ -9495,6 +10564,7 @@ function Journal:CreateArmoryPools()
     self.armoryPools.infoCard = FramePool:New(
         function()
             local card = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
+            card:SetFrameStrata("HIGH")  -- Must match slot buttons strata to render above them
             card:SetSize(infoCardCfg.SIZE, infoCardCfg.SIZE)
             card:SetBackdrop(infoCardCfg.BACKDROP)
             card:SetBackdropColor(
@@ -9515,9 +10585,10 @@ function Journal:CreateArmoryPools()
             card.iLvlText:SetPoint("TOP", 0, -6)
             card.iLvlText:SetTextColor(1, 1, 1)
 
-            -- Arrow indicator (bottom half)
-            card.arrowText = card:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-            card.arrowText:SetPoint("BOTTOM", 0, 6)
+            -- Arrow indicator texture (bottom half)
+            card.arrowTexture = card:CreateTexture(nil, "OVERLAY")
+            card.arrowTexture:SetSize(20, 20)
+            card.arrowTexture:SetPoint("BOTTOM", 0, 4)
 
             -- Enable mouse for click passthrough
             card:EnableMouse(true)
@@ -9549,7 +10620,7 @@ function Journal:CreateArmoryPools()
             card:ClearAllPoints()
             card:SetParent(UIParent)
             card.iLvlText:SetText("")
-            card.arrowText:SetText("")
+            card.arrowTexture:SetTexture(nil)
             card.slotName = nil
             card:SetScript("OnMouseDown", nil)
         end
@@ -9850,13 +10921,15 @@ function Journal:CreateArmoryContainer()
     local container = self.armoryUI.container
     container:SetParent(parent)
     container:ClearAllPoints()
-    -- Fixed layout: anchor to all four corners of contentArea
-    container:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, 0)
-    container:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, 0)
-    container:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", 0, 0)
-    container:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", 0, 0)
+    -- Fixed layout: anchor to all four corners of contentArea with margins
+    -- Use same MARGIN_SMALL (5px) as scrollFrame for visual consistency
+    local margin = 5  -- Components.MARGIN_SMALL
+    container:SetPoint("TOPLEFT", parent, "TOPLEFT", margin, -margin)
+    container:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -margin, -margin)
+    container:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", margin, margin)
+    container:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -margin, margin)
     container:Show()
-    HopeAddon:Debug("CreateArmoryContainer: Container setup complete (fixed anchors)")
+    HopeAddon:Debug("CreateArmoryContainer: Container setup complete (fixed anchors with margins)")
 
     -- No scroll container entry - fixed layout directly in contentArea
 
@@ -10164,9 +11237,10 @@ function Journal:CreateArmoryModelFrame()
         modelFrame:SetRotation(C.DEFAULT_ROTATION)
         modelFrame:SetPortraitZoom(0)  -- 0 = full body view, 1 = close-up face
 
-        -- Drag rotation - use LOW strata so slot buttons (MEDIUM) receive clicks first
+        -- Drag rotation - use LOW strata so slot buttons (HIGH) receive clicks first
         modelFrame:EnableMouse(true)
         modelFrame:SetFrameStrata("LOW")
+        modelFrame:SetFrameLevel(1)  -- Explicitly lowest level
         modelFrame:SetScript("OnMouseDown", function(self, button)
             if button == "LeftButton" then
                 self.isDragging = true
@@ -10329,7 +11403,9 @@ function Journal:CreateSingleArmorySlotButton(parent, slotName, slotData)
     local btn = CreateFrame("Button", "HopeArmorySlot_" .. slotName, parent, "BackdropTemplate")
     btn:SetSize(C.SIZE, C.SIZE)
 
-    -- CRITICAL: Set frame level above parent to ensure button is clickable
+    -- CRITICAL: Set frame strata HIGH and level above parent to ensure button is clickable
+    -- This ensures slots are above the click-away frame (MEDIUM strata)
+    btn:SetFrameStrata("HIGH")
     btn:SetFrameLevel(parent:GetFrameLevel() + 2)
     btn:EnableMouse(true)
 
@@ -10480,19 +11556,19 @@ function Journal:GetAverageEquippedILvl()
 end
 
 --[[
-    Determine upgrade status arrow for a slot based on iLvl vs average
-    Returns arrow config: { symbol, color }
+    Determine upgrade status indicator for a slot based on iLvl vs average
+    Returns indicator config: { texture, color }
 ]]
 function Journal:GetSlotUpgradeStatus(slotILvl, avgILvl)
     local cfg = HopeAddon.Constants.ARMORY_INFO_CARD
     local diff = slotILvl - avgILvl
 
     if diff >= cfg.THRESHOLD_GOOD then
-        return cfg.ARROWS.GOOD       -- Green down arrow (above average)
+        return cfg.INDICATORS.GOOD       -- Green down arrow (above average)
     elseif diff <= cfg.THRESHOLD_BAD then
-        return cfg.ARROWS.UPGRADE    -- Red up arrow (needs upgrade)
+        return cfg.INDICATORS.UPGRADE    -- Red up arrow (needs upgrade)
     else
-        return cfg.ARROWS.OKAY       -- Gold right arrow (at average)
+        return cfg.INDICATORS.OKAY       -- Gold neutral (at average)
     end
 end
 
@@ -10530,13 +11606,14 @@ function Journal:CreateSlotInfoCard(slotButton, slotName)
     card:ClearAllPoints()
     card:SetPoint(posData.anchor, slotButton, posData.relAnchor, posData.x, posData.y)
 
-    -- Set frame level above slot button
-    card:SetFrameLevel(slotButton:GetFrameLevel() + 1)
+    -- Set frame strata and level above slot button
+    card:SetFrameStrata("HIGH")  -- Match slot buttons strata
+    card:SetFrameLevel(slotButton:GetFrameLevel() + 5)  -- Clearly above slot buttons
 
     -- Set content
     card.iLvlText:SetText(tostring(iLvl))
-    card.arrowText:SetText(status.symbol)
-    card.arrowText:SetTextColor(status.color.r, status.color.g, status.color.b)
+    card.arrowTexture:SetTexture(status.texture)
+    card.arrowTexture:SetVertexColor(status.color.r, status.color.g, status.color.b)
 
     -- Store slot reference for click handling
     card.slotName = slotName
@@ -10606,22 +11683,38 @@ function Journal:CreateArmoryFooter()
         footer:SetBackdropColor(C.BG_COLOR.r, C.BG_COLOR.g, C.BG_COLOR.b, C.BG_COLOR.a)
         footer:SetBackdropBorderColor(C.BORDER_COLOR.r, C.BORDER_COLOR.g, C.BORDER_COLOR.b, C.BORDER_COLOR.a)
 
-        -- Create stat displays
+        -- Create stat displays on the RIGHT side (built right-to-left)
+        -- Layout: [BIS] [RESET]    Phase 1 | Avg iLvl: 115 | Upgrades: 4 | Wishlisted: 2 | GS: 1850
+        local L = C.LAYOUT or {}
         footer.stats = {}
-        local xOffset = C.PADDING_H
+        footer.dividers = {}
+        local rightOffset = L.STATS_RIGHT_MARGIN or 15
+        local statGap = L.STAT_GAP or 16
 
-        for _, statConfig in ipairs(C.STATS) do
-            -- Label
-            local label = footer:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-            label:SetPoint("LEFT", footer, "LEFT", xOffset, 0)
-            label:SetText(statConfig.label)
-            label:SetTextColor(C.LABEL_COLOR.r, C.LABEL_COLOR.g, C.LABEL_COLOR.b, C.LABEL_COLOR.a)
-
-            -- Value (positioned after label)
+        for i, statConfig in ipairs(C.STATS) do
+            -- Value first (right-most for each stat pair)
             local value = footer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-            value:SetPoint("LEFT", label, "RIGHT", 4, 0)
+            value:SetPoint("RIGHT", footer, "RIGHT", -rightOffset, 0)
             value:SetText("--")
-            value:SetTextColor(C.VALUE_COLOR.r, C.VALUE_COLOR.g, C.VALUE_COLOR.b, C.VALUE_COLOR.a)
+
+            -- Use phase color for phase stat, gold for others
+            if statConfig.id == "phase" then
+                value:SetTextColor(C.PHASE_COLOR.r, C.PHASE_COLOR.g, C.PHASE_COLOR.b, C.PHASE_COLOR.a)
+            else
+                value:SetTextColor(C.VALUE_COLOR.r, C.VALUE_COLOR.g, C.VALUE_COLOR.b, C.VALUE_COLOR.a)
+            end
+
+            -- Label (left of value)
+            local label = footer:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            label:SetPoint("RIGHT", value, "LEFT", -4, 0)
+            label:SetText(statConfig.label)
+
+            -- Use phase color for phase label too
+            if statConfig.id == "phase" then
+                label:SetTextColor(C.PHASE_COLOR.r, C.PHASE_COLOR.g, C.PHASE_COLOR.b, C.PHASE_COLOR.a)
+            else
+                label:SetTextColor(C.LABEL_COLOR.r, C.LABEL_COLOR.g, C.LABEL_COLOR.b, C.LABEL_COLOR.a)
+            end
 
             footer.stats[statConfig.id] = {
                 label = label,
@@ -10629,10 +11722,21 @@ function Journal:CreateArmoryFooter()
                 format = statConfig.format,
             }
 
-            xOffset = xOffset + label:GetStringWidth() + 50 + C.STAT_GAP
+            -- Calculate width: estimate label width + value width + padding
+            local estimatedWidth = 80  -- Reasonable estimate for label+value
+            rightOffset = rightOffset + estimatedWidth + statGap
+
+            -- Add divider between stats (except after last one)
+            if i < #C.STATS then
+                local divider = footer:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                divider:SetPoint("RIGHT", label, "LEFT", -8, 0)
+                divider:SetText("|")
+                divider:SetTextColor(C.DIVIDER_COLOR.r, C.DIVIDER_COLOR.g, C.DIVIDER_COLOR.b, C.DIVIDER_COLOR.a)
+                table.insert(footer.dividers, divider)
+            end
         end
 
-        -- Create BIS and RESET buttons on the right side
+        -- Create BIS and RESET buttons on the LEFT side
         self:CreateArmoryFooterButtons(footer)
 
         self.armoryUI.footer = footer
@@ -10644,7 +11748,7 @@ end
 
 --[[
     Create BIS and RESET buttons for the footer
-    Layout: BIS on LEFT (prominent gold), RESET on RIGHT (grey)
+    Layout: Both buttons on LEFT side - [BIS] [RESET]
 ]]
 function Journal:CreateArmoryFooterButtons(footer)
     local C = HopeAddon.Constants.ARMORY_FOOTER.BUTTONS
@@ -10665,7 +11769,7 @@ function Journal:CreateArmoryFooterButtons(footer)
     bisBtn:SetPoint("LEFT", footer, "LEFT", C.LEFT_MARGIN or 12, 0)
     footer.bisBtn = bisBtn
 
-    -- RESET button (RIGHT side, grey)
+    -- RESET button (LEFT side, after BIS button)
     local resetBtn = self:CreateArmoryFooterButton(
         footer,
         C.RESET.label,
@@ -10677,7 +11781,7 @@ function Journal:CreateArmoryFooterButtons(footer)
         function() self:OnRESETButtonClick() end
     )
     resetBtn:ClearAllPoints()
-    resetBtn:SetPoint("RIGHT", footer, "RIGHT", -(C.RIGHT_MARGIN or 12), 0)
+    resetBtn:SetPoint("LEFT", bisBtn, "RIGHT", C.GAP or 8, 0)
     footer.resetBtn = resetBtn
 end
 
@@ -10780,31 +11884,28 @@ end
 ]]
 function Journal:CalculateArmoryStats()
     local stats = {
+        phase = self.armoryState.selectedPhase or 1,
         avgIlvl = 0,
         upgradesAvail = 0,
         wishlisted = 0,
+        gearScore = 0,
     }
+
+    -- Get gear score and avg iLvl from core function
+    local gearScore, avgILvl = HopeAddon:GetGearScore()
+    stats.gearScore = gearScore or 0
+    stats.avgIlvl = avgILvl or 0
 
     -- Count wishlisted items
     for _ in pairs(self.armoryState.wishlist) do
         stats.wishlisted = stats.wishlisted + 1
     end
 
-    -- Calculate average item level and upgrades (placeholder for now)
-    local totalIlvl = 0
-    local slotCount = 0
+    -- Count upgrade opportunities
     for slotName, btn in pairs(self.armoryUI.slotButtons or {}) do
-        if btn.equippedItem and btn.equippedItem.iLvl then
-            totalIlvl = totalIlvl + btn.equippedItem.iLvl
-            slotCount = slotCount + 1
-        end
         if btn.upgradeStatus == "upgrade" or btn.upgradeStatus == "major" then
             stats.upgradesAvail = stats.upgradesAvail + 1
         end
-    end
-
-    if slotCount > 0 then
-        stats.avgIlvl = math.floor(totalIlvl / slotCount)
     end
 
     return stats
@@ -11031,14 +12132,21 @@ function Journal:UpdateArmorySlotVisual(btn)
     -- Show/hide upgrade indicator
     if btn.upgradeStatus == "major" or btn.upgradeStatus == "upgrade" then
         btn.indicator:Show()
-        local indicatorColorName = stateConfig and stateConfig.indicator or "FEL_GREEN"
+        -- Use phase color instead of hardcoded FEL_GREEN
+        local phase = self.armoryState.selectedPhase or 1
+        local phaseConfig = HopeAddon.Constants.ARMORY_PHASE_BUTTON.PHASES[phase]
+        local indicatorColorName = phaseConfig and phaseConfig.color or "FEL_GREEN"
         local indColor = colors[indicatorColorName] or { r = 0.2, g = 0.8, b = 0.2 }
         btn.indicator.bg:SetVertexColor(indColor.r * 0.3, indColor.g * 0.3, indColor.b * 0.3, 0.9)
         btn.indicator.text:SetText("↑")
         btn.indicator.text:SetTextColor(indColor.r, indColor.g, indColor.b, 1)
     elseif btn.upgradeStatus == "bis" then
         btn.indicator:Show()
-        local indColor = colors.GOLD_BRIGHT or { r = 1, g = 0.84, b = 0 }
+        -- Use phase color instead of hardcoded GOLD_BRIGHT
+        local phase = self.armoryState.selectedPhase or 1
+        local phaseConfig = HopeAddon.Constants.ARMORY_PHASE_BUTTON.PHASES[phase]
+        local indicatorColorName = phaseConfig and phaseConfig.color or "GOLD_BRIGHT"
+        local indColor = colors[indicatorColorName] or { r = 1, g = 0.84, b = 0 }
         btn.indicator.bg:SetVertexColor(indColor.r * 0.3, indColor.g * 0.3, indColor.b * 0.3, 0.9)
         btn.indicator.text:SetText("★")
         btn.indicator.text:SetTextColor(indColor.r, indColor.g, indColor.b, 1)
@@ -11398,6 +12506,15 @@ function Journal:BuildArmoryGearTooltip(itemData, anchorFrame)
             end
             if di.tokenInfo then
                 GameTooltip:AddLine("  Token: " .. di.tokenInfo, 0.9, 0.7, 1)
+            end
+        end
+
+        -- Rep Sources (fel green header) - used by Reputation tab upgrade items
+        if hoverData.repSources and #hoverData.repSources > 0 then
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine("How to Get Rep:", 0.4, 1, 0.4)
+            for _, source in ipairs(hoverData.repSources) do
+                GameTooltip:AddLine("  • " .. source, 0.8, 0.8, 0.8, true)
             end
         end
 
@@ -12156,6 +13273,14 @@ function Journal:PopulateBisCard(popup, bisItem)
 
     -- Set item level
     card.iLevelText:SetText(bisItem.iLvl and ("iLvl " .. bisItem.iLvl) or "")
+    -- Apply phase color to item level
+    local phaseColorName = C:GetPhaseColorForItemLevel(bisItem.iLvl)
+    if phaseColorName then
+        local phaseColor = HopeAddon.colors[phaseColorName]
+        card.iLevelText:SetTextColor(phaseColor.r, phaseColor.g, phaseColor.b)
+    else
+        card.iLevelText:SetTextColor(0.7, 0.7, 0.7)  -- Default gray
+    end
 
     -- Set source
     local sourceText = bisItem.source or "Unknown Source"
@@ -12408,6 +13533,14 @@ function Journal:CreateArmoryPopupItemRow(parent, itemData, yOffset)
 
     -- Set iLevel
     row.iLevelText:SetText(itemData.iLvl and ("iLvl " .. itemData.iLvl) or "")
+    -- Apply phase color to item level
+    local phaseColorName = C:GetPhaseColorForItemLevel(itemData.iLvl)
+    if phaseColorName then
+        local phaseColor = HopeAddon.colors[phaseColorName]
+        row.iLevelText:SetTextColor(phaseColor.r, phaseColor.g, phaseColor.b)
+    else
+        row.iLevelText:SetTextColor(0.7, 0.7, 0.7)  -- Default gray
+    end
 
     -- Click to preview
     row:SetScript("OnClick", function()
@@ -12770,6 +13903,21 @@ function Journal:RegisterArmoryClickAwayHandler()
         frame:EnableMouse(true)
         frame:RegisterForClicks("AnyUp")
         frame:SetScript("OnClick", function()
+            -- Check if mouse is over any slot button - if so, click that slot instead
+            for slotName, slotBtn in pairs(self.armoryUI.slotButtons or {}) do
+                if slotBtn:IsVisible() and slotBtn:IsMouseOver() then
+                    -- Forward click to the slot button
+                    slotBtn:Click()
+                    return
+                end
+            end
+
+            -- Also check if mouse is over the popup itself - don't close if clicking popup
+            if self.armoryUI.gearPopup and self.armoryUI.gearPopup:IsMouseOver() then
+                return
+            end
+
+            -- Mouse not over any slot or popup - close the popup
             self:HideArmoryGearPopup()
             -- Also deselect the slot
             if self.armoryState.selectedSlot then

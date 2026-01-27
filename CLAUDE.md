@@ -49,6 +49,14 @@ This project uses multiple specialized guides:
 - Window sizing, layout patterns, data structures
 - For: Creating or modifying minigames
 
+**GAME_SYSTEM_DOCS.md** - Game implementation details
+- Core loops, state machines, AI algorithms, network protocols
+- For: Building or debugging minigames
+
+**Tests/README.md** - Test suite documentation
+- Test procedures, commands, coverage
+- For: Running and writing tests
+
 **README.md** - User documentation
 - Installation, features, commands
 
@@ -58,13 +66,13 @@ This project uses multiple specialized guides:
 
 ```
 HopeAddon/
-├── Core/           # Foundation (FramePool, Constants, Timer, Core, Sounds, Effects)
-├── UI/             # Reusable components (Components, Glow, Animations)
+├── Core/           # Foundation (FramePool, Constants, ArmoryBisData, Timer, Core, Sounds, Effects)
+├── UI/             # Reusable components (Components, Glow, Animations, MinimapButton)
 ├── Journal/        # Main journal system (Journal, Pages, Milestones, ProfileEditor)
 ├── Raids/          # Raid tracking (RaidData, Attunements, Karazhan, Gruul, Magtheridon)
 ├── Reputation/     # Faction tracking (ReputationData, Reputation)
-├── Social/         # Multiplayer features (Badges, Directory, FellowTravelers, Minigames, MapPins, Relationships, TravelerIcons)
-│   └── Games/      # Game system (GameCore, GameUI, GameComms, Tetris, DeathRoll, Pong, Words)
+├── Social/         # Multiplayer features (Badges, Directory, FellowTravelers, Minigames, MapPins, Relationships, TravelerIcons, Calendar, Romance, Companions, ActivityFeed, SocialToasts, NameplateColors)
+│   └── Games/      # Game system (GameCore, GameUI, GameComms, GameChat, ScoreChallenge, Tetris, DeathRoll, Pong, Words, Battleship)
 └── Tests/          # Test suite (WordGameTests.lua, README.md)
 ```
 
@@ -106,6 +114,9 @@ HopeAddon/
 | Leveling Gear Guide | ✅ COMPLETE | Level 60-67 gear recommendations by role (dungeons + quests) |
 | Romance System | ✅ COMPLETE | "Azeroth Relationship Status" - one exclusive partner, public status, breakup timeline events |
 | Armory Tab | ✅ COMPLETE | Phase-based gear upgrade advisor - Phase 1 data populated, Phase 2/3/5 placeholders |
+| Raids Tab | ✅ COMPLETE | 5-phase system (P1-P5), all 9 TBC raids with full boss data, ZA/Sunwell bosses, loot icon strips on boss cards |
+| Calendar | ✅ COMPLETE | Event scheduling, raid signups, notification system, network sync |
+| Guild System | ✅ COMPLETE | "Guild Hall" - roster, activity chronicles, online tracking for all guild members |
 
 ---
 
@@ -148,8 +159,9 @@ end
 ### Core Files (Entry Points)
 | File | Purpose | Size |
 |------|---------|------|
-| `Core/Core.lua` | Main init, utilities, slash commands | ~73KB |
-| `Core/Constants.lua` | All static data (milestones, raids, badges, loot) | ~240KB |
+| `Core/Core.lua` | Main init, utilities, slash commands | ~88KB |
+| `Core/Constants.lua` | All static data (milestones, raids, badges, loot) | ~413KB |
+| `Core/ArmoryBisData.lua` | Phase-based BiS gear data for Armory tab | ~50KB |
 | `Core/Effects.lua` | Visual effect utilities | ~20KB |
 | `Core/FramePool.lua` | Generic object pooling | 5KB |
 | `Core/Sounds.lua` | Sound effect playback | ~8KB |
@@ -158,7 +170,7 @@ end
 ### Journal System
 | File | Purpose | Size |
 |------|---------|------|
-| `Journal/Journal.lua` | Main UI, tabs, event tracking | ~231KB |
+| `Journal/Journal.lua` | Main UI, tabs, event tracking | ~523KB |
 | `Journal/Pages.lua` | Page templates and rendering | 30KB |
 | `Journal/Milestones.lua` | Level milestone tracking | 8KB |
 | `Journal/ProfileEditor.lua` | Character profile UI | 12KB |
@@ -167,7 +179,7 @@ end
 | File | Purpose | Size |
 |------|---------|------|
 | `Raids/Attunements.lua` | Quest chain tracking, progress calc | 15KB |
-| `Raids/RaidData.lua` | Raid definitions (T4/T5/T6) | 10KB |
+| `Raids/RaidData.lua` | Raid definitions (Phase 1-5, all 9 TBC raids) | 12KB |
 | `Raids/Karazhan.lua` | Karazhan specifics | 4KB |
 | `Raids/Gruul.lua` | Gruul's Lair specifics | ~3KB |
 | `Raids/Magtheridon.lua` | Magtheridon's Lair specifics | ~3KB |
@@ -182,6 +194,7 @@ end
 | File | Purpose | Size |
 |------|---------|------|
 | `Social/Badges.lua` | Achievement definitions | ~25KB |
+| `Social/Guild.lua` | Guild Hall - roster caching, activity tracking | ~20KB |
 | `Social/Directory.lua` | Searchable player directory | ~11KB |
 | `Social/FellowTravelers.lua` | Addon-to-addon communication | ~44KB |
 | `Social/ActivityFeed.lua` | Activity feed (Notice Board) for social tab | ~15KB |
@@ -191,10 +204,46 @@ end
 | `Social/NameplateColors.lua` | Fellow Traveler nameplate coloring | ~6KB |
 | `Social/Relationships.lua` | Player notes system | ~8KB |
 | `Social/TravelerIcons.lua` | Icon rendering | 12KB |
-| `Social/ActivityFeed.lua` | Activity feed with rumors & mugs | ~18KB |
 | `Social/Companions.lua` | Favorites list with online status | ~10KB |
 | `Social/SocialToasts.lua` | Toast notifications for social events | ~6KB |
 | `Social/Romance.lua` | Romance/relationship system with propose/accept/breakup flow | ~15KB |
+| `Social/Calendar.lua` | Event scheduling and raid signups | ~12KB |
+| `Social/CalendarUI.lua` | Calendar popup and event list UI | ~15KB |
+
+<details>
+<summary>Guild Module Details (Guild Hall) - click to expand</summary>
+
+- **Purpose**: Track ALL guild members without requiring addon - uses WoW's built-in guild API
+- **Theme**: "Guild Hall" - RP-flavored member roster and activity chronicles
+- **Data Source**: `GetGuildRosterInfo()`, `GuildRoster()` WoW API calls
+- **Events**: `GUILD_ROSTER_UPDATE`, `PLAYER_GUILD_UPDATE`, `GUILD_MOTD`
+
+**Activity Types:**
+- LOGIN: "[Name] has entered the hall"
+- LOGOUT: "[Name] has departed for distant lands"
+- LEVELUP: "[Name] has grown stronger (Level X)"
+- ZONE: "[Name] ventures into [Zone]"
+- RANK: "[Name] has been promoted to [Rank]"
+- JOIN/LEAVE: Member joined/left guild
+
+**Key Public API:**
+- `GetGuildData()` - Get full guild data table
+- `GetRoster()` / `GetSortedRoster(sortBy)` - Get member list
+- `GetFilteredRoster(filter, sortBy)` - Get filtered roster
+- `GetMember(name)` - Get specific member data
+- `GetOnlineCount()` / `GetMemberCount()` - Statistics
+- `GetGuildName()` / `GetMOTD()` - Guild info
+- `GetRecentActivity(limit)` - Get activity chronicle entries
+- `IsFellowTraveler(name)` - Check if guild member also has addon
+- `RegisterListener(id, callback)` / `UnregisterListener(id)` - UI updates
+
+**Integration with Fellow Travelers:**
+- Guild members WITH addon get [GF] badge and enhanced features
+- Guild members WITHOUT addon get [G] badge and basic roster info
+- `IsFellowTraveler()` checks both systems for combined features
+
+**Stores:** `charDb.guild.roster`, `charDb.guild.activity`, `charDb.guild.settings`
+</details>
 
 <details>
 <summary>FellowTravelers Module Details (Communication Hub) - click to expand</summary>
@@ -376,7 +425,7 @@ Incoming: CHAT_MSG_ADDON → FellowTravelers:OnAddonMessage()
 ### UI Framework
 | File | Purpose | Size |
 |------|---------|------|
-| `UI/Components.lua` | All reusable UI components | ~103KB |
+| `UI/Components.lua` | All reusable UI components | ~117KB |
 | `UI/Glow.lua` | Glow effects | 11KB |
 | `UI/Animations.lua` | Animation utilities | 12KB |
 | `UI/MinimapButton.lua` | Draggable minimap button | ~6KB |
@@ -459,6 +508,8 @@ COMBAT_LOG_EVENT_UNFILTERED → RaidData:OnCombatLogEvent()
 - `attunements[raidKey]` - Quest chain progress per raid
 - `stats.deaths` - Death tracking by zone/boss
 - `stats.playtime` - Total playtime in seconds
+- `guild.roster[playerName]` - Cached guild member data
+- `guild.activity` - Guild activity chronicle entries
 - `travelers.known[playerName]` - All encountered players
 - `travelers.fellows[playerName]` - Addon users only
 - `travelers.myProfile` - Player's RP profile
@@ -490,6 +541,36 @@ COMBAT_LOG_EVENT_UNFILTERED → RaidData:OnCombatLogEvent()
         creaturesSlain = 0,
         largestHit = 0,
         dungeonRuns = { [dungeonKey] = { normal = 0, heroic = 0 } }
+    },
+    guild = {
+        name = "",                 -- Guild name
+        rank = "",                 -- Player's rank name
+        rankIndex = 0,             -- Player's rank index
+        roster = {
+            [playerName] = {
+                level = 70,
+                class = "Warrior",
+                classToken = "WARRIOR",
+                zone = "Shattrath",
+                isOnline = true,
+                lastOnline = 1705334400,
+                note = "",
+                officerNote = "",
+                rank = "Member",
+                rankIndex = 3,
+            }
+        },
+        activity = {
+            -- Array of { type, player, data, timestamp }
+            { type = "LOGIN", player = "Name", timestamp = time() },
+        },
+        motd = "",
+        lastRosterUpdate = 0,
+        settings = {
+            trackActivity = true,
+            showOffline = true,
+            sortBy = "online",
+        },
     },
     travelers = {
         known = {
@@ -589,25 +670,30 @@ The addon uses specialized frame pools for efficient UI management. All pools fo
 
 ## Social Tab Architecture
 
-The Social tab uses a sub-tabbed interface with three tabs: Feed, Travelers, and Companions.
+The Social tab uses a sub-tabbed interface with four tabs: Guild, Travelers, Companions, and Feed.
+
+**Two-Tier System:**
+- **Guild Tier** (No addon required): All guild members via WoW API
+- **Fellow Travelers Tier** (Addon required): Addon users across all guilds with RP features
 
 ### Container Structure
 
 ```lua
 Journal.socialContainers = {
     statusBar = nil,      -- Top status bar with profile info
-    tabBar = nil,         -- Sub-tab buttons (Feed, Travelers, Companions)
+    tabBar = nil,         -- Sub-tab buttons (Guild, Travelers, Companions, Feed)
     content = nil,        -- Main content area (cleared on tab/filter switch)
     scrollFrame = nil,    -- Scroll frame wrapper
 }
 
 Journal.socialSubTabs = {
-    feed = nil,           -- Activity feed tab button
+    guild = nil,          -- Guild Hall tab button
     travelers = nil,      -- Fellow Travelers directory tab button
     companions = nil,     -- Companions list tab button
+    feed = nil,           -- Activity feed tab button
 }
 
-Journal.quickFilterButtons = {}      -- Filter buttons for Travelers tab (all, online, party, lfrp)
+Journal.quickFilterButtons = {}      -- Filter buttons for Travelers/Guild tabs
 Journal.socialContentRegions = {}    -- FontStrings/Textures for manual cleanup
 ```
 
@@ -622,21 +708,22 @@ function Journal:ClearSocialContent(preserveFilterBar)
     -- Clears all child frames from content container
     -- Clears all tracked regions (FontStrings, Textures)
     -- Prevents frame stacking when switching filters/tabs
-    -- If preserveFilterBar=true, keeps the Travelers filter bar
+    -- If preserveFilterBar=true, keeps the filter bar
 end
 ```
 
 **When to preserve filter bar:**
-- `ClearSocialContent(true)` - When refreshing Travelers list (filter change only)
+- `ClearSocialContent(true)` - When refreshing list (filter change only)
 - `ClearSocialContent()` - When switching sub-tabs (clears everything)
 
 ### Populate Functions
 
 | Function | Purpose | Triggers |
 |----------|---------|----------|
-| `PopulateSocialFeed()` | Activity feed with rumors, mugs | Feed tab select, refresh |
+| `PopulateSocialGuild()` | Guild Hall roster and activity chronicles | Guild tab select, filter change |
 | `PopulateSocialTravelers()` | Fellow Traveler directory with filters | Travelers tab select, filter change |
 | `PopulateSocialCompanions()` | Companions list with requests | Companions tab select, accept/decline |
+| `PopulateSocialFeed()` | Activity feed with rumors, mugs | Feed tab select, refresh |
 
 ### Filter System (Travelers Tab)
 
@@ -700,10 +787,10 @@ Key constant categories in `Core/Constants.lua`:
 | Boss Tiers | `C.BOSS_TIER_THRESHOLDS` | `{ min, quality, color }` (kill count tiers) |
 | Icons | `C.TRAVELER_ICONS` | `{ id, name, icon, quality, category, trigger }` |
 | Deaths | `C.DEATH_TITLES` | `{ min, max, title, color }` |
-| Raid Tiers | `C.RAID_TIERS` | `[raidKey] = "T4"/"T5"/"T6"` |
-| Raid Lists | `C.ALL_RAID_KEYS` | `{ "karazhan", "gruul", ... }` |
-| Raid Lists | `C.ATTUNEMENT_RAID_KEYS` | `{ "karazhan", "ssc", ... }` (no Gruul/Mag) |
-| Raid Lists | `C.RAIDS_BY_TIER` | `{ T4 = {...}, T5 = {...}, T6 = {...} }` |
+| Raid Phases | `C.RAID_PHASES` | `[raidKey] = 1/2/3/4/5` |
+| Raid Lists | `C.ALL_RAID_KEYS` | `{ "karazhan", "gruul", ..., "za", "sunwell" }` |
+| Raid Lists | `C.ATTUNEMENT_RAID_KEYS` | `{ "karazhan", "ssc", ... }` (no Gruul/Mag/ZA/Sunwell) |
+| Raid Lists | `C.RAIDS_BY_PHASE` | `{ [1] = {...}, [2] = {...}, ..., [5] = {...} }` |
 | Games | `C.GAME_DEFINITIONS` | `{ id, name, description, icon, hasLocal, hasRemote, system, color }` |
 | Words UI | `C.WORDS_*` | Bonus colors, tile settings, AI settings, online thresholds |
 | Loot | `C.CLASS_SPEC_LOOT_HOTLIST` | `[class][specTab] = { rep, drops, crafted }` |
@@ -715,7 +802,8 @@ C.ATTUNEMENT_QUEST_LOOKUP[questId]  -- → { raid, chapter }
 C.ENCOUNTER_TO_BOSS[encounterId]    -- → { raid, boss }
 C.BOSS_NPC_IDS[npcId]               -- → { raid, boss }
 C.BOSS_BADGE_BY_ID[bossId]          -- → badge definition
-C:GetRaidTier(raidKey)              -- → "T4"/"T5"/"T6" or nil
+C:GetRaidPhase(raidKey)             -- → 1/2/3/4/5 or nil
+C:GetRaidTier(raidKey)              -- → 1/2/3/4/5 or nil (alias for GetRaidPhase)
 C:GetGameDefinition(gameId)         -- → { id, name, description, ... }
 C:GetLevelRangeKey(level)           -- → "60-62"/"63-65"/"66-67" or nil
 C:GetLevelingGear(role, level)      -- → { dungeons, quests }
@@ -935,8 +1023,132 @@ For complete game implementation documentation including core loops, state machi
 | Words with WoW | vs AI | Async multiplayer |
 | Battleship | vs AI | True multiplayer |
 
+<details>
+<summary>Words with WoW Scoring System (click to expand)</summary>
 
+### PlaceWord() Function Flow (WordGame.lua:490-644)
 
+```
+PlaceWord(gameId, word, horizontal, startRow, startCol, playerName)
+├─ VALIDATION (498-521)
+│  ├─ Game exists and not finished
+│  ├─ Player's turn check
+│  ├─ Word in dictionary (WordDictionary:IsValidWord)
+│  └─ Valid placement (CanPlaceWord)
+│
+├─ PLACEMENT (524-530)
+│  ├─ board:PlaceWord() → returns placedTiles array
+│  └─ Invalidate cached rows
+│
+├─ CROSS-WORD DETECTION & VALIDATION (530-541)
+│  ├─ board:FindFormedWords(placedTiles, horizontal)
+│  └─ Validate ALL formed words in dictionary (undo if any invalid)
+│
+├─ SCORING (545-563)
+│  ├─ Loop: CalculateWordScore() for each formed word
+│  ├─ Store wordData.score for each word
+│  ├─ Sum into totalScore
+│  └─ Add BINGO bonus (+35) if 7 tiles placed
+│
+├─ NOTIFICATIONS (597-628)
+│  ├─ Print main: "[Player] played '[word]' for [score] points!"
+│  ├─ Print cross-words with scores: "Cross-words: WORD (+X), ..."
+│  ├─ Sound effects (4 tiers based on score)
+│  └─ ShowScoreToast (floating visual)
+│
+└─ TURN ADVANCE & NETWORK (631-644)
+```
+
+### Base Tile Values (WordDictionary.lua)
+
+| Points | Letters |
+|--------|---------|
+| 1 | A, E, I, L, N, O, R, S, T, U |
+| 2 | D, G |
+| 3 | B, C, M, P |
+| 4 | F, H, V, W, Y |
+| 5 | K |
+| 8 | J, X |
+| 10 | Q, Z |
+
+### Bonus Squares (WordBoard.lua:28-45)
+
+| Type | Effect | Locations |
+|------|--------|-----------|
+| DOUBLE_LETTER (DL) | Letter × 2 | Scattered across board |
+| TRIPLE_LETTER (TL) | Letter × 3 | Diagonal lines |
+| DOUBLE_WORD (DW) | Word × 2 | Diagonals from corners |
+| TRIPLE_WORD (TW) | Word × 3 | 8 corners/edges |
+| CENTER (★) | Word × 2 | Position (8,8) |
+
+**Critical Rule:** Bonuses ONLY apply to newly placed tiles (not existing)
+
+### CalculateWordScore Algorithm (WordBoard.lua:258-296)
+
+```lua
+wordScore = 0
+wordMultiplier = 1
+
+for each letter in word:
+    letterValue = GetLetterValue(letter)
+    if isNewTile[position]:
+        -- Letter bonuses applied immediately
+        if DL: letterValue *= 2
+        if TL: letterValue *= 3
+        -- Word bonuses collected
+        if DW or CENTER: wordMultiplier *= 2
+        if TW: wordMultiplier *= 3
+    wordScore += letterValue
+
+return wordScore * wordMultiplier
+```
+
+### Special Bonuses & Thresholds
+
+- **BINGO Bonus:** +35 points for placing 7 tiles in one turn (C.WORDS_BINGO_BONUS)
+- **Score Thresholds (C.WORDS_SCORE_THRESHOLDS):**
+  - GOOD (≥20): PlayNewEntry sound
+  - GREAT (≥30): PlayBell sound
+  - AMAZING (≥50): PlayAchievement sound
+
+### Cross-Word Detection (WordBoard.lua:304-436)
+
+- **Main word:** Extends from placed tiles in placement direction
+- **Cross-words:** For each newly placed tile, check perpendicular direction
+- **Filter:** Only words ≥ 2 letters included
+- **Output:** `{ word, startRow, startCol, horizontal, score }`
+
+### Notification Types
+
+| Event | Format | Color |
+|-------|--------|-------|
+| Word played | `[Player] played '[WORD]' for [score] points!` | Default |
+| Cross-words | `Cross-words: WORD (+X), WORD (+Y)` | Default |
+| BINGO | `BINGO! +35 bonus for using all 7 tiles!` | Gold |
+| Pass | `[Player] passed.` | Default |
+| Remote move | `[Words] [Sender] played '[WORD]' for [score] points!` | Purple/Gold |
+
+### Score Toast (WordGame.lua:3932-4008)
+
+| Score Range | Text Format | Color |
+|-------------|-------------|-------|
+| ≥ 50 | `+[Score] [WORD]!` | Orange |
+| ≥ 30 | `+[Score]!` | Gold |
+| < 30 | `+[Score]` | Yellow |
+
+- **Duration:** 1.5 seconds with rise + fade animation
+
+### Known Gaps
+
+| Feature | Status |
+|---------|--------|
+| Blank/Wildcard tiles | NOT IMPLEMENTED |
+| Tile swapping UI | PARTIAL (RefillHand exists) |
+| Score toast pooling | NOT POOLED (memory leak risk) |
+| Turn timer | NOT IMPLEMENTED |
+| Challenge/dispute | NOT IMPLEMENTED |
+
+</details>
 
 ---
 
