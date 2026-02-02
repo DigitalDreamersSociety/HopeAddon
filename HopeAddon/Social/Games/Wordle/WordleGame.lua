@@ -81,10 +81,31 @@ function WordleGame:OnEnable()
         end)
     end
 
+    -- Periodic cleanup of stale challenge tables (entries can persist if callbacks fail)
+    self.challengeCleanupTicker = HopeAddon.Timer:NewTicker(120, function()
+        local now = time()
+        for playerName, challenge in pairs(self.pendingChallenges) do
+            if now - challenge.timestamp > 120 then
+                self.pendingChallenges[playerName] = nil
+            end
+        end
+        for playerName, challenge in pairs(self.receivedChallenges) do
+            if now - challenge.timestamp > 120 then
+                self.receivedChallenges[playerName] = nil
+            end
+        end
+    end)
+
     HopeAddon:Debug("WordleGame enabled")
 end
 
 function WordleGame:OnDisable()
+    -- Cancel challenge cleanup ticker
+    if self.challengeCleanupTicker then
+        self.challengeCleanupTicker:Cancel()
+        self.challengeCleanupTicker = nil
+    end
+
     -- Cleanup
     local GameComms = HopeAddon:GetModule("GameComms")
     if GameComms then
@@ -532,7 +553,7 @@ function WordleGame:StartPractice()
 
     local gameId = self:CreateGame(self.MODE.PRACTICE, nil, nil)
     if gameId then
-        HopeAddon:Print("|cFF00FF00WoW Wordle|r - Guess the 5-letter WoW word!")
+        HopeAddon:Print("|cFF00FF00WoWdle|r - Guess the 5-letter WoW word!")
         HopeAddon:Print("You have " .. self.MAX_GUESSES .. " attempts.")
 
         -- Show UI
@@ -1056,11 +1077,11 @@ end
 function WordleGame:PrintStatistics()
     local stats = self:GetStatistics()
     if not stats then
-        HopeAddon:Print("|cFFFFD700WoW Wordle Statistics:|r No games played yet!")
+        HopeAddon:Print("|cFFFFD700WoWdle Statistics:|r No games played yet!")
         return
     end
 
-    HopeAddon:Print("|cFFFFD700=== WoW Wordle Statistics ===|r")
+    HopeAddon:Print("|cFFFFD700=== WoWdle Statistics ===|r")
     HopeAddon:Print(string.format("Games Played: %d | Won: %d (%.0f%%)",
         stats.gamesPlayed, stats.gamesWon, stats.winRate))
     HopeAddon:Print(string.format("Current Streak: %d | Best Streak: %d",
@@ -1122,6 +1143,77 @@ function WordleGame:GetGameStats(game)
         secretWord = game.state == self.STATE.ENDED and game.secretWord or nil,
         duration = game.endTime and (game.endTime - game.startTime) or nil,
     }
+end
+
+--============================================================
+-- HINT SYSTEM
+--============================================================
+
+--[[
+    Use a hint - reveals one unrevealed correct letter position
+    @param gameId string
+    @return boolean success
+]]
+function WordleGame:UseHint(gameId)
+    local game = self.games[gameId]
+    if not game or game.state ~= self.STATE.PLAYING then
+        self:ShowFloatingMessage("No active game", true)
+        return false
+    end
+
+    -- Track hints used (max 2 per game)
+    game.hintsUsed = (game.hintsUsed or 0) + 1
+
+    if game.hintsUsed > 2 then
+        game.hintsUsed = 2  -- Cap at 2
+        self:ShowFloatingMessage("No more hints!", true)
+        return false
+    end
+
+    -- Find a letter position not yet revealed correctly
+    local secretWord = game.secretWord
+    local revealedPositions = {}
+
+    -- Check which positions are already known correct from previous guesses
+    for _, guess in ipairs(game.guesses) do
+        for i, result in ipairs(guess.result) do
+            if result == self.RESULT.CORRECT then
+                revealedPositions[i] = true
+            end
+        end
+    end
+
+    -- Find unrevealed positions
+    local hintPositions = {}
+    for i = 1, self.WORD_LENGTH do
+        if not revealedPositions[i] then
+            table.insert(hintPositions, i)
+        end
+    end
+
+    if #hintPositions == 0 then
+        self:ShowFloatingMessage("All letters known!", false)
+        return false
+    end
+
+    -- Pick random unrevealed position
+    local pos = hintPositions[math.random(#hintPositions)]
+    local letter = secretWord:sub(pos, pos)
+
+    -- Show hint message
+    self:ShowFloatingMessage("Position " .. pos .. " is '" .. letter .. "'", false)
+
+    -- Play click sound for feedback
+    if HopeAddon.Sounds then
+        HopeAddon.Sounds:PlayClick()
+    end
+
+    -- Update hint button state
+    if self.UpdateHintButton then
+        self:UpdateHintButton()
+    end
+
+    return true
 end
 
 --============================================================

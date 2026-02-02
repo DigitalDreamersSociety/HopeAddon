@@ -1,8 +1,8 @@
-## Interface: 20400
+## Interface: 20504
 ## Title: |cff9B30FFHope Is Here|r
 ## Notes: Your TBC Journey Journal
-## Author: Hope Guild
-## Version: 1.0.0
+## Author: Philfestive
+## Version: 0.6
 ## IconTexture: Interface\Icons\INV_Misc_Book_09
 ## SavedVariables: HopeAddonDB
 ## SavedVariablesPerCharacter: HopeAddonCharDB
@@ -15,6 +15,7 @@ Core\Timer.lua
 Core\Core.lua
 Core\Sounds.lua
 Core\Effects.lua
+Core\Charts.lua
 
 # UI Components
 UI\Components.lua
@@ -59,6 +60,11 @@ Social\Calendar.lua
 Social\CalendarUI.lua
 Social\Treasures.lua
 
+# Crusade Critter (Mascot System)
+Social\CrusadeCritterContent.lua
+Social\CrusadeCritterUI.lua
+Social\CrusadeCritter.lua
+
 # Game System
 Social\Games\GameCore.lua
 Social\Games\GameUI.lua
@@ -72,11 +78,6 @@ Social\Games\Pong\PongGame.lua
 Social\Games\DeathRoll\DeathRollGame.lua
 Social\Games\DeathRoll\DeathRollUI.lua
 Social\Games\DeathRoll\DeathRollEscrow.lua
-Social\Games\WordsWithWoW\WordBoard.lua
-Social\Games\WordsWithWoW\WordDictionary.lua
-Social\Games\WordsWithWoW\WordGamePersistence.lua
-Social\Games\WordsWithWoW\WordGameInvites.lua
-Social\Games\WordsWithWoW\WordGame.lua
 Social\Games\Battleship\BattleshipBoard.lua
 Social\Games\Battleship\BattleshipAI.lua
 Social\Games\Battleship\BattleshipUI.lua
@@ -84,3 +85,7 @@ Social\Games\Battleship\BattleshipGame.lua
 Social\Games\Wordle\WordleWords.lua
 Social\Games\Wordle\WordleGame.lua
 Social\Games\Wordle\WordleUI.lua
+Social\Games\PacMan\PacManMaps.lua
+Social\Games\PacMan\PacManGhostAI.lua
+Social\Games\PacMan\PacManGame.lua
+Social\Games\PacMan\GhostReplay.lua

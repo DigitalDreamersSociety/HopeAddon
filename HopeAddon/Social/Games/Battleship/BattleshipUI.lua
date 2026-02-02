@@ -188,9 +188,9 @@ function BattleshipUI:CreateFramePools()
         -- Reset function
         function(frame)
             frame:Hide()
-            frame:SetAlpha(0)
             frame:ClearAllPoints()
             frame:SetParent(UIParent)
+            frame:SetAlpha(1)  -- Reset to visible for next acquire
             frame.resultText:SetText("")
             frame.coordText:SetText("")
             frame.shipText:SetText("")
@@ -239,6 +239,7 @@ function BattleshipUI:CreateFramePools()
             frame:Hide()
             frame:ClearAllPoints()
             frame:SetParent(UIParent)
+            frame:SetAlpha(1)  -- Reset to visible for next acquire
             frame:SetBackdropBorderColor(COLORS.GOLD.r, COLORS.GOLD.g, COLORS.GOLD.b, 1)
             frame.promptText:SetText("")
             frame.hintText:SetText("")
@@ -331,6 +332,8 @@ function BattleshipUI:InitializeGameFrames(gameId, topContainer, bottomContainer
 
     -- Position shot result CENTERED in top announcement area
     frames.shotResult:SetPoint("CENTER", topContainer, "CENTER", 0, 0)
+    -- Set frame level above grids for proper z-ordering
+    frames.shotResult:SetFrameLevel(topContainer:GetFrameLevel() + 5)
 
     self.gameFrames[gameId] = frames
     self.animationTimers[gameId] = {}
@@ -359,12 +362,10 @@ function BattleshipUI:CleanupGameFrames(gameId)
         if HopeAddon.Effects then
             HopeAddon.Effects:StopGlowsOnParent(frames.victory)
         end
-        -- Clear button scripts to break closure references
+        -- Clear button scripts to break closure references (use pcall for safety)
         local children = { frames.victory:GetChildren() }
         for _, child in ipairs(children) do
-            if child.SetScript then
-                child:SetScript("OnClick", nil)
-            end
+            pcall(child.SetScript, child, "OnClick", nil)
         end
         frames.victory:Hide()
         frames.victory:SetParent(nil)
@@ -544,10 +545,29 @@ function BattleshipUI:ShowVictoryOverlay(gameId, didWin, stats)
     end
     if not parent then return end
 
+    -- Cancel any pending shot animations before showing victory
+    local timers = self.animationTimers[gameId]
+    if timers then
+        for _, timer in ipairs(timers) do
+            if timer and timer.Cancel then timer:Cancel() end
+        end
+        self.animationTimers[gameId] = {}
+    end
+
+    -- Hide shot result frame if visible
+    if frames.shotResult then
+        frames.shotResult:Hide()
+    end
+
     -- Create victory overlay
     local overlay = CreateBackdropFrame("Frame", nil, parent)
     overlay:SetAllPoints()
     overlay:SetFrameStrata("DIALOG")
+    overlay:SetFrameLevel(parent:GetFrameLevel() + 100)  -- Well above all game elements
+
+    -- Make overlay modal - consume all clicks
+    overlay:EnableMouse(true)
+    overlay:SetScript("OnMouseDown", function() end)  -- Consume clicks
 
     overlay:SetBackdrop({
         bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",

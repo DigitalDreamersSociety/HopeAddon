@@ -152,9 +152,9 @@ function DeathRollUI:CreateFramePools()
         -- Reset function
         function(frame)
             frame:Hide()
-            frame:SetAlpha(0)
             frame:ClearAllPoints()
             frame:SetParent(UIParent)  -- Park at UIParent when pooled
+            frame:SetAlpha(1)  -- Reset to visible for next acquire
             frame.numberText:SetText("")
             frame.numberText:SetTextColor(COLORS.GOLD.r, COLORS.GOLD.g, COLORS.GOLD.b)
             frame.dangerMessage:SetText("")
@@ -241,6 +241,7 @@ function DeathRollUI:CreateFramePools()
             frame:Hide()
             frame:ClearAllPoints()
             frame:SetParent(UIParent)  -- Park at UIParent when pooled
+            frame:SetAlpha(1)  -- Reset to visible for next acquire
             frame:SetBackdropBorderColor(COLORS.GOLD.r, COLORS.GOLD.g, COLORS.GOLD.b, 1)
             frame.promptText:SetText("")
             frame.hintText:SetText("")
@@ -917,9 +918,10 @@ function DeathRollUI:ShowTurnPrompt(gameId, maxRoll, isYourTurn, opponentName)
         -- Show and configure the roll button
         if turnPrompt.rollBtn then
             turnPrompt.rollBtn.text:SetText("ROLL 1-" .. maxRoll)
-            turnPrompt.rollBtn:SetScript("OnClick", function()
-                -- Execute the roll command
-                RandomRoll(1, maxRoll)
+            turnPrompt.rollBtn.maxRoll = maxRoll  -- Store on button to avoid closure capture
+            turnPrompt.rollBtn:SetScript("OnClick", function(self)
+                -- Execute the roll command (reference from self, not outer scope)
+                RandomRoll(1, self.maxRoll)
                 -- Play click sound
                 if HopeAddon.Sounds then
                     HopeAddon.Sounds:PlayClick()

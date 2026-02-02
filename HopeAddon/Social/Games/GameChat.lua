@@ -27,6 +27,7 @@ GameChat.MAX_MESSAGES = 20  -- Keep last 20 messages in history
 
 GameChat.chatMessages = {}  -- Recent messages { sender, message, time }
 GameChat.chatFrame = nil    -- Optional embedded UI frame
+GameChat.fontStringPool = {}  -- Pool of reusable FontStrings
 
 --============================================================
 -- LIFECYCLE
@@ -53,6 +54,9 @@ end
 function GameChat:OnDisable()
     -- Clear message history
     self.chatMessages = {}
+
+    -- Clear the FontString pool
+    wipe(self.fontStringPool)
 
     -- Cleanup UI if exists
     if self.chatFrame then
@@ -214,16 +218,18 @@ end
 
 --[[
     Update the embedded chat display with recent messages
+    Uses FontString pooling to prevent memory leaks
 ]]
 function GameChat:UpdateChatDisplay()
     if not self.chatFrame or not self.chatFrame.content then return end
 
     local content = self.chatFrame.content
 
-    -- Clear existing message texts
+    -- Return all FontStrings to pool (don't create new ones)
     for _, text in ipairs(self.chatFrame.messageTexts or {}) do
         text:Hide()
         text:SetText("")
+        table.insert(self.fontStringPool, text)
     end
     self.chatFrame.messageTexts = {}
 
@@ -234,11 +240,18 @@ function GameChat:UpdateChatDisplay()
     for i = startIdx, #self.chatMessages do
         local msg = self.chatMessages[i]
 
-        local text = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        -- Reuse from pool or create new
+        local text = table.remove(self.fontStringPool)
+        if not text then
+            text = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        end
+
+        text:ClearAllPoints()
         text:SetPoint("TOPLEFT", 2, -yOffset)
         text:SetWidth(156)
         text:SetJustifyH("LEFT")
         text:SetWordWrap(true)
+        text:Show()
 
         local isMe = msg.sender == UnitName("player")
         local nameColor = isMe and "|cFF00FF00" or "|cFFFFD700"

@@ -87,19 +87,22 @@ local RESULT_DISPLAY = {
 local GAME_NAMES = {
     rps = "Rock-Paper-Scissors",
     deathroll = "Death Roll",
-    pong = "Pong",
-    tetris = "Tetris Battle",
-    words = "Words with Wow",
+    pong = "Pong of War",
+    tetris = "Wowtris",
+    words = "WoWdle",
     battleship = "Battleship",
+    pacman = "Pac-Wow",
     RPS = "Rock-Paper-Scissors",
     DEATHROLL = "Death Roll",
-    PONG = "Pong",
-    TETRIS = "Tetris Battle",
-    WORDS = "Words with Wow",
+    PONG = "Pong of War",
+    TETRIS = "Wowtris",
+    WORDS = "WoWdle",
     BATTLESHIP = "Battleship",
+    PACMAN = "Pac-Wow",
     -- Score Challenge variants
-    SCORE_TETRIS = "Tetris Score Battle",
-    SCORE_PONG = "Pong Score Battle",
+    SCORE_TETRIS = "Wowtris Score Battle",
+    SCORE_PONG = "Pong of War Score Battle",
+    SCORE_PACMAN = "Pac-Wow Score Battle",
 }
 
 --============================================================
@@ -1688,7 +1691,10 @@ function MinigamesUI:CreateLocalRPSContainer(frame, content)
 
         btn.choice = choice
         btn:SetScript("OnClick", function(self)
-            MinigamesUI:OnLocalRPSChoice(self.choice)
+            local MinigamesUI = HopeAddon:GetModule("MinigamesUI")
+            if MinigamesUI then
+                MinigamesUI:OnLocalRPSChoice(self.choice)
+            end
         end)
 
         frame.localRPSButtons[choice] = btn
@@ -1808,6 +1814,10 @@ function MinigamesUI:ShowLocalRPSReveal(game)
 
     local choiceLabels = {rock = "ROCK", paper = "PAPER", scissors = "SCISSORS"}
 
+    -- Initialize/clear timer storage for cleanup on tab hide
+    self.localRPSTimers = self.localRPSTimers or {}
+    wipe(self.localRPSTimers)
+
     -- Phase 1: AI "thinking" (0.5s)
     frame.localRPSStatus:SetText("AI IS CHOOSING...")
     frame.localRPSStatus:SetTextColor(1, 0.5, 0)  -- Orange
@@ -1817,27 +1827,27 @@ function MinigamesUI:ShowLocalRPSReveal(game)
     end
 
     -- Phase 2: Countdown (1.5s total)
-    HopeAddon.Timer:After(0.5, function()
+    table.insert(self.localRPSTimers, HopeAddon.Timer:After(0.5, function()
         if not frame or not frame:IsShown() then return end
         frame.localRPSStatus:SetText("3...")
         frame.localRPSStatus:SetTextColor(1, 1, 0)  -- Yellow
         if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
-    end)
+    end))
 
-    HopeAddon.Timer:After(1.0, function()
+    table.insert(self.localRPSTimers, HopeAddon.Timer:After(1.0, function()
         if not frame or not frame:IsShown() then return end
         frame.localRPSStatus:SetText("2...")
         if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
-    end)
+    end))
 
-    HopeAddon.Timer:After(1.5, function()
+    table.insert(self.localRPSTimers, HopeAddon.Timer:After(1.5, function()
         if not frame or not frame:IsShown() then return end
         frame.localRPSStatus:SetText("1...")
         if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
-    end)
+    end))
 
     -- Phase 3: AI reveal (2.0s)
-    HopeAddon.Timer:After(2.0, function()
+    table.insert(self.localRPSTimers, HopeAddon.Timer:After(2.0, function()
         if not frame or not frame:IsShown() then return end
 
         -- Reveal AI choice with dramatic sound
@@ -1850,10 +1860,10 @@ function MinigamesUI:ShowLocalRPSReveal(game)
 
         frame.localRPSStatus:SetText("REVEAL!")
         frame.localRPSStatus:SetTextColor(1, 0.84, 0)  -- Gold
-    end)
+    end))
 
     -- Phase 4: Result (2.8s)
-    HopeAddon.Timer:After(2.8, function()
+    table.insert(self.localRPSTimers, HopeAddon.Timer:After(2.8, function()
         if not frame or not frame:IsShown() then return end
 
         local resultText, resultColor, soundCat, soundName
@@ -1891,7 +1901,7 @@ function MinigamesUI:ShowLocalRPSReveal(game)
             frame.localRPSButtonRow:Hide()
         end
         frame.localRPSPlayAgain:Show()
-    end)
+    end))
 end
 
 --============================================================
@@ -2058,6 +2068,49 @@ end
 function MinigamesUI:HidePracticeModePopup()
     if self.practiceModePopup then
         self.practiceModePopup:Hide()
+    end
+end
+
+--[[
+    Clean up resources when Games tab is hidden
+    Called by Journal:HideGamesTab() on tab switch to prevent memory leaks
+]]
+function MinigamesUI:OnTabHide()
+    -- Cancel any pending Local RPS animation timers
+    if self.localRPSTimers then
+        for _, timer in ipairs(self.localRPSTimers) do
+            if timer and timer.Cancel then
+                timer:Cancel()
+            end
+        end
+        wipe(self.localRPSTimers)
+    end
+
+    -- Hide game frame if open
+    if self.gameFrame then
+        self.gameFrame:Hide()
+    end
+
+    -- Clear challenge popup timer
+    if self.challengePopup and self.challengePopup.timerTicker then
+        self.challengePopup.timerTicker:Cancel()
+        self.challengePopup.timerTicker = nil
+        self.challengePopup:Hide()
+    end
+
+    -- Hide traveler picker (buttons stay pooled but hidden)
+    if self.travelerPickerPopup then
+        self.travelerPickerPopup:Hide()
+    end
+
+    -- Hide practice mode popup
+    if self.practiceModePopup then
+        self.practiceModePopup:Hide()
+    end
+
+    -- Hide game selection popup
+    if self.gameSelectionPopup then
+        self.gameSelectionPopup:Hide()
     end
 end
 

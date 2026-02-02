@@ -291,6 +291,99 @@ function Calendar:FormatDualTime(timeStr)
 end
 
 --[[
+    Convert PST time to local time for display
+    PST is UTC-8 (standard Pacific Time)
+    @param timeStr string - "HH:MM" in PST
+    @return string - Formatted local time, or nil if same timezone
+]]
+function Calendar:FormatLocalTimeFromPST(timeStr)
+    if not timeStr then return nil end
+
+    local hour, minute = timeStr:match("^(%d+):(%d+)$")
+    if not hour then return nil end
+
+    -- PST is UTC-8
+    local pstOffsetHours = -8
+
+    -- Get local UTC offset
+    local now = time()
+    local utcNow = date("!*t", now)
+    local localNow = date("*t", now)
+    local localOffsetHours = localNow.hour - utcNow.hour
+    if localOffsetHours > 12 then localOffsetHours = localOffsetHours - 24 end
+    if localOffsetHours < -12 then localOffsetHours = localOffsetHours + 24 end
+
+    -- Calculate difference from PST to local
+    local diffHours = localOffsetHours - pstOffsetHours
+
+    -- If same timezone, don't show duplicate
+    if math.abs(diffHours) < 0.5 then
+        return nil
+    end
+
+    -- Convert PST hour to local hour
+    local pstHour = tonumber(hour)
+    local localHour = pstHour + diffHours
+
+    -- Handle day wrap
+    if localHour < 0 then localHour = localHour + 24 end
+    if localHour >= 24 then localHour = localHour - 24 end
+
+    -- Format as 12h AM/PM
+    local ampm = "AM"
+    local displayHour = localHour
+
+    if localHour == 0 then
+        displayHour = 12
+        ampm = "AM"
+    elseif localHour == 12 then
+        displayHour = 12
+        ampm = "PM"
+    elseif localHour > 12 then
+        displayHour = localHour - 12
+        ampm = "PM"
+    end
+
+    return string.format("%d:%s %s", math.floor(displayHour), minute, ampm)
+end
+
+--[[
+    Get realm and local time as separate strings
+    @param timeStr string - "HH:MM" time string (assumed realm time)
+    @return string realmTime, string|nil localTime
+]]
+function Calendar:GetDualTimes(timeStr)
+    if not timeStr or timeStr == "All Day" or timeStr == "TBD" then
+        return timeStr, nil
+    end
+
+    local hour, minute = timeStr:match("^(%d+):(%d+)$")
+    if not hour then return timeStr, nil end
+
+    local realmHour = tonumber(hour)
+    local realmTimeFormatted = string.format("%02d:%s", realmHour, minute)
+
+    -- Get realm offset in hours
+    local offset = self:CalculateRealmOffset()
+    local offsetHours = math.floor(offset / 3600)
+
+    -- Same timezone - no local time needed
+    if offsetHours == 0 then
+        return realmTimeFormatted, nil
+    end
+
+    -- Calculate local time from realm time
+    local localHour = realmHour - offsetHours
+
+    -- Handle day wrap
+    if localHour < 0 then localHour = localHour + 24 end
+    if localHour >= 24 then localHour = localHour - 24 end
+
+    local localTimeFormatted = string.format("%02d:%s", localHour, minute)
+    return realmTimeFormatted, localTimeFormatted
+end
+
+--[[
     Check if event is in the past
     @param event table
     @return boolean
@@ -374,6 +467,12 @@ function Calendar:CreateEvent(eventData)
         signups = {},
         autoAcceptFellows = eventData.autoAcceptFellows or false,
         softReserveLink = eventData.softReserveLink,
+        eventColor = eventData.eventColor,  -- Custom color preset key (nil = use type color)
+        discordLink = eventData.discordLink,  -- Optional Discord invite URL
+        locked = false,                      -- Whether signups are locked
+        lockedAt = nil,                      -- Timestamp when locked
+        autoLock24Hours = eventData.autoLock24Hours or false,  -- Lock signups 24hrs before event
+        roster = {},                         -- Player roster status overrides { playerName = "TEAM"|"ALTERNATE"|"DECLINED" }
     }
 
     -- Store event
@@ -457,7 +556,35 @@ function Calendar:GetEvent(eventId)
     local cal = self:GetCalendarData()
     if not cal then return nil end
 
-    return cal.myEvents[eventId] or cal.fellowEvents[eventId]
+    local event = cal.myEvents[eventId] or cal.fellowEvents[eventId]
+
+    -- Check for auto-lock if this is our event
+    if event and cal.myEvents[eventId] then
+        self:CheckAutoLock(event)
+    end
+
+    return event
+end
+
+--[[
+    Check if an event should be auto-locked (24 hours before start)
+    @param event table - Event data
+    @return boolean - True if event was auto-locked by this call
+]]
+function Calendar:CheckAutoLock(event)
+    if not event then return false end
+    if not event.autoLock24Hours then return false end
+    if event.locked then return false end
+
+    local timeUntil = self:GetTimeUntilEvent(event)
+    if timeUntil > 0 and timeUntil <= 86400 then  -- 24 hours in seconds
+        event.locked = true
+        event.lockedAt = time()
+        event.autoLocked = true  -- Flag to distinguish from manual lock
+        HopeAddon:Debug("Calendar: Auto-locked event", event.id, "- less than 24hrs until start")
+        return true
+    end
+    return false
 end
 
 --[[
@@ -507,33 +634,42 @@ end
 --[[
     Get all events for a specific date (guild events + server events)
     @param dateStr string - YYYY-MM-DD
+    @param includeServerEvents boolean - If true, includes server events in the array (default true for backward compat)
     @return table - Array of events
 ]]
-function Calendar:GetEventsForDate(dateStr)
+function Calendar:GetEventsForDate(dateStr, includeServerEvents)
+    if includeServerEvents == nil then includeServerEvents = true end
+
     local cal = self:GetCalendarData()
     local events = {}
 
     -- Guild events (myEvents + fellowEvents)
     if cal then
         -- My events
-        for _, event in pairs(cal.myEvents) do
-            if event.date == dateStr then
-                table.insert(events, event)
+        if cal.myEvents then
+            for _, event in pairs(cal.myEvents) do
+                if event.date == dateStr then
+                    table.insert(events, event)
+                end
             end
         end
 
         -- Fellow events
-        for _, event in pairs(cal.fellowEvents) do
-            if event.date == dateStr then
-                table.insert(events, event)
+        if cal.fellowEvents then
+            for _, event in pairs(cal.fellowEvents) do
+                if event.date == dateStr then
+                    table.insert(events, event)
+                end
             end
         end
     end
 
-    -- Server events (hardcoded, read-only)
-    local serverEvents = self:GetServerEventsForDate(dateStr)
-    for _, event in ipairs(serverEvents) do
-        table.insert(events, event)
+    -- Server events (hardcoded, read-only) - only if requested
+    if includeServerEvents then
+        local serverEvents = self:GetServerEventsForDate(dateStr)
+        for _, event in ipairs(serverEvents) do
+            table.insert(events, event)
+        end
     end
 
     -- Sort by start time
@@ -542,6 +678,16 @@ function Calendar:GetEventsForDate(dateStr)
     end)
 
     return events
+end
+
+--[[
+    Get the first server event for a specific date (for themed backgrounds)
+    @param dateStr string - YYYY-MM-DD
+    @return table|nil - Server event or nil
+]]
+function Calendar:GetServerEventForDate(dateStr)
+    local serverEvents = C:GetServerEventsForDate(dateStr)
+    return serverEvents[1]  -- Return first one for background theming
 end
 
 --[[
@@ -557,15 +703,21 @@ function Calendar:GetUpcomingEvents(limit)
     local today = self:GetTodayString()
     local events = {}
 
-    -- Collect future events
-    for _, event in pairs(cal.myEvents) do
-        if event.date >= today then
-            table.insert(events, event)
+    -- Collect future events from my events (check auto-lock)
+    if cal.myEvents then
+        for _, event in pairs(cal.myEvents) do
+            if event.date >= today then
+                self:CheckAutoLock(event)  -- Check and apply auto-lock if needed
+                table.insert(events, event)
+            end
         end
     end
-    for _, event in pairs(cal.fellowEvents) do
-        if event.date >= today then
-            table.insert(events, event)
+    -- Collect future events from fellow events
+    if cal.fellowEvents then
+        for _, event in pairs(cal.fellowEvents) do
+            if event.date >= today then
+                table.insert(events, event)
+            end
         end
     end
 
@@ -603,14 +755,18 @@ function Calendar:GetPastEvents()
 
     local events = {}
 
-    for _, event in pairs(cal.myEvents) do
-        if event.date < today and event.createdAt >= cutoffTime then
-            table.insert(events, event)
+    if cal.myEvents then
+        for _, event in pairs(cal.myEvents) do
+            if event.date < today and event.createdAt >= cutoffTime then
+                table.insert(events, event)
+            end
         end
     end
-    for _, event in pairs(cal.fellowEvents) do
-        if event.date < today and event.createdAt >= cutoffTime then
-            table.insert(events, event)
+    if cal.fellowEvents then
+        for _, event in pairs(cal.fellowEvents) do
+            if event.date < today and event.createdAt >= cutoffTime then
+                table.insert(events, event)
+            end
         end
     end
 
@@ -650,7 +806,10 @@ end
     Get events for a month (for calendar grid display)
     @param year number
     @param month number (1-12)
-    @return table - Map of date string to { count = number, events = { eventType, title, spanPosition } }
+    @return table - Map of date string to { count = number, events = { eventType, title, spanPosition }, serverEvent = event|nil }
+
+    Note: Server events are returned as full objects in the serverEvent field (first one for that day)
+    for themed background rendering, rather than as stripped mini-card data in the events array.
 ]]
 function Calendar:GetEventsForMonth(year, month)
     local cal = self:GetCalendarData()
@@ -669,6 +828,17 @@ function Calendar:GetEventsForMonth(year, month)
             title = event.title,
             spanPosition = spanPosition,
         })
+    end
+
+    -- Helper to add server event for themed background (keeps full object)
+    local function addServerEventForDate(event, dateStr)
+        if not eventsByDate[dateStr] then
+            eventsByDate[dateStr] = { count = 0, events = {} }
+        end
+        -- Only store first server event for background theming
+        if not eventsByDate[dateStr].serverEvent then
+            eventsByDate[dateStr].serverEvent = event
+        end
     end
 
     -- Process an event, handling multi-day spans
@@ -714,18 +884,24 @@ function Calendar:GetEventsForMonth(year, month)
 
     -- Guild events
     if cal then
-        for _, event in pairs(cal.myEvents) do
-            addEvent(event)
+        if cal.myEvents then
+            for _, event in pairs(cal.myEvents) do
+                addEvent(event)
+            end
         end
 
-        for _, event in pairs(cal.fellowEvents) do
-            addEvent(event)
+        if cal.fellowEvents then
+            for _, event in pairs(cal.fellowEvents) do
+                addEvent(event)
+            end
         end
     end
 
-    -- Server events (hardcoded, read-only)
+    -- Server events (hardcoded, read-only) - store as themed backgrounds, not mini-cards
     for _, event in ipairs(C.SERVER_EVENTS or {}) do
-        addEvent(event)
+        if event.date and event.date:sub(1, 7) == monthStr then
+            addServerEventForDate(event, event.date)
+        end
     end
 
     return eventsByDate
@@ -753,7 +929,12 @@ function Calendar:SignUp(eventId, role, status)
         return false, "Event not found"
     end
 
+    -- Check if event is locked (owner can still manage roster)
     local playerName = UnitName("player")
+    if event.locked and event.leader ~= playerName then
+        return false, "Event signups are locked"
+    end
+
     local _, playerClass = UnitClass("player")
 
     -- Run validation if module available
@@ -826,10 +1007,18 @@ function Calendar:UpdateSignupStatus(eventId, status)
     local signup = cal.mySignups[eventId]
     if not signup then return false end
 
+    -- Check if event is locked
+    local event = self:GetEvent(eventId)
+    if event and event.locked then
+        local playerName = UnitName("player")
+        if event.leader ~= playerName then
+            return false
+        end
+    end
+
     signup.status = status
 
     -- Update event signup if we have it
-    local event = self:GetEvent(eventId)
     if event then
         local playerName = UnitName("player")
         if event.signups[playerName] then
@@ -854,11 +1043,19 @@ function Calendar:CancelSignup(eventId)
     local cal = self:GetCalendarData()
     if not cal then return false end
 
+    -- Check if event is locked
+    local event = self:GetEvent(eventId)
+    if event and event.locked then
+        local playerName = UnitName("player")
+        if event.leader ~= playerName then
+            return false
+        end
+    end
+
     -- Remove from mySignups
     cal.mySignups[eventId] = nil
 
     -- Remove from event signups
-    local event = self:GetEvent(eventId)
     if event then
         local playerName = UnitName("player")
         event.signups[playerName] = nil
@@ -1188,7 +1385,7 @@ end
 function Calendar:StartNotificationChecker()
     if notificationTicker then return end
 
-    notificationTicker = Timer:Every(C.CALENDAR_TIMINGS.NOTIFICATION_CHECK_INTERVAL, function()
+    notificationTicker = Timer:NewTicker(C.CALENDAR_TIMINGS.NOTIFICATION_CHECK_INTERVAL, function()
         self:CheckNotifications()
     end)
 
@@ -1205,6 +1402,7 @@ function Calendar:CheckNotifications()
     local now = time()
 
     -- Check events I'm signed up for
+    if not cal.mySignups then return end
     for eventId, signup in pairs(cal.mySignups) do
         local event = self:GetEvent(eventId)
         if event then
@@ -1270,33 +1468,39 @@ function Calendar:CleanupExpiredEvents()
 
     -- Clean my events
     local toRemove = {}
-    for eventId, event in pairs(cal.myEvents) do
-        local eventTime = self:GetEventTimestamp(event)
-        if time() - eventTime > expiryTime then
-            table.insert(toRemove, eventId)
+    if cal.myEvents then
+        for eventId, event in pairs(cal.myEvents) do
+            local eventTime = self:GetEventTimestamp(event)
+            if time() - eventTime > expiryTime then
+                table.insert(toRemove, eventId)
+            end
         end
-    end
-    for _, eventId in ipairs(toRemove) do
-        cal.myEvents[eventId] = nil
-        HopeAddon:Debug("Calendar: Cleaned up expired event", eventId)
+        for _, eventId in ipairs(toRemove) do
+            cal.myEvents[eventId] = nil
+            HopeAddon:Debug("Calendar: Cleaned up expired event", eventId)
+        end
     end
 
     -- Clean fellow events
     toRemove = {}
-    for eventId, event in pairs(cal.fellowEvents) do
-        local eventTime = self:GetEventTimestamp(event)
-        if time() - eventTime > expiryTime then
-            table.insert(toRemove, eventId)
+    if cal.fellowEvents then
+        for eventId, event in pairs(cal.fellowEvents) do
+            local eventTime = self:GetEventTimestamp(event)
+            if time() - eventTime > expiryTime then
+                table.insert(toRemove, eventId)
+            end
         end
-    end
-    for _, eventId in ipairs(toRemove) do
-        cal.fellowEvents[eventId] = nil
+        for _, eventId in ipairs(toRemove) do
+            cal.fellowEvents[eventId] = nil
+        end
     end
 
     -- Clean old signups
-    for eventId in pairs(cal.mySignups) do
-        if not self:GetEvent(eventId) then
-            cal.mySignups[eventId] = nil
+    if cal.mySignups then
+        for eventId in pairs(cal.mySignups) do
+            if not self:GetEvent(eventId) then
+                cal.mySignups[eventId] = nil
+            end
         end
     end
 
@@ -1347,8 +1551,8 @@ end
     @return string
 ]]
 function Calendar:SerializeEvent(event)
-    -- Format: id|title|type|raidKey|date|time|size|tanks|healers|dps|desc|leader|class
-    return string.format("%s|%s|%s|%s|%s|%s|%d|%d|%d|%d|%s|%s|%s",
+    -- Format: id|title|type|raidKey|date|time|size|tanks|healers|dps|desc|leader|class|discordLink
+    return string.format("%s|%s|%s|%s|%s|%s|%d|%d|%d|%d|%s|%s|%s|%s",
         event.id or "",
         (event.title or ""):gsub("|", ""),
         event.eventType or "RAID",
@@ -1361,7 +1565,8 @@ function Calendar:SerializeEvent(event)
         event.maxDPS or 5,
         (event.description or ""):gsub("|", ""):sub(1, 50),
         event.leader or "",
-        event.leaderClass or ""
+        event.leaderClass or "",
+        (event.discordLink or ""):gsub("|", "")
     )
 end
 
@@ -1388,6 +1593,7 @@ function Calendar:DeserializeEvent(data)
         description = parts[11],
         leader = parts[12],
         leaderClass = parts[13],
+        discordLink = parts[14] and parts[14] ~= "" and parts[14] or nil,
         signups = {},
         receivedAt = time(),
     }
@@ -1544,6 +1750,362 @@ function Calendar:HandleSignupMessage(sender, data)
     end
 
     HopeAddon:Debug("Calendar: Received signup from", sender, "for", eventId)
+end
+
+--============================================================
+-- EVENT LOCKING
+--============================================================
+
+--[[
+    Lock an event to prevent new signups
+    @param eventId string
+    @return boolean success, string|nil error
+]]
+function Calendar:LockEvent(eventId)
+    local cal = self:GetCalendarData()
+    if not cal then return false, "Calendar not available" end
+
+    local event = cal.myEvents[eventId]
+    if not event then
+        return false, "Event not found or not owned by you"
+    end
+
+    event.locked = true
+    event.lockedAt = time()
+    event.updatedAt = time()
+
+    -- Broadcast update
+    self:BroadcastEvent(event, "UPDATE")
+
+    HopeAddon:Debug("Calendar: Locked event", eventId)
+    return true, nil
+end
+
+--[[
+    Unlock an event to allow signups again
+    @param eventId string
+    @return boolean success, string|nil error
+]]
+function Calendar:UnlockEvent(eventId)
+    local cal = self:GetCalendarData()
+    if not cal then return false, "Calendar not available" end
+
+    local event = cal.myEvents[eventId]
+    if not event then
+        return false, "Event not found or not owned by you"
+    end
+
+    event.locked = false
+    event.lockedAt = nil
+    event.updatedAt = time()
+
+    -- Broadcast update
+    self:BroadcastEvent(event, "UPDATE")
+
+    HopeAddon:Debug("Calendar: Unlocked event", eventId)
+    return true, nil
+end
+
+--[[
+    Check if an event is locked
+    @param eventId string
+    @return boolean
+]]
+function Calendar:IsEventLocked(eventId)
+    local event = self:GetEvent(eventId)
+    return event and event.locked == true
+end
+
+--============================================================
+-- ROSTER MANAGEMENT
+--============================================================
+
+--[[
+    Set a player's roster status (only event owner can do this)
+    @param eventId string
+    @param playerName string
+    @param rosterStatus string - "TEAM", "ALTERNATE", or "DECLINED"
+    @return boolean success, string|nil error
+]]
+function Calendar:SetPlayerRosterStatus(eventId, playerName, rosterStatus)
+    local cal = self:GetCalendarData()
+    if not cal then return false, "Calendar not available" end
+
+    local event = cal.myEvents[eventId]
+    if not event then
+        return false, "Event not found or not owned by you"
+    end
+
+    -- Validate roster status
+    if not C.CALENDAR_ROSTER_STATUS[rosterStatus] then
+        return false, "Invalid roster status"
+    end
+
+    -- Initialize roster table if needed
+    if not event.roster then
+        event.roster = {}
+    end
+
+    -- Set the player's roster status
+    event.roster[playerName] = rosterStatus
+    event.updatedAt = time()
+
+    HopeAddon:Debug("Calendar: Set roster status for", playerName, "to", rosterStatus, "in event", eventId)
+    return true, nil
+end
+
+--[[
+    Cycle a player's roster status (TEAM -> ALTERNATE -> DECLINED -> TEAM)
+    @param eventId string
+    @param playerName string
+    @return string|nil newStatus, string|nil error
+]]
+function Calendar:CyclePlayerRosterStatus(eventId, playerName)
+    local cal = self:GetCalendarData()
+    if not cal then return nil, "Calendar not available" end
+
+    local event = cal.myEvents[eventId]
+    if not event then
+        return nil, "Event not found or not owned by you"
+    end
+
+    -- Initialize roster table if needed
+    if not event.roster then
+        event.roster = {}
+    end
+
+    -- Get current status and cycle to next
+    local currentStatus = event.roster[playerName] or "TEAM"
+    local statusOrder = { "TEAM", "ALTERNATE", "DECLINED" }
+    local nextIndex = 1
+
+    for i, status in ipairs(statusOrder) do
+        if status == currentStatus then
+            nextIndex = (i % #statusOrder) + 1
+            break
+        end
+    end
+
+    local newStatus = statusOrder[nextIndex]
+    event.roster[playerName] = newStatus
+    event.updatedAt = time()
+
+    HopeAddon:Debug("Calendar: Cycled roster status for", playerName, "to", newStatus)
+    return newStatus, nil
+end
+
+--[[
+    Get roster organized by status
+    @param event table
+    @return table - { team = {}, alternates = {}, declined = {} }
+]]
+function Calendar:GetRosterByStatus(event)
+    if not event then return { team = {}, alternates = {}, declined = {} } end
+
+    local result = {
+        team = {},
+        alternates = {},
+        declined = {},
+    }
+
+    -- Get all signups that aren't declined via normal signup status
+    for playerName, signup in pairs(event.signups or {}) do
+        if signup.status ~= "declined" then
+            -- Check roster override first
+            local rosterStatus = event.roster and event.roster[playerName]
+
+            local playerData = {
+                name = playerName,
+                class = signup.class,
+                role = signup.role,
+                status = signup.status,
+                joinedAt = signup.joinedAt,
+                isFellow = signup.isFellow,
+                rosterStatus = rosterStatus or "TEAM",
+            }
+
+            if rosterStatus == "DECLINED" then
+                table.insert(result.declined, playerData)
+            elseif rosterStatus == "ALTERNATE" then
+                table.insert(result.alternates, playerData)
+            else
+                -- Default to team (TEAM or nil)
+                table.insert(result.team, playerData)
+            end
+        end
+    end
+
+    -- Sort each list by join time
+    local function sortByJoinTime(a, b)
+        return (a.joinedAt or 0) < (b.joinedAt or 0)
+    end
+
+    table.sort(result.team, sortByJoinTime)
+    table.sort(result.alternates, sortByJoinTime)
+    table.sort(result.declined, sortByJoinTime)
+
+    return result
+end
+
+--[[
+    Get alternate count for a specific role
+    @param event table
+    @return table - { tank = count, healer = count, dps = count }
+]]
+function Calendar:GetAlternateCountsByRole(event)
+    if not event then return { tank = 0, healer = 0, dps = 0 } end
+
+    local counts = { tank = 0, healer = 0, dps = 0 }
+    local roster = self:GetRosterByStatus(event)
+
+    for _, player in ipairs(roster.alternates) do
+        local role = player.role or "dps"
+        if counts[role] then
+            counts[role] = counts[role] + 1
+        end
+    end
+
+    return counts
+end
+
+--============================================================
+-- EXPORT FUNCTIONALITY
+--============================================================
+
+--[[
+    Export event details as plain text for copying
+    @param event table - Event data
+    @return string - Formatted text export
+]]
+function Calendar:ExportEventDetails(event)
+    if not event then return "" end
+
+    local lines = {}
+    table.insert(lines, "=== " .. (event.title or "Event") .. " ===")
+    table.insert(lines, "Date: " .. (event.date or "TBD") .. " at " .. (event.startTime or "TBD"))
+    table.insert(lines, "Leader: " .. (event.leader or "Unknown"))
+    table.insert(lines, "")
+
+    -- Group signups by roster status first, then by role
+    local rosterGroups = self:GetRosterByStatus(event)
+
+    if #rosterGroups.team > 0 then
+        table.insert(lines, "-- TEAM --")
+        for _, signup in ipairs(rosterGroups.team) do
+            local ts = signup.joinedAt and date("%m/%d %H:%M", signup.joinedAt) or "N/A"
+            table.insert(lines, string.format("  [%s] %s (%s) - signed %s",
+                (signup.role or "dps"):sub(1, 1):upper(), signup.name, signup.class or "Unknown", ts))
+        end
+    end
+
+    if #rosterGroups.alternates > 0 then
+        table.insert(lines, "")
+        table.insert(lines, "-- ALTERNATES --")
+        for _, signup in ipairs(rosterGroups.alternates) do
+            local ts = signup.joinedAt and date("%m/%d %H:%M", signup.joinedAt) or "N/A"
+            table.insert(lines, string.format("  [%s] %s (%s) - signed %s",
+                (signup.role or "dps"):sub(1, 1):upper(), signup.name, signup.class or "Unknown", ts))
+        end
+    end
+
+    return table.concat(lines, "\n")
+end
+
+-- Local reference for export popup
+local exportPopup = nil
+
+--[[
+    Show export popup with copyable text
+    @param text string - The text to display for copying
+]]
+function Calendar:ShowExportPopup(text)
+    if not exportPopup then
+        exportPopup = CreateFrame("Frame", "HopeCalendarExport", UIParent, "BackdropTemplate")
+        exportPopup:SetSize(400, 300)
+        exportPopup:SetPoint("CENTER")
+        exportPopup:SetFrameStrata("DIALOG")
+        exportPopup:SetFrameLevel(200)
+
+        exportPopup:SetBackdrop({
+            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
+            edgeSize = 24,
+            insets = { left = 6, right = 6, top = 6, bottom = 6 },
+        })
+        exportPopup:SetBackdropColor(0.08, 0.08, 0.08, 0.98)
+        exportPopup:SetBackdropBorderColor(1, 0.84, 0, 1)
+
+        exportPopup:EnableMouse(true)
+        exportPopup:SetMovable(true)
+        exportPopup:RegisterForDrag("LeftButton")
+        exportPopup:SetScript("OnDragStart", exportPopup.StartMoving)
+        exportPopup:SetScript("OnDragStop", exportPopup.StopMovingOrSizing)
+
+        -- Title
+        local title = exportPopup:CreateFontString(nil, "OVERLAY")
+        title:SetFont(HopeAddon.assets.fonts.TITLE, 14, "")
+        title:SetPoint("TOP", exportPopup, "TOP", 0, -15)
+        title:SetText("Export Roster")
+        title:SetTextColor(1, 0.84, 0)
+
+        -- Instructions
+        local instructions = exportPopup:CreateFontString(nil, "OVERLAY")
+        instructions:SetFont(HopeAddon.assets.fonts.BODY, 9, "")
+        instructions:SetPoint("TOP", title, "BOTTOM", 0, -4)
+        instructions:SetText("Select all (Ctrl+A) and copy (Ctrl+C)")
+        instructions:SetTextColor(0.6, 0.6, 0.6)
+
+        -- Scroll frame for edit box
+        local scrollFrame = CreateFrame("ScrollFrame", nil, exportPopup, "UIPanelScrollFrameTemplate")
+        scrollFrame:SetPoint("TOPLEFT", exportPopup, "TOPLEFT", 15, -50)
+        scrollFrame:SetPoint("BOTTOMRIGHT", exportPopup, "BOTTOMRIGHT", -35, 50)
+
+        local editBox = CreateFrame("EditBox", nil, scrollFrame)
+        editBox:SetMultiLine(true)
+        editBox:SetAutoFocus(false)
+        editBox:SetFontObject(GameFontHighlightSmall)
+        editBox:SetWidth(scrollFrame:GetWidth() - 10)
+        editBox:SetScript("OnEscapePressed", function(self)
+            self:ClearFocus()
+            exportPopup:Hide()
+        end)
+        scrollFrame:SetScrollChild(editBox)
+        exportPopup.editBox = editBox
+
+        -- Close button
+        local closeBtn = CreateFrame("Button", nil, exportPopup, "BackdropTemplate")
+        closeBtn:SetSize(80, 26)
+        closeBtn:SetPoint("BOTTOM", exportPopup, "BOTTOM", 0, 15)
+        closeBtn:SetBackdrop({
+            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            edgeSize = 10,
+            insets = { left = 2, right = 2, top = 2, bottom = 2 },
+        })
+        closeBtn:SetBackdropColor(0.2, 0.2, 0.2, 1)
+        closeBtn:SetBackdropBorderColor(0.5, 0.5, 0.5, 1)
+
+        local closeText = closeBtn:CreateFontString(nil, "OVERLAY")
+        closeText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+        closeText:SetPoint("CENTER")
+        closeText:SetText("Close")
+        closeText:SetTextColor(0.8, 0.8, 0.8)
+
+        closeBtn:SetScript("OnClick", function()
+            exportPopup:Hide()
+        end)
+        closeBtn:SetScript("OnEnter", function(self)
+            self:SetBackdropBorderColor(1, 0.84, 0, 1)
+        end)
+        closeBtn:SetScript("OnLeave", function(self)
+            self:SetBackdropBorderColor(0.5, 0.5, 0.5, 1)
+        end)
+    end
+
+    exportPopup.editBox:SetText(text)
+    exportPopup.editBox:HighlightText()  -- Select all for easy copy
+    exportPopup.editBox:SetFocus()
+    exportPopup:Show()
 end
 
 --============================================================

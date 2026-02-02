@@ -157,6 +157,14 @@ function Components:CreateParchmentFrame(name, parent, width, height)
     -- The QuestBG texture is locked to quest log dimensions and can't scale
     self:ApplyBackdrop(frame, "PARCHMENT_TILED", "PARCHMENT", "GOLD")
 
+    -- Add dark background texture layer for readability (tinted black, opacity controlled separately)
+    local darkBg = frame:CreateTexture(nil, "BACKGROUND")
+    darkBg:SetTexture("Interface\\Tooltips\\UI-Tooltip-Background")
+    darkBg:SetPoint("TOPLEFT", frame, "TOPLEFT", 12, -12)
+    darkBg:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -12, 12)
+    darkBg:SetVertexColor(0, 0, 0, 1)
+    frame.darkBackground = darkBg
+
     -- Make draggable
     frame:SetMovable(true)
     frame:EnableMouse(true)
@@ -1055,6 +1063,49 @@ function Components:CreateCheckbox(parent, label, initialValue)
     end)
 
     return checkbox
+end
+
+--[[
+    BUTTON
+    Standard styled button for UI actions
+]]
+function Components:CreateButton(parent, text, width, height)
+    width = width or 100
+    height = height or 28
+
+    local button = CreateBackdropFrame("Button", nil, parent)
+    button:SetSize(width, height)
+
+    self:ApplyBackdrop(button, "TOOLTIP", "DARK_TRANSPARENT", "GREY")
+
+    local buttonText = button:CreateFontString(nil, "OVERLAY")
+    buttonText:SetFont(AssetFonts.BODY, 11, "")
+    buttonText:SetPoint("CENTER")
+    buttonText:SetText(text)
+    buttonText:SetTextColor(HopeAddon:GetTextColor("BRIGHT"))
+    button.text = buttonText
+
+    -- Hover effects
+    button:SetScript("OnEnter", function(self)
+        self:SetBackdropColor(0.2, 0.2, 0.2, 0.9)
+        self:SetBackdropBorderColor(1, 0.84, 0, 0.8)
+        self.text:SetTextColor(1, 0.84, 0)
+    end)
+
+    button:SetScript("OnLeave", function(self)
+        Components:ApplyBackdrop(self, "TOOLTIP", "DARK_TRANSPARENT", "GREY")
+        self.text:SetTextColor(HopeAddon:GetTextColor("BRIGHT"))
+    end)
+
+    button:SetScript("OnMouseDown", function(self)
+        self:SetBackdropColor(0.1, 0.1, 0.1, 0.9)
+    end)
+
+    button:SetScript("OnMouseUp", function(self)
+        self:SetBackdropColor(0.2, 0.2, 0.2, 0.9)
+    end)
+
+    return button
 end
 
 --[[
@@ -2521,6 +2572,8 @@ function Components:CreateSegmentedReputationBar(parent, width, height, options)
     local TOTAL_REP = 42000
     local ICON_SIZE = 20
     local ICON_SPACING = 4
+    local ICON_GAP = 4              -- Gap between multiple icons at same standing
+    local MAX_ICONS_PER_STANDING = 4 -- Prevent overflow on narrow bars
     local LABEL_HEIGHT = 12
     local BAR_MARGIN = 2
 
@@ -2605,28 +2658,40 @@ function Components:CreateSegmentedReputationBar(parent, width, height, options)
         label:SetTextColor(seg.color.r, seg.color.g, seg.color.b, 0.8)
         container.standingLabels[i] = label
 
-        -- Item icon container above segment
-        local iconBtn = CreateFrame("Button", nil, container)
-        iconBtn:SetSize(ICON_SIZE, ICON_SIZE)
-        iconBtn:SetPoint("BOTTOM", segBg, "TOP", 0, 2)
-        iconBtn:Hide()  -- Hidden until SetItemIcon is called
+        -- Phase 2: Multi-icon container above segment
+        -- Container holds up to MAX_ICONS_PER_STANDING icons, horizontally centered
+        local maxContainerWidth = (ICON_SIZE * MAX_ICONS_PER_STANDING) + (ICON_GAP * (MAX_ICONS_PER_STANDING - 1))
+        local iconContainer = CreateFrame("Frame", nil, container)
+        iconContainer:SetSize(maxContainerWidth, ICON_SIZE)
+        iconContainer:SetPoint("BOTTOM", segBg, "TOP", 0, 2)
+        iconContainer:Hide()
 
-        local iconTex = iconBtn:CreateTexture(nil, "ARTWORK")
-        iconTex:SetAllPoints()
-        iconBtn.icon = iconTex
+        -- Pre-create pool of icon buttons within container
+        iconContainer.icons = {}
+        for j = 1, MAX_ICONS_PER_STANDING do
+            local iconBtn = CreateFrame("Button", nil, iconContainer)
+            iconBtn:SetSize(ICON_SIZE, ICON_SIZE)
+            iconBtn:Hide()
 
-        -- Icon border (quality colored)
-        local iconBorder = iconBtn:CreateTexture(nil, "OVERLAY")
-        iconBorder:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
-        iconBorder:SetBlendMode("ADD")
-        iconBorder:SetPoint("CENTER", iconBtn, "CENTER", 0, 0)
-        iconBorder:SetSize(ICON_SIZE + 8, ICON_SIZE + 8)
-        iconBorder:SetAlpha(0.7)
-        iconBtn.border = iconBorder
+            local iconTex = iconBtn:CreateTexture(nil, "ARTWORK")
+            iconTex:SetAllPoints()
+            iconBtn.icon = iconTex
 
-        iconBtn.standingId = seg.standingId
-        iconBtn.segmentIndex = i
-        container.itemContainers[i] = iconBtn
+            -- Icon border (quality colored)
+            local iconBorder = iconBtn:CreateTexture(nil, "OVERLAY")
+            iconBorder:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
+            iconBorder:SetBlendMode("ADD")
+            iconBorder:SetPoint("CENTER", iconBtn, "CENTER", 0, 0)
+            iconBorder:SetSize(ICON_SIZE + 8, ICON_SIZE + 8)
+            iconBorder:SetAlpha(0.7)
+            iconBtn.border = iconBorder
+
+            iconContainer.icons[j] = iconBtn
+        end
+
+        iconContainer.standingId = seg.standingId
+        iconContainer.segmentIndex = i
+        container.itemContainers[i] = iconContainer
 
         xOffset = xOffset + segWidth
     end
@@ -2738,89 +2803,267 @@ function Components:CreateSegmentedReputationBar(parent, width, height, options)
         end
     end
 
-    -- Set an item icon above a standing segment
-    -- Icons are positioned above the DIVIDER leading to that standing
-    -- (e.g., Honored rewards appear above the Friendly->Honored divider)
-    -- @param standingId number - Which standing segment (4-8)
-    -- @param itemId number - Item ID for tooltip
-    -- @param iconPath string - Icon texture path (e.g., "INV_Misc_Tabard_HonorHold")
-    -- @param isObtainable boolean - Whether item can be obtained (desaturated if not)
-    function container:SetItemIcon(standingId, itemId, iconPath, isObtainable)
-        -- Find the segment index for this standing
-        local segmentIndex = standingId - 3  -- 4->1, 5->2, 6->3, 7->4, 8->5
+    --[[
+        Set item icons above a standing segment
+        Phase 2: Supports multiple items displayed horizontally, centered above divider
+
+        @param standingId number - Which standing segment (4=Neutral, 5=Friendly, 6=Honored, 7=Revered, 8=Exalted)
+        @param items table - Array of { itemId, icon, isObtainable, name, isBis } objects
+    ]]
+    function container:SetItemIcons(standingId, items)
+        -- Map standing to segment index: 4->1, 5->2, 6->3, 7->4, 8->5
+        local segmentIndex = standingId - 3
         if segmentIndex < 1 or segmentIndex > 5 then return end
 
-        local iconBtn = self.itemContainers[segmentIndex]
-        if not iconBtn then return end
+        local iconContainer = self.itemContainers[segmentIndex]
+        if not iconContainer then return end
 
-        -- Reposition icon above the DIVIDER leading to this standing
-        -- Friendly(5) rewards → above divider[1] (end of Neutral)
-        -- Honored(6) rewards → above divider[2] (end of Friendly)
-        -- Revered(7) rewards → above divider[3] (end of Honored)
-        -- Exalted(8) rewards → above divider[4] (end of Revered)
-        local dividerIndex = standingId - 4  -- 5->1, 6->2, 7->3, 8->4
-        iconBtn:ClearAllPoints()
-        if dividerIndex >= 1 and dividerIndex <= 4 and self.segmentDividers[dividerIndex] then
-            local divider = self.segmentDividers[dividerIndex]
-            iconBtn:SetPoint("BOTTOM", divider, "TOP", 0, 2)
-        else
-            -- Neutral (standingId 4) has no preceding divider, center in segment
-            local segBg = self.segments[segmentIndex]
-            if segBg then
-                iconBtn:SetPoint("BOTTOM", segBg, "TOP", 0, 2)
+        -- Handle legacy single-icon containers (pre-Phase 2 pooled bars)
+        -- These have .icon directly instead of .icons array
+        if not iconContainer.icons then
+            -- Fallback: use old single-icon behavior for first item only
+            if items and #items > 0 then
+                local item = items[1]
+                local fullPath = item.icon or "INV_Misc_QuestionMark"
+                if fullPath and not string.find(fullPath, "Interface") then
+                    fullPath = "Interface\\Icons\\" .. fullPath
+                end
+
+                -- Reposition above divider
+                local dividerIndex = standingId - 4
+                iconContainer:ClearAllPoints()
+                if dividerIndex >= 1 and dividerIndex <= 4 and self.segmentDividers[dividerIndex] then
+                    iconContainer:SetPoint("BOTTOM", self.segmentDividers[dividerIndex], "TOP", 0, 2)
+                else
+                    local segBg = self.segments[segmentIndex]
+                    if segBg then
+                        iconContainer:SetPoint("BOTTOM", segBg, "TOP", 0, 2)
+                    end
+                end
+
+                if iconContainer.icon then
+                    iconContainer.icon:SetTexture(fullPath)
+                    if item.isObtainable then
+                        iconContainer.icon:SetDesaturated(false)
+                        iconContainer.icon:SetVertexColor(1, 1, 1, 1)
+                        if iconContainer.border then
+                            iconContainer.border:SetVertexColor(1, 0.84, 0, item.isBis and 1.0 or 0.7)
+                        end
+                    else
+                        iconContainer.icon:SetDesaturated(true)
+                        iconContainer.icon:SetVertexColor(0.5, 0.5, 0.5, 0.8)
+                        if iconContainer.border then
+                            iconContainer.border:SetVertexColor(0.4, 0.4, 0.4, 0.5)
+                        end
+                    end
+                end
+
+                iconContainer.itemId = item.itemId
+                iconContainer.isObtainable = item.isObtainable
+                iconContainer.isBis = item.isBis
+                iconContainer.requiredStanding = standingId
+
+                iconContainer:SetScript("OnEnter", function(btn)
+                    GameTooltip:SetOwner(btn, "ANCHOR_TOP")
+                    if btn.itemId and btn.itemId > 0 then
+                        GameTooltip:SetHyperlink("item:" .. btn.itemId)
+                    end
+                    GameTooltip:Show()
+                end)
+                iconContainer:SetScript("OnLeave", function()
+                    GameTooltip:Hide()
+                end)
+
+                iconContainer:Show()
+                table.insert(self.itemIcons, { standingId = standingId, btn = iconContainer })
+            else
+                iconContainer:Hide()
             end
+            return
         end
 
-        -- Set icon texture (handle nil/empty iconPath)
-        local fullPath = iconPath or "INV_Misc_QuestionMark"
-        if fullPath and not string.find(fullPath, "Interface") then
-            fullPath = "Interface\\Icons\\" .. fullPath
-        end
-        iconBtn.icon:SetTexture(fullPath)
-
-        -- Desaturate if not obtainable
-        if isObtainable then
-            iconBtn.icon:SetDesaturated(false)
-            iconBtn.icon:SetVertexColor(1, 1, 1, 1)
-            iconBtn.border:SetVertexColor(1, 0.84, 0, 0.7)
-        else
-            iconBtn.icon:SetDesaturated(true)
-            iconBtn.icon:SetVertexColor(0.5, 0.5, 0.5, 0.8)
-            iconBtn.border:SetVertexColor(0.4, 0.4, 0.4, 0.5)
-        end
-
-        -- Store item data
-        iconBtn.itemId = itemId
-        iconBtn.itemIcon = iconPath
-        iconBtn.isObtainable = isObtainable
-
-        -- Setup tooltip
-        iconBtn:SetScript("OnEnter", function(self)
-            GameTooltip:SetOwner(self, "ANCHOR_TOP")
-            if self.itemId and self.itemId > 0 then
-                GameTooltip:SetHyperlink("item:" .. self.itemId)
-            end
-            GameTooltip:Show()
-        end)
-        iconBtn:SetScript("OnLeave", function()
-            GameTooltip:Hide()
-        end)
-
-        iconBtn:Show()
-
-        -- Track for cleanup
-        table.insert(self.itemIcons, { standingId = standingId, btn = iconBtn })
-    end
-
-    -- Clear all item icons
-    function container:ClearItemIcons()
-        for _, iconBtn in ipairs(self.itemContainers) do
+        -- Reset all icons in this container
+        for _, iconBtn in ipairs(iconContainer.icons) do
             iconBtn:Hide()
             iconBtn:SetScript("OnEnter", nil)
             iconBtn:SetScript("OnLeave", nil)
             iconBtn.itemId = nil
             iconBtn.itemIcon = nil
             iconBtn.isObtainable = nil
+            iconBtn.itemName = nil
+            iconBtn.isBis = nil
+            iconBtn.isTracked = nil
+            iconBtn.requiredStanding = nil
+        end
+
+        -- Nothing to display
+        if not items or #items == 0 then
+            iconContainer:Hide()
+            return
+        end
+
+        -- Clamp to maximum icons
+        local displayCount = math.min(#items, MAX_ICONS_PER_STANDING)
+
+        -- Calculate container width for proper centering
+        local totalWidth = (ICON_SIZE * displayCount) + (ICON_GAP * (displayCount - 1))
+
+        -- Reposition container above the correct divider
+        -- Standing 5 (Friendly) -> divider[1], 6 -> divider[2], etc.
+        local dividerIndex = standingId - 4
+        iconContainer:ClearAllPoints()
+
+        if dividerIndex >= 1 and dividerIndex <= 4 and self.segmentDividers[dividerIndex] then
+            iconContainer:SetPoint("BOTTOM", self.segmentDividers[dividerIndex], "TOP", 0, 2)
+        else
+            -- Neutral (standing 4) or fallback: center above segment
+            local segBg = self.segments[segmentIndex]
+            if segBg then
+                iconContainer:SetPoint("BOTTOM", segBg, "TOP", 0, 2)
+            end
+        end
+
+        -- Resize container to fit icons (enables proper centering via anchor)
+        iconContainer:SetSize(totalWidth, ICON_SIZE)
+
+        -- Configure each icon
+        local xOffset = 0
+        for i = 1, displayCount do
+            local item = items[i]
+            local iconBtn = iconContainer.icons[i]
+
+            -- Position within container
+            iconBtn:ClearAllPoints()
+            iconBtn:SetPoint("LEFT", iconContainer, "LEFT", xOffset, 0)
+
+            -- Set texture (handle path formats)
+            local texturePath = item.icon or "INV_Misc_QuestionMark"
+            if texturePath and not string.find(texturePath, "Interface") then
+                texturePath = "Interface\\Icons\\" .. texturePath
+            end
+            iconBtn.icon:SetTexture(texturePath)
+
+            -- Visual state based on obtainability, tracked status, and BiS status
+            if item.isObtainable then
+                iconBtn.icon:SetDesaturated(false)
+                iconBtn.icon:SetVertexColor(1, 1, 1, 1)
+                if item.isTracked then
+                    iconBtn.border:SetVertexColor(0.2, 1.0, 0.2, 1.0)  -- Green for tracked items
+                elseif item.isBis then
+                    iconBtn.border:SetVertexColor(1, 0.84, 0, 1.0)  -- Bright gold for BiS
+                else
+                    iconBtn.border:SetVertexColor(1, 0.84, 0, 0.7)  -- Standard gold
+                end
+            else
+                iconBtn.icon:SetDesaturated(true)
+                iconBtn.icon:SetVertexColor(0.5, 0.5, 0.5, 0.8)
+                if item.isTracked then
+                    iconBtn.border:SetVertexColor(0.1, 0.5, 0.1, 0.7)  -- Dim green for tracked but not obtainable
+                else
+                    iconBtn.border:SetVertexColor(0.4, 0.4, 0.4, 0.5)
+                end
+            end
+
+            -- Store data for tooltip
+            iconBtn.itemId = item.itemId
+            iconBtn.itemIcon = item.icon
+            iconBtn.isObtainable = item.isObtainable
+            iconBtn.itemName = item.name
+            iconBtn.isBis = item.isBis
+            iconBtn.isTracked = item.isTracked
+            iconBtn.requiredStanding = standingId
+
+            -- Enhanced tooltip (Phase 4)
+            iconBtn:SetScript("OnEnter", function(btn)
+                GameTooltip:SetOwner(btn, "ANCHOR_TOP")
+
+                -- Standard WoW item tooltip
+                if btn.itemId and btn.itemId > 0 then
+                    GameTooltip:SetHyperlink("item:" .. btn.itemId)
+
+                    -- Custom section separator
+                    GameTooltip:AddLine(" ")
+
+                    -- Standing requirement with color
+                    if btn.requiredStanding then
+                        local Data = HopeAddon.ReputationData
+                        local standingInfo = Data and Data:GetStandingInfo(btn.requiredStanding)
+                        if standingInfo then
+                            local c = standingInfo.color
+                            GameTooltip:AddLine("Requires: " .. standingInfo.name, c.r, c.g, c.b)
+                        end
+                    end
+
+                    -- Tracked indicator (green) - show first since it's user's explicit choice
+                    if btn.isTracked then
+                        GameTooltip:AddLine("Tracking this item!", 0.2, 1.0, 0.2)
+                    -- BiS indicator (gold)
+                    elseif btn.isBis then
+                        GameTooltip:AddLine("BiS for your spec!", 1, 0.84, 0)
+                    end
+
+                    -- Obtainability status
+                    if btn.isObtainable then
+                        GameTooltip:AddLine("Available now!", 0, 1, 0)
+                    else
+                        GameTooltip:AddLine("Keep grinding!", 0.6, 0.6, 0.6)
+                    end
+                end
+
+                GameTooltip:Show()
+            end)
+            iconBtn:SetScript("OnLeave", function()
+                GameTooltip:Hide()
+            end)
+
+            iconBtn:Show()
+            xOffset = xOffset + ICON_SIZE + ICON_GAP
+        end
+
+        iconContainer:Show()
+
+        -- Track for cleanup
+        table.insert(self.itemIcons, {
+            standingId = standingId,
+            container = iconContainer,
+            count = displayCount
+        })
+    end
+
+    -- Backward compatibility wrapper for single-item calls
+    function container:SetItemIcon(standingId, itemId, iconPath, isObtainable)
+        self:SetItemIcons(standingId, {{
+            itemId = itemId,
+            icon = iconPath,
+            isObtainable = isObtainable
+        }})
+    end
+
+    -- Clear all item icons (Phase 2: multi-icon container support)
+    function container:ClearItemIcons()
+        for _, iconContainer in ipairs(self.itemContainers) do
+            if iconContainer.icons then
+                -- Multi-icon container
+                iconContainer:Hide()
+                for _, iconBtn in ipairs(iconContainer.icons) do
+                    iconBtn:Hide()
+                    iconBtn:SetScript("OnEnter", nil)
+                    iconBtn:SetScript("OnLeave", nil)
+                    iconBtn.itemId = nil
+                    iconBtn.itemIcon = nil
+                    iconBtn.isObtainable = nil
+                    iconBtn.itemName = nil
+                    iconBtn.isBis = nil
+                    iconBtn.isTracked = nil
+                    iconBtn.requiredStanding = nil
+                end
+            else
+                -- Legacy single-icon (backward compat)
+                iconContainer:Hide()
+                iconContainer:SetScript("OnEnter", nil)
+                iconContainer:SetScript("OnLeave", nil)
+                iconContainer.itemId = nil
+            end
         end
         wipe(self.itemIcons)
     end
@@ -3767,21 +4010,31 @@ function Components:CreateOpacitySlider(parent, width, initialValue, onChange)
     initialValue = initialValue or 0.95
 
     local AssetFonts = HopeAddon.assets.fonts
+    local C = HopeAddon.Constants
 
-    -- Container frame
-    local container = CreateFrame("Frame", nil, parent)
-    container:SetSize(width + 40, 20)  -- Extra width for label
+    -- Container frame with dark background (use CreateBackdropFrame for TBC compatibility)
+    local container = HopeAddon:CreateBackdropFrame("Frame", nil, parent)
+    container:SetSize(width + 50, 24)  -- Extra width for label and padding
+    container:SetBackdrop(C.BACKDROPS.TOOLTIP)
+    container:SetBackdropColor(0, 0, 0, 0.85)  -- Dark black background
+    container:SetBackdropBorderColor(0.3, 0.3, 0.3, 0.8)  -- Subtle grey border
+
+    -- Add explicit dark background texture (using tooltip bg texture tinted black)
+    local bg = container:CreateTexture(nil, "BACKGROUND")
+    bg:SetTexture("Interface\\Tooltips\\UI-Tooltip-Background")
+    bg:SetAllPoints(container)
+    bg:SetVertexColor(0, 0, 0, 0.95)
 
     -- Label
     local label = container:CreateFontString(nil, "OVERLAY")
     label:SetFont(AssetFonts.SMALL, 9, "")
-    label:SetPoint("LEFT", container, "LEFT", 0, 0)
+    label:SetPoint("LEFT", container, "LEFT", 6, 0)
     label:SetText("Opa")
-    label:SetTextColor(0.7, 0.7, 0.7, 1)
+    label:SetTextColor(0.8, 0.8, 0.8, 1)
 
     -- Slider frame
     local slider = CreateFrame("Slider", nil, container, "OptionsSliderTemplate")
-    slider:SetPoint("LEFT", label, "RIGHT", 4, 0)
+    slider:SetPoint("LEFT", label, "RIGHT", 6, 0)
     slider:SetSize(width - 30, 14)
     slider:SetMinMaxValues(0, 1.0)
     slider:SetValueStep(0.05)
@@ -3796,7 +4049,7 @@ function Components:CreateOpacitySlider(parent, width, initialValue, onChange)
     -- Custom value label (percentage)
     local valueLabel = container:CreateFontString(nil, "OVERLAY")
     valueLabel:SetFont(AssetFonts.SMALL, 9, "")
-    valueLabel:SetPoint("LEFT", slider, "RIGHT", 4, 0)
+    valueLabel:SetPoint("LEFT", slider, "RIGHT", 6, 0)
     valueLabel:SetTextColor(0.9, 0.9, 0.9, 1)
 
     -- Update display function
@@ -3841,6 +4094,487 @@ function Components:CreateOpacitySlider(parent, width, initialValue, onChange)
     end
 
     return container
+end
+
+--[[
+    PREREQUISITE HEADER
+    Header with "Prerequisites" label and completion badge [X/Y Ready]
+
+    @param parent Frame - Parent frame
+    @param completed number - Number of completed prerequisites
+    @param total number - Total number of prerequisites
+    @param phaseColor string - Color key for the header text
+    @return Frame - Header frame
+]]
+function Components:CreatePrerequisiteHeader(parent, completed, total, phaseColor)
+    local C = HopeAddon.Constants
+    phaseColor = phaseColor or "GOLD_BRIGHT"
+
+    local header = CreateBackdropFrame("Frame", nil, parent)
+    header:SetHeight(26)
+
+    -- "PREREQUISITES" label (bold, larger)
+    local label = header:CreateFontString(nil, "OVERLAY")
+    label:SetFont(AssetFonts.HEADER, 12, "")
+    label:SetPoint("LEFT", header, "LEFT", Components.MARGIN_NORMAL, 0)
+    label:SetText(HopeAddon:ColorText("PREREQUISITES", phaseColor))
+    header.label = label
+
+    -- Completion badge (X/Y) with clearer formatting
+    local badge = header:CreateFontString(nil, "OVERLAY")
+    badge:SetFont(AssetFonts.BODY, 11, "")
+    badge:SetPoint("RIGHT", header, "RIGHT", -Components.MARGIN_NORMAL, 0)
+
+    local badgeColor = "GREY"
+    local statusText = "Not Started"
+    if completed == total then
+        badgeColor = "FEL_GREEN"
+        statusText = "Complete"
+    elseif completed > 0 then
+        badgeColor = "GOLD_BRIGHT"
+        statusText = "In Progress"
+    end
+    badge:SetText(HopeAddon:ColorText(string.format("(%d/%d) %s", completed, total, statusText), badgeColor))
+    header.badge = badge
+
+    return header
+end
+
+--[[
+    PREREQUISITE CARD
+    Visual mini-card for a single prerequisite with icon, status, and source info
+    Improved readability with larger fonts, bold names, and clearer status indicators
+
+    @param parent Frame - Parent frame
+    @param prereqData table - Prerequisite data with name, source, type, icon, status
+    @param width number - Card width
+    @return Frame - Card frame with height of 42
+]]
+function Components:CreatePrerequisiteCard(parent, prereqData, width)
+    local C = HopeAddon.Constants
+    width = width or 450
+
+    local status = prereqData.status or "pending"
+    local statusColors = C.PREREQUISITE_STATUS_COLORS[status] or C.PREREQUISITE_STATUS_COLORS.pending
+    local cardHeight = C.PREREQUISITE_CARD_HEIGHT or 42
+
+    -- Card container
+    local card = CreateBackdropFrame("Frame", nil, parent)
+    card:SetSize(width, cardHeight)
+    self:ApplyBackdrop(card, "TOOLTIP")
+
+    -- Apply status-based background color
+    local bgColor = statusColors.bg
+    card:SetBackdropColor(bgColor[1], bgColor[2], bgColor[3], bgColor[4])
+
+    -- Apply border color
+    local borderColor = HopeAddon:GetSafeColor(statusColors.border)
+    card:SetBackdropBorderColor(borderColor.r, borderColor.g, borderColor.b, 0.8)
+
+    -- Type icon (left side, 24x24 - slightly larger)
+    local iconPath = prereqData.icon or C.PREREQUISITE_ICONS[prereqData.type] or C.PREREQUISITE_ICONS.default
+    local icon = card:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(24, 24)
+    icon:SetPoint("LEFT", card, "LEFT", 8, 0)
+    icon:SetTexture("Interface\\Icons\\" .. iconPath)
+    card.icon = icon
+
+    -- Status indicator icon (right side, 20x20) - using colored squares instead of text brackets
+    local statusIcon = card:CreateTexture(nil, "ARTWORK")
+    statusIcon:SetSize(20, 20)
+    statusIcon:SetPoint("RIGHT", card, "RIGHT", -10, 0)
+
+    if status == "completed" then
+        statusIcon:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
+    elseif status == "progress" then
+        statusIcon:SetTexture("Interface\\RaidFrame\\ReadyCheck-Waiting")
+    else
+        statusIcon:SetTexture("Interface\\RaidFrame\\ReadyCheck-NotReady")
+        statusIcon:SetVertexColor(0.5, 0.5, 0.5, 0.8)
+    end
+    card.statusIcon = statusIcon
+
+    -- Calculate available text width (icon + padding + status icon area)
+    local textRightPadding = -42  -- Space for status icon
+
+    -- Name text (bold, larger font - 12pt)
+    local name = card:CreateFontString(nil, "OVERLAY")
+    name:SetFont(AssetFonts.HEADER, 12, "")  -- Using HEADER font for bold effect
+    name:SetPoint("TOPLEFT", icon, "TOPRIGHT", 10, -4)
+    name:SetPoint("RIGHT", card, "RIGHT", textRightPadding, 0)
+    name:SetJustifyH("LEFT")
+    name:SetWordWrap(false)
+
+    -- Truncate long names with ellipsis
+    local displayName = prereqData.name or "Unknown"
+    name:SetText(displayName)
+    card.name = name
+
+    -- Color name based on status
+    if status == "completed" then
+        name:SetTextColor(1, 1, 1, 1)  -- Bright white for completed
+    elseif status == "progress" then
+        name:SetTextColor(1, 0.84, 0, 1)  -- Gold for in-progress
+    else
+        name:SetTextColor(0.7, 0.7, 0.7, 1)  -- Lighter grey for pending
+    end
+
+    -- Source text (10pt, below name with separator style)
+    local source = card:CreateFontString(nil, "OVERLAY")
+    source:SetFont(AssetFonts.BODY, 10, "")
+    source:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -2)
+    source:SetPoint("RIGHT", card, "RIGHT", textRightPadding, 0)
+    source:SetJustifyH("LEFT")
+    source:SetWordWrap(false)
+
+    -- Format source with type prefix for clarity
+    local sourceText = prereqData.source or ""
+    if sourceText ~= "" then
+        local typePrefix = ""
+        if prereqData.type == "key" then
+            typePrefix = "Key from: "
+        elseif prereqData.type == "reputation" then
+            typePrefix = "Rep: "
+        elseif prereqData.type == "dungeon" then
+            typePrefix = "Dungeon: "
+        elseif prereqData.type == "quest" then
+            typePrefix = "Quest: "
+        end
+        source:SetText(typePrefix .. sourceText)
+    else
+        source:SetText("")
+    end
+    source:SetTextColor(0.6, 0.6, 0.6, 1)  -- Slightly brighter than before
+    card.source = source
+
+    -- Enable mouse for tooltip
+    card:EnableMouse(true)
+    card:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(prereqData.name or "Prerequisite", 1, 0.84, 0)
+        if prereqData.source then
+            GameTooltip:AddLine(prereqData.source, 1, 1, 1, true)
+        end
+        -- Status info
+        local statusLine = ""
+        if status == "completed" then
+            statusLine = "|cFF44CC44Completed|r"
+        elseif status == "progress" then
+            statusLine = "|cFFFFCC00In Progress|r"
+            if prereqData.statusText then
+                statusLine = statusLine .. " - " .. prereqData.statusText
+            end
+        else
+            statusLine = "|cFF888888Not Started|r"
+        end
+        GameTooltip:AddLine(statusLine)
+        GameTooltip:Show()
+
+        -- Highlight border
+        card:SetBackdropBorderColor(1, 0.84, 0, 1)
+    end)
+
+    card:SetScript("OnLeave", function(self)
+        GameTooltip:Hide()
+        -- Restore border color
+        card:SetBackdropBorderColor(borderColor.r, borderColor.g, borderColor.b, 0.8)
+    end)
+
+    card.prereqData = prereqData
+
+    return card
+end
+
+--[[
+    ATTUNEMENT PHASE HEADER
+    Styled divider with phase icon and tier description
+    Design: ─────────── [Icon] PHASE 1 - TIER 4 CONTENT ───────────
+
+    @param parent Frame - Parent frame
+    @param phase number - Phase number (1, 2, or 3)
+    @return Frame - Phase header frame (32px height)
+]]
+function Components:CreatePhaseHeader(parent, phase)
+    local C = HopeAddon.Constants.ATTUNEMENT_PHASE_HEADER
+    local phaseColor = C.COLORS[phase] or "ARCANE_PURPLE"
+    local colorData = HopeAddon:GetSafeColor(phaseColor)
+
+    local container = CreateFrame("Frame", nil, parent)
+    container:SetHeight(C.HEIGHT)
+    container._componentType = Components.COMPONENT_TYPE.DIVIDER
+
+    -- Left decorative line
+    local leftLine = container:CreateTexture(nil, "ARTWORK")
+    leftLine:SetTexture(AssetTextures.DIVIDER)
+    leftLine:SetHeight(2)
+    leftLine:SetPoint("LEFT", container, "LEFT", 0, 0)
+    leftLine:SetVertexColor(colorData.r, colorData.g, colorData.b, 0.7)
+    container.leftLine = leftLine
+
+    -- Phase icon (24x24)
+    local icon = container:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(24, 24)
+    icon:SetTexture("Interface\\Icons\\" .. (C.ICONS[phase] or "INV_Misc_QuestionMark"))
+    icon:SetPoint("CENTER", container, "CENTER", -80, 0)
+    container.icon = icon
+
+    -- Icon border glow
+    local iconGlow = container:CreateTexture(nil, "BACKGROUND")
+    iconGlow:SetTexture(AssetTextures.GLOW_CIRCLE or "Interface\\GLUES\\Models\\UI_WORGEN\\glowingeyes")
+    iconGlow:SetSize(32, 32)
+    iconGlow:SetPoint("CENTER", icon, "CENTER", 0, 0)
+    iconGlow:SetVertexColor(colorData.r, colorData.g, colorData.b, 0.4)
+    iconGlow:SetBlendMode("ADD")
+    container.iconGlow = iconGlow
+
+    -- Phase text: "PHASE 1 - TIER 4 CONTENT"
+    local phaseText = container:CreateFontString(nil, "OVERLAY")
+    phaseText:SetFont(AssetFonts.HEADER, 12, "")
+    phaseText:SetPoint("LEFT", icon, "RIGHT", 8, 0)
+    local description = C.DESCRIPTIONS[phase] or ""
+    phaseText:SetText(HopeAddon:ColorText(
+        string.format("PHASE %d - %s", phase, description:upper()),
+        phaseColor
+    ))
+    container.phaseText = phaseText
+
+    -- Position left line to stop before icon
+    leftLine:SetPoint("RIGHT", icon, "LEFT", -8, 0)
+
+    -- Right decorative line
+    local rightLine = container:CreateTexture(nil, "ARTWORK")
+    rightLine:SetTexture(AssetTextures.DIVIDER)
+    rightLine:SetHeight(2)
+    rightLine:SetPoint("LEFT", phaseText, "RIGHT", 8, 0)
+    rightLine:SetPoint("RIGHT", container, "RIGHT", 0, 0)
+    rightLine:SetVertexColor(colorData.r, colorData.g, colorData.b, 0.7)
+    container.rightLine = rightLine
+
+    return container
+end
+
+--[[
+    ATTUNEMENT HEADER CARD
+    Visual card with raid icon, name, chain name, phase badge, and level badge
+    Design:
+    +--------------------------------------------------------------------+
+    |  [40x40]   KARAZHAN                              [P1]  [Lvl 68-70] |
+    |   Icon     The Master's Key                              [✓]       |
+    +--------------------------------------------------------------------+
+
+    @param parent Frame - Parent frame
+    @param data table - Attunement data with:
+        - raidName: string (e.g., "Karazhan")
+        - chainName: string (e.g., "The Master's Key")
+        - phase: number (1, 2, or 3)
+        - minLevel: number (optional)
+        - recommendedLevel: number (optional)
+        - raidKey: string (e.g., "karazhan")
+        - isAttuned: boolean
+    @param width number - Card width
+    @return Frame - Header card frame (58px height)
+]]
+function Components:CreateAttunementHeaderCard(parent, data, width)
+    local C = HopeAddon.Constants.ATTUNEMENT_HEADER_CARD
+    local phaseConfig = HopeAddon.Constants.ATTUNEMENT_PHASE_HEADER
+    width = width or 450
+
+    local phase = data.phase or 1
+    local phaseColor = phaseConfig.COLORS[phase] or "ARCANE_PURPLE"
+    local colorData = HopeAddon:GetSafeColor(phaseColor)
+
+    -- Card container with backdrop
+    local card = CreateBackdropFrame("Frame", nil, parent)
+    card:SetSize(width, C.HEIGHT)
+    self:ApplyBackdrop(card, "TOOLTIP")
+
+    -- Phase-tinted background
+    card:SetBackdropColor(
+        colorData.r * 0.15,
+        colorData.g * 0.15,
+        colorData.b * 0.15,
+        0.9
+    )
+    card:SetBackdropBorderColor(colorData.r, colorData.g, colorData.b, 0.6)
+
+    -- Left: Raid icon (40x40 with border)
+    local iconContainer = CreateFrame("Frame", nil, card)
+    iconContainer:SetSize(C.ICON_SIZE + C.ICON_BORDER * 2, C.ICON_SIZE + C.ICON_BORDER * 2)
+    iconContainer:SetPoint("LEFT", card, "LEFT", C.PADDING, 0)
+
+    -- Icon border/background
+    local iconBg = iconContainer:CreateTexture(nil, "BACKGROUND")
+    iconBg:SetAllPoints(iconContainer)
+    iconBg:SetColorTexture(0, 0, 0, 0.8)
+    card.iconBg = iconBg
+
+    -- The actual icon
+    local raidKey = data.raidKey or "karazhan"
+    local iconPath = C.RAID_ICONS[raidKey] or "INV_Misc_QuestionMark"
+    local icon = iconContainer:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(C.ICON_SIZE, C.ICON_SIZE)
+    icon:SetPoint("CENTER", iconContainer, "CENTER", 0, 0)
+    icon:SetTexture("Interface\\Icons\\" .. iconPath)
+    card.icon = icon
+
+    -- Icon border highlight
+    local iconBorder = iconContainer:CreateTexture(nil, "ARTWORK", nil, 1)
+    iconBorder:SetPoint("TOPLEFT", iconContainer, "TOPLEFT", 0, 0)
+    iconBorder:SetPoint("BOTTOMRIGHT", iconContainer, "BOTTOMRIGHT", 0, 0)
+    iconBorder:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
+    iconBorder:SetBlendMode("ADD")
+    iconBorder:SetVertexColor(colorData.r, colorData.g, colorData.b, 0.5)
+    card.iconBorder = iconBorder
+
+    -- Right side: Phase badge [P1]
+    local phaseBadge = CreateBackdropFrame("Frame", nil, card)
+    phaseBadge:SetSize(28, 18)
+    phaseBadge:SetPoint("TOPRIGHT", card, "TOPRIGHT", -C.PADDING, -8)
+    self:ApplyBackdrop(phaseBadge, "TOOLTIP")
+    phaseBadge:SetBackdropColor(colorData.r * 0.3, colorData.g * 0.3, colorData.b * 0.3, 0.9)
+    phaseBadge:SetBackdropBorderColor(colorData.r, colorData.g, colorData.b, 0.8)
+
+    local phaseBadgeText = phaseBadge:CreateFontString(nil, "OVERLAY")
+    phaseBadgeText:SetFont(AssetFonts.SMALL, 9, "")
+    phaseBadgeText:SetPoint("CENTER", phaseBadge, "CENTER", 0, 0)
+    phaseBadgeText:SetText(HopeAddon:ColorText("P" .. phase, phaseColor))
+    card.phaseBadge = phaseBadge
+
+    -- Level badge [Lvl 68-70] - to the left of phase badge
+    local levelText = nil
+    if data.minLevel or data.recommendedLevel then
+        local levelBadge = card:CreateFontString(nil, "OVERLAY")
+        levelBadge:SetFont(AssetFonts.SMALL, 10, "")
+        levelBadge:SetPoint("RIGHT", phaseBadge, "LEFT", -8, 0)
+
+        local levelStr = ""
+        if data.minLevel and data.recommendedLevel and data.minLevel ~= data.recommendedLevel then
+            levelStr = string.format("Lvl %d-%d", data.minLevel, data.recommendedLevel)
+        elseif data.recommendedLevel then
+            levelStr = "Lvl " .. data.recommendedLevel
+        elseif data.minLevel then
+            levelStr = "Lvl " .. data.minLevel
+        end
+        levelBadge:SetText(HopeAddon:ColorText(levelStr, "GOLD_BRIGHT"))
+        card.levelBadge = levelBadge
+        levelText = levelBadge
+    end
+
+    -- Center: Raid name (uppercase, bold, 14pt)
+    local raidName = card:CreateFontString(nil, "OVERLAY")
+    raidName:SetFont(AssetFonts.HEADER, 14, "")
+    raidName:SetPoint("TOPLEFT", iconContainer, "TOPRIGHT", 12, -6)
+    if levelText then
+        raidName:SetPoint("RIGHT", levelText, "LEFT", -12, 0)
+    else
+        raidName:SetPoint("RIGHT", phaseBadge, "LEFT", -12, 0)
+    end
+    raidName:SetJustifyH("LEFT")
+    raidName:SetWordWrap(false)
+    raidName:SetText(HopeAddon:ColorText((data.raidName or "Unknown"):upper(), phaseColor))
+    card.raidName = raidName
+
+    -- Chain name (subtitle, muted, 11pt)
+    local chainName = card:CreateFontString(nil, "OVERLAY")
+    chainName:SetFont(AssetFonts.BODY, 11, "")
+    chainName:SetPoint("TOPLEFT", raidName, "BOTTOMLEFT", 0, -4)
+    chainName:SetPoint("RIGHT", card, "RIGHT", -C.PADDING - 30, 0)
+    chainName:SetJustifyH("LEFT")
+    chainName:SetWordWrap(false)
+    chainName:SetText(data.chainName or "")
+    chainName:SetTextColor(HopeAddon:GetTextColor("SECONDARY"))
+    card.chainName = chainName
+
+    -- Completion checkmark (bottom-right if attuned)
+    if data.isAttuned then
+        local checkmark = card:CreateTexture(nil, "ARTWORK")
+        checkmark:SetSize(20, 20)
+        checkmark:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -C.PADDING, 8)
+        checkmark:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
+        card.checkmark = checkmark
+
+        -- Completion glow effect
+        HopeAddon.Effects:CreatePulsingGlow(card, "FEL_GREEN", 0.3)
+    end
+
+    -- Store data on card for tooltip access (prevents closure memory leak)
+    card.tooltipData = data
+    card.tooltipColor = colorData
+
+    -- Enable mouse and add tooltip
+    card:EnableMouse(true)
+    card:SetScript("OnEnter", function(self)
+        local data = self.tooltipData
+        local titleColor = self.tooltipColor
+        if not data then return end  -- Guard against cleared data
+
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+
+        -- Title: Raid name in phase color
+        GameTooltip:SetText((data.raidName or "Unknown"):upper(), titleColor.r, titleColor.g, titleColor.b)
+
+        -- Subtitle: Chain name
+        GameTooltip:AddLine(data.chainName or "", 1, 1, 1)
+        GameTooltip:AddLine(" ")
+
+        -- Level requirement
+        local levelStr = ""
+        if data.minLevel and data.recommendedLevel and data.minLevel ~= data.recommendedLevel then
+            levelStr = string.format("Level %d-%d", data.minLevel, data.recommendedLevel)
+        elseif data.recommendedLevel then
+            levelStr = "Level " .. data.recommendedLevel
+        elseif data.minLevel then
+            levelStr = "Level " .. data.minLevel
+        end
+        if levelStr ~= "" then
+            GameTooltip:AddDoubleLine("Required:", levelStr, 0.7, 0.7, 0.7, 1, 0.84, 0)
+        end
+
+        -- Phase info
+        GameTooltip:AddDoubleLine("Phase:", "P" .. (data.phase or 1), 0.7, 0.7, 0.7, titleColor.r, titleColor.g, titleColor.b)
+
+        -- Progress (if available)
+        if data.summary then
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine("Progress:", 1, 0.84, 0)
+
+            local progressText = string.format("%d/%d chapters (%d%%)",
+                data.summary.completedChapters or 0,
+                data.summary.totalChapters or 0,
+                data.summary.percentage or 0)
+            GameTooltip:AddLine(progressText, 1, 1, 1)
+
+            -- Quest steps (chapter.complete is the field from GetAllChapters)
+            if data.summary.chapters then
+                GameTooltip:AddLine(" ")
+                for i, chapter in ipairs(data.summary.chapters) do
+                    local icon = chapter.complete and "|cFF00FF00\226\156\147|r " or "|cFFFF6666\226\151\139|r "
+                    -- Inline colors to avoid table allocation per chapter
+                    if chapter.complete then
+                        GameTooltip:AddLine(icon .. chapter.name, 0.5, 1, 0.5)
+                    else
+                        GameTooltip:AddLine(icon .. chapter.name, 1, 1, 1)
+                    end
+                end
+            end
+        end
+
+        -- Completion status
+        GameTooltip:AddLine(" ")
+        if data.isAttuned then
+            GameTooltip:AddLine("|cFF00FF00ATTUNED|r - You can enter this raid!", 0.3, 1, 0.3)
+        else
+            GameTooltip:AddLine("Not yet attuned", 1, 0.5, 0.5)
+        end
+
+        GameTooltip:Show()
+    end)
+
+    card:SetScript("OnLeave", function(self)
+        GameTooltip:Hide()
+    end)
+
+    return card
 end
 
 -- Register with addon

@@ -49,17 +49,17 @@ local TOAST_TYPES = {
     },
     -- Romance toasts
     romance_proposal = {
-        icon = "Interface\\Icons\\INV_ValentinesCandy",
-        color = { 1, 0.41, 0.71 },  -- Hot pink
+        icon = "Interface\\Icons\\Spell_Holy_DivineIllumination",
+        color = { 1, 0.84, 0 },  -- Gold
         sound = "notification",
     },
     romance_accepted = {
-        icon = "Interface\\Icons\\INV_ValentinesCard02",
-        color = { 1, 0.08, 0.58 },  -- Deep pink
+        icon = "Interface\\Icons\\Spell_Holy_SealOfRighteousness",
+        color = { 1, 0.65, 0 },  -- Orange-Gold
         sound = "notification",
     },
     romance_declined = {
-        icon = "Interface\\Icons\\INV_ValentinesCard01",
+        icon = "Interface\\Icons\\Spell_Holy_SealOfWisdom",
         color = { 0.5, 0.5, 0.5 },  -- Grey
         sound = "notification",
     },

@@ -131,13 +131,12 @@ local STANDING_NAMES = {
 }
 
 -- Game stats display order and info (used by PopulateStats)
-local GAME_STATS_ORDER = { "rps", "deathroll", "pong", "tetris", "words", "battleship" }
+local GAME_STATS_ORDER = { "rps", "deathroll", "pong", "tetris", "battleship" }
 local GAME_STATS_INFO = {
     rps = { name = "Rock Paper Scissors", icon = "Interface\\Icons\\Spell_Nature_EarthShock", color = "NATURE_GREEN", hasTies = true, specialStat = nil, specialLabel = nil },
     deathroll = { name = "Death Roll", icon = "Interface\\Icons\\INV_Misc_Bone_HumanSkull_01", color = "HELLFIRE_RED", hasTies = true, specialStat = "highestBet", specialLabel = "High Bet" },
-    pong = { name = "Pong", icon = "Interface\\Icons\\INV_Misc_PunchCards_Yellow", color = "SKY_BLUE", hasTies = false, specialStat = "highestScore", specialLabel = "High Score" },
-    tetris = { name = "Tetris Battle", icon = "Interface\\Icons\\INV_Misc_Gem_Variety_01", color = "ARCANE_PURPLE", hasTies = false, specialStat = "highestScore", specialLabel = "High Score" },
-    words = { name = "Words with WoW", icon = "Interface\\Icons\\INV_Misc_Book_07", color = "BRONZE", hasTies = false, specialStat = "highestScore", specialLabel = "High Score" },
+    pong = { name = "Pong of War", icon = "Interface\\Icons\\INV_Misc_PunchCards_Yellow", color = "SKY_BLUE", hasTies = false, specialStat = "highestScore", specialLabel = "High Score" },
+    tetris = { name = "Wowtris", icon = "Interface\\Icons\\INV_Misc_Gem_Variety_01", color = "ARCANE_PURPLE", hasTies = false, specialStat = "highestScore", specialLabel = "High Score" },
     battleship = { name = "Battleship", icon = "Interface\\Icons\\INV_Misc_Anchor", color = "SKY_BLUE", hasTies = false, specialStat = nil, specialLabel = nil },
 }
 
@@ -217,6 +216,7 @@ function Journal:OnEnable()
     self:CreateUpgradeCardPool()
     self:CreateReputationBarPool()
     self:CreateBossLootPool()
+    self:CreateReputationLootPool()
     self:CreateMainFrame()
     self:RegisterEvents()
 
@@ -329,6 +329,18 @@ function Journal:OnDisable()
         self.bossLootPools.lootRow = nil
     end
 
+    -- Destroy reputation loot pools
+    if self.reputationLootPools then
+        if self.reputationLootPools.itemRow then
+            self.reputationLootPools.itemRow:Destroy()
+            self.reputationLootPools.itemRow = nil
+        end
+        if self.reputationLootPools.tierHeader then
+            self.reputationLootPools.tierHeader:Destroy()
+            self.reputationLootPools.tierHeader = nil
+        end
+    end
+
     -- Destroy reputation bar pool
     if self.reputationBarPool then
         self.reputationBarPool:Destroy()
@@ -364,6 +376,16 @@ function Journal:OnDisable()
         self.bossLootUI.popup:SetParent(nil)
         self.bossLootUI.popup:Hide()
         self.bossLootUI.popup = nil
+    end
+
+    -- Destroy reputation loot popup frame to prevent orphaned frame memory leak
+    if self.reputationLootUI and self.reputationLootUI.popup then
+        self:ReleaseReputationLootPopupFrames()
+        self.reputationLootUI.popup:SetScript("OnHide", nil)
+        self.reputationLootUI.popup:SetScript("OnKeyDown", nil)
+        self.reputationLootUI.popup:SetParent(nil)
+        self.reputationLootUI.popup:Hide()
+        self.reputationLootUI.popup = nil
     end
 
     -- Fix #6: Destroy rumor popup frame to prevent orphaned frame memory leak
@@ -524,9 +546,16 @@ function Journal:CreateContainerPool()
                 region:Hide()
             end
         end
-        -- Hide child frames (tier cards, etc.) but don't destroy them
+        -- Hide child frames and clear scripts to release closure references
         for _, child in pairs({frame:GetChildren()}) do
             child:Hide()
+            -- Clear scripts to release closure references (use pcall for safety)
+            pcall(child.SetScript, child, "OnEnter", nil)
+            pcall(child.SetScript, child, "OnLeave", nil)
+            pcall(child.SetScript, child, "OnClick", nil)
+            -- Clear stored tooltip data
+            child.tooltipData = nil
+            child.tooltipColor = nil
         end
     end
 
@@ -623,9 +652,10 @@ function Journal:CreateCardPool()
         card.currentStanding = nil
         card.currentProgress = nil
         card.maxProgress = nil
-        -- Clear hover scripts (set in CreateReputationCard for faction cards)
+        -- Clear hover and click scripts (set in CreateReputationCard for faction cards)
         card:SetScript("OnEnter", nil)
         card:SetScript("OnLeave", nil)
+        card:SetScript("OnMouseUp", nil)
         -- Clean up milestone frame (created in old CreateReputationCard - may not exist anymore)
         if card.milestoneFrame then
             card.milestoneFrame:Hide()
@@ -637,6 +667,17 @@ function Journal:CreateCardPool()
             card.standingProgress:SetText("")
             card.standingProgress:Hide()
         end
+        -- Clean up BiS and tracked badges (created in CreateReputationCard)
+        if card.bisBadge then
+            card.bisBadge:SetText("")
+            card.bisBadge:Hide()
+        end
+        card.bisCount = nil
+        if card.trackedBadge then
+            card.trackedBadge:SetText("")
+            card.trackedBadge:Hide()
+        end
+        card.trackedCount = nil
         -- Clean up loot icons (created in PopulateRaids boss cards)
         if card.lootIcons then
             for _, lootIcon in ipairs(card.lootIcons) do
@@ -1086,6 +1127,163 @@ function Journal:CreateBossLootPool()
             row.qualityColor = nil
             row.isBis = false
             row.itemId = nil
+        end
+    )
+end
+
+--[[
+    Create pool for Reputation Loot Popup item rows
+    Similar to boss loot pool but with checkbox for tracking
+]]
+function Journal:CreateReputationLootPool()
+    local FramePool = HopeAddon.FramePool
+    local C = HopeAddon.Constants.REPUTATION_LOOT_POPUP
+
+    -- Item row pool (with tracking checkbox)
+    self.reputationLootPools.itemRow = FramePool:New(
+        function()
+            local row = CreateFrame("Button", nil, UIParent, "BackdropTemplate")
+            row:SetSize(C.WIDTH - (C.PADDING * 2) - 20, C.ROW_HEIGHT)
+
+            -- Hover highlight
+            row.highlight = row:CreateTexture(nil, "BACKGROUND")
+            row.highlight:SetAllPoints()
+            row.highlight:SetColorTexture(0.3, 0.3, 0.3, 0)
+
+            -- Tracking checkbox (left side)
+            row.checkbox = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
+            row.checkbox:SetSize(C.CHECKBOX_SIZE, C.CHECKBOX_SIZE)
+            row.checkbox:SetPoint("LEFT", row, "LEFT", 4, 0)
+            row.checkbox:SetHitRectInsets(0, 0, 0, 0)
+
+            -- Icon (after checkbox)
+            row.icon = row:CreateTexture(nil, "ARTWORK")
+            row.icon:SetSize(C.ICON_SIZE, C.ICON_SIZE)
+            row.icon:SetPoint("LEFT", row.checkbox, "RIGHT", 6, 0)
+
+            -- Icon border (quality colored)
+            row.iconBorder = row:CreateTexture(nil, "OVERLAY")
+            row.iconBorder:SetSize(C.ICON_SIZE + 2, C.ICON_SIZE + 2)
+            row.iconBorder:SetPoint("CENTER", row.icon, "CENTER")
+            row.iconBorder:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
+            row.iconBorder:SetBlendMode("ADD")
+
+            -- Item name
+            row.nameText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            row.nameText:SetPoint("TOPLEFT", row.icon, "TOPRIGHT", 8, -2)
+            row.nameText:SetPoint("RIGHT", row, "RIGHT", -80, 0)
+            row.nameText:SetJustifyH("LEFT")
+
+            -- Item type/slot text (below name)
+            row.typeText = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            row.typeText:SetPoint("TOPLEFT", row.nameText, "BOTTOMLEFT", 0, -2)
+            row.typeText:SetJustifyH("LEFT")
+            row.typeText:SetTextColor(0.6, 0.6, 0.6)
+
+            -- Standing requirement badge (right side)
+            row.standingBadge = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            row.standingBadge:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+
+            -- Goal star indicator (shown when item is the goal)
+            row.goalStar = row:CreateTexture(nil, "OVERLAY")
+            row.goalStar:SetSize(C.TRACKED_STAR_SIZE, C.TRACKED_STAR_SIZE)
+            row.goalStar:SetPoint("RIGHT", row.standingBadge, "LEFT", -4, 0)
+            row.goalStar:SetTexture("Interface\\COMMON\\ReputationStar")
+            row.goalStar:SetVertexColor(C.GOAL_COLOR.r, C.GOAL_COLOR.g, C.GOAL_COLOR.b)
+            row.goalStar:Hide()
+
+            -- Hover handlers
+            row:SetScript("OnEnter", function(self)
+                self.highlight:SetColorTexture(0.3, 0.3, 0.3, 0.3)
+                if HopeAddon.Sounds then HopeAddon.Sounds:PlayHover() end
+
+                -- Show item tooltip
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                if self.itemId and self.itemId > 0 then
+                    GameTooltip:SetHyperlink("item:" .. self.itemId .. ":0:0:0:0:0:0:0")
+                    GameTooltip:AddLine(" ")
+                    if self.isTracked then
+                        GameTooltip:AddLine("Currently tracking this item", 0.4, 0.8, 0.4)
+                    end
+                    if self.isGoal then
+                        GameTooltip:AddLine("This is your goal item!", 1, 0.84, 0)
+                    end
+                    GameTooltip:AddLine(" ")
+                    GameTooltip:AddLine("Click checkbox to track", 0.5, 0.5, 0.5)
+                    GameTooltip:AddLine("Right-click to set as goal", 0.5, 0.5, 0.5)
+                else
+                    GameTooltip:ClearLines()
+                    local qc = self.qualityColor or { r = 1, g = 1, b = 1 }
+                    if self.itemName then
+                        GameTooltip:AddLine(self.itemName, qc.r, qc.g, qc.b)
+                    end
+                    if self.itemType then
+                        GameTooltip:AddLine(self.itemType, 0.7, 0.7, 0.7)
+                    end
+                end
+                GameTooltip:Show()
+            end)
+            row:SetScript("OnLeave", function(self)
+                self.highlight:SetColorTexture(0.3, 0.3, 0.3, 0)
+                GameTooltip:Hide()
+            end)
+
+            row:Hide()
+            return row
+        end,
+        function(row)
+            row:Hide()
+            row:ClearAllPoints()
+            row:SetParent(UIParent)
+            row.highlight:SetColorTexture(0.3, 0.3, 0.3, 0)
+            row.icon:SetTexture(nil)
+            row.iconBorder:SetVertexColor(1, 1, 1)
+            row.nameText:SetText("")
+            row.typeText:SetText("")
+            row.standingBadge:SetText("")
+            row.checkbox:SetChecked(false)
+            row.checkbox:SetScript("OnClick", nil)
+            row.goalStar:Hide()
+            row:SetScript("OnClick", nil)
+            row:SetScript("OnMouseUp", nil)
+            row.itemId = nil
+            row.itemName = nil
+            row.itemType = nil
+            row.qualityColor = nil
+            row.factionName = nil
+            row.standingId = nil
+            row.isTracked = false
+            row.isGoal = false
+        end
+    )
+
+    -- Tier header pool (Friendly, Honored, Revered, Exalted section headers)
+    self.reputationLootPools.tierHeader = FramePool:New(
+        function()
+            local header = CreateFrame("Frame", nil, UIParent)
+            header:SetSize(C.WIDTH - (C.PADDING * 2) - 20, C.TIER_HEADER_HEIGHT)
+
+            -- Divider line
+            header.divider = header:CreateTexture(nil, "ARTWORK")
+            header.divider:SetPoint("LEFT", header, "LEFT", 0, 0)
+            header.divider:SetPoint("RIGHT", header, "RIGHT", 0, 0)
+            header.divider:SetHeight(1)
+            header.divider:SetColorTexture(0.4, 0.35, 0.25, 0.6)
+
+            -- Standing name text
+            header.text = header:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            header.text:SetPoint("LEFT", header, "LEFT", 4, 0)
+            header.text:SetJustifyH("LEFT")
+
+            header:Hide()
+            return header
+        end,
+        function(header)
+            header:Hide()
+            header:ClearAllPoints()
+            header:SetParent(UIParent)
+            header.text:SetText("")
+            header.text:SetTextColor(1, 1, 1)
         end
     )
 end
@@ -1551,15 +1749,17 @@ function Journal:CreateMainFrame()
     -- Close button
     Components:CreateCloseButton(frame)
 
-    -- Apply saved background opacity (0% = transparent, 100% = solid)
+    -- Apply saved background opacity to dark background layer (0% = transparent, 100% = solid dark)
     local savedOpacity = HopeAddon.db and HopeAddon.db.settings and HopeAddon.db.settings.backgroundOpacity or 0.95
-    frame:SetBackdropColor(1, 1, 1, savedOpacity)
+    if frame.darkBackground then
+        frame.darkBackground:SetVertexColor(0, 0, 0, savedOpacity)
+    end
 
     -- Opacity slider (top-right, below close button)
     local opacitySlider = Components:CreateOpacitySlider(frame, 80, savedOpacity, function(value)
         self:UpdateBackgroundOpacity(value)
     end)
-    opacitySlider:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -50, -40)
+    opacitySlider:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -20, -40)
     frame.opacitySlider = opacitySlider
 
     -- Tab bar (inherits HIGH strata from parent, but set explicitly for clarity)
@@ -1607,11 +1807,12 @@ function Journal:CreateMainFrame()
     scrollContainer:SetAllPoints(contentArea)
     frame.scrollContainer = scrollContainer
 
-    -- Footer with stats summary
+    -- Footer with stats summary (hidden)
     local footer = frame:CreateFontString(nil, "OVERLAY")
     footer:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
     footer:SetPoint("BOTTOM", frame, "BOTTOM", 0, 25)
     footer:SetTextColor(HopeAddon:GetTextColor("SUBTLE"))
+    footer:Hide()
     frame.footer = footer
 
     -- Author credit box (bottom-right)
@@ -1641,6 +1842,44 @@ function Journal:CreateMainFrame()
     authorCredit:SetText("Inscribed by " .. rainbowName)
     frame.authorBox = authorBox
     frame.authorCredit = authorCredit
+
+    -- Beta version box (top-left)
+    local betaBox = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+    betaBox:SetSize(160, 24)
+    betaBox:SetPoint("TOPLEFT", frame, "TOPLEFT", 12, -12)
+    betaBox:SetBackdrop(HopeAddon.Constants.BACKDROPS.TOOLTIP_SMALL)
+    betaBox:SetBackdropColor(0.05, 0.05, 0.08, 0.85)
+    betaBox:SetBackdropBorderColor(0.4, 0.4, 0.4, 0.6)
+
+    -- Enable mouse interaction for tooltip
+    betaBox:EnableMouse(true)
+    betaBox:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:AddLine("Hope Addon - Beta", 1, 0.82, 0)
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine("At least I have chicken...", 0.7, 0.7, 0.7)
+        GameTooltip:AddLine("and a lot of bugs to fix.", 0.7, 0.7, 0.7)
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine("LEEROOOOY JENKINS!", 1, 0.2, 0.2)
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine("Note: Later phases not yet complete.", 0.6, 0.8, 1)
+        GameTooltip:AddLine("Be on the lookout for social events", 0.6, 0.8, 1)
+        GameTooltip:AddLine("in the next update!", 0.6, 0.8, 1)
+        GameTooltip:AddLine(" ")
+        local rainbowName = "|cFFFF0000P|r|cFFFF5500h|r|cFFFFAA00i|r|cFFFFFF00l|r|cFFAAFF00F|r|cFF00FF00e|r|cFF00FFAAs|r|cFF00AAFFt|r|cFF0055FFi|r|cFF5500FFv|r|cFFAA00FFe|r"
+        GameTooltip:AddLine(rainbowName .. " on all socials!", 1, 1, 1)
+        GameTooltip:Show()
+    end)
+    betaBox:SetScript("OnLeave", function(self)
+        GameTooltip:Hide()
+    end)
+
+    local betaText = betaBox:CreateFontString(nil, "OVERLAY")
+    betaText:SetFont(HopeAddon.assets.fonts.HEADER, 10, "")
+    betaText:SetPoint("CENTER", betaBox, "CENTER", 0, 0)
+    betaText:SetText("|cFFFFD100Beta|r |cFF8080FFv0.6|r |cFFFF6060Bugs squashed!|r")
+    frame.betaBox = betaBox
+    frame.betaText = betaText
 
     -- Store reference
     self.mainFrame = frame
@@ -1732,6 +1971,9 @@ function Journal:SelectTab(tabId)
 
     -- 8. Hide Attunements tab containers (clears phase buttons)
     self:HideAttunementsTab()
+
+    -- 8.5. Hide Games tab (cancel timers, close popups)
+    self:HideGamesTab()
 
     -- 9. Hide Boss Loot popup if visible
     self:HideBossLootPopup()
@@ -1829,8 +2071,10 @@ function Journal:UpdateBackgroundOpacity(value)
     -- Clamp to valid range (0% to 100%)
     value = math.max(0, math.min(1.0, value))
 
-    -- Apply as alpha: 0% = transparent, 100% = fully opaque
-    self.mainFrame:SetBackdropColor(1, 1, 1, value)
+    -- Apply to dark background texture layer (0% = transparent/light, 100% = fully dark)
+    if self.mainFrame.darkBackground then
+        self.mainFrame.darkBackground:SetVertexColor(0, 0, 0, value)
+    end
 
     -- Save to settings
     if HopeAddon.db and HopeAddon.db.settings then
@@ -3195,6 +3439,9 @@ function Journal:PopulateJourneyEndgame()
     local Components = HopeAddon.Components
     local scrollContainer = self.mainFrame.scrollContainer
 
+    -- === UPCOMING EVENTS - COLLAPSIBLE SECTION AT TOP ===
+    self:CreateNextEventCollapsibleSection(scrollContainer)
+
     -- === YOUR NEXT STEP - PROMINENT GUIDANCE BOX ===
     local nextStepBox = self:CreateNextStepBox()
     scrollContainer:AddEntry(nextStepBox)
@@ -3217,13 +3464,6 @@ function Journal:PopulateJourneyEndgame()
     -- Shows top 3 recommended items for the player's class
     local lootSection = self:CreateLootHotlist()
     scrollContainer:AddEntry(lootSection)
-
-    -- Add next app-wide event card
-    local nextEventCard = self:CreateNextEventCard(scrollContainer)
-    if nextEventCard then scrollContainer:AddEntry(nextEventCard) end
-
-    -- Add upcoming events section
-    self:CreateUpcomingEventsSection(scrollContainer)
 end
 
 --[[
@@ -3252,6 +3492,9 @@ function Journal:PopulateJourneyLeveling(playerLevel)
 
     -- Get role info
     local roleInfo = C.LEVELING_ROLES[role]
+
+    -- === UPCOMING EVENTS - COLLAPSIBLE SECTION AT TOP ===
+    self:CreateNextEventCollapsibleSection(scrollContainer)
 
     -- === LEVEL PROGRESS BOX ===
     local levelBox = self:CreateLevelingProgressBox(playerLevel, rangeInfo)
@@ -3283,17 +3526,223 @@ function Journal:PopulateJourneyLeveling(playerLevel)
         local dungeonList = self:CreateRecommendedDungeonsList(dungeons, rangeInfo)
         scrollContainer:AddEntry(dungeonList)
     end
-
-    -- Add next app-wide event card
-    local nextEventCard = self:CreateNextEventCard(scrollContainer)
-    if nextEventCard then scrollContainer:AddEntry(nextEventCard) end
-
-    -- Add upcoming events section
-    self:CreateUpcomingEventsSection(scrollContainer)
 end
 
 --[[
-    Create "Next Event" card for Journey tab
+    Create collapsible "UPCOMING EVENTS" section for Journey tab
+    Wraps both app-wide events and calendar events in a collapsible header
+    @param scrollContainer - The scroll container to add section to
+]]
+function Journal:CreateNextEventCollapsibleSection(scrollContainer)
+    local C = HopeAddon.Constants
+    local Calendar = HopeAddon:GetModule("Calendar")
+
+    -- Check if we have any content to show
+    local appEvent = C:GetNextAppWideEvent()
+    local calendarEvents = Calendar and Calendar:GetUpcomingEvents(1) or {}
+    local hasCalendarEvent = calendarEvents[1] ~= nil
+
+    -- Don't create section if no events
+    if not appEvent and not hasCalendarEvent then
+        return
+    end
+
+    -- Create collapsible section
+    local section = self:AcquireCollapsibleSection(
+        scrollContainer.content,
+        "UPCOMING EVENTS",
+        "GOLD_BRIGHT",
+        true  -- Start expanded
+    )
+
+    if not section then return end
+
+    -- Add app-wide event card as child (if exists)
+    local eventCard = self:CreateNextEventCardContent(section.contentContainer)
+    if eventCard then
+        section:AddChild(eventCard)
+    end
+
+    -- Add calendar event content as child (if exists)
+    local calendarContent = self:CreateUpcomingEventsContent(section.contentContainer)
+    if calendarContent then
+        section:AddChild(calendarContent)
+    end
+
+    -- Hook toggle to recalculate scroll positions
+    section.onToggle = function()
+        scrollContainer:RecalculatePositions()
+    end
+
+    -- Only add to scroll container if we have content
+    if #section.childEntries > 0 then
+        scrollContainer:AddEntry(section)
+    end
+end
+
+--[[
+    Create "Next Event" card content for use within a collapsible section
+    Shows the next upcoming app-wide (hardcoded) event with themed styling
+    Clicking navigates to the Calendar tab
+    @param parent - The parent frame (collapsible section content container)
+    @return Frame|nil - The card frame, or nil if no event found
+]]
+function Journal:CreateNextEventCardContent(parent)
+    local C = HopeAddon.Constants
+    local UI = C.JOURNEY_NEXT_EVENT
+
+    local event, isPast = C:GetNextAppWideEvent()
+    if not event then return nil end
+
+    local colorTheme = C.APP_WIDE_EVENT_COLORS[event.colorName] or C.APP_WIDE_EVENT_COLORS.GOLD
+
+    -- Create/reuse persistent frame (themed border needs per-instance styling)
+    local container = self._nextEventFrame
+    if not container then
+        container = HopeAddon:CreateBackdropFrame("Frame", nil, parent)
+        container:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8X8",
+            edgeFile = "Interface\\Buttons\\WHITE8X8",
+            edgeSize = UI.BORDER_WIDTH,
+            insets = { left = UI.BORDER_WIDTH, right = UI.BORDER_WIDTH, top = UI.BORDER_WIDTH, bottom = UI.BORDER_WIDTH }
+        })
+        self._nextEventFrame = container
+
+        -- Create child elements once
+        container.sectionLabel = container:CreateFontString(nil, "OVERLAY")
+        container.eventIcon = container:CreateTexture(nil, "ARTWORK")
+        container.eventTitle = container:CreateFontString(nil, "OVERLAY")
+        container.eventDateTime = container:CreateFontString(nil, "OVERLAY")
+        container.eventCountdown = container:CreateFontString(nil, "OVERLAY")
+        container.clickHint = container:CreateFontString(nil, "OVERLAY")
+        container.clickArea = CreateFrame("Button", nil, container)
+    end
+
+    container:SetParent(parent)
+    container:SetSize(CONTAINER_WIDTH, UI.CONTAINER_HEIGHT)
+
+    -- Apply themed colors (muted if past)
+    local bg, border = colorTheme.bg, colorTheme.border
+    if isPast then
+        container:SetBackdropColor(bg.r * 0.6, bg.g * 0.6, bg.b * 0.6, bg.a * 0.8)
+        container:SetBackdropBorderColor(border.r * 0.6, border.g * 0.6, border.b * 0.6, 0.7)
+    else
+        container:SetBackdropColor(bg.r, bg.g, bg.b, bg.a)
+        container:SetBackdropBorderColor(border.r, border.g, border.b, border.a)
+    end
+
+    -- Section label
+    local labelColor = isPast and {r=0.5, g=0.5, b=0.5} or colorTheme.title
+    container.sectionLabel:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
+    container.sectionLabel:ClearAllPoints()
+    container.sectionLabel:SetPoint("TOPLEFT", container, "TOPLEFT", 10, -6)
+    container.sectionLabel:SetTextColor(labelColor.r, labelColor.g, labelColor.b)
+    container.sectionLabel:SetText(isPast and "RECENTLY CONCLUDED" or "NEXT EVENT")
+
+    -- Icon
+    container.eventIcon:SetSize(UI.ICON_SIZE, UI.ICON_SIZE)
+    container.eventIcon:ClearAllPoints()
+    container.eventIcon:SetPoint("TOPLEFT", container, "TOPLEFT", 12, -22)
+    container.eventIcon:SetTexture(event.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+    container.eventIcon:SetDesaturated(isPast)
+    container.eventIcon:SetAlpha(isPast and 0.7 or 1)
+
+    -- Title
+    local titleColor = isPast and {r=0.7, g=0.7, b=0.7} or colorTheme.title
+    container.eventTitle:SetFont(HopeAddon.assets.fonts.HEADER, 13, "")
+    container.eventTitle:ClearAllPoints()
+    container.eventTitle:SetPoint("TOPLEFT", container.eventIcon, "TOPRIGHT", 10, 2)
+    container.eventTitle:SetTextColor(titleColor.r, titleColor.g, titleColor.b)
+    container.eventTitle:SetText(event.title)
+
+    -- Date/time
+    local formattedDate = C:FormatAppWideEventDate(event.startDate)
+    local formattedTime = C:FormatBannerTime(event.time)
+    local textColor = isPast and {r=0.5, g=0.5, b=0.5} or colorTheme.text
+    container.eventDateTime:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
+    container.eventDateTime:ClearAllPoints()
+    container.eventDateTime:SetPoint("TOPLEFT", container.eventTitle, "BOTTOMLEFT", 0, -3)
+    container.eventDateTime:SetTextColor(textColor.r, textColor.g, textColor.b)
+    container.eventDateTime:SetText(formattedDate .. (formattedTime ~= "" and (" at " .. formattedTime) or ""))
+
+    -- Countdown
+    local timeUntil = C:GetTimeUntilAppWideEvent(event)
+    local countdownText
+    if timeUntil < 0 then
+        local daysAgo = math.floor(-timeUntil / 86400)
+        countdownText = daysAgo == 0 and "Today" or (daysAgo == 1 and "Yesterday" or (daysAgo .. " days ago"))
+        container.eventCountdown:SetTextColor(0.5, 0.5, 0.5)
+    else
+        local days = math.floor(timeUntil / 86400)
+        local hours = math.floor((timeUntil % 86400) / 3600)
+        if days > 0 then countdownText = "in " .. days .. " day" .. (days > 1 and "s" or "")
+        elseif hours > 0 then countdownText = "in " .. hours .. " hour" .. (hours > 1 and "s" or "")
+        else countdownText = "in " .. math.floor(timeUntil / 60) .. " min" end
+        container.eventCountdown:SetTextColor(colorTheme.title.r, colorTheme.title.g, colorTheme.title.b)
+    end
+    container.eventCountdown:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
+    container.eventCountdown:ClearAllPoints()
+    container.eventCountdown:SetPoint("TOPRIGHT", container, "TOPRIGHT", -12, -30)
+    container.eventCountdown:SetText(countdownText)
+
+    -- Click hint
+    container.clickHint:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
+    container.clickHint:ClearAllPoints()
+    container.clickHint:SetPoint("BOTTOMRIGHT", container, "BOTTOMRIGHT", -10, 6)
+    container.clickHint:SetTextColor(0.5, 0.5, 0.5)
+    container.clickHint:SetText("Click to view Calendar")
+    container.clickHint:SetAlpha(0)
+
+    -- Store event data for handlers
+    container._event = event
+    container._colorTheme = colorTheme
+    container._isPast = isPast
+    container._formattedDate = formattedDate
+    container._formattedTime = formattedTime
+
+    -- Clickable overlay
+    container.clickArea:SetAllPoints(container)
+    container.clickArea:SetScript("OnClick", function()
+        if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+        self:SelectTab("social")
+        self:ScheduleTimer(0.1, function()
+            self:SelectSocialSubTab("calendar")
+        end)
+    end)
+    container.clickArea:SetScript("OnEnter", function()
+        local c = container
+        c.clickHint:SetAlpha(1)
+        if not c._isPast then
+            local b = c._colorTheme.border
+            c:SetBackdropBorderColor(b.r * 1.2, b.g * 1.2, b.b * 1.2, 1)
+        end
+        GameTooltip:SetOwner(c, "ANCHOR_RIGHT")
+        GameTooltip:AddLine(c._event.title, c._colorTheme.title.r, c._colorTheme.title.g, c._colorTheme.title.b)
+        GameTooltip:AddLine(c._formattedDate .. (c._formattedTime ~= "" and (" at " .. c._formattedTime) or ""), 0.8, 0.8, 0.6)
+        if c._event.description then
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine(c._event.description, 0.8, 0.8, 0.8, true)
+        end
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine("Click to view in Calendar", 0.5, 0.8, 0.5)
+        GameTooltip:Show()
+    end)
+    container.clickArea:SetScript("OnLeave", function()
+        local c = container
+        c.clickHint:SetAlpha(0)
+        if not c._isPast then
+            local b = c._colorTheme.border
+            c:SetBackdropBorderColor(b.r, b.g, b.b, b.a)
+        end
+        GameTooltip:Hide()
+    end)
+
+    container:Show()
+    return container
+end
+
+--[[
+    Create "Next Event" card for Journey tab (legacy function for backward compatibility)
     Shows the next upcoming app-wide (hardcoded) event with themed styling
     Clicking navigates to the Calendar tab
     @param scrollContainer - The scroll container to add card to
@@ -3454,8 +3903,38 @@ function Journal:CreateNextEventCard(scrollContainer)
 end
 
 --[[
-    Create "Next Event" section for Journey tab
-    Shows the single next upcoming calendar event
+    Create calendar event content for use within a collapsible section
+    Shows upcoming calendar events as full themed cards
+    @param parent - The parent frame (collapsible section content container)
+    @return Frame|nil - The content frame, or nil if no events found
+]]
+function Journal:CreateUpcomingEventsContent(parent)
+    local Calendar = HopeAddon:GetModule("Calendar")
+    if not Calendar then return nil end
+
+    local C = HopeAddon.Constants
+    local UI = C.JOURNEY_UPCOMING_CARD
+
+    -- Get upcoming events (up to max)
+    local events = Calendar:GetUpcomingEvents(UI.MAX_EVENTS)
+    if #events == 0 then return nil end
+
+    -- Calculate total height: cards + spacing between them + padding
+    local totalHeight = (#events * UI.CONTAINER_HEIGHT) + ((#events - 1) * UI.CARD_SPACING) + 16
+    local container = self:AcquireContainer(parent, totalHeight)
+
+    -- Create cards for each event
+    for i, event in ipairs(events) do
+        local yOffset = -8 - ((i - 1) * (UI.CONTAINER_HEIGHT + UI.CARD_SPACING))
+        self:CreateUpcomingEventCard(container, event, i, yOffset)
+    end
+
+    return container
+end
+
+--[[
+    Create "Upcoming Events" section for Journey tab
+    Shows upcoming calendar events as full themed cards
     @param scrollContainer - The scroll container to add section to
 ]]
 function Journal:CreateUpcomingEventsSection(scrollContainer)
@@ -3463,16 +3942,16 @@ function Journal:CreateUpcomingEventsSection(scrollContainer)
     if not Calendar then return end
 
     local C = HopeAddon.Constants
-    local UI = C.JOURNEY_UPCOMING
+    local UI = C.JOURNEY_UPCOMING_CARD
 
-    -- Get the next upcoming event
-    local events = Calendar:GetUpcomingEvents(1)
-    local event = events[1]
-    if not event then return end
+    -- Get upcoming events (up to max)
+    local events = Calendar:GetUpcomingEvents(UI.MAX_EVENTS)
+    if #events == 0 then return end
 
-    -- Fixed height for single event
+    -- Calculate total height: header + cards + spacing between cards + padding
     local headerHeight = 45
-    local totalHeight = headerHeight + UI.ROW_HEIGHT + UI.SECTION_PADDING
+    local cardsHeight = (#events * UI.CONTAINER_HEIGHT) + ((#events - 1) * UI.CARD_SPACING)
+    local totalHeight = headerHeight + cardsHeight + UI.CARD_SPACING
 
     local container = self:AcquireContainer(scrollContainer.content, totalHeight)
 
@@ -3485,95 +3964,176 @@ function Journal:CreateUpcomingEventsSection(scrollContainer)
     local header = container:CreateFontString(nil, "OVERLAY")
     header:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
     header:SetPoint("LEFT", icon, "RIGHT", 8, 0)
-    header:SetText("NEXT EVENT")
+    header:SetText("UPCOMING EVENTS")
     header:SetTextColor(HopeAddon.colors.GOLD_BRIGHT.r, HopeAddon.colors.GOLD_BRIGHT.g, HopeAddon.colors.GOLD_BRIGHT.b)
 
-    -- Single event row
-    self:CreateUpcomingEventRow(container, event, -headerHeight)
+    -- Create cards for each event
+    for i, event in ipairs(events) do
+        local yOffset = -headerHeight - ((i - 1) * (UI.CONTAINER_HEIGHT + UI.CARD_SPACING))
+        self:CreateUpcomingEventCard(container, event, i, yOffset)
+    end
 
     scrollContainer:AddEntry(container)
 end
 
 --[[
-    Create a single event row for upcoming events section
+    Create a themed event card for upcoming events section
     @param parent - Parent frame
     @param event - Calendar event data
+    @param index - Card index (1-based, for frame pooling)
     @param yOffset - Vertical position
-    @return Frame - The row frame
+    @return Frame - The card frame
 ]]
-function Journal:CreateUpcomingEventRow(parent, event, yOffset)
+function Journal:CreateUpcomingEventCard(parent, event, index, yOffset)
     local Calendar = HopeAddon:GetModule("Calendar")
     local C = HopeAddon.Constants
+    local UI = C.JOURNEY_UPCOMING_CARD
 
-    -- Color dot based on event type
-    local eventColors = C.CALENDAR_EVENT_COLORS
-    local color = eventColors[event.eventType] or eventColors.OTHER
+    -- Get color theme for this event type
+    local theme = C:GetCalendarEventTheme(event.eventType)
 
-    local dot = parent:CreateTexture(nil, "ARTWORK")
-    dot:SetSize(10, 10)
-    dot:SetPoint("TOPLEFT", parent, "TOPLEFT", 12, yOffset + 9)
-    dot:SetColorTexture(color.r, color.g, color.b)
+    -- Frame pooling - reuse existing card frames
+    local frameName = "_upcomingEventCard" .. index
+    local card = parent[frameName]
+    if not card then
+        card = CreateFrame("Button", nil, parent, "BackdropTemplate")
+        parent[frameName] = card
+    end
 
-    -- Time until event
+    card:SetSize(parent:GetWidth() - 16, UI.CONTAINER_HEIGHT)
+    card:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, yOffset)
+    card:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Buttons\\WHITE8x8",
+        edgeSize = UI.BORDER_WIDTH,
+    })
+    card:SetBackdropColor(theme.bg.r, theme.bg.g, theme.bg.b, theme.bg.a)
+    card:SetBackdropBorderColor(theme.border.r, theme.border.g, theme.border.b, theme.border.a)
+
+    -- Store theme for hover effects
+    card._colorTheme = theme
+    card._event = event
+
+    -- Get raid-specific or event type icon
+    local iconPath = C:GetCalendarEventIcon(event)
+
+    -- Icon (left side)
+    local iconFrame = card._icon
+    if not iconFrame then
+        iconFrame = card:CreateTexture(nil, "ARTWORK")
+        card._icon = iconFrame
+    end
+    iconFrame:SetSize(UI.ICON_SIZE, UI.ICON_SIZE)
+    iconFrame:SetPoint("LEFT", card, "LEFT", 12, 0)
+    iconFrame:SetTexture(iconPath)
+    iconFrame:SetTexCoord(0.08, 0.92, 0.08, 0.92)  -- Trim icon borders
+
+    -- Event title (main text)
+    local titleText = card._title
+    if not titleText then
+        titleText = card:CreateFontString(nil, "OVERLAY")
+        card._title = titleText
+    end
+    titleText:SetFont(HopeAddon.assets.fonts.HEADER, 13, "")
+    titleText:SetPoint("TOPLEFT", iconFrame, "TOPRIGHT", 12, -2)
+    titleText:SetPoint("RIGHT", card, "RIGHT", -80, 0)
+    titleText:SetJustifyH("LEFT")
+    local displayTitle = #event.title > 30 and (event.title:sub(1, 27) .. "...") or event.title
+    titleText:SetText(displayTitle)
+    titleText:SetTextColor(theme.title.r, theme.title.g, theme.title.b, theme.title.a)
+
+    -- Date/time info
+    local dateText = card._date
+    if not dateText then
+        dateText = card:CreateFontString(nil, "OVERLAY")
+        card._date = dateText
+    end
+    dateText:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
+    dateText:SetPoint("TOPLEFT", titleText, "BOTTOMLEFT", 0, -4)
+    dateText:SetJustifyH("LEFT")
+    local dateDisplay = event.date .. " at " .. (event.startTime or "TBD")
+    dateText:SetText(dateDisplay)
+    dateText:SetTextColor(theme.text.r, theme.text.g, theme.text.b, theme.text.a)
+
+    -- Leader info (bottom)
+    local leaderText = card._leader
+    if not leaderText then
+        leaderText = card:CreateFontString(nil, "OVERLAY")
+        card._leader = leaderText
+    end
+    leaderText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+    leaderText:SetPoint("BOTTOMLEFT", iconFrame, "BOTTOMRIGHT", 12, 2)
+    leaderText:SetJustifyH("LEFT")
+    leaderText:SetText("Led by " .. (event.leader or "Unknown"))
+    leaderText:SetTextColor(theme.text.r * 0.8, theme.text.g * 0.8, theme.text.b * 0.8, theme.text.a)
+
+    -- Countdown timer (right side)
     local timeUntil = Calendar:GetTimeUntilEvent(event)
     local timeText = Calendar:FormatCountdown(timeUntil)
 
-    local timeLabel = parent:CreateFontString(nil, "OVERLAY")
-    timeLabel:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
-    timeLabel:SetPoint("LEFT", dot, "RIGHT", 8, 0)
-    timeLabel:SetWidth(70)
-    timeLabel:SetJustifyH("LEFT")
-    timeLabel:SetText(timeText)
-    timeLabel:SetTextColor(0.8, 0.8, 0.6)
+    local countdownText = card._countdown
+    if not countdownText then
+        countdownText = card:CreateFontString(nil, "OVERLAY")
+        card._countdown = countdownText
+    end
+    countdownText:SetFont(HopeAddon.assets.fonts.HEADER, 12, "")
+    countdownText:SetPoint("RIGHT", card, "RIGHT", -12, 0)
+    countdownText:SetJustifyH("RIGHT")
+    countdownText:SetText(timeText)
+    countdownText:SetTextColor(theme.title.r, theme.title.g, theme.title.b, theme.title.a)
 
-    -- Event title
-    local title = parent:CreateFontString(nil, "OVERLAY")
-    title:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
-    title:SetPoint("LEFT", timeLabel, "RIGHT", 8, 0)
-    title:SetWidth(200)
-    title:SetJustifyH("LEFT")
-    local displayTitle = #event.title > 25 and (event.title:sub(1, 22) .. "...") or event.title
-    title:SetText(displayTitle)
-    title:SetTextColor(1, 1, 1)
-
-    -- Leader info
-    local leader = parent:CreateFontString(nil, "OVERLAY")
-    leader:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
-    leader:SetPoint("LEFT", title, "RIGHT", 8, 0)
-    leader:SetText("Led by " .. (event.leader or "Unknown"))
-    leader:SetTextColor(0.6, 0.6, 0.6)
-
-    -- Clickable overlay to navigate to Calendar
-    local clickArea = CreateFrame("Button", nil, parent)
-    clickArea:SetPoint("TOPLEFT", dot, "TOPLEFT", -4, 4)
-    clickArea:SetPoint("BOTTOMRIGHT", parent, "RIGHT", -8, yOffset - 20)
-    clickArea:SetScript("OnClick", function()
-        -- Navigate to Social > Calendar
-        -- Issue #23: Use HopeAddon.Timer instead of C_Timer.After for proper tracking
+    -- Click handler - navigate to Calendar
+    card:SetScript("OnClick", function()
+        local CalendarModule = HopeAddon.Calendar
+        local CalendarUI = HopeAddon.CalendarUI
+        local targetYear, targetMonth, targetDay = CalendarModule:ParseDate(event.date)
         self:SelectTab("social")
         self:ScheduleTimer(0.1, function()
             self:SelectSocialSubTab("calendar")
+            if targetYear then
+                self:ScheduleTimer(0.1, function()
+                    CalendarUI:NavigateToDate(targetYear, targetMonth, targetDay)
+                end)
+            end
         end)
     end)
-    clickArea:SetScript("OnEnter", function(btn)
-        title:SetTextColor(HopeAddon.colors.GOLD_BRIGHT.r, HopeAddon.colors.GOLD_BRIGHT.g, HopeAddon.colors.GOLD_BRIGHT.b)
-        GameTooltip:SetOwner(btn, "ANCHOR_RIGHT")
+
+    -- Hover effects
+    card:SetScript("OnEnter", function(c)
+        -- Brighten border on hover
+        local b = c._colorTheme.border
+        c:SetBackdropBorderColor(
+            math.min(b.r * 1.3, 1),
+            math.min(b.g * 1.3, 1),
+            math.min(b.b * 1.3, 1),
+            b.a
+        )
+        -- Tooltip
+        GameTooltip:SetOwner(c, "ANCHOR_RIGHT")
         GameTooltip:AddLine(event.title, 1, 1, 1)
         GameTooltip:AddLine(event.date .. " at " .. (event.startTime or "TBD"), 0.8, 0.8, 0.6)
         if event.description and event.description ~= "" then
             GameTooltip:AddLine(" ")
             GameTooltip:AddLine(event.description, 0.7, 0.7, 0.7, true)
         end
+        if event.autoLock24Hours then
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine("Signups lock 24hrs before event", 0.6, 0.6, 0.5)
+        end
         GameTooltip:AddLine(" ")
         GameTooltip:AddLine("Click to view in Calendar", 0.5, 0.8, 0.5)
         GameTooltip:Show()
     end)
-    clickArea:SetScript("OnLeave", function()
-        title:SetTextColor(1, 1, 1)
+
+    card:SetScript("OnLeave", function(c)
+        -- Restore normal border
+        local b = c._colorTheme.border
+        c:SetBackdropBorderColor(b.r, b.g, b.b, b.a)
         GameTooltip:Hide()
     end)
 
-    return clickArea
+    card:Show()
+    return card
 end
 
 --[[
@@ -4342,16 +4902,54 @@ function Journal:CreateReputationCard(info)
             card.bisCount = 0
         end
 
+        -- Tracked items badge (show count of items player is tracking for this faction)
+        local trackedCount = 0
+        local charDb = HopeAddon.charDb
+        if charDb and charDb.reputation and charDb.reputation.trackedItems then
+            for itemId, trackData in pairs(charDb.reputation.trackedItems) do
+                if trackData.factionName == info.name then
+                    trackedCount = trackedCount + 1
+                end
+            end
+        end
+        if trackedCount > 0 then
+            if not card.trackedBadge then
+                card.trackedBadge = card:CreateFontString(nil, "OVERLAY")
+            end
+            card.trackedBadge:ClearAllPoints()
+            card.trackedBadge:SetFont(HopeAddon.assets.fonts.SMALL, 9, "OUTLINE")
+            -- Position below bisBadge if visible, otherwise below standingProgress
+            if card.bisBadge and card.bisBadge:IsShown() then
+                card.trackedBadge:SetPoint("TOP", card.bisBadge, "BOTTOM", 0, -2)
+            else
+                card.trackedBadge:SetPoint("TOP", card.standingProgress, "BOTTOM", 0, -2)
+            end
+            card.trackedBadge:SetText("|cFF88FF88" .. trackedCount .. " Tracked|r")
+            card.trackedBadge:Show()
+            card.trackedCount = trackedCount
+        else
+            if card.trackedBadge then
+                card.trackedBadge:Hide()
+            end
+            card.trackedCount = 0
+        end
+
         -- Acquire segmented reputation bar from pool (Neutral -> Exalted journey)
-        -- Use scroll content width since card:GetWidth() returns 0 before layout
+        -- Phase 1 Rework: Center bar at 80% of card width for visual balance
         local contentWidth = journalSelf.mainFrame.scrollContainer.content:GetWidth()
         if contentWidth < 1 then
             contentWidth = 480  -- Fallback: 550 frame - 2*20 margin - 25 scrollbar - 2*5 margin
         end
-        local barWidth = contentWidth - Components.ICON_SIZE_STANDARD - 30  -- ~410px
+
+        -- Calculate centered bar position
+        -- Bar is 80% of content width, centered horizontally
+        local BAR_WIDTH_PERCENT = 0.80
+        local barWidth = math.floor(contentWidth * BAR_WIDTH_PERCENT)
+        local leftOffset = math.floor((contentWidth - barWidth) / 2)
+
         local segmentedBar = journalSelf:AcquireReputationBar(card, barWidth)
-        segmentedBar:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT",
-            Components.ICON_SIZE_STANDARD + Components.MARGIN_NORMAL, 8)
+        segmentedBar:ClearAllPoints()
+        segmentedBar:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", leftOffset, 8)
 
         -- Set progress and highlight current standing
         segmentedBar:SetProgress(standingId, current, max)
@@ -4378,6 +4976,15 @@ function Journal:CreateReputationCard(info)
             end
             GameTooltip:Hide()
         end)
+
+        -- Click handler to open loot popup
+        card:SetScript("OnMouseUp", function(self, button)
+            if button == "LeftButton" then
+                if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+                GameTooltip:Hide()
+                journalSelf:ShowReputationLootPopup(self.factionName, self.factionData)
+            end
+        end)
     end
 
     -- Add golden glow for Exalted
@@ -4390,7 +4997,9 @@ end
 
 --[[
     Populate item icons above segmented reputation bar segments
-    Shows reward icons at their required standing levels
+    Phase 4: Tracked items take PRIORITY over BiS suggestions
+    If user has tracked items for a standing, show ONLY those (skip BiS)
+    Falls back to BiS logic only if no tracked items exist
 ]]
 function Journal:PopulateReputationItemIcons(segmentedBar, factionName, currentStandingId)
     local Data = HopeAddon.ReputationData
@@ -4398,70 +5007,160 @@ function Journal:PopulateReputationItemIcons(segmentedBar, factionName, currentS
 
     segmentedBar:ClearItemIcons()
 
-    -- Try spec-specific BiS items first
-    local guideKey = C:GetCurrentPlayerGuideKey()
-    local specBisItems = nil
+    local itemsByStanding = {}
+    local seenItemIds = {}  -- Track seen items across all standings for dedup
 
-    if guideKey then
-        local allSpecRepItems = C:GetSpecReputationBisItems(guideKey, 1)
-        specBisItems = allSpecRepItems[factionName]
+    -- Helper: add item if not a duplicate (by itemId)
+    local function addItem(standingId, item)
+        if not item.itemId or seenItemIds[item.itemId] then return false end
+
+        itemsByStanding[standingId] = itemsByStanding[standingId] or {}
+        table.insert(itemsByStanding[standingId], item)
+        seenItemIds[item.itemId] = true
+        return true
     end
 
-    if specBisItems and next(specBisItems) then
-        -- Use spec-specific BiS items
-        for standingId, items in pairs(specBisItems) do
-            if items and #items > 0 then
-                -- Prefer BiS over alts
-                local displayItem = nil
-                for _, item in ipairs(items) do
-                    if item.isBis then
-                        displayItem = item
-                        break
-                    end
-                end
-                displayItem = displayItem or items[1]
+    -- STEP 0 (NEW): Check for TRACKED items FIRST - these take absolute priority
+    local trackedAtStanding = {}
+    local charDb = HopeAddon.charDb
+    if charDb and charDb.reputation and charDb.reputation.trackedItems then
+        for itemIdStr, trackData in pairs(charDb.reputation.trackedItems) do
+            local itemId = tonumber(itemIdStr)
+            if trackData.factionName == factionName and itemId then
+                local standingId = trackData.standingId
+                trackedAtStanding[standingId] = trackedAtStanding[standingId] or {}
 
-                local isObtainable = currentStandingId >= standingId
+                -- Get item info from cache or API
+                local itemName, _, itemQuality, _, _, _, _, _, _, itemTexture = GetItemInfo(itemId)
 
-                -- Use pre-stored icon if available (BiS data may have it)
-                local iconPath = displayItem.icon
-                if not iconPath then
-                    -- Try to get from generic rewards in ReputationData
-                    local genericRewards = Data:GetAllRewards(factionName)
-                    if genericRewards and genericRewards[standingId] then
-                        -- Find matching item by itemId, or fall back to first item's icon
-                        for _, genericItem in ipairs(genericRewards[standingId]) do
-                            if genericItem.itemId == displayItem.itemId then
-                                iconPath = genericItem.icon
-                                break
-                            end
-                        end
-                        if not iconPath and genericRewards[standingId][1] then
-                            iconPath = genericRewards[standingId][1].icon
-                        end
-                    end
-                end
-                if not iconPath then
-                    -- Last resort: queue for cache and try GetItemInfo
-                    GetItemInfo(displayItem.itemId)  -- Queue for cache
-                    local _, _, _, _, _, _, _, _, _, itemIcon = GetItemInfo(displayItem.itemId)
-                    iconPath = itemIcon
-                end
-
-                segmentedBar:SetItemIcon(standingId, displayItem.itemId, iconPath or "INV_Misc_QuestionMark", isObtainable)
+                table.insert(trackedAtStanding[standingId], {
+                    itemId = itemId,
+                    name = itemName or trackData.itemName or "Unknown",
+                    icon = itemTexture or "Interface\\Icons\\INV_Misc_QuestionMark",
+                    isObtainable = currentStandingId >= standingId,
+                    isTracked = true,
+                    isBis = false,
+                    source = "tracked",
+                })
             end
         end
-    else
-        -- Fallback to generic rewards
-        local rewards = Data:GetAllRewards(factionName)
-        if not rewards then return end
+    end
 
-        for standingId, items in pairs(rewards) do
-            if items and #items > 0 then
-                local item = items[1]
-                local isObtainable = currentStandingId >= standingId
-                segmentedBar:SetItemIcon(standingId, item.itemId or 0, item.icon or "INV_Misc_QuestionMark", isObtainable)
+    -- For each standing level, check if we have tracked items
+    -- If yes: use ONLY tracked items, skip all BiS logic for that standing
+    for standingId = 5, 8 do
+        if trackedAtStanding[standingId] and #trackedAtStanding[standingId] > 0 then
+            -- Use tracked items exclusively for this standing
+            for _, item in ipairs(trackedAtStanding[standingId]) do
+                addItem(standingId, item)
             end
+        end
+    end
+
+    -- STEP 1: PRIMARY SOURCE - CLASS_SPEC_LOOT_HOTLIST (Journey data)
+    -- ONLY for standings that DON'T have tracked items
+    local _, classToken = UnitClass("player")
+    local _, specTab = HopeAddon:GetPlayerSpec()
+    specTab = specTab or 1
+
+    local classData = C.CLASS_SPEC_LOOT_HOTLIST and C.CLASS_SPEC_LOOT_HOTLIST[classToken]
+    local specData = classData and classData[specTab]
+
+    if specData and specData.rep then
+        for _, item in ipairs(specData.rep) do
+            -- STRICT faction match - case-sensitive
+            if item.faction == factionName and item.standing and item.standing >= 5 and item.standing <= 8 then
+                -- Skip if this standing has tracked items
+                if not trackedAtStanding[item.standing] or #trackedAtStanding[item.standing] == 0 then
+                    addItem(item.standing, {
+                        itemId = item.itemId,
+                        icon = item.icon,  -- Pre-stored icon from Journey data
+                        name = item.name,
+                        isObtainable = currentStandingId >= item.standing,
+                        isBis = true,
+                        isTracked = false,
+                        slot = item.slot,
+                        source = "journey",
+                    })
+                end
+            end
+        end
+    end
+
+    -- STEP 2: SECONDARY SOURCE - ARMORY_SPEC_BIS_DATABASE (supplementary)
+    -- Only add items NOT already added from Journey, and SKIP standings with tracked items
+    local guideKey = C and C.GetCurrentPlayerGuideKey and C:GetCurrentPlayerGuideKey()
+    if guideKey then
+        local armoryItems = C:GetSpecReputationBisItems(guideKey, 1)
+        local factionItems = armoryItems and armoryItems[factionName]
+
+        if factionItems then
+            for standingId, items in pairs(factionItems) do
+                -- Skip if this standing has tracked items
+                if not trackedAtStanding[standingId] or #trackedAtStanding[standingId] == 0 then
+                    for _, item in ipairs(items) do
+                        -- Only add if not already present (Journey takes priority)
+                        if not seenItemIds[item.itemId] then
+                            -- Resolve icon (armory items don't have pre-stored icons)
+                            local icon = nil
+                            if item.itemId and item.itemId > 0 then
+                                GetItemInfo(item.itemId)  -- Queue for cache warmup
+                                local _, _, _, _, _, _, _, _, _, itemIcon = GetItemInfo(item.itemId)
+                                icon = itemIcon
+                            end
+
+                            addItem(standingId, {
+                                itemId = item.itemId,
+                                icon = icon or "INV_Misc_QuestionMark",
+                                name = item.name,
+                                isObtainable = currentStandingId >= standingId,
+                                isBis = item.isBis or false,
+                                isTracked = false,
+                                slot = item.slot,
+                                source = "armory",
+                            })
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- STEP 3: TERTIARY SOURCE - Generic rewards (keys, tabards, etc.)
+    -- ONLY add if we have NO spec items AND NO tracked items at that standing level
+    local genericRewards = Data:GetAllRewards(factionName)
+    if genericRewards then
+        for standingId, rewards in pairs(genericRewards) do
+            -- Only add generic items if we have NO items at this standing
+            if not itemsByStanding[standingId] or #itemsByStanding[standingId] == 0 then
+                for _, reward in ipairs(rewards) do
+                    addItem(standingId, {
+                        itemId = reward.itemId or 0,
+                        icon = reward.icon or "INV_Misc_QuestionMark",
+                        name = reward.name,
+                        isObtainable = currentStandingId >= standingId,
+                        isBis = false,
+                        isTracked = false,
+                        source = "generic",
+                    })
+                end
+            end
+        end
+    end
+
+    -- STEP 4: Sort and display
+    for standingId, items in pairs(itemsByStanding) do
+        -- Sort: Tracked items first, then BiS items, then alphabetically by name
+        table.sort(items, function(a, b)
+            if a.isTracked and not b.isTracked then return true end
+            if not a.isTracked and b.isTracked then return false end
+            if a.isBis and not b.isBis then return true end
+            if not a.isBis and b.isBis then return false end
+            return (a.name or "") < (b.name or "")
+        end)
+
+        if #items > 0 then
+            segmentedBar:SetItemIcons(standingId, items)
         end
     end
 end
@@ -4836,35 +5535,18 @@ end
 ]]
 function Journal:CreatePhaseGroupHeader(phase)
     local Components = HopeAddon.Components
-    local C = HopeAddon.Constants.ATTUNEMENT_PHASE_BUTTON
     local scrollContainer = self.mainFrame.scrollContainer
 
-    local phaseConfig = C.PHASES[phase]
-    local phaseColor = phaseConfig.color
-
     -- Spacer before header
-    local spacer = self:CreateSpacer(10)
+    local spacer = self:CreateSpacer(15)
     scrollContainer:AddEntry(spacer)
 
-    -- Divider line with phase color
-    local divider = Components:CreateDivider(scrollContainer.content, phaseColor)
-    scrollContainer:AddEntry(divider)
-
-    -- Phase header
-    local headerContainer = self:AcquireContainer(scrollContainer.content, 25)
-    local headerText = headerContainer.headerText
-    if not headerText then
-        headerText = headerContainer:CreateFontString(nil, "OVERLAY")
-        headerContainer.headerText = headerText
-    end
-    headerText:ClearAllPoints()
-    headerText:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
-    headerText:SetPoint("TOPLEFT", headerContainer, "TOPLEFT", Components.MARGIN_NORMAL, -3)
-    headerText:SetText(HopeAddon:ColorText("=== PHASE " .. phase .. " ===", phaseColor))
-    scrollContainer:AddEntry(headerContainer)
+    -- Styled phase header with icon and tier description
+    local phaseHeader = Components:CreatePhaseHeader(scrollContainer.content, phase)
+    scrollContainer:AddEntry(phaseHeader)
 
     -- Spacer after header
-    local spacer2 = self:CreateSpacer(5)
+    local spacer2 = self:CreateSpacer(10)
     scrollContainer:AddEntry(spacer2)
 end
 
@@ -4907,37 +5589,39 @@ end
     @param phaseColor string - Color name to use for the section
 ]]
 function Journal:PopulateCipherSection(phaseColor)
+    local C = HopeAddon.Constants
     local Components = HopeAddon.Components
     local Attunements = HopeAddon.Attunements
     local scrollContainer = self.mainFrame.scrollContainer
 
-    -- Cipher header
-    local cipherHeaderContainer = self:AcquireContainer(scrollContainer.content, 40)
-    local cipherHeader = cipherHeaderContainer.headerText
-    if not cipherHeader then
-        cipherHeader = cipherHeaderContainer:CreateFontString(nil, "OVERLAY")
-        cipherHeaderContainer.headerText = cipherHeader
-    end
-    cipherHeader:ClearAllPoints()
-    cipherHeader:SetFont(HopeAddon.assets.fonts.HEADER, 13, "")
-    cipherHeader:SetPoint("TOPLEFT", cipherHeaderContainer, "TOPLEFT", Components.MARGIN_NORMAL, -3)
-    cipherHeader:SetText(HopeAddon:ColorText("[PREREQ] Cipher of Damnation", phaseColor))
+    -- Styled cipher header card
+    local headerCardConfig = C.ATTUNEMENT_HEADER_CARD
+    local cipherHeaderContainer = self:AcquireContainer(scrollContainer.content, headerCardConfig.HEIGHT + 4)
+    local cipherSummary = Attunements:GetSummary("cipher")
 
-    local cipherSubHeader = cipherHeaderContainer.subText
-    if not cipherSubHeader then
-        cipherSubHeader = cipherHeaderContainer:CreateFontString(nil, "OVERLAY")
-        cipherHeaderContainer.subText = cipherSubHeader
-    end
-    cipherSubHeader:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
-    cipherSubHeader:ClearAllPoints()
-    cipherSubHeader:SetPoint("TOPLEFT", cipherHeader, "BOTTOMLEFT", 0, -3)
-    cipherSubHeader:SetText("Required before starting Tempest Key attunement")
-    cipherSubHeader:SetTextColor(HopeAddon:GetTextColor("TERTIARY"))
+    -- Get chapter-level progress for tooltip
+    local cipherChapters = Attunements:GetAllChapters("cipher")
+
+    local headerCard = Components:CreateAttunementHeaderCard(cipherHeaderContainer, {
+        raidName = "Cipher of Damnation",
+        chainName = "Required for Tempest Keep attunement",
+        phase = 2,
+        minLevel = 68,
+        recommendedLevel = 70,
+        raidKey = "cipher",
+        isAttuned = cipherSummary.isAttuned,
+        summary = {
+            percentage = cipherSummary.percentage,
+            completedChapters = cipherSummary.completedChapters,
+            totalChapters = cipherSummary.totalChapters,
+            chapters = cipherChapters,
+        },
+    }, scrollContainer.content:GetWidth() - 20)
+    headerCard:SetPoint("TOPLEFT", cipherHeaderContainer, "TOPLEFT", Components.MARGIN_NORMAL, -2)
     scrollContainer:AddEntry(cipherHeaderContainer)
 
     -- Progress bar container
     local progressContainer = self:AcquireContainer(scrollContainer.content, 25)
-    local cipherSummary = Attunements:GetSummary("cipher")
     local cipherProgressBar = Components:CreateProgressBar(
         progressContainer,
         scrollContainer.content:GetWidth() - 30,
@@ -4967,6 +5651,75 @@ function Journal:PopulateCipherSection(phaseColor)
 end
 
 --[[
+    Check the status of a prerequisite
+    @param prereq table - Prerequisite data with checkMethod, checkId, etc.
+    @return string status - "completed", "progress", or "pending"
+    @return string statusText - Human-readable status description
+    @return number progressPercent - Optional progress percentage (0-100)
+]]
+function Journal:CheckPrerequisiteStatus(prereq)
+    if not prereq.checkMethod then
+        return "pending", "Unknown", 0
+    end
+
+    if prereq.checkMethod == "item" then
+        -- Check if player has the item
+        local itemCount = GetItemCount(prereq.checkId) or 0
+        if itemCount > 0 then
+            return "completed", "Owned", 100
+        else
+            return "pending", "Not obtained", 0
+        end
+
+    elseif prereq.checkMethod == "reputation" then
+        -- Check faction standing
+        local requiredStanding = prereq.checkStanding or 4  -- Default to Friendly
+        local currentStanding = nil
+
+        -- Find the faction by ID (TBC doesn't have GetFactionInfoByID)
+        local numFactions = GetNumFactions()
+        for i = 1, numFactions do
+            local _, _, standingId, _, _, _, _, _, _, _, _, _, _, factionId = GetFactionInfo(i)
+            if factionId == prereq.checkId then
+                currentStanding = standingId
+                break
+            end
+        end
+
+        if currentStanding then
+            if currentStanding >= requiredStanding then
+                return "completed", "Reputation met", 100
+            else
+                -- Calculate progress towards required standing
+                local standingNames = { "Hated", "Hostile", "Unfriendly", "Neutral", "Friendly", "Honored", "Revered", "Exalted" }
+                local currentName = standingNames[currentStanding] or "Unknown"
+                local requiredName = standingNames[requiredStanding] or "Unknown"
+                local progress = math.floor((currentStanding / requiredStanding) * 100)
+                return "progress", currentName .. " -> " .. requiredName, progress
+            end
+        else
+            return "pending", "Faction not found", 0
+        end
+
+    elseif prereq.checkMethod == "quest" then
+        -- Check if quest is completed
+        if C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted then
+            if C_QuestLog.IsQuestFlaggedCompleted(prereq.checkId) then
+                return "completed", "Quest complete", 100
+            end
+        elseif IsQuestFlaggedCompleted then
+            -- TBC Classic fallback
+            if IsQuestFlaggedCompleted(prereq.checkId) then
+                return "completed", "Quest complete", 100
+            end
+        end
+        return "pending", "Quest incomplete", 0
+    end
+
+    return "pending", "Unknown", 0
+end
+
+--[[
     Populate a single attunement chain
     @param raidKey string - Raid key (e.g., "karazhan", "ssc")
     @param phaseColor string - Color name to use for the section
@@ -4990,96 +5743,83 @@ function Journal:PopulateSingleAttunement(raidKey, phaseColor)
     end
     local attunementPhase = attunementInfo and attunementInfo.phase or 1
 
-    -- Attunement section header
-    local headerContainer = self:AcquireContainer(scrollContainer.content, 25)
-    local raidHeader = headerContainer.headerText
-    if not raidHeader then
-        raidHeader = headerContainer:CreateFontString(nil, "OVERLAY")
-        headerContainer.headerText = raidHeader
-    end
-    raidHeader:ClearAllPoints()
-    raidHeader:SetFont(HopeAddon.assets.fonts.HEADER, 13, "")
-    raidHeader:SetPoint("TOPLEFT", headerContainer, "TOPLEFT", Components.MARGIN_NORMAL, -3)
-    raidHeader:SetText(HopeAddon:ColorText(
-        string.format("[P%d] %s", attunementPhase, summary.raidName),
-        phaseColor
-    ))
+    -- Styled attunement header card with raid icon, name, badges
+    local headerCardConfig = C.ATTUNEMENT_HEADER_CARD
+    local headerContainer = self:AcquireContainer(scrollContainer.content, headerCardConfig.HEIGHT + 4)
+
+    -- Get chapter-level progress for tooltip
+    local allChapters = Attunements:GetAllChapters(raidKey)
+
+    local headerCard = Components:CreateAttunementHeaderCard(headerContainer, {
+        raidName = summary.raidName,
+        chainName = summary.name,
+        phase = attunementPhase,
+        minLevel = attunementData.minLevel,
+        recommendedLevel = attunementData.recommendedLevel,
+        raidKey = raidKey,
+        isAttuned = summary.isAttuned,
+        summary = {
+            percentage = summary.percentage,
+            completedChapters = summary.completedChapters,
+            totalChapters = summary.totalChapters,
+            chapters = allChapters,
+        },
+    }, scrollContainer.content:GetWidth() - 20)
+    headerCard:SetPoint("TOPLEFT", headerContainer, "TOPLEFT", Components.MARGIN_NORMAL, -2)
     scrollContainer:AddEntry(headerContainer)
 
-    -- Sub-title with attunement chain name
-    local chainContainer = self:AcquireContainer(scrollContainer.content, 18)
-    local chainName = chainContainer.headerText
-    if not chainName then
-        chainName = chainContainer:CreateFontString(nil, "OVERLAY")
-        chainContainer.headerText = chainName
-    end
-    chainName:ClearAllPoints()
-    chainName:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
-    chainName:SetPoint("TOPLEFT", chainContainer, "TOPLEFT", Components.MARGIN_NORMAL, -2)
-    chainName:SetText(summary.name)
-    chainName:SetTextColor(HopeAddon:GetTextColor("SECONDARY"))
-    scrollContainer:AddEntry(chainContainer)
+    -- Spacer after header card
+    local headerSpacer = self:CreateSpacer(5)
+    scrollContainer:AddEntry(headerSpacer)
 
-    -- Show level requirements
-    if attunementData.minLevel or attunementData.recommendedLevel then
-        local levelContainer = self:AcquireContainer(scrollContainer.content, 15)
-        local levelText = levelContainer.headerText
-        if not levelText then
-            levelText = levelContainer:CreateFontString(nil, "OVERLAY")
-            levelContainer.headerText = levelText
-        end
-        levelText:ClearAllPoints()
-        levelText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
-        levelText:SetPoint("TOPLEFT", levelContainer, "TOPLEFT", Components.MARGIN_NORMAL, -2)
-
-        local levelStr = ""
-        if attunementData.minLevel then
-            levelStr = "Minimum Level: " .. attunementData.minLevel
-        end
-        if attunementData.recommendedLevel then
-            if levelStr ~= "" then levelStr = levelStr .. " | " end
-            levelStr = levelStr .. "Recommended: " .. attunementData.recommendedLevel
-        end
-        levelText:SetText(HopeAddon:ColorText(levelStr, "GOLD_BRIGHT"))
-        scrollContainer:AddEntry(levelContainer)
-    end
-
-    -- Show detailed prerequisites (keys, reputation, etc.)
+    -- Show detailed prerequisites as visual mini-cards
     if attunementData.prerequisites and #attunementData.prerequisites > 0 then
-        local prereqHeader = self:AcquireContainer(scrollContainer.content, 16)
-        local prereqHeaderText = prereqHeader.headerText
-        if not prereqHeaderText then
-            prereqHeaderText = prereqHeader:CreateFontString(nil, "OVERLAY")
-            prereqHeader.headerText = prereqHeaderText
-        end
-        prereqHeaderText:ClearAllPoints()
-        prereqHeaderText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
-        prereqHeaderText:SetPoint("TOPLEFT", prereqHeader, "TOPLEFT", Components.MARGIN_NORMAL, -2)
-        prereqHeaderText:SetText(HopeAddon:ColorText("Prerequisites:", phaseColor))
-        scrollContainer:AddEntry(prereqHeader)
+        -- Check status for each prerequisite and count completed
+        local completedCount = 0
+        local prereqsWithStatus = {}
 
         for _, prereq in ipairs(attunementData.prerequisites) do
-            local prereqItem = self:AcquireContainer(scrollContainer.content, 14)
-            local prereqItemText = prereqItem.headerText
-            if not prereqItemText then
-                prereqItemText = prereqItem:CreateFontString(nil, "OVERLAY")
-                prereqItem.headerText = prereqItemText
+            local status, statusText, progressPercent = self:CheckPrerequisiteStatus(prereq)
+            local prereqCopy = {
+                name = prereq.name,
+                source = prereq.source,
+                type = prereq.type,
+                icon = prereq.icon,
+                status = status,
+                statusText = statusText,
+                progressPercent = progressPercent,
+            }
+            table.insert(prereqsWithStatus, prereqCopy)
+            if status == "completed" then
+                completedCount = completedCount + 1
             end
-            prereqItemText:ClearAllPoints()
-            prereqItemText:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
-            prereqItemText:SetPoint("TOPLEFT", prereqItem, "TOPLEFT", Components.MARGIN_NORMAL + 10, -1)
-
-            local prereqStr = "  - " .. prereq.name
-            if prereq.source then
-                prereqStr = prereqStr .. " - " .. prereq.source
-            end
-            prereqItemText:SetText(prereqStr)
-            local bronzeColor = HopeAddon.colors.BRONZE or { r = 0.9, g = 0.7, b = 0.5 }
-            prereqItemText:SetTextColor(bronzeColor.r, bronzeColor.g, bronzeColor.b, 1)
-            prereqItemText:SetWidth(scrollContainer.content:GetWidth() - 50)
-            prereqItemText:SetWordWrap(true)
-            scrollContainer:AddEntry(prereqItem)
         end
+
+        -- Prerequisite header with completion badge
+        local prereqHeaderContainer = self:AcquireContainer(scrollContainer.content, 26)
+        local prereqHeader = Components:CreatePrerequisiteHeader(
+            prereqHeaderContainer,
+            completedCount,
+            #attunementData.prerequisites,
+            phaseColor
+        )
+        prereqHeader:SetPoint("TOPLEFT", prereqHeaderContainer, "TOPLEFT", 0, 0)
+        prereqHeader:SetPoint("TOPRIGHT", prereqHeaderContainer, "TOPRIGHT", 0, 0)
+        scrollContainer:AddEntry(prereqHeaderContainer)
+
+        -- Render each prerequisite as a card (taller container for improved cards)
+        local cardWidth = scrollContainer.content:GetWidth() - 20
+        local prereqCardHeight = C.PREREQUISITE_CARD_HEIGHT or 42
+        for _, prereqData in ipairs(prereqsWithStatus) do
+            local cardContainer = self:AcquireContainer(scrollContainer.content, prereqCardHeight + 4)
+            local card = Components:CreatePrerequisiteCard(cardContainer, prereqData, cardWidth)
+            card:SetPoint("TOPLEFT", cardContainer, "TOPLEFT", Components.MARGIN_NORMAL, -2)
+            scrollContainer:AddEntry(cardContainer)
+        end
+
+        -- Small spacer after prerequisites
+        local prereqSpacer = self:CreateSpacer(5)
+        scrollContainer:AddEntry(prereqSpacer)
     end
 
     -- Show prerequisite if any (legacy single prerequisite)
@@ -5147,14 +5887,20 @@ function Journal:PopulateSingleAttunement(raidKey, phaseColor)
         local chapterDetails = Attunements:GetChapterDetails(raidKey, i)
         local isComplete = chapterDetails and chapterDetails.complete
 
-        local statusIcon = isComplete and "|cFF44CC44[X]|r " or "|cFF666666[ ]|r "
+        -- Improved status icons with better visibility
+        local statusIcon = isComplete and "|cFF44CC44[X]|r " or "|cFF888888[ ]|r "
 
         -- Build description using table.concat for efficiency
-        local descParts = { chapter.story or "" }
+        -- Story text in subtle gray/italic style to distinguish from objectives
+        local storyText = chapter.story or ""
+        if storyText ~= "" then
+            storyText = "|cFF9999AA" .. storyText .. "|r"  -- Subtle lavender-gray for story
+        end
+        local descParts = { storyText }
 
-        -- Add level requirement
+        -- Add level requirement with "Lvl" prefix
         if chapter.minLevel then
-            descParts[#descParts + 1] = HopeAddon:ColorText("Requires Level " .. chapter.minLevel, "GOLD_BRIGHT")
+            descParts[#descParts + 1] = HopeAddon:ColorText("Lvl " .. chapter.minLevel .. " Required", "GOLD_BRIGHT")
         end
 
         -- Add quest giver and location
@@ -5209,9 +5955,12 @@ function Journal:PopulateSingleAttunement(raidKey, phaseColor)
         end
         local descText = table.concat(descParts, "\n")
 
+        -- Build title with bold chapter name styling
+        local chapterTitle = statusIcon .. "Ch. " .. i .. ": " .. chapter.name
+
         local card = self:AcquireCard(scrollContainer.content, {
             icon = "Interface\\Icons\\" .. attunementData.icon,
-            title = statusIcon .. "Ch. " .. i .. ": " .. chapter.name,
+            title = chapterTitle,
             description = descText,
             timestamp = isComplete and (chapterDetails.completedDate or "Complete") or "",
         })
@@ -5223,10 +5972,21 @@ function Journal:PopulateSingleAttunement(raidKey, phaseColor)
         card.rewards = chapter.rewards
         card.quests = chapter.quests
 
+        -- Get phase border color for theming
+        local phaseBorderColor = C.PHASE_BORDER_COLORS[attunementPhase]
+
         if isComplete then
+            -- Complete: green border
             card:SetBackdropBorderColor(0.2, 0.8, 0.2, 1)
+            card.defaultBorderColor = {0.2, 0.8, 0.2, 1}
         elseif chapter.noFactionChosen then
-            card:SetBackdropBorderColor(1, 0.5, 0.3, 1) -- Orange for no faction chosen
+            -- No faction: orange border
+            card:SetBackdropBorderColor(1, 0.5, 0.3, 1)
+            card.defaultBorderColor = {1, 0.5, 0.3, 1}
+        elseif phaseBorderColor then
+            -- Apply phase-colored border for incomplete chapters
+            card:SetBackdropBorderColor(phaseBorderColor[1], phaseBorderColor[2], phaseBorderColor[3], 0.8)
+            card.defaultBorderColor = {phaseBorderColor[1], phaseBorderColor[2], phaseBorderColor[3], 0.8}
         else
             card:SetAlpha(0.95)
         end
@@ -6390,6 +7150,512 @@ function Journal:HideBossLootPopup()
     self.bossLootState.currentBoss = nil
 end
 
+--============================================================
+-- REPUTATION LOOT POPUP (Faction Item Tracking)
+--============================================================
+
+--[[
+    Get or create the reputation loot popup frame
+    Similar structure to boss loot popup but with tracking checkboxes
+]]
+function Journal:GetReputationLootPopup()
+    if self.reputationLootUI.popup then
+        return self.reputationLootUI.popup
+    end
+
+    local C = HopeAddon.Constants.REPUTATION_LOOT_POPUP
+    local Data = HopeAddon.ReputationData
+
+    -- Create popup frame at DIALOG strata so it floats above everything
+    local popup = CreateFrame("Frame", "HopeReputationLootPopup", self.mainFrame, "BackdropTemplate")
+    popup:SetSize(C.WIDTH, C.MAX_HEIGHT)
+    popup:SetBackdrop(C.BACKDROP)
+    popup:SetBackdropColor(C.BG_COLOR.r, C.BG_COLOR.g, C.BG_COLOR.b, C.BG_COLOR.a)
+    popup:SetBackdropBorderColor(C.BORDER_COLOR.r, C.BORDER_COLOR.g, C.BORDER_COLOR.b, C.BORDER_COLOR.a)
+    popup:SetFrameStrata("DIALOG")
+    popup:SetFrameLevel(100)
+    popup:EnableMouse(true)
+    popup:SetMovable(true)
+    popup:SetClampedToScreen(true)
+    popup:Hide()
+
+    --======================================================================
+    -- HEADER SECTION
+    --======================================================================
+    local header = CreateFrame("Frame", nil, popup)
+    header:SetHeight(C.HEADER_HEIGHT)
+    header:SetPoint("TOPLEFT", popup, "TOPLEFT", 0, 0)
+    header:SetPoint("TOPRIGHT", popup, "TOPRIGHT", 0, 0)
+
+    -- Make header draggable
+    header:EnableMouse(true)
+    header:RegisterForDrag("LeftButton")
+    header:SetScript("OnDragStart", function()
+        popup:StartMoving()
+    end)
+    header:SetScript("OnDragStop", function()
+        popup:StopMovingOrSizing()
+    end)
+
+    -- Faction icon (left of title)
+    local factionIcon = header:CreateTexture(nil, "ARTWORK")
+    factionIcon:SetSize(32, 32)
+    factionIcon:SetPoint("LEFT", header, "LEFT", C.PADDING, 0)
+    factionIcon:SetTexture("Interface\\ICONS\\INV_Misc_QuestionMark")
+    popup.factionIcon = factionIcon
+
+    -- Header title (faction name)
+    local title = header:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    title:SetPoint("LEFT", factionIcon, "RIGHT", 8, 4)
+    title:SetText("FACTION REWARDS")
+    popup.title = title
+
+    -- Standing text (below title)
+    local standingText = header:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    standingText:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -2)
+    standingText:SetTextColor(0.7, 0.7, 0.7)
+    popup.standingText = standingText
+
+    -- Close button (X)
+    local closeBtn = CreateFrame("Button", nil, header)
+    closeBtn:SetSize(20, 20)
+    closeBtn:SetPoint("RIGHT", header, "RIGHT", -C.PADDING, 0)
+    closeBtn:SetNormalTexture("Interface\\BUTTONS\\UI-Panel-MinimizeButton-Up")
+    closeBtn:SetPushedTexture("Interface\\BUTTONS\\UI-Panel-MinimizeButton-Down")
+    closeBtn:SetHighlightTexture("Interface\\BUTTONS\\UI-Panel-MinimizeButton-Highlight")
+    closeBtn:SetScript("OnClick", function()
+        if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+        self:HideReputationLootPopup()
+    end)
+
+    -- Divider below header
+    local headerDivider = popup:CreateTexture(nil, "OVERLAY")
+    headerDivider:SetPoint("TOPLEFT", header, "BOTTOMLEFT", C.PADDING, 0)
+    headerDivider:SetPoint("TOPRIGHT", header, "BOTTOMRIGHT", -C.PADDING, 0)
+    headerDivider:SetHeight(1)
+    headerDivider:SetColorTexture(0.4, 0.35, 0.25, 1)
+
+    --======================================================================
+    -- SCROLL SECTION (items grouped by tier)
+    --======================================================================
+    local scrollYStart = C.HEADER_HEIGHT + 8
+
+    local scrollFrame = CreateFrame("ScrollFrame", "HopeReputationLootPopupScroll", popup, "UIPanelScrollFrameTemplate")
+    scrollFrame:SetPoint("TOPLEFT", popup, "TOPLEFT", C.PADDING, -scrollYStart)
+    scrollFrame:SetPoint("BOTTOMRIGHT", popup, "BOTTOMRIGHT", -C.PADDING - 20, C.FOOTER_HEIGHT)
+
+    local scrollContent = CreateFrame("Frame", nil, scrollFrame)
+    scrollContent:SetWidth(C.WIDTH - C.PADDING * 2 - 20)
+    scrollFrame:SetScrollChild(scrollContent)
+    popup.scrollFrame = scrollFrame
+    popup.scrollContent = scrollContent
+
+    --======================================================================
+    -- FOOTER SECTION
+    --======================================================================
+    local footerDivider = popup:CreateTexture(nil, "ARTWORK")
+    footerDivider:SetPoint("BOTTOMLEFT", popup, "BOTTOMLEFT", C.PADDING, C.FOOTER_HEIGHT + 4)
+    footerDivider:SetPoint("BOTTOMRIGHT", popup, "BOTTOMRIGHT", -C.PADDING, C.FOOTER_HEIGHT + 4)
+    footerDivider:SetHeight(1)
+    footerDivider:SetColorTexture(0.5, 0.45, 0.35, 0.6)
+
+    local footer = CreateFrame("Frame", nil, popup)
+    footer:SetHeight(C.FOOTER_HEIGHT)
+    footer:SetPoint("BOTTOMLEFT", popup, "BOTTOMLEFT", C.PADDING, 0)
+    footer:SetPoint("BOTTOMRIGHT", popup, "BOTTOMRIGHT", -C.PADDING, 0)
+    popup.footer = footer
+
+    -- Tracked count (left side)
+    local trackedCount = footer:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    trackedCount:SetPoint("LEFT", footer, "LEFT", 0, 0)
+    trackedCount:SetTextColor(0.6, 0.8, 0.6)
+    popup.trackedCount = trackedCount
+
+    -- Hint text (right side)
+    local hint = footer:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    hint:SetPoint("RIGHT", footer, "RIGHT", 0, 0)
+    hint:SetText("Check to track")
+    hint:SetTextColor(0.5, 0.5, 0.5)
+
+    --======================================================================
+    -- POOLED ELEMENTS TRACKING
+    --======================================================================
+    popup.itemRows = {}    -- Currently displayed item rows (pooled)
+    popup.tierHeaders = {} -- Currently displayed tier headers (pooled)
+
+    --======================================================================
+    -- EVENT HANDLERS
+    --======================================================================
+    popup:SetScript("OnHide", function()
+        self:ReleaseReputationLootPopupFrames()
+    end)
+
+    -- ESC key to close
+    popup:SetScript("OnKeyDown", function(_, key)
+        if key == "ESCAPE" then
+            self:HideReputationLootPopup()
+        end
+    end)
+    popup:SetPropagateKeyboardInput(true)
+
+    self.reputationLootUI.popup = popup
+    return popup
+end
+
+--[[
+    Release all pooled frames from the reputation loot popup
+]]
+function Journal:ReleaseReputationLootPopupFrames()
+    local popup = self.reputationLootUI.popup
+    if not popup then return end
+
+    -- Release item rows
+    if popup.itemRows and self.reputationLootPools.itemRow then
+        for _, row in ipairs(popup.itemRows) do
+            self.reputationLootPools.itemRow:Release(row)
+        end
+        wipe(popup.itemRows)
+    end
+
+    -- Release tier headers
+    if popup.tierHeaders and self.reputationLootPools.tierHeader then
+        for _, header in ipairs(popup.tierHeaders) do
+            self.reputationLootPools.tierHeader:Release(header)
+        end
+        wipe(popup.tierHeaders)
+    end
+end
+
+--[[
+    Hide the reputation loot popup
+]]
+function Journal:HideReputationLootPopup()
+    if self.reputationLootUI.popup then
+        self.reputationLootUI.popup:Hide()
+    end
+    self.reputationLootState.popupVisible = false
+    self.reputationLootState.currentFaction = nil
+    self.reputationLootState.currentData = nil
+end
+
+--[[
+    Show the reputation loot popup for a faction
+    @param factionName string - Faction name
+    @param factionData table - Faction data from ReputationData
+]]
+function Journal:ShowReputationLootPopup(factionName, factionData)
+    local popup = self:GetReputationLootPopup()
+    if not popup then return end
+
+    local C = HopeAddon.Constants.REPUTATION_LOOT_POPUP
+    local Data = HopeAddon.ReputationData
+    local Reputation = HopeAddon:GetModule("Reputation")
+    local charDb = HopeAddon.charDb
+    local journalSelf = self
+
+    -- Release previous pooled frames
+    self:ReleaseReputationLootPopupFrames()
+
+    -- Update state
+    self.reputationLootState.currentFaction = factionName
+    self.reputationLootState.currentData = factionData
+    self.reputationLootState.popupVisible = true
+
+    -- Set header
+    local iconPath = factionData.icon or "INV_Misc_QuestionMark"
+    if not iconPath:find("Interface") then
+        iconPath = "Interface\\Icons\\" .. iconPath
+    end
+    popup.factionIcon:SetTexture(iconPath)
+    popup.title:SetText(factionName)
+
+    -- Get current standing
+    local standingId = 4
+    local standingName = "Neutral"
+    local current, max = 0, 0
+
+    if Reputation then
+        local cached = Reputation:GetFactionStanding(factionName)
+        if cached then
+            standingId = cached.standingId
+            local standingInfo = Data:GetStandingInfo(standingId)
+            standingName = standingInfo and standingInfo.name or "Unknown"
+        end
+        local curr, mx, _ = Reputation:GetProgressInStanding(factionName)
+        if curr then current = curr end
+        if mx then max = mx end
+    end
+
+    -- Set standing text
+    local r, g, b = Data:GetStandingColor(standingId)
+    local progressStr = ""
+    if max > 0 then
+        progressStr = string.format(" (%s/%s)", current, max)
+    end
+    popup.standingText:SetText("Standing: |cFF" .. string.format("%02X%02X%02X", r*255, g*255, b*255) .. standingName .. "|r" .. progressStr)
+
+    -- Get all rewards for this faction
+    local rewards = Data:GetAllRewards(factionName)
+
+    -- Count tracked items for this faction
+    local trackedItemsForFaction = 0
+    if charDb and charDb.reputation and charDb.reputation.trackedItems then
+        for itemId, trackData in pairs(charDb.reputation.trackedItems) do
+            if trackData.factionName == factionName then
+                trackedItemsForFaction = trackedItemsForFaction + 1
+            end
+        end
+    end
+
+    -- Populate items grouped by standing tier
+    local yOffset = 0
+    local scrollContent = popup.scrollContent
+    local standingOrder = { 5, 6, 7, 8 }  -- Friendly, Honored, Revered, Exalted
+
+    local totalItems = 0
+
+    for _, tierStandingId in ipairs(standingOrder) do
+        local tierRewards = rewards and rewards[tierStandingId]
+
+        if tierRewards and #tierRewards > 0 then
+            -- Add tier header
+            local standingInfo = Data:GetStandingInfo(tierStandingId)
+            local tierHeader = self.reputationLootPools.tierHeader:Acquire()
+            tierHeader:SetParent(scrollContent)
+            tierHeader:ClearAllPoints()
+            tierHeader:SetPoint("TOPLEFT", scrollContent, "TOPLEFT", 0, -yOffset)
+            tierHeader:SetPoint("TOPRIGHT", scrollContent, "TOPRIGHT", 0, -yOffset)
+
+            local tr, tg, tb = Data:GetStandingColor(tierStandingId)
+            tierHeader.text:SetText("-- " .. string.upper(standingInfo.name) .. " --")
+            tierHeader.text:SetTextColor(tr, tg, tb)
+
+            -- Show checkmark if standing reached
+            if standingId >= tierStandingId then
+                tierHeader.text:SetText("-- " .. string.upper(standingInfo.name) .. " --")
+            end
+
+            tierHeader:Show()
+            table.insert(popup.tierHeaders, tierHeader)
+            yOffset = yOffset + C.TIER_HEADER_HEIGHT
+
+            -- Add item rows for this tier
+            for _, item in ipairs(tierRewards) do
+                local row = self.reputationLootPools.itemRow:Acquire()
+                row:SetParent(scrollContent)
+                row:ClearAllPoints()
+                row:SetPoint("TOPLEFT", scrollContent, "TOPLEFT", 0, -yOffset)
+                row:SetPoint("TOPRIGHT", scrollContent, "TOPRIGHT", 0, -yOffset)
+
+                -- Store item data
+                row.itemId = item.itemId
+                row.itemName = item.name
+                row.factionName = factionName
+                row.standingId = tierStandingId
+
+                -- Set icon - try GetItemInfo first, fall back to stored icon
+                local iconPath = nil
+                local qualityColor = nil
+
+                if item.itemId and item.itemId > 0 then
+                    local itemName, itemLink, itemQuality, _, _, _, _, _, _, itemTexture = GetItemInfo(item.itemId)
+                    if itemTexture then
+                        iconPath = itemTexture
+                    end
+                    if itemQuality then
+                        qualityColor = C.QUALITY_COLORS[itemQuality]
+                    end
+                end
+
+                if not iconPath then
+                    iconPath = item.icon
+                    if iconPath and not iconPath:find("Interface") then
+                        iconPath = "Interface\\Icons\\" .. iconPath
+                    end
+                end
+                iconPath = iconPath or "Interface\\Icons\\INV_Misc_QuestionMark"
+                row.icon:SetTexture(iconPath)
+
+                qualityColor = qualityColor or C.QUALITY_COLORS[3]  -- Default rare
+                row.iconBorder:SetVertexColor(qualityColor.r, qualityColor.g, qualityColor.b)
+                row.qualityColor = qualityColor
+
+                -- Set name
+                row.nameText:SetText(item.name or "Unknown Item")
+                row.nameText:SetTextColor(qualityColor.r, qualityColor.g, qualityColor.b)
+
+                -- Set item type (if available from GetItemInfo)
+                local itemType = ""
+                if item.itemId and item.itemId > 0 then
+                    local _, _, _, _, _, itemTypeName, itemSubType = GetItemInfo(item.itemId)
+                    if itemSubType then
+                        itemType = itemSubType
+                    elseif itemTypeName then
+                        itemType = itemTypeName
+                    end
+                end
+                row.typeText:SetText(itemType)
+                row.itemType = itemType
+
+                -- Set standing badge
+                local isObtainable = standingId >= tierStandingId
+                if isObtainable then
+                    row.standingBadge:SetText("|cFF00FF00Available|r")
+                else
+                    row.standingBadge:SetText("|cFF" .. string.format("%02X%02X%02X", tr*255, tg*255, tb*255) .. standingInfo.name .. "|r")
+                end
+
+                -- Check if item is tracked
+                local isTracked = charDb and charDb.reputation and charDb.reputation.trackedItems
+                    and charDb.reputation.trackedItems[item.itemId] ~= nil
+                row.isTracked = isTracked
+                row.checkbox:SetChecked(isTracked)
+
+                -- Check if item is the goal
+                local isGoal = charDb and charDb.reputation and charDb.reputation.goalItem
+                    and charDb.reputation.goalItem.itemId == item.itemId
+                row.isGoal = isGoal
+                if isGoal then
+                    row.goalStar:Show()
+                else
+                    row.goalStar:Hide()
+                end
+
+                -- Checkbox click handler
+                row.checkbox:SetScript("OnClick", function(self)
+                    if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+                    journalSelf:ToggleReputationItemTracking(item.itemId, factionName, tierStandingId, item.name)
+                    -- Refresh the popup to update counts
+                    journalSelf:RefreshReputationLootPopup()
+                end)
+
+                -- Right-click to set as goal
+                row:SetScript("OnMouseUp", function(self, button)
+                    if button == "RightButton" then
+                        if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+                        journalSelf:SetReputationGoalItem(item.itemId, factionName, tierStandingId, item.name)
+                        journalSelf:RefreshReputationLootPopup()
+                    end
+                end)
+
+                row:Show()
+                table.insert(popup.itemRows, row)
+                yOffset = yOffset + C.ROW_HEIGHT + C.ROW_GAP
+                totalItems = totalItems + 1
+            end
+
+            -- Add small gap after each tier
+            yOffset = yOffset + 8
+        end
+    end
+
+    -- Set scroll content height
+    scrollContent:SetHeight(yOffset > 0 and yOffset or 100)
+
+    -- Update footer
+    if trackedItemsForFaction > 0 then
+        popup.trackedCount:SetText(string.format("Tracking: %d item%s", trackedItemsForFaction, trackedItemsForFaction ~= 1 and "s" or ""))
+    else
+        popup.trackedCount:SetText("Not tracking any items")
+    end
+
+    -- Position popup (centered on screen)
+    popup:ClearAllPoints()
+    popup:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+
+    -- Adjust height based on content
+    local contentHeight = yOffset + C.HEADER_HEIGHT + C.FOOTER_HEIGHT + 20
+    local popupHeight = math.max(C.MIN_HEIGHT, math.min(C.MAX_HEIGHT, contentHeight))
+    popup:SetHeight(popupHeight)
+
+    popup:Show()
+end
+
+--[[
+    Refresh the currently shown reputation loot popup
+    Called after tracking changes to update visual state
+]]
+function Journal:RefreshReputationLootPopup()
+    if self.reputationLootState.popupVisible and self.reputationLootState.currentFaction then
+        self:ShowReputationLootPopup(
+            self.reputationLootState.currentFaction,
+            self.reputationLootState.currentData
+        )
+    end
+end
+
+--[[
+    Toggle tracking for a reputation item
+    @param itemId number - Item ID
+    @param factionName string - Faction name
+    @param standingId number - Required standing ID
+    @param itemName string - Item name for display
+]]
+function Journal:ToggleReputationItemTracking(itemId, factionName, standingId, itemName)
+    if not itemId then return end
+
+    local charDb = HopeAddon.charDb
+    if not charDb or not charDb.reputation then return end
+
+    charDb.reputation.trackedItems = charDb.reputation.trackedItems or {}
+
+    if charDb.reputation.trackedItems[itemId] then
+        -- Remove tracking
+        charDb.reputation.trackedItems[itemId] = nil
+        HopeAddon:Debug("Untracked reputation item:", itemName or itemId)
+
+        -- If this was the goal item, clear goal
+        if charDb.reputation.goalItem and charDb.reputation.goalItem.itemId == itemId then
+            charDb.reputation.goalItem = nil
+        end
+    else
+        -- Add tracking
+        charDb.reputation.trackedItems[itemId] = {
+            factionName = factionName,
+            standingId = standingId,
+            dateAdded = HopeAddon:GetDate(),
+        }
+        HopeAddon:Debug("Tracking reputation item:", itemName or itemId)
+    end
+end
+
+--[[
+    Set a reputation item as the primary goal
+    @param itemId number - Item ID
+    @param factionName string - Faction name
+    @param standingId number - Required standing ID
+    @param itemName string - Item name for display
+]]
+function Journal:SetReputationGoalItem(itemId, factionName, standingId, itemName)
+    if not itemId then return end
+
+    local charDb = HopeAddon.charDb
+    if not charDb or not charDb.reputation then return end
+
+    -- Ensure item is tracked first
+    charDb.reputation.trackedItems = charDb.reputation.trackedItems or {}
+    if not charDb.reputation.trackedItems[itemId] then
+        charDb.reputation.trackedItems[itemId] = {
+            factionName = factionName,
+            standingId = standingId,
+            dateAdded = HopeAddon:GetDate(),
+        }
+    end
+
+    -- Toggle goal: if already goal, clear it; otherwise set it
+    if charDb.reputation.goalItem and charDb.reputation.goalItem.itemId == itemId then
+        charDb.reputation.goalItem = nil
+        HopeAddon:Debug("Cleared reputation goal item")
+    else
+        charDb.reputation.goalItem = {
+            itemId = itemId,
+            factionName = factionName,
+            standingId = standingId,
+        }
+        HopeAddon:Debug("Set reputation goal item:", itemName or itemId)
+    end
+end
+
 --[[
     Get icon path for an item type
     @param itemType string - Item type description
@@ -6883,13 +8149,6 @@ function Journal:PopulateGames()
         end
     end
 
-    -- Get active Words games count
-    local wordsActiveCount = 0
-    local WordsPersistence = HopeAddon:GetModule("WordGamePersistence")
-    if WordsPersistence then
-        wordsActiveCount = WordsPersistence:GetGameCount()
-    end
-
     -- Create cards for each game
     for i, gameData in ipairs(games) do
         local card = self:AcquireGameCard(
@@ -6911,11 +8170,6 @@ function Journal:PopulateGames()
         if col >= CARDS_PER_ROW then
             col = 0
             row = row + 1
-        end
-
-        -- Show active games badge for Words
-        if gameData.id == "words" and card.SetActiveGames then
-            card:SetActiveGames(wordsActiveCount)
         end
     end
 
@@ -8136,7 +9390,7 @@ function Journal:GetRumorPopup()
 
     -- POST TYPE RADIO BUTTONS
     popup.postTypeButtons = {}
-    popup.selectedPostType = "IC"  -- Default to IC
+    popup.selectedPostType = "ANON"  -- Default to Anonymous (OOC)
 
     local yOffset = -40
     for i, option in ipairs(POST_TYPE_OPTIONS) do
@@ -8375,7 +9629,7 @@ function Journal:ShowRumorPopup()
     popup:Show()
     popup.editBox:SetText("")
     popup.charCounter:SetText("0 / 100")
-    popup.selectedPostType = "IC"  -- Default to IC Post
+    popup.selectedPostType = "ANON"  -- Default to Anonymous (OOC)
 
     -- Check cooldown
     if HopeAddon.ActivityFeed then
@@ -8415,25 +9669,16 @@ function Journal:PopulateSocial()
     local socialUI = HopeAddon:GetSocialUI()
     if not socialUI then return end
 
-    -- SECTION 1: Status Bar (Your profile summary - always visible)
-    local statusBar = self:CreateSocialStatusBar(scrollContainer.content)
-    scrollContainer:AddEntry(statusBar)
-    self.socialContainers.statusBar = statusBar
-
-    -- Spacer
-    local spacer1 = Components:CreateSpacer(scrollContainer.content, 8)
-    scrollContainer:AddEntry(spacer1)
-
-    -- SECTION 2: Sub-Tab Bar
+    -- SECTION 1: Sub-Tab Bar (at the top)
     local tabBar = self:CreateSocialTabBar(scrollContainer.content)
     scrollContainer:AddEntry(tabBar)
     self.socialContainers.tabBar = tabBar
 
     -- Spacer
-    local spacer2 = Components:CreateSpacer(scrollContainer.content, 8)
-    scrollContainer:AddEntry(spacer2)
+    local spacer1 = Components:CreateSpacer(scrollContainer.content, 8)
+    scrollContainer:AddEntry(spacer1)
 
-    -- SECTION 3: Tab Content (dynamic based on active sub-tab)
+    -- SECTION 2: Tab Content (dynamic based on active sub-tab)
     local content = self:CreateSocialContent()
     content:SetParent(scrollContainer.content)
     scrollContainer:AddEntry(content)
@@ -8569,9 +9814,9 @@ function Journal:CreateSocialTabBar(parent)
     local tabs = {
         { id = "guild", label = "Guild" },
         { id = "travelers", label = "Travelers" },
-        { id = "companions", label = "Companions" },
+        { id = "companions", label = "Buddy" },
         { id = "calendar", label = "Calendar" },
-        { id = "notes", label = "Notes" },
+        { id = "critter", label = "Critter" },
         { id = "feed", label = "Feed" },
     }
 
@@ -8668,8 +9913,8 @@ function Journal:SelectSocialSubTab(tabId)
         self:PopulateSocialCompanions()
     elseif tabId == "calendar" then
         self:PopulateSocialCalendar()
-    elseif tabId == "notes" then
-        self:PopulateSocialNotes()
+    elseif tabId == "critter" then
+        self:PopulateSocialCritter()
     end
 end
 
@@ -8940,6 +10185,16 @@ function Journal:UpdateSocialTabBadges()
         local upcomingCount = upcomingEvents and #upcomingEvents or 0
         self.socialSubTabs.calendar:SetBadge(upcomingCount > 0 and tostring(upcomingCount) or "")
     end
+
+    -- Critter: Show "NEW" if there's an unlock the player hasn't seen
+    if self.socialSubTabs.critter then
+        local db = HopeAddon.db and HopeAddon.db.crusadeCritter
+        if db and db.hasNewUnlock then
+            self.socialSubTabs.critter:SetBadge("NEW")
+        else
+            self.socialSubTabs.critter:SetBadge("")
+        end
+    end
 end
 
 --============================================================
@@ -9068,6 +10323,12 @@ function Journal:PopulateSocialGuild()
         self:TrackSocialRegion(motdText)
 
         yOffset = yOffset - (C.SOCIAL_TAB.GUILD_MOTD_HEIGHT or 40) - 4
+    end
+
+    -- GUILD LOOT BOARD (Phase 62): Recent raid loot from Fellow Travelers
+    local lootBoardFrame, lootBoardHeight = self:CreateGuildLootBoard(content, yOffset)
+    if lootBoardFrame then
+        yOffset = yOffset - lootBoardHeight - 6
     end
 
     -- FILTER BAR: Online / All
@@ -9426,6 +10687,292 @@ function Journal:CreateGuildActivityRow(parent, activity)
     return row
 end
 
+--============================================================
+-- GUILD LOOT BOARD (Phase 62)
+-- Collapsible section showing recent raid loot from Fellow Travelers
+--============================================================
+
+--[[
+    Create the Guild Loot Board collapsible section
+    @param parent Frame - Parent content frame
+    @param yOffset number - Starting Y offset
+    @return Frame|nil, number - Loot board frame and total height used
+]]
+function Journal:CreateGuildLootBoard(parent, yOffset)
+    local C = HopeAddon.Constants
+    local ActivityFeed = HopeAddon.ActivityFeed
+
+    -- Get loot log entries
+    local lootLog = ActivityFeed and ActivityFeed:GetRecentLootLog(10) or {}
+
+    -- Get collapse state from socialUI
+    local socialUI = HopeAddon:GetSocialUI()
+    local guildUI = socialUI and socialUI.guild or {}
+    local isCollapsed = guildUI.lootBoardCollapsed or false
+
+    -- Calculate dimensions
+    local headerHeight = 32
+    local rowHeight = 48
+    local maxVisibleRows = 10
+    local contentHeight = 0
+
+    if not isCollapsed and #lootLog > 0 then
+        contentHeight = math.min(#lootLog, maxVisibleRows) * (rowHeight + 2)
+    elseif not isCollapsed and #lootLog == 0 then
+        contentHeight = 30  -- Empty state height
+    end
+
+    local totalHeight = headerHeight + contentHeight + 4
+
+    -- Create container frame
+    local container = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    container:SetHeight(totalHeight)
+    container:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, yOffset)
+    container:SetPoint("RIGHT", parent, "RIGHT", 0, 0)
+    container:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+        edgeSize = 12,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    })
+    -- Gold border to match loot activity styling (epic purple/gold theme)
+    container:SetBackdropColor(0.08, 0.06, 0.04, 0.95)
+    container:SetBackdropBorderColor(0.8, 0.6, 0.2, 1)
+    self:TrackSocialRegion(container)
+
+    -- Header bar
+    local header = CreateFrame("Button", nil, container)
+    header:SetHeight(headerHeight)
+    header:SetPoint("TOPLEFT", container, "TOPLEFT", 0, 0)
+    header:SetPoint("RIGHT", container, "RIGHT", 0, 0)
+    self:TrackSocialRegion(header)
+
+    -- Loot bag icon
+    local icon = header:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(20, 20)
+    icon:SetPoint("LEFT", header, "LEFT", 10, 0)
+    icon:SetTexture("Interface\\Icons\\INV_Misc_Bag_10")
+    self:TrackSocialRegion(icon)
+
+    -- Title text
+    local title = header:CreateFontString(nil, "OVERLAY")
+    title:SetFont(HopeAddon.assets.fonts.HEADER, 12, "")
+    title:SetPoint("LEFT", icon, "RIGHT", 8, 0)
+    title:SetText("|cFFFFD700Recent Raid Loot|r")
+    self:TrackSocialRegion(title)
+
+    -- Count badge
+    if #lootLog > 0 then
+        local countBadge = header:CreateFontString(nil, "OVERLAY")
+        countBadge:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+        countBadge:SetPoint("LEFT", title, "RIGHT", 6, 0)
+        countBadge:SetText("|cFF808080(" .. #lootLog .. ")|r")
+        self:TrackSocialRegion(countBadge)
+    end
+
+    -- Collapse/expand button
+    local collapseBtn = CreateFrame("Button", nil, header)
+    collapseBtn:SetSize(20, 20)
+    collapseBtn:SetPoint("RIGHT", header, "RIGHT", -10, 0)
+    self:TrackSocialRegion(collapseBtn)
+
+    local collapseIcon = collapseBtn:CreateTexture(nil, "ARTWORK")
+    collapseIcon:SetSize(16, 16)
+    collapseIcon:SetPoint("CENTER")
+    collapseIcon:SetTexture(isCollapsed and "Interface\\Buttons\\UI-PlusButton-UP" or "Interface\\Buttons\\UI-MinusButton-UP")
+    self:TrackSocialRegion(collapseIcon)
+
+    -- Collapse button functionality
+    collapseBtn:SetScript("OnClick", function()
+        HopeAddon.Sounds:PlayClick()
+        local ui = HopeAddon:GetSocialUI()
+        if ui then
+            ui.guild = ui.guild or {}
+            ui.guild.lootBoardCollapsed = not ui.guild.lootBoardCollapsed
+        end
+        -- Refresh guild content
+        self:ClearSocialContent()
+        self:PopulateSocialGuild()
+    end)
+
+    collapseBtn:SetScript("OnEnter", function(self)
+        collapseIcon:SetVertexColor(1, 0.84, 0)
+    end)
+    collapseBtn:SetScript("OnLeave", function(self)
+        collapseIcon:SetVertexColor(1, 1, 1)
+    end)
+
+    -- Header hover effect
+    header:SetScript("OnEnter", function(self)
+        container:SetBackdropBorderColor(1, 0.84, 0, 1)
+    end)
+    header:SetScript("OnLeave", function(self)
+        container:SetBackdropBorderColor(0.8, 0.6, 0.2, 1)
+    end)
+    header:SetScript("OnClick", function()
+        HopeAddon.Sounds:PlayClick()
+        local ui = HopeAddon:GetSocialUI()
+        if ui then
+            ui.guild = ui.guild or {}
+            ui.guild.lootBoardCollapsed = not ui.guild.lootBoardCollapsed
+        end
+        self:ClearSocialContent()
+        self:PopulateSocialGuild()
+    end)
+
+    -- Content area (if not collapsed)
+    if not isCollapsed then
+        local contentArea = CreateFrame("Frame", nil, container)
+        contentArea:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 4, -2)
+        contentArea:SetPoint("RIGHT", container, "RIGHT", -4, 0)
+        contentArea:SetHeight(contentHeight)
+        self:TrackSocialRegion(contentArea)
+
+        if #lootLog > 0 then
+            local rowYOffset = 0
+            for i, entry in ipairs(lootLog) do
+                if i > maxVisibleRows then break end
+                local lootRow = self:CreateGuildLootRow(contentArea, entry)
+                lootRow:SetPoint("TOPLEFT", contentArea, "TOPLEFT", 0, rowYOffset)
+                lootRow:SetPoint("RIGHT", contentArea, "RIGHT", 0, 0)
+                rowYOffset = rowYOffset - (rowHeight + 2)
+            end
+        else
+            -- Empty state
+            local emptyText = contentArea:CreateFontString(nil, "OVERLAY")
+            emptyText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+            emptyText:SetPoint("CENTER", contentArea, "CENTER", 0, 0)
+            emptyText:SetText("|cFF808080No recent raid loot recorded|r")
+            self:TrackSocialRegion(emptyText)
+        end
+    end
+
+    return container, totalHeight
+end
+
+--[[
+    Create a single loot row for the Guild Loot Board
+    @param parent Frame - Parent frame
+    @param entry table - Loot entry from ActivityFeed:GetLootLog()
+    @return Frame - Loot row frame
+]]
+function Journal:CreateGuildLootRow(parent, entry)
+    local C = HopeAddon.Constants
+    local ActivityFeed = HopeAddon.ActivityFeed
+
+    local row = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    row:SetHeight(48)
+    row:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+        edgeSize = 8,
+        insets = { left = 1, right = 1, top = 1, bottom = 1 },
+    })
+    row:SetBackdropColor(0.1, 0.08, 0.06, 0.8)
+
+    -- Epic purple border for loot items
+    local qualityColors = {
+        [4] = { 0.64, 0.21, 0.93 },  -- Epic
+        [5] = { 1.0, 0.5, 0.0 },      -- Legendary
+    }
+    local borderColor = qualityColors[entry.quality] or qualityColors[4]
+    row:SetBackdropBorderColor(borderColor[1], borderColor[2], borderColor[3], 0.9)
+    self:TrackSocialRegion(row)
+
+    -- Quality indicator (colored dot)
+    local qualityDot = row:CreateTexture(nil, "OVERLAY")
+    qualityDot:SetSize(10, 10)
+    qualityDot:SetPoint("LEFT", row, "LEFT", 8, 0)
+    qualityDot:SetTexture("Interface\\COMMON\\Indicator-Green")
+    qualityDot:SetVertexColor(borderColor[1], borderColor[2], borderColor[3])
+    self:TrackSocialRegion(qualityDot)
+
+    -- Player name with class color
+    local classColor = entry.class and RAID_CLASS_COLORS[entry.class]
+    if not classColor then classColor = { r = 0.8, g = 0.8, b = 0.8 } end
+
+    local playerText = row:CreateFontString(nil, "OVERLAY")
+    playerText:SetFont(HopeAddon.assets.fonts.HEADER, 11, "")
+    playerText:SetPoint("TOPLEFT", qualityDot, "TOPRIGHT", 6, 4)
+    local playerColor = string.format("|cFF%02x%02x%02x", classColor.r * 255, classColor.g * 255, classColor.b * 255)
+    playerText:SetText(playerColor .. (entry.player or "Unknown") .. "|r |cFFCCCCCClooted|r")
+    self:TrackSocialRegion(playerText)
+
+    -- Item link (clickable)
+    local itemBtn = CreateFrame("Button", nil, row)
+    itemBtn:SetPoint("TOPLEFT", playerText, "BOTTOMLEFT", 0, -2)
+    itemBtn:SetPoint("RIGHT", row, "RIGHT", -60, 0)
+    itemBtn:SetHeight(16)
+    self:TrackSocialRegion(itemBtn)
+
+    local itemText = itemBtn:CreateFontString(nil, "OVERLAY")
+    itemText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+    itemText:SetPoint("LEFT", itemBtn, "LEFT", 0, 0)
+    itemText:SetPoint("RIGHT", itemBtn, "RIGHT", 0, 0)
+    itemText:SetJustifyH("LEFT")
+    itemText:SetWordWrap(false)
+    itemText:SetText(entry.itemLink or "|cFFA335EE[Unknown Item]|r")
+    self:TrackSocialRegion(itemText)
+
+    -- Make item clickable for tooltip/link
+    if entry.itemLink then
+        itemBtn:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetHyperlink(entry.itemLink)
+            GameTooltip:Show()
+            itemText:SetTextColor(1, 1, 0.6)
+        end)
+        itemBtn:SetScript("OnLeave", function(self)
+            GameTooltip:Hide()
+            itemText:SetTextColor(1, 1, 1)
+        end)
+        itemBtn:SetScript("OnClick", function(self, button)
+            if button == "LeftButton" and IsShiftKeyDown() and ChatFrame1EditBox:IsVisible() then
+                ChatFrame1EditBox:Insert(entry.itemLink)
+            elseif button == "LeftButton" and IsControlKeyDown() then
+                DressUpItemLink(entry.itemLink)
+            end
+        end)
+    end
+
+    -- Source info (boss name, raid name)
+    local sourceText = row:CreateFontString(nil, "OVERLAY")
+    sourceText:SetFont(HopeAddon.assets.fonts.BODY, 9, "")
+    sourceText:SetPoint("TOPLEFT", itemBtn, "BOTTOMLEFT", 0, -1)
+    local sourceStr = ""
+    if entry.source and entry.source ~= "" and entry.source ~= "Unknown" then
+        sourceStr = "from " .. entry.source
+    end
+    if entry.location and entry.location ~= "" then
+        if sourceStr ~= "" then
+            sourceStr = sourceStr .. " (" .. entry.location .. ")"
+        else
+            sourceStr = entry.location
+        end
+    end
+    sourceText:SetText("|cFF888888" .. sourceStr .. "|r")
+    self:TrackSocialRegion(sourceText)
+
+    -- First kill badge
+    if entry.isFirstKill then
+        local firstKillBadge = row:CreateFontString(nil, "OVERLAY")
+        firstKillBadge:SetFont(HopeAddon.assets.fonts.BODY, 9, "")
+        firstKillBadge:SetPoint("LEFT", sourceText, "RIGHT", 6, 0)
+        firstKillBadge:SetText("|cFFFFD700First Kill!|r")
+        self:TrackSocialRegion(firstKillBadge)
+    end
+
+    -- Timestamp
+    local timeText = row:CreateFontString(nil, "OVERLAY")
+    timeText:SetFont(HopeAddon.assets.fonts.BODY, 9, "")
+    timeText:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+    local timeAgo = ActivityFeed and ActivityFeed:GetRelativeTime(entry.timestamp) or ""
+    timeText:SetText("|cFF666666" .. timeAgo .. "|r")
+    self:TrackSocialRegion(timeText)
+
+    return row
+end
+
 --[[
     Populate the Travelers sub-tab with quick filters and traveler list
 ]]
@@ -9761,16 +11308,25 @@ function Journal:CreateTravelerRow(parent, entry)
         return btn
     end
 
-    -- Companion button (rightmost)
+    -- Buddy button (rightmost)
     local isCompanion = HopeAddon.Companions and HopeAddon.Companions:IsCompanion(entry.name)
+    local isPending = HopeAddon.Companions and HopeAddon.Companions:HasPendingOutgoingRequest(entry.name)
+
+    local companionTooltip = "Add to Buddy"
+    if isCompanion then
+        companionTooltip = "Remove from Buddy"
+    elseif isPending then
+        companionTooltip = "Request pending..."
+    end
+
     local companionBtn = CreateActionIcon(row,
         "Interface\\COMMON\\ReputationStar",
-        isCompanion and "Remove from companions" or "Add to companions",
+        companionTooltip,
         function()
             if HopeAddon.Companions then
                 if HopeAddon.Companions:IsCompanion(entry.name) then
                     HopeAddon.Companions:RemoveCompanion(entry.name)
-                else
+                elseif not isPending then
                     HopeAddon.Companions:SendRequest(entry.name)
                 end
                 self:RefreshTravelersList()
@@ -9780,7 +11336,9 @@ function Journal:CreateTravelerRow(parent, entry)
     companionBtn:SetPoint("RIGHT", row, "RIGHT", -ICON_PADDING, 0)
     companionBtn.icon:SetTexCoord(0, 0.5, 0, 0.5)
     if isCompanion then
-        companionBtn.icon:SetVertexColor(1, 0.84, 0)  -- Gold for companions
+        companionBtn.icon:SetVertexColor(1, 0.84, 0)  -- Gold for buddies
+    elseif isPending then
+        companionBtn.icon:SetVertexColor(0.6, 0.5, 0.2)  -- Dimmed gold for pending
     end
 
     -- Romance heart button (between companion and game)
@@ -9802,45 +11360,45 @@ function Journal:CreateTravelerRow(parent, entry)
         romanceBtn.icon = heartIcon
 
         if isPartner then
-            -- Already dating - bright pink
-            heartIcon:SetTexture("Interface\\Icons\\INV_ValentinesCard02")
-            heartIcon:SetVertexColor(1, 0.2, 0.6, 1)
+            -- Already oath-bound - holy gold
+            heartIcon:SetTexture("Interface\\Icons\\Spell_Holy_SealOfRighteousness")
+            heartIcon:SetVertexColor(1, 0.84, 0, 1)
             romanceBtn:SetScript("OnEnter", function(self)
-                self.icon:SetVertexColor(1, 0.4, 0.8, 1)
+                self.icon:SetVertexColor(1, 0.9, 0.3, 1)
                 GameTooltip:SetOwner(self, "ANCHOR_TOP")
-                GameTooltip:AddLine("In a relationship", 1.0, 0.08, 0.58)
+                GameTooltip:AddLine("Oath-Bound", 1, 0.65, 0)
                 GameTooltip:Show()
             end)
             romanceBtn:SetScript("OnLeave", function(self)
-                self.icon:SetVertexColor(1, 0.2, 0.6, 1)
+                self.icon:SetVertexColor(1, 0.84, 0, 1)
                 GameTooltip:Hide()
             end)
 
         elseif isPendingOutgoing then
-            -- Proposal pending - candy icon
-            heartIcon:SetTexture("Interface\\Icons\\INV_ValentinesCandy")
-            heartIcon:SetVertexColor(1, 0.5, 0.8, 1)
+            -- Oath pending - holy illumination icon
+            heartIcon:SetTexture("Interface\\Icons\\Spell_Holy_DivineIllumination")
+            heartIcon:SetVertexColor(1, 0.75, 0.2, 1)
             romanceBtn:SetScript("OnEnter", function(self)
-                self.icon:SetVertexColor(1, 0.7, 0.9, 1)
+                self.icon:SetVertexColor(1, 0.85, 0.4, 1)
                 GameTooltip:SetOwner(self, "ANCHOR_TOP")
-                GameTooltip:AddLine("Proposal pending...", 1.0, 0.41, 0.71)
+                GameTooltip:AddLine("Oath pending...", 1, 0.84, 0)
                 GameTooltip:AddLine("Waiting for response", 0.7, 0.7, 0.7)
                 GameTooltip:Show()
             end)
             romanceBtn:SetScript("OnLeave", function(self)
-                self.icon:SetVertexColor(1, 0.5, 0.8, 1)
+                self.icon:SetVertexColor(1, 0.75, 0.2, 1)
                 GameTooltip:Hide()
             end)
 
         elseif isPendingIncoming then
-            -- They proposed - gold heart
-            heartIcon:SetTexture("Interface\\Icons\\INV_ValentinesCard02")
+            -- They offered an oath - glowing gold
+            heartIcon:SetTexture("Interface\\Icons\\Spell_Holy_SealOfRighteousness")
             heartIcon:SetVertexColor(1, 0.8, 0.2, 1)
             romanceBtn:SetScript("OnEnter", function(self)
                 self.icon:SetVertexColor(1, 0.9, 0.4, 1)
                 GameTooltip:SetOwner(self, "ANCHOR_TOP")
-                GameTooltip:AddLine(entry.name .. " proposed!", 1.0, 0.41, 0.71)
-                GameTooltip:AddLine("Go to Companions tab to respond", 0.7, 0.7, 0.7)
+                GameTooltip:AddLine(entry.name .. " offers you an oath!", 1, 0.84, 0)
+                GameTooltip:AddLine("Go to Buddy tab to respond", 0.7, 0.7, 0.7)
                 GameTooltip:Show()
                 if HopeAddon.Sounds then HopeAddon.Sounds:PlayHover() end
             end)
@@ -9854,14 +11412,14 @@ function Journal:CreateTravelerRow(parent, entry)
             end)
 
         elseif romance.status == "SINGLE" then
-            -- Single - grey heart, pink on hover
-            heartIcon:SetTexture("Interface\\Icons\\INV_ValentinesCard01")
+            -- Unbound - grey seal, gold on hover
+            heartIcon:SetTexture("Interface\\Icons\\Spell_Holy_SealOfWisdom")
             heartIcon:SetVertexColor(0.5, 0.5, 0.5, 0.7)
             romanceBtn:SetScript("OnEnter", function(self)
-                self.icon:SetVertexColor(1, 0.4, 0.7, 1)
+                self.icon:SetVertexColor(1, 0.84, 0, 1)
                 GameTooltip:SetOwner(self, "ANCHOR_TOP")
-                GameTooltip:AddLine("Propose to " .. entry.name, 1.0, 0.41, 0.71)
-                GameTooltip:AddLine("Click to send a proposal", 0.7, 0.7, 0.7)
+                GameTooltip:AddLine("Offer an oath to " .. entry.name, 1, 0.84, 0)
+                GameTooltip:AddLine("Click to offer an oath", 0.7, 0.7, 0.7)
                 GameTooltip:Show()
                 if HopeAddon.Sounds then HopeAddon.Sounds:PlayHover() end
             end)
@@ -9876,12 +11434,12 @@ function Journal:CreateTravelerRow(parent, entry)
             end)
 
         else
-            -- Dating someone else - very dim
-            heartIcon:SetTexture("Interface\\Icons\\INV_ValentinesCard01")
+            -- Oath-bound to someone else - very dim
+            heartIcon:SetTexture("Interface\\Icons\\Spell_Holy_SealOfWisdom")
             heartIcon:SetVertexColor(0.3, 0.3, 0.3, 0.5)
             romanceBtn:SetScript("OnEnter", function(self)
                 GameTooltip:SetOwner(self, "ANCHOR_TOP")
-                GameTooltip:AddLine("Already in a relationship", 0.5, 0.5, 0.5)
+                GameTooltip:AddLine("Already oath-bound", 0.5, 0.5, 0.5)
                 GameTooltip:Show()
             end)
             romanceBtn:SetScript("OnLeave", function()
@@ -9949,6 +11507,16 @@ function Journal:PopulateSocialFeed()
 
     local C = HopeAddon.Constants
 
+    -- Add Status Bar at the top of the Feed tab
+    local statusBar = self:CreateSocialStatusBar(content)
+    statusBar:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
+    statusBar:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, 0)
+    self:TrackSocialRegion(statusBar)
+    self.socialContainers.statusBar = statusBar
+
+    -- Calculate starting yOffset below the status bar
+    local statusBarHeight = C.SOCIAL_TAB.STATUS_BAR_HEIGHT + 8  -- Plus spacing
+
     -- Get feed with optional filter
     local filterType = socialUI.feed and socialUI.feed.filter or "all"
     local allActivities = {}
@@ -9990,7 +11558,7 @@ function Journal:PopulateSocialFeed()
     end
 
     -- Create rows with time group headers
-    local yOffset = 0
+    local yOffset = -statusBarHeight  -- Start below the status bar
     local groups = {
         { key = "now", label = "Now" },
         { key = "earlier", label = "Earlier Today" },
@@ -10050,7 +11618,7 @@ function Journal:PopulateSocialFeed()
         hintText:SetJustifyH("CENTER")
         self:TrackSocialRegion(hintText)
 
-        yOffset = -150
+        yOffset = -statusBarHeight - 150
     end
 
     -- Adjust content height
@@ -10128,7 +11696,7 @@ function Journal:CreateFeedRow(parent, activity)
     elseif activity.type == "LOOT" then
         iconPath = "Interface\\Icons\\INV_Misc_Bag_10"
     elseif activity.type == "ROM" or activity.type == "ROMANCE" then
-        iconPath = "Interface\\Icons\\INV_ValentinesCard02"
+        iconPath = "Interface\\Icons\\Spell_Holy_SealOfRighteousness"
     end
     typeIcon:SetTexture(iconPath)
 
@@ -10273,15 +11841,22 @@ function Journal:PopulateSocialCompanions()
         end
     end
 
-    -- Get pending requests
+    -- Get pending requests (incoming and outgoing)
     local requests = {}
+    local outgoingRequests = {}
     if HopeAddon.Companions then
         requests = HopeAddon.Companions:GetIncomingRequests() or {}
+        outgoingRequests = HopeAddon.Companions:GetOutgoingRequests() or {}
     end
 
-    -- Pending requests section (if any)
+    -- Pending incoming requests section (if any)
     if #requests > 0 then
         self:CreateCompanionRequests(content, requests)
+    end
+
+    -- Outgoing requests section (if any)
+    if #outgoingRequests > 0 then
+        self:CreateOutgoingRequestsSection(content, outgoingRequests)
     end
 
     -- Create sections
@@ -10296,14 +11871,44 @@ function Journal:PopulateSocialCompanions()
     end
 
     -- Empty state
-    if #companions == 0 and #requests == 0 then
-        local emptyText = content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        emptyText:SetPoint("CENTER", content, "CENTER", 0, 0)
-        emptyText:SetText("No companions yet.\n\nClick the star on any traveler\nto add them as a companion!")
-        emptyText:SetTextColor(0.6, 0.6, 0.6)
-        emptyText:SetJustifyH("CENTER")
-        self:TrackSocialRegion(emptyText)
-        self.companionYOffset = -100
+    if #companions == 0 and #requests == 0 and #outgoingRequests == 0 then
+        -- Create styled empty state container
+        local emptyContainer = CreateFrame("Frame", nil, content, "BackdropTemplate")
+        emptyContainer:SetSize(content:GetWidth() - 32, 120)
+        emptyContainer:SetPoint("TOPLEFT", content, "TOPLEFT", 16, self.companionYOffset - 20)
+        emptyContainer:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8x8",
+            edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+            edgeSize = 12,
+            insets = { left = 2, right = 2, top = 2, bottom = 2 },
+        })
+        emptyContainer:SetBackdropColor(0.1, 0.1, 0.15, 0.8)
+        emptyContainer:SetBackdropBorderColor(0.4, 0.4, 0.5, 0.8)
+        self:TrackSocialRegion(emptyContainer)
+
+        -- Star icon
+        local starIcon = emptyContainer:CreateTexture(nil, "ARTWORK")
+        starIcon:SetSize(32, 32)
+        starIcon:SetPoint("TOP", emptyContainer, "TOP", 0, -12)
+        starIcon:SetTexture("Interface\\COMMON\\ReputationStar")
+        starIcon:SetTexCoord(0, 0.5, 0, 0.5)
+        starIcon:SetVertexColor(0.6, 0.5, 0.3, 0.8)
+
+        -- Title text
+        local titleText = emptyContainer:CreateFontString(nil, "OVERLAY")
+        titleText:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
+        titleText:SetPoint("TOP", starIcon, "BOTTOM", 0, -8)
+        titleText:SetText("No buddies yet!")
+        titleText:SetTextColor(1.0, 0.82, 0.0)
+
+        -- Hint text
+        local hintText = emptyContainer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        hintText:SetPoint("TOP", titleText, "BOTTOM", 0, -8)
+        hintText:SetText("Click the star on any traveler\nto send them a buddy request!")
+        hintText:SetTextColor(0.6, 0.6, 0.6)
+        hintText:SetJustifyH("CENTER")
+
+        self.companionYOffset = self.companionYOffset - 140
     end
 
     -- Adjust content height
@@ -10347,7 +11952,7 @@ function Journal:CreateRomanceStatusSection(parent)
     if statusDef and statusDef.icon then
         heartIcon:SetTexture("Interface\\Icons\\" .. statusDef.icon)
     else
-        heartIcon:SetTexture("Interface\\Icons\\INV_ValentinesCard01")
+        heartIcon:SetTexture("Interface\\Icons\\Spell_Holy_SealOfWisdom")
     end
     self:TrackSocialRegion(heartIcon)
 
@@ -10355,8 +11960,8 @@ function Journal:CreateRomanceStatusSection(parent)
     local titleText = container:CreateFontString(nil, "OVERLAY")
     titleText:SetFont(HopeAddon.assets.fonts.HEADER, 11, "")
     titleText:SetPoint("LEFT", heartIcon, "RIGHT", 8, 4)
-    titleText:SetText("RELATIONSHIP STATUS")
-    titleText:SetTextColor(1, 0.41, 0.71)  -- Hot pink
+    titleText:SetText("OATH STATUS")
+    titleText:SetTextColor(1, 0.84, 0)  -- Holy gold
     self:TrackSocialRegion(titleText)
 
     -- Status text
@@ -10370,7 +11975,7 @@ function Journal:CreateRomanceStatusSection(parent)
         local partnerClass = partnerInfo and partnerInfo.class or "UNKNOWN"
         local classColor = HopeAddon:GetClassColor(partnerClass)
 
-        statusText:SetText("|cFFFF1493<3 Dating:|r " ..
+        statusText:SetText("|cFFFFA500✦ Oath-Bound:|r " ..
             string.format("|cFF%02X%02X%02X%s|r",
                 classColor.r * 255, classColor.g * 255, classColor.b * 255,
                 romanceData.partner))
@@ -10401,7 +12006,7 @@ function Journal:CreateRomanceStatusSection(parent)
         local breakupText = breakupBtn:CreateFontString(nil, "OVERLAY")
         breakupText:SetFont(HopeAddon.assets.fonts.HEADER, 9, "")
         breakupText:SetPoint("CENTER")
-        breakupText:SetText("</3 Break Up")
+        breakupText:SetText("⚔ Break Oath")
         breakupText:SetTextColor(0.9, 0.5, 0.5)
 
         breakupBtn:SetScript("OnClick", function()
@@ -10432,8 +12037,8 @@ function Journal:CreateRomanceStatusSection(parent)
 
     elseif status == "PROPOSED" and romanceData.pendingOutgoing then
         -- Waiting for response
-        statusText:SetText("|cFFFF69B4<3 Proposed to:|r " .. romanceData.pendingOutgoing.to)
-        statusText:SetTextColor(1, 0.41, 0.71)
+        statusText:SetText("|cFFFFD700✦ Oath offered to:|r " .. romanceData.pendingOutgoing.to)
+        statusText:SetTextColor(1, 0.84, 0)
 
         local waitText = container:CreateFontString(nil, "OVERLAY")
         waitText:SetFont(HopeAddon.assets.fonts.BODY, 9, "")
@@ -10470,12 +12075,12 @@ function Journal:CreateRomanceStatusSection(parent)
 
     else
         -- Single
-        statusText:SetText("|cFF808080Status:|r Single")
+        statusText:SetText("|cFF808080Status:|r Unbound")
 
         local hintText = container:CreateFontString(nil, "OVERLAY")
         hintText:SetFont(HopeAddon.assets.fonts.BODY, 9, "")
         hintText:SetPoint("TOPLEFT", statusText, "BOTTOMLEFT", 0, -2)
-        hintText:SetText("Click |cFFFF69B4\226\153\165|r on any Fellow Traveler to propose!")
+        hintText:SetText("Click |cFFFFD700✦|r on any Fellow Traveler to offer an oath!")
         hintText:SetTextColor(0.6, 0.6, 0.6)
         self:TrackSocialRegion(hintText)
     end
@@ -10497,7 +12102,7 @@ function Journal:CreateRomanceStatusSection(parent)
             local propText = propRow:CreateFontString(nil, "OVERLAY")
             propText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
             propText:SetPoint("LEFT", propRow, "LEFT", 0, 0)
-            propText:SetText("|cFFFF69B4<3|r " .. request.name .. " wants to date you!")
+            propText:SetText("|cFFFFD700✦|r " .. request.name .. " offers you an oath!")
             self:TrackSocialRegion(propText)
 
             -- Accept button
@@ -10608,7 +12213,7 @@ function Journal:CreateRelationshipHistorySection(parent)
     local headerText = headerBtn:CreateFontString(nil, "OVERLAY")
     headerText:SetFont(HopeAddon.assets.fonts.HEADER, 10, "")
     headerText:SetPoint("LEFT", historyIcon, "RIGHT", 6, 0)
-    headerText:SetText("Past Relationships (" .. #history .. ")")
+    headerText:SetText("Past Oaths (" .. #history .. ")")
     headerText:SetTextColor(0.6, 0.6, 0.6)
     self:TrackSocialRegion(headerText)
 
@@ -10705,7 +12310,7 @@ function Journal:CreateRelationshipHistorySection(parent)
         arrow:SetTextColor(0.5, 0.5, 0.5)
     end)
 
-    self.companionYOffset = self.companionYOffset - container:GetHeight() - 12
+    self.companionYOffset = self.companionYOffset - container:GetHeight() - 16
 end
 
 --[[
@@ -10769,12 +12374,21 @@ function Journal:CreateCompanionRequests(parent, requests)
     -- Request rows
     for _, request in ipairs(requests) do
         local row = CreateFrame("Frame", nil, parent, "BackdropTemplate")
-        row:SetSize(parent:GetWidth() - 16, 30)
+        row:SetSize(parent:GetWidth() - 16, 36)
         row:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, self.companionYOffset)
+        row:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8x8",
+            edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+            edgeSize = 10,
+            insets = { left = 2, right = 2, top = 2, bottom = 2 },
+        })
+        row:SetBackdropColor(0.1, 0.1, 0.1, 0.8)
+        row:SetBackdropBorderColor(0.4, 0.6, 0.2, 0.8)
+        self:TrackSocialRegion(row)
 
         local text = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        text:SetPoint("LEFT", 8, 0)
-        text:SetText((request.name or "Unknown") .. " wants to be companions")
+        text:SetPoint("LEFT", 12, 0)
+        text:SetText((request.name or "Unknown") .. " wants to be your buddy")
 
         local acceptBtn = CreateFrame("Button", nil, row, "BackdropTemplate")
         acceptBtn:SetSize(60, 24)
@@ -10828,10 +12442,97 @@ function Journal:CreateCompanionRequests(parent, requests)
             self:PopulateSocialCompanions()
         end)
 
-        self.companionYOffset = self.companionYOffset - 34
+        self.companionYOffset = self.companionYOffset - 40
     end
 
-    self.companionYOffset = self.companionYOffset - 10
+    self.companionYOffset = self.companionYOffset - 16
+end
+
+--[[
+    Create outgoing buddy requests section (awaiting response)
+    @param parent Frame - Parent frame
+    @param requests table - Array of outgoing requests
+]]
+function Journal:CreateOutgoingRequestsSection(parent, requests)
+    -- Section header
+    local header = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    header:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, self.companionYOffset)
+    header:SetText("Awaiting Response (" .. #requests .. ")")
+    header:SetTextColor(0.6, 0.6, 0.8)
+    self:TrackSocialRegion(header)
+    self.companionYOffset = self.companionYOffset - 24
+
+    -- Request rows
+    for _, request in ipairs(requests) do
+        local row = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+        row:SetSize(parent:GetWidth() - 16, 36)
+        row:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, self.companionYOffset)
+        row:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8x8",
+            edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+            edgeSize = 10,
+            insets = { left = 2, right = 2, top = 2, bottom = 2 },
+        })
+        row:SetBackdropColor(0.1, 0.1, 0.12, 0.8)
+        row:SetBackdropBorderColor(0.3, 0.3, 0.5, 0.8)
+        self:TrackSocialRegion(row)
+
+        -- Pending icon (clock-like indicator)
+        local pendingIcon = row:CreateTexture(nil, "ARTWORK")
+        pendingIcon:SetSize(16, 16)
+        pendingIcon:SetPoint("LEFT", 10, 0)
+        pendingIcon:SetTexture("Interface\\COMMON\\ReputationStar")
+        pendingIcon:SetTexCoord(0, 0.5, 0, 0.5)
+        pendingIcon:SetVertexColor(0.6, 0.5, 0.2, 0.8)
+
+        local text = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        text:SetPoint("LEFT", pendingIcon, "RIGHT", 6, 0)
+        text:SetText("Sent request to " .. (request.name or "Unknown"))
+        text:SetTextColor(0.7, 0.7, 0.8)
+
+        -- Cancel button
+        local cancelBtn = CreateFrame("Button", nil, row, "BackdropTemplate")
+        cancelBtn:SetSize(60, 24)
+        cancelBtn:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+        cancelBtn:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8x8",
+            edgeFile = HopeAddon.assets.textures.TOOLTIP_BORDER,
+            edgeSize = 8,
+            insets = { left = 1, right = 1, top = 1, bottom = 1 },
+        })
+        cancelBtn:SetBackdropColor(0.3, 0.3, 0.35, 0.9)
+        cancelBtn:SetBackdropBorderColor(0.5, 0.5, 0.6, 1)
+        local cancelText = cancelBtn:CreateFontString(nil, "OVERLAY")
+        cancelText:SetFont(HopeAddon.assets.fonts.HEADER, 10, "")
+        cancelText:SetPoint("CENTER")
+        cancelText:SetText("Cancel")
+        cancelText:SetTextColor(0.7, 0.7, 0.8)
+
+        cancelBtn:SetScript("OnEnter", function(self)
+            self:SetBackdropColor(0.4, 0.3, 0.3, 0.9)
+            self:SetBackdropBorderColor(0.6, 0.4, 0.4, 1)
+            cancelText:SetTextColor(0.9, 0.6, 0.6)
+        end)
+
+        cancelBtn:SetScript("OnLeave", function(self)
+            self:SetBackdropColor(0.3, 0.3, 0.35, 0.9)
+            self:SetBackdropBorderColor(0.5, 0.5, 0.6, 1)
+            cancelText:SetTextColor(0.7, 0.7, 0.8)
+        end)
+
+        cancelBtn:SetScript("OnClick", function()
+            if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+            if HopeAddon.Companions then
+                HopeAddon.Companions:CancelOutgoingRequest(request.name)
+            end
+            self:ClearSocialContent()
+            self:PopulateSocialCompanions()
+        end)
+
+        self.companionYOffset = self.companionYOffset - 40
+    end
+
+    self.companionYOffset = self.companionYOffset - 16
 end
 
 --[[
@@ -10943,51 +12644,51 @@ function Journal:CreateCompanionCard(parent, companion, status)
         local isPendingIncoming = romance.pendingIncoming and romance.pendingIncoming[companion.name] ~= nil
 
         if isPartner then
-            -- Already dating - bright pink heart card
-            heartIcon:SetTexture("Interface\\Icons\\INV_ValentinesCard02")
-            heartIcon:SetVertexColor(1, 0.2, 0.6, 1)  -- Pink tint
+            -- Already oath-bound - holy gold seal
+            heartIcon:SetTexture("Interface\\Icons\\Spell_Holy_SealOfRighteousness")
+            heartIcon:SetVertexColor(1, 0.84, 0, 1)  -- Gold tint
             heartBtn:SetScript("OnEnter", function(self)
                 GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                GameTooltip:AddLine("In a relationship with " .. companion.name, 1.0, 0.08, 0.58)
+                GameTooltip:AddLine("Oath-bound with " .. companion.name, 1, 0.65, 0)
                 GameTooltip:Show()
             end)
             heartBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
             heartBtn:SetScript("OnClick", nil) -- Can't propose to partner
         elseif isPendingOutgoing then
-            -- Already proposed - candy (pending) icon
-            heartIcon:SetTexture("Interface\\Icons\\INV_ValentinesCandy")
-            heartIcon:SetVertexColor(1, 0.5, 0.8, 1)  -- Light pink
+            -- Already proposed - pending illumination icon
+            heartIcon:SetTexture("Interface\\Icons\\Spell_Holy_DivineIllumination")
+            heartIcon:SetVertexColor(1, 0.75, 0.2, 1)  -- Light gold
             heartBtn:SetScript("OnEnter", function(self)
                 GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                GameTooltip:AddLine("Proposal pending...", 1.0, 0.41, 0.71)
+                GameTooltip:AddLine("Oath pending...", 1, 0.84, 0)
                 GameTooltip:AddLine("Waiting for their response", 0.7, 0.7, 0.7)
                 GameTooltip:Show()
             end)
             heartBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
             heartBtn:SetScript("OnClick", nil) -- Already pending
         elseif isPendingIncoming then
-            -- They proposed to us - glowing heart with exclamation
-            heartIcon:SetTexture("Interface\\Icons\\INV_ValentinesCard02")
-            heartIcon:SetVertexColor(1, 0.8, 0.2, 1)  -- Gold/excited
+            -- They offered an oath - glowing gold seal
+            heartIcon:SetTexture("Interface\\Icons\\Spell_Holy_SealOfRighteousness")
+            heartIcon:SetVertexColor(1, 0.8, 0.2, 1)  -- Bright gold
             heartBtn:SetScript("OnEnter", function(self)
                 GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                GameTooltip:AddLine(companion.name .. " proposed to you!", 1.0, 0.41, 0.71)
-                GameTooltip:AddLine("Check relationship status section above", 0.7, 0.7, 0.7)
+                GameTooltip:AddLine(companion.name .. " offers you an oath!", 1, 0.84, 0)
+                GameTooltip:AddLine("Check oath status section above", 0.7, 0.7, 0.7)
                 GameTooltip:Show()
             end)
             heartBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
             heartBtn:SetScript("OnClick", function()
-                HopeAddon:Print("|cFFFF69B4" .. companion.name .. " proposed to you! Check the relationship status section above.|r")
+                HopeAddon:Print("|cFFFFD700" .. companion.name .. " offers you an oath! Check the oath status section above.|r")
             end)
         elseif romance.status == "SINGLE" then
-            -- Single and available to propose - grey heart that turns pink on hover
-            heartIcon:SetTexture("Interface\\Icons\\INV_ValentinesCard01")
+            -- Unbound and available to propose - grey seal that turns gold on hover
+            heartIcon:SetTexture("Interface\\Icons\\Spell_Holy_SealOfWisdom")
             heartIcon:SetVertexColor(0.5, 0.5, 0.5, 0.7)  -- Grey/desaturated
             heartBtn:SetScript("OnEnter", function(self)
-                heartIcon:SetVertexColor(1, 0.4, 0.7, 1)  -- Pink on hover
+                heartIcon:SetVertexColor(1, 0.84, 0, 1)  -- Gold on hover
                 GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                GameTooltip:AddLine("Propose to " .. companion.name .. "?", 1.0, 0.41, 0.71)
-                GameTooltip:AddLine("Click to send a proposal", 0.7, 0.7, 0.7)
+                GameTooltip:AddLine("Offer an oath to " .. companion.name .. "?", 1, 0.84, 0)
+                GameTooltip:AddLine("Click to offer an oath", 0.7, 0.7, 0.7)
                 GameTooltip:Show()
             end)
             heartBtn:SetScript("OnLeave", function()
@@ -11003,12 +12704,12 @@ function Journal:CreateCompanionCard(parent, companion, status)
                 end
             end)
         else
-            -- Already in a relationship with someone else - very dim heart
-            heartIcon:SetTexture("Interface\\Icons\\INV_ValentinesCard01")
+            -- Already oath-bound with someone else - very dim seal
+            heartIcon:SetTexture("Interface\\Icons\\Spell_Holy_SealOfWisdom")
             heartIcon:SetVertexColor(0.3, 0.3, 0.3, 0.5)  -- Very grey
             heartBtn:SetScript("OnEnter", function(self)
                 GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                GameTooltip:AddLine("Already in a relationship", 0.5, 0.5, 0.5)
+                GameTooltip:AddLine("Already oath-bound", 0.5, 0.5, 0.5)
                 GameTooltip:Show()
             end)
             heartBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -11112,28 +12813,23 @@ function Journal:PopulateSocialCalendar()
 
     local C = HopeAddon.Constants
     local UI = C.CALENDAR_UI
+    local WEEK = C.CALENDAR_WEEK_VIEW
 
     -- Create calendar header
     local header = CalendarUI:CreateCalendarHeader(content)
     header:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
     header:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, 0)
 
-    -- Create month navigation bar
-    local navBar = CalendarUI:CreateMonthNavigation(content)
-    navBar:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -8)
-    navBar:SetPoint("TOPRIGHT", header, "BOTTOMRIGHT", 0, -8)
-    content.navBar = navBar
-
-    -- Track the last element for positioning (starts with navBar)
-    local lastElement = navBar
+    -- Track the last element for positioning (starts with header)
+    local lastElement = header
     local happeningNowHeight = 0
     local bannerHeight = 0
 
     -- Create "Happening Now" section (active world bonus events)
     local happeningNowSection = CalendarUI:CreateHappeningNowSection(content)
     if happeningNowSection then
-        happeningNowSection:SetPoint("TOPLEFT", navBar, "BOTTOMLEFT", 0, -8)
-        happeningNowSection:SetPoint("TOPRIGHT", navBar, "BOTTOMRIGHT", 0, -8)
+        happeningNowSection:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -8)
+        happeningNowSection:SetPoint("TOPRIGHT", header, "BOTTOMRIGHT", 0, -8)
         content.happeningNowSection = happeningNowSection
 
         -- Populate with active events
@@ -11147,13 +12843,13 @@ function Journal:PopulateSocialCalendar()
     -- Create app-wide event banner section (upcoming milestone events)
     local bannerSection = CalendarUI:CreateBannerSection(content)
     if bannerSection then
-        -- Position below "Happening Now" section if it has content, otherwise below nav
+        -- Position below "Happening Now" section if it has content, otherwise below header
         if happeningNowHeight > 0 then
             bannerSection:SetPoint("TOPLEFT", happeningNowSection, "BOTTOMLEFT", 0, -4)
             bannerSection:SetPoint("TOPRIGHT", happeningNowSection, "BOTTOMRIGHT", 0, -4)
         else
-            bannerSection:SetPoint("TOPLEFT", navBar, "BOTTOMLEFT", 0, -8)
-            bannerSection:SetPoint("TOPRIGHT", navBar, "BOTTOMRIGHT", 0, -8)
+            bannerSection:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -8)
+            bannerSection:SetPoint("TOPRIGHT", header, "BOTTOMRIGHT", 0, -8)
         end
         content.bannerSection = bannerSection
 
@@ -11175,62 +12871,380 @@ function Journal:PopulateSocialCalendar()
         end
     end
 
-    -- Create month grid
-    local monthGrid = CalendarUI:CreateMonthGrid(content)
+    -- Create continuous week calendar (replaces month grid + day panel)
+    local weekCalendar = CalendarUI:CreateWeekCalendar(content)
     -- Position below the last banner section that has content
     if lastElement == bannerSection and bannerHeight > 0 then
-        monthGrid:SetPoint("TOP", bannerSection, "BOTTOM", 0, -8)
+        weekCalendar:SetPoint("TOP", bannerSection, "BOTTOM", 0, -8)
     elseif lastElement == happeningNowSection and happeningNowHeight > 0 then
-        monthGrid:SetPoint("TOP", happeningNowSection, "BOTTOM", 0, -8)
+        weekCalendar:SetPoint("TOP", happeningNowSection, "BOTTOM", 0, -8)
     else
-        monthGrid:SetPoint("TOP", navBar, "BOTTOM", 0, -8)
+        weekCalendar:SetPoint("TOP", header, "BOTTOM", 0, -8)
     end
 
-    -- Populate the grid
-    CalendarUI:PopulateMonthGrid(monthGrid)
+    -- Populate the week calendar
+    CalendarUI:PopulateWeekCalendar(weekCalendar)
 
-    -- Create selected day panel
-    local dayPanel = CalendarUI:CreateSelectedDayPanel(content)
-    dayPanel:SetPoint("TOPLEFT", monthGrid, "BOTTOMLEFT", 0, -15)
-    dayPanel:SetPoint("RIGHT", content, "RIGHT", 0, 0)
-
-    -- Restore selected date if any
-    local socialUI = HopeAddon:GetSocialUI()
-    if socialUI and socialUI.calendar and socialUI.calendar.selectedDate then
-        CalendarUI:SelectDate(socialUI.calendar.selectedDate)
-    end
-
-    -- Update content height (include both banner sections)
-    local totalHeight = header:GetHeight() + navBar:GetHeight() + happeningNowHeight + bannerHeight + monthGrid:GetHeight() + dayPanel:GetHeight() + 50
+    -- Update content height (no more day panel)
+    local totalHeight = header:GetHeight() + happeningNowHeight + bannerHeight + (WEEK.SCROLL_HEIGHT + 20) + 30
     content:SetHeight(totalHeight)
 end
 
 --[[
-    Populate the Notes sub-tab (placeholder)
+    Populate the Critter sub-tab with mascot selection, progression, and stats
 ]]
-function Journal:PopulateSocialNotes()
+function Journal:PopulateSocialCritter()
     local content = self.socialContainers.content
     if not content then return end
 
     local Components = HopeAddon.Components
-    local yOffset = 0
+    local CrusadeCritter = HopeAddon.CrusadeCritter
+    local CritterContent = HopeAddon.CritterContent
+    local db = HopeAddon.db and HopeAddon.db.crusadeCritter
 
-    -- Header
-    local header = Components:CreateSectionHeader(content, "My Notes", "GOLD_BRIGHT")
+    -- Clear NEW badge when viewing the tab
+    if db and db.hasNewUnlock then
+        db.hasNewUnlock = false
+        self:UpdateSocialTabBadges()
+    end
+
+    local yOffset = 0
+    local MARGIN = 10
+    local SECTION_SPACING = 16
+
+    -- Header with help button
+    local header = Components:CreateSectionHeader(content, "Crusade Critter", "ARCANE_PURPLE", "Your dungeon companion")
     header:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -yOffset)
     header:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, -yOffset)
     self:TrackSocialRegion(header)
-    yOffset = yOffset + 40
+    yOffset = yOffset + 50
 
-    -- Placeholder text
-    local placeholder = content:CreateFontString(nil, "OVERLAY")
-    placeholder:SetFont(HopeAddon.assets.fonts.BODY, 12, "")
-    placeholder:SetPoint("TOPLEFT", content, "TOPLEFT", 10, -yOffset)
-    placeholder:SetPoint("TOPRIGHT", content, "TOPRIGHT", -10, -yOffset)
-    placeholder:SetJustifyH("CENTER")
-    placeholder:SetTextColor(0.6, 0.6, 0.6)
-    placeholder:SetText("Notes feature coming soon...")
-    self:TrackSocialRegion(placeholder)
+    --============================================================
+    -- SECTION 1: Settings
+    --============================================================
+    local settingsHeader = content:CreateFontString(nil, "OVERLAY")
+    settingsHeader:SetFont(HopeAddon.assets.fonts.HEADER, 11, "")
+    settingsHeader:SetPoint("TOPLEFT", content, "TOPLEFT", MARGIN, -yOffset)
+    settingsHeader:SetText("Settings")
+    settingsHeader:SetTextColor(HopeAddon:GetTextColor("GOLD_BRIGHT"))
+    self:TrackSocialRegion(settingsHeader)
+    yOffset = yOffset + 20
+
+    -- Enable checkbox
+    local enableCheckbox = Components:CreateCheckbox(content, "Enable Crusade Critter", db and db.enabled)
+    enableCheckbox:SetPoint("TOPLEFT", content, "TOPLEFT", MARGIN, -yOffset)
+    enableCheckbox:SetScript("OnClick", function(self)
+        if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+        local checked = self:GetChecked()
+        if CrusadeCritter then
+            CrusadeCritter:SetEnabled(checked)
+        end
+    end)
+    yOffset = yOffset + 26
+
+    -- Hide in combat checkbox
+    local combatCheckbox = Components:CreateCheckbox(content, "Hide During Combat", db and db.hideInCombat)
+    combatCheckbox:SetPoint("TOPLEFT", content, "TOPLEFT", MARGIN, -yOffset)
+    combatCheckbox:SetScript("OnClick", function(self)
+        if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+        if db then
+            db.hideInCombat = self:GetChecked()
+        end
+    end)
+    yOffset = yOffset + 30 + SECTION_SPACING
+
+    --============================================================
+    -- SECTION 2: Mascot Selection
+    --============================================================
+    local mascotHeader = content:CreateFontString(nil, "OVERLAY")
+    mascotHeader:SetFont(HopeAddon.assets.fonts.HEADER, 11, "")
+    mascotHeader:SetPoint("TOPLEFT", content, "TOPLEFT", MARGIN, -yOffset)
+    mascotHeader:SetText("Select Mascot")
+    mascotHeader:SetTextColor(HopeAddon:GetTextColor("GOLD_BRIGHT"))
+    self:TrackSocialRegion(mascotHeader)
+    yOffset = yOffset + 20
+
+    -- Current mascot display
+    local selectedCritter = db and db.selectedCritter or "flux"
+    local currentCritterData = CritterContent and CritterContent.CRITTERS[selectedCritter]
+    local currentLabel = content:CreateFontString(nil, "OVERLAY")
+    currentLabel:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
+    currentLabel:SetPoint("TOPLEFT", content, "TOPLEFT", MARGIN, -yOffset)
+    currentLabel:SetText("Current: |cFFFFD100" .. (currentCritterData and currentCritterData.name or "Flux") .. "|r - " .. (currentCritterData and currentCritterData.description or ""))
+    currentLabel:SetTextColor(0.8, 0.8, 0.8)
+    self:TrackSocialRegion(currentLabel)
+    yOffset = yOffset + 20
+
+    -- Critter icon grid
+    local ICON_SIZE = 40
+    local ICON_SPACING = 8
+    local iconsPerRow = 7
+    local critterOrder = { "flux", "snookimp", "shred", "emo", "cosmo", "boomer", "diva" }
+
+    local gridContainer = CreateFrame("Frame", nil, content)
+    gridContainer:SetSize(content:GetWidth() - 2 * MARGIN, ICON_SIZE + 10)
+    gridContainer:SetPoint("TOPLEFT", content, "TOPLEFT", MARGIN, -yOffset)
+
+    for i, critterId in ipairs(critterOrder) do
+        local critterData = CritterContent and CritterContent.CRITTERS[critterId]
+        if critterData then
+            local isUnlocked = CrusadeCritter and CrusadeCritter:IsCritterUnlocked(critterId)
+            local isSelected = (critterId == selectedCritter)
+
+            local btn = CreateFrame("Button", nil, gridContainer)
+            btn:SetSize(ICON_SIZE, ICON_SIZE)
+            local col = (i - 1) % iconsPerRow
+            btn:SetPoint("TOPLEFT", gridContainer, "TOPLEFT", col * (ICON_SIZE + ICON_SPACING), 0)
+
+            -- Background/border
+            local bg = btn:CreateTexture(nil, "BACKGROUND")
+            bg:SetAllPoints()
+            bg:SetColorTexture(0.1, 0.1, 0.1, 0.8)
+            btn.bg = bg
+
+            -- Border highlight for selected
+            local border = btn:CreateTexture(nil, "BORDER")
+            border:SetPoint("TOPLEFT", -2, 2)
+            border:SetPoint("BOTTOMRIGHT", 2, -2)
+            if isSelected then
+                border:SetColorTexture(1, 0.84, 0, 1) -- Gold border
+            else
+                border:SetColorTexture(0.3, 0.3, 0.3, 0.8)
+            end
+            btn.border = border
+
+            -- Critter icon (use class icon as placeholder since we don't have critter icons)
+            local icon = btn:CreateTexture(nil, "ARTWORK")
+            icon:SetPoint("TOPLEFT", 2, -2)
+            icon:SetPoint("BOTTOMRIGHT", -2, 2)
+            -- Use a generic creature icon based on critter glow color
+            local glowColor = critterData.glowColor or { r = 1, g = 1, b = 1 }
+            icon:SetTexture("Interface\\Icons\\INV_Misc_MonsterHead_03")
+            icon:SetVertexColor(glowColor.r, glowColor.g, glowColor.b)
+
+            if not isUnlocked then
+                icon:SetDesaturated(true)
+                icon:SetVertexColor(0.4, 0.4, 0.4)
+
+                -- Lock overlay
+                local lock = btn:CreateTexture(nil, "OVERLAY")
+                lock:SetSize(16, 16)
+                lock:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", -2, 2)
+                lock:SetTexture("Interface\\PetBattles\\PetBattle-LockIcon")
+                btn.lock = lock
+            end
+
+            btn.critterId = critterId
+            btn.critterData = critterData
+            btn.isUnlocked = isUnlocked
+
+            -- Hover effect + Tooltip
+            btn:SetScript("OnEnter", function(self)
+                if self.isUnlocked then
+                    self.bg:SetColorTexture(0.2, 0.2, 0.2, 0.9)
+                end
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:AddLine(self.critterData.name, 1, 0.84, 0)
+                GameTooltip:AddLine(self.critterData.description, 1, 1, 1, true)
+                if not self.isUnlocked then
+                    local hub = self.critterData.unlockHub
+                    if hub and CritterContent.DUNGEON_HUBS[hub] then
+                        local hubData = CritterContent.DUNGEON_HUBS[hub]
+                        local completed, total = CrusadeCritter:GetHubProgress(hub)
+                        GameTooltip:AddLine(" ")
+                        GameTooltip:AddLine("Unlock: Complete " .. hubData.name, 1, 0.5, 0)
+                        GameTooltip:AddLine(string.format("Progress: %d/%d dungeons", completed, total), 0.7, 0.7, 0.7)
+                    end
+                end
+                GameTooltip:Show()
+            end)
+
+            btn:SetScript("OnLeave", function(self)
+                self.bg:SetColorTexture(0.1, 0.1, 0.1, 0.8)
+                GameTooltip:Hide()
+            end)
+
+            -- Click to select (if unlocked)
+            btn:SetScript("OnClick", function(self)
+                if self.isUnlocked then
+                    if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+                    if CrusadeCritter then
+                        CrusadeCritter:SetSelectedCritter(self.critterId)
+                        -- Refresh the tab to update selection
+                        Journal:PopulateSocialCritter()
+                    end
+                else
+                    -- Play error sound for locked critter
+                    if HopeAddon.Sounds then HopeAddon.Sounds:PlayError() end
+                end
+            end)
+        end
+    end
+
+    yOffset = yOffset + ICON_SIZE + 10 + SECTION_SPACING
+
+    --============================================================
+    -- SECTION 3: Dungeon Progress
+    --============================================================
+    local progressHeader = content:CreateFontString(nil, "OVERLAY")
+    progressHeader:SetFont(HopeAddon.assets.fonts.HEADER, 11, "")
+    progressHeader:SetPoint("TOPLEFT", content, "TOPLEFT", MARGIN, -yOffset)
+    progressHeader:SetText("Dungeon Progress")
+    progressHeader:SetTextColor(HopeAddon:GetTextColor("GOLD_BRIGHT"))
+    self:TrackSocialRegion(progressHeader)
+    yOffset = yOffset + 20
+
+    -- Hub progress rows
+    local hubOrder = { "hellfire", "coilfang", "auchindoun", "tempest_keep", "caverns", "queldanas" }
+    local BAR_WIDTH = 100
+    local BAR_HEIGHT = 12
+    local ROW_HEIGHT = 22
+
+    for _, hubKey in ipairs(hubOrder) do
+        local hubData = CritterContent and CritterContent.DUNGEON_HUBS[hubKey]
+        if hubData then
+            local completed, total = 0, 0
+            if CrusadeCritter then
+                completed, total = CrusadeCritter:GetHubProgress(hubKey)
+            else
+                total = #hubData.dungeons
+            end
+            local isComplete = (completed == total and total > 0)
+            local critterReward = CritterContent.CRITTERS[hubData.critter]
+
+            -- Row container
+            local row = CreateFrame("Frame", nil, content)
+            row:SetSize(content:GetWidth() - 2 * MARGIN, ROW_HEIGHT)
+            row:SetPoint("TOPLEFT", content, "TOPLEFT", MARGIN, -yOffset)
+
+            -- Hub name
+            local hubName = row:CreateFontString(nil, "OVERLAY")
+            hubName:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+            hubName:SetPoint("LEFT", row, "LEFT", 0, 0)
+            hubName:SetWidth(120)
+            hubName:SetJustifyH("LEFT")
+            hubName:SetText(hubData.name)
+            if isComplete then
+                hubName:SetTextColor(0.2, 0.8, 0.2) -- Green for complete
+            else
+                hubName:SetTextColor(0.8, 0.8, 0.8)
+            end
+
+            -- Progress bar
+            local progressBar = Components:CreateProgressBar(row, BAR_WIDTH, BAR_HEIGHT, isComplete and "FEL_GREEN" or "GOLD_BRIGHT")
+            progressBar:SetPoint("LEFT", row, "LEFT", 125, 0)
+            local percent = total > 0 and (completed / total * 100) or 0
+            progressBar:SetProgress(percent)
+            progressBar.text:SetText(string.format("%d/%d", completed, total))
+
+            -- Critter reward indicator
+            local rewardText = row:CreateFontString(nil, "OVERLAY")
+            rewardText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+            rewardText:SetPoint("LEFT", progressBar, "RIGHT", 10, 0)
+            if critterReward then
+                local arrow = isComplete and "|cFF00FF00->|r " or "-> "
+                rewardText:SetText(arrow .. critterReward.name)
+                rewardText:SetTextColor(0.6, 0.6, 0.6)
+            end
+
+            yOffset = yOffset + ROW_HEIGHT
+        end
+    end
+
+    yOffset = yOffset + SECTION_SPACING
+
+    --============================================================
+    -- SECTION 4: Statistics
+    --============================================================
+    local statsHeader = content:CreateFontString(nil, "OVERLAY")
+    statsHeader:SetFont(HopeAddon.assets.fonts.HEADER, 11, "")
+    statsHeader:SetPoint("TOPLEFT", content, "TOPLEFT", MARGIN, -yOffset)
+    statsHeader:SetText("Statistics")
+    statsHeader:SetTextColor(HopeAddon:GetTextColor("GOLD_BRIGHT"))
+    self:TrackSocialRegion(statsHeader)
+    yOffset = yOffset + 20
+
+    -- Get stats summary
+    local stats = CrusadeCritter and CrusadeCritter:GetStatsSummary() or {
+        totalRuns = 0,
+        dungeonsCleared = 0,
+        fastestRun = nil,
+        fastestDungeon = nil,
+        mostRuns = 0,
+        mostRunsDungeon = nil,
+    }
+
+    local STAT_ROW_HEIGHT = 18
+    local statLines = {
+        { label = "Total Runs:", value = tostring(stats.totalRuns) },
+        { label = "Dungeons Cleared:", value = tostring(stats.dungeonsCleared) },
+    }
+
+    -- Add fastest run if available
+    if stats.fastestRun then
+        local minutes = math.floor(stats.fastestRun / 60)
+        local seconds = math.floor(stats.fastestRun % 60)
+        local timeStr = string.format("%d:%02d", minutes, seconds)
+        local dungeonName = stats.fastestDungeon or "Unknown"
+        -- Try to get display name from TBC_DUNGEONS
+        for name, data in pairs(HopeAddon.Constants.TBC_DUNGEONS or {}) do
+            if data.key == stats.fastestDungeon then
+                dungeonName = name
+                break
+            end
+        end
+        table.insert(statLines, { label = "Fastest Run:", value = timeStr .. " (" .. dungeonName .. ")" })
+    end
+
+    -- Add most runs if available
+    if stats.mostRuns > 0 and stats.mostRunsDungeon then
+        local dungeonName = stats.mostRunsDungeon
+        for name, data in pairs(HopeAddon.Constants.TBC_DUNGEONS or {}) do
+            if data.key == stats.mostRunsDungeon then
+                dungeonName = name
+                break
+            end
+        end
+        table.insert(statLines, { label = "Most Runs:", value = tostring(stats.mostRuns) .. " (" .. dungeonName .. ")" })
+    end
+
+    for _, stat in ipairs(statLines) do
+        local statRow = CreateFrame("Frame", nil, content)
+        statRow:SetSize(content:GetWidth() - 2 * MARGIN, STAT_ROW_HEIGHT)
+        statRow:SetPoint("TOPLEFT", content, "TOPLEFT", MARGIN, -yOffset)
+
+        local labelText = statRow:CreateFontString(nil, "OVERLAY")
+        labelText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+        labelText:SetPoint("LEFT", statRow, "LEFT", 0, 0)
+        labelText:SetText(stat.label)
+        labelText:SetTextColor(0.7, 0.7, 0.7)
+
+        local valueText = statRow:CreateFontString(nil, "OVERLAY")
+        valueText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+        valueText:SetPoint("LEFT", labelText, "RIGHT", 8, 0)
+        valueText:SetText(stat.value)
+        valueText:SetTextColor(1, 1, 1)
+
+        yOffset = yOffset + STAT_ROW_HEIGHT
+    end
+
+    yOffset = yOffset + 10
+
+    -- Reset Statistics button
+    local resetBtn = Components:CreateButton(content, "Reset Statistics", 120, 24)
+    resetBtn:SetPoint("TOPLEFT", content, "TOPLEFT", MARGIN, -yOffset)
+    resetBtn:SetScript("OnClick", function()
+        if CrusadeCritter then
+            CrusadeCritter:ConfirmResetStatistics(function()
+                -- Refresh the tab after reset
+                Journal:PopulateSocialCritter()
+            end)
+        end
+    end)
+    yOffset = yOffset + 34
+
+    -- Update content height
+    content:SetHeight(yOffset + 20)
 end
 
 --[[
@@ -11455,14 +13469,6 @@ function Journal:StartLocalGame(gameId)
         else
             HopeAddon:Print("MinigamesUI module not loaded")
         end
-    elseif gameId == "words" then
-        -- Words with WoW local practice (vs yourself)
-        local WordGame = HopeAddon:GetModule("WordGame")
-        if WordGame then
-            WordGame:StartGame(nil)  -- nil opponent = local mode
-        else
-            HopeAddon:Print("WordGame module not loaded")
-        end
     elseif gameId == "rps" then
         -- RPS vs AI with gameshow reveal
         local Minigames = HopeAddon:GetModule("Minigames")
@@ -11489,6 +13495,17 @@ function Journal:StartLocalGame(gameId)
             WordleGame:StartPractice()
         else
             HopeAddon:Print("WordleGame module not loaded")
+        end
+    elseif gameId == "pacman" then
+        -- Pac-Man via GameCore (single player vs AI ghosts)
+        local GameCore = HopeAddon:GetModule("GameCore")
+        if GameCore then
+            local newGameId = GameCore:CreateGame("PACMAN", GameCore.GAME_MODE.LOCAL, nil)
+            if newGameId then
+                GameCore:StartGame(newGameId)
+            end
+        else
+            HopeAddon:Print("GameCore module not loaded")
         end
     else
         HopeAddon:Print("Local mode not available for " .. (gameId or "unknown"))
@@ -12299,7 +14316,6 @@ Journal.armoryUI = {
     container = nil,
     phaseBar = nil,        -- Slim phase selector bar (was tierBar)
     phaseButtons = {},     -- Phase 1-5 buttons (was tierButtons)
-    presetDropdown = nil,  -- Wishlist presets dropdown
     specDropdown = nil,
     characterView = nil,   -- Centered character view (replaces paperdoll + detailPanel)
     modelFrame = nil,
@@ -12317,9 +14333,6 @@ Journal.armoryState = {
     popupVisible = false,  -- Track if gear popup is open
     expandedSections = {},
     slotStatuses = {},
-    wishlist = {},           -- { [itemId] = true }
-    presets = {},            -- { [presetName] = { [itemId] = true } }
-    currentPreset = nil,     -- Name of currently loaded preset
     -- Gear popup state (Phase 60 redesign)
     popup = {
         activeFilter = "all",       -- Current filter: "all" or source key from SOURCE_GROUPS
@@ -12355,12 +14368,27 @@ Journal.bossLootPools = {
     lootRow = nil,      -- Individual loot item rows
 }
 
+-- Reputation Loot Popup state (Reputation tab - item tracking popup for faction cards)
+Journal.reputationLootUI = {
+    popup = nil,        -- Singleton popup frame
+}
+
+Journal.reputationLootState = {
+    currentFaction = nil,  -- Currently displayed faction name
+    currentData = nil,     -- Currently displayed faction data
+    popupVisible = false,
+}
+
+Journal.reputationLootPools = {
+    itemRow = nil,       -- Individual item rows with checkboxes
+    tierHeader = nil,    -- Tier section headers (Friendly, Honored, etc.)
+}
+
 Journal.armoryPools = {
     upgradeCard = nil,
     sectionHeader = nil,
     statRow = nil,
     sourceTag = nil,
-    wishlistBtn = nil,
     infoCard = nil,         -- Slot info cards (iLvl + upgrade arrow)
     -- Gear popup pools (Phase 60/61 redesign)
     bisCard = nil,          -- Featured BiS item card
@@ -12417,7 +14445,6 @@ function Journal:PopulateArmory()
         self.armoryState.selectedPhase = 1
     end
     self.armoryState.selectedSpec = savedState.selectedSpec
-    self.armoryState.wishlist = savedState.wishlist or {}
     self.armoryState.expandedSections = savedState.expandedSections or {}
     HopeAddon:Debug("PopulateArmory: State loaded, phase=" .. self.armoryState.selectedPhase)
 
@@ -12451,7 +14478,6 @@ function Journal:HideArmoryTab()
     if self.armoryState and HopeAddon.charDb and HopeAddon.charDb.armory then
         HopeAddon.charDb.armory.selectedPhase = self.armoryState.selectedPhase
         HopeAddon.charDb.armory.selectedSpec = self.armoryState.selectedSpec
-        HopeAddon.charDb.armory.wishlist = self.armoryState.wishlist
         HopeAddon.charDb.armory.expandedSections = self.armoryState.expandedSections
     end
 
@@ -12532,6 +14558,24 @@ function Journal:HideAttunementsTab()
 
     -- Clear phaseSections to prevent conflicts with Raids tab
     self.phaseSections = nil
+end
+
+--[[
+    Hide Games tab when switching away
+    Cancels animation timers and clears game state to prevent memory leaks
+]]
+function Journal:HideGamesTab()
+    -- Clean up MinigamesUI resources (timers, popups)
+    local MinigamesUI = HopeAddon:GetModule("MinigamesUI")
+    if MinigamesUI and MinigamesUI.OnTabHide then
+        MinigamesUI:OnTabHide()
+    end
+
+    -- Clean up Minigames module state (local RPS game)
+    local Minigames = HopeAddon:GetModule("Minigames")
+    if Minigames and Minigames.OnTabHide then
+        Minigames:OnTabHide()
+    end
 end
 
 --[[
@@ -12620,6 +14664,14 @@ function Journal:CreateArmoryPools()
             card.rankGlow:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", 3, -3)
             card.rankGlow:SetVertexColor(1, 0.84, 0, 0)  -- Gold, initially invisible
             card.rankGlow:Hide()
+
+            -- Grade indicator icon (traffic light style - shows iLvl vs average)
+            -- Small colored circle on the left edge of the card
+            card.gradeIndicator = card:CreateTexture(nil, "OVERLAY", nil, 2)
+            card.gradeIndicator:SetSize(10, 10)
+            card.gradeIndicator:SetPoint("LEFT", card, "LEFT", 3, -12)  -- Bottom-left corner
+            card.gradeIndicator:SetTexture("Interface\\COMMON\\Indicator-Green")  -- Default green
+            card.gradeIndicator:Hide()
 
             -- Hover glow overlay (hidden by default, shown on hover)
             card.glowOverlay = card:CreateTexture(nil, "BACKGROUND")
@@ -12732,6 +14784,9 @@ function Journal:CreateArmoryPools()
             card.rankGlow:Hide()
             card.rankGlow:SetVertexColor(1, 0.84, 0, 0)  -- Reset to invisible gold
 
+            -- Hide grade indicator icon
+            card.gradeIndicator:Hide()
+
             -- Clear stored rank color
             card.storedRankColor = nil
 
@@ -12758,6 +14813,7 @@ function Journal:CreateArmoryPools()
     self.armoryPools.bisCard = FramePool:New(
         function()
             local card = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
+            card:EnableMouse(true)
             card:SetSize(C.ARMORY_GEAR_POPUP.WIDTH - (C.ARMORY_GEAR_POPUP.PADDING * 2), C.ARMORY_GEAR_POPUP.BIS_CARD.HEIGHT)
 
             -- Gold border backdrop
@@ -13141,10 +15197,9 @@ function Journal:CreateArmoryPhaseBar()
     local phaseBar = self.armoryUI.phaseBar
     phaseBar:Show()
 
-    -- Create phase buttons, spec dropdown first (preset anchors to it), then preset dropdown
+    -- Create phase buttons and spec dropdown
     self:CreateArmoryPhaseButtons()
     self:CreateArmorySpecDropdown()
-    self:CreateArmoryPresetDropdown()
 
     return phaseBar
 end
@@ -13342,242 +15397,6 @@ function Journal:InitArmorySpecDropdownMenu(frame, level)
 end
 
 --[[
-    Create the preset selection dropdown (wishlist presets)
-]]
-function Journal:CreateArmoryPresetDropdown()
-    local phaseBar = self.armoryUI.phaseBar
-    local C = HopeAddon.Constants.ARMORY_PRESET_DROPDOWN
-
-    if not self.armoryUI.presetDropdown then
-        local dropdown = CreateFrame("Frame", "HopeArmoryPresetDropdown", phaseBar, "UIDropDownMenuTemplate")
-        -- Anchor to phaseBar with absolute offset (accounts for spec dropdown's visual width)
-        dropdown:SetPoint(C.ANCHOR, phaseBar, C.ANCHOR, C.OFFSET_X, C.OFFSET_Y)
-
-        UIDropDownMenu_SetWidth(dropdown, C.MENU_WIDTH)
-
-        UIDropDownMenu_Initialize(dropdown, function(frame, level)
-            self:InitArmoryPresetDropdownMenu(frame, level)
-        end)
-
-        self.armoryUI.presetDropdown = dropdown
-    end
-
-    -- Set text based on current preset
-    local text = self.armoryState.currentPreset or "Presets"
-    UIDropDownMenu_SetText(self.armoryUI.presetDropdown, text)
-end
-
---[[
-    Initialize preset dropdown menu items
-]]
-function Journal:InitArmoryPresetDropdownMenu(frame, level)
-    local C = HopeAddon.Constants.ARMORY_PRESET_DROPDOWN
-
-    -- "Save Current..." option
-    local saveInfo = UIDropDownMenu_CreateInfo()
-    saveInfo.text = "Save Current..."
-    saveInfo.notCheckable = true
-    saveInfo.func = function()
-        self:ShowSavePresetDialog()
-    end
-    UIDropDownMenu_AddButton(saveInfo, level)
-
-    -- Get existing presets
-    local presets = self:GetArmoryPresets()
-
-    -- Separator if presets exist
-    if #presets > 0 then
-        local sep = UIDropDownMenu_CreateInfo()
-        sep.text = ""
-        sep.isTitle = true
-        sep.notCheckable = true
-        UIDropDownMenu_AddButton(sep, level)
-    end
-
-    -- Existing presets with delete option
-    for _, presetName in ipairs(presets) do
-        local info = UIDropDownMenu_CreateInfo()
-        info.text = presetName
-        info.value = presetName
-        info.checked = (self.armoryState.currentPreset == presetName)
-        info.func = function()
-            self:LoadArmoryPreset(presetName)
-            CloseDropDownMenus()
-        end
-        -- Right-click to delete
-        info.tooltipTitle = presetName
-        info.tooltipText = "Click to load. Shift-click to delete."
-        info.tooltipOnButton = true
-        UIDropDownMenu_AddButton(info, level)
-    end
-
-    -- Separator before clear option
-    if next(self.armoryState.wishlist) or #presets > 0 then
-        local sep2 = UIDropDownMenu_CreateInfo()
-        sep2.text = ""
-        sep2.isTitle = true
-        sep2.notCheckable = true
-        UIDropDownMenu_AddButton(sep2, level)
-    end
-
-    -- Clear option if wishlist not empty
-    if next(self.armoryState.wishlist) then
-        local clearInfo = UIDropDownMenu_CreateInfo()
-        clearInfo.text = "|cffff6666Clear Wishlist|r"
-        clearInfo.notCheckable = true
-        clearInfo.func = function()
-            self:ClearArmoryWishlist()
-            CloseDropDownMenus()
-        end
-        UIDropDownMenu_AddButton(clearInfo, level)
-    end
-end
-
---[[
-    Get sorted list of preset names
-]]
-function Journal:GetArmoryPresets()
-    local presets = {}
-    local savedPresets = HopeAddon.charDb.armory and HopeAddon.charDb.armory.presets or {}
-    for name in pairs(savedPresets) do
-        table.insert(presets, name)
-    end
-    table.sort(presets)
-    return presets
-end
-
---[[
-    Save current wishlist as a named preset
-]]
-function Journal:SaveArmoryPreset(name)
-    if not name or name == "" then return false end
-
-    local C = HopeAddon.Constants.ARMORY_PRESET_DROPDOWN
-
-    -- Check max presets limit
-    local presets = self:GetArmoryPresets()
-    if #presets >= C.MAX_PRESETS and not HopeAddon.charDb.armory.presets[name] then
-        HopeAddon:Print("Maximum " .. C.MAX_PRESETS .. " presets reached. Delete one first.")
-        return false
-    end
-
-    HopeAddon.charDb.armory = HopeAddon.charDb.armory or {}
-    HopeAddon.charDb.armory.presets = HopeAddon.charDb.armory.presets or {}
-
-    -- Copy current wishlist to preset
-    local presetData = {}
-    for itemId, v in pairs(self.armoryState.wishlist) do
-        presetData[itemId] = v
-    end
-
-    HopeAddon.charDb.armory.presets[name] = presetData
-    self.armoryState.currentPreset = name
-
-    HopeAddon:Print("Saved preset: " .. name)
-    self:RefreshPresetDropdown()
-    return true
-end
-
---[[
-    Load a preset into the current wishlist
-]]
-function Journal:LoadArmoryPreset(name)
-    local presets = HopeAddon.charDb.armory and HopeAddon.charDb.armory.presets
-    if not presets or not presets[name] then return false end
-
-    -- Handle shift-click to delete
-    if IsShiftKeyDown() then
-        self:DeleteArmoryPreset(name)
-        return true
-    end
-
-    -- Copy preset to wishlist
-    wipe(self.armoryState.wishlist)
-    for itemId, v in pairs(presets[name]) do
-        self.armoryState.wishlist[itemId] = v
-    end
-
-    self.armoryState.currentPreset = name
-    HopeAddon.charDb.armory = HopeAddon.charDb.armory or {}
-    HopeAddon.charDb.armory.wishlist = self.armoryState.wishlist
-
-    HopeAddon:Print("Loaded preset: " .. name)
-    self:RefreshArmorySlotData()
-    self:UpdateArmoryFooter()
-    self:RefreshPresetDropdown()
-    return true
-end
-
---[[
-    Delete a saved preset
-]]
-function Journal:DeleteArmoryPreset(name)
-    if not HopeAddon.charDb.armory or not HopeAddon.charDb.armory.presets then return end
-
-    HopeAddon.charDb.armory.presets[name] = nil
-    if self.armoryState.currentPreset == name then
-        self.armoryState.currentPreset = nil
-    end
-
-    HopeAddon:Print("Deleted preset: " .. name)
-    self:RefreshPresetDropdown()
-end
-
---[[
-    Clear the current wishlist
-]]
-function Journal:ClearArmoryWishlist()
-    wipe(self.armoryState.wishlist)
-    self.armoryState.currentPreset = nil
-    HopeAddon.charDb.armory = HopeAddon.charDb.armory or {}
-    HopeAddon.charDb.armory.wishlist = {}
-
-    self:RefreshArmorySlotData()
-    self:UpdateArmoryFooter()
-    self:RefreshPresetDropdown()
-end
-
---[[
-    Update the preset dropdown text
-]]
-function Journal:RefreshPresetDropdown()
-    if self.armoryUI and self.armoryUI.presetDropdown then
-        local text = self.armoryState.currentPreset or "Presets"
-        UIDropDownMenu_SetText(self.armoryUI.presetDropdown, text)
-    end
-end
-
---[[
-    Show dialog to save current wishlist as a preset
-]]
-function Journal:ShowSavePresetDialog()
-    -- Define static popup if not exists
-    if not StaticPopupDialogs["HOPE_SAVE_ARMORY_PRESET"] then
-        StaticPopupDialogs["HOPE_SAVE_ARMORY_PRESET"] = {
-            text = "Enter preset name:",
-            button1 = "Save",
-            button2 = "Cancel",
-            hasEditBox = true,
-            maxLetters = 20,
-            OnAccept = function(self)
-                local name = self.editBox:GetText()
-                HopeAddon.Journal:SaveArmoryPreset(name)
-            end,
-            EditBoxOnEnterPressed = function(self)
-                local name = self:GetText()
-                HopeAddon.Journal:SaveArmoryPreset(name)
-                self:GetParent():Hide()
-            end,
-            timeout = 0,
-            whileDead = true,
-            hideOnEscape = true,
-            preferredIndex = 3,  -- Avoid taint issues
-        }
-    end
-    StaticPopup_Show("HOPE_SAVE_ARMORY_PRESET")
-end
-
---[[
     Create the centered character view container
     This is a full-width container with model centered and slots symmetrically positioned
 ]]
@@ -13638,10 +15457,10 @@ function Journal:CreateArmoryModelFrame()
         modelFrame:SetRotation(C.DEFAULT_ROTATION)
         modelFrame:SetPortraitZoom(0)  -- 0 = full body view, 1 = close-up face
 
-        -- Drag rotation - use MEDIUM strata (parent's default) so model renders above characterView backdrop
+        -- Drag rotation - use HIGH strata (matching contentArea parent) so model renders above characterView backdrop
         -- Slot buttons use HIGH strata and explicitly higher frame level to receive clicks
         modelFrame:EnableMouse(true)
-        modelFrame:SetFrameStrata("MEDIUM")
+        modelFrame:SetFrameStrata("HIGH")
         modelFrame:SetFrameLevel(5)  -- Above backdrop but below slots (which are at +10)
         modelFrame:SetScript("OnMouseDown", function(self, button)
             if button == "LeftButton" then
@@ -13989,15 +15808,15 @@ function Journal:GetSlotUpgradeStatus(slotILvl, avgILvl)
     local diff = slotILvl - avgILvl
 
     if diff >= cfg.THRESHOLD_EXCELLENT then
-        return cfg.INDICATORS.EXCELLENT, "EXCELLENT", diff
+        return cfg.GRADE_ICONS.EXCELLENT, "EXCELLENT", diff
     elseif diff >= cfg.THRESHOLD_GOOD then
-        return cfg.INDICATORS.GOOD, "GOOD", diff
+        return cfg.GRADE_ICONS.GOOD, "GOOD", diff
     elseif diff >= cfg.THRESHOLD_UPGRADE then
-        return cfg.INDICATORS.OKAY, "OKAY", diff
+        return cfg.GRADE_ICONS.OKAY, "OKAY", diff
     elseif diff >= cfg.THRESHOLD_URGENT then
-        return cfg.INDICATORS.UPGRADE, "UPGRADE", diff
+        return cfg.GRADE_ICONS.UPGRADE, "UPGRADE", diff
     else
-        return cfg.INDICATORS.URGENT, "URGENT", diff
+        return cfg.GRADE_ICONS.URGENT, "URGENT", diff
     end
 end
 
@@ -14160,6 +15979,23 @@ function Journal:CreateSlotInfoCard(slotButton, slotName)
                 card.rankGlowAnim:Stop()
                 card.rankGlow:Hide()
             end
+
+            -- Apply grade indicator icon based on iLvl vs player's average
+            local avgILvl = self.armoryUI.cachedAvgILvl or 0
+            if avgILvl > 0 then
+                local gradeData, gradeName, diff = self:GetSlotUpgradeStatus(iLvl, avgILvl)
+                if gradeData and gradeData.icon then
+                    card.gradeIndicator:SetTexture(gradeData.icon)
+                    if gradeData.color then
+                        card.gradeIndicator:SetVertexColor(gradeData.color.r, gradeData.color.g, gradeData.color.b, 1)
+                    end
+                    card.gradeIndicator:Show()
+                else
+                    card.gradeIndicator:Hide()
+                end
+            else
+                card.gradeIndicator:Hide()
+            end
         else
             -- Item info not cached yet, show loading state
             card.slotState = "LOADING"
@@ -14176,6 +16012,7 @@ function Journal:CreateSlotInfoCard(slotButton, slotName)
             )
             card.rankGlowAnim:Stop()
             card.rankGlow:Hide()
+            card.gradeIndicator:Hide()
         end
     else
         -- EMPTY STATE: No item equipped - show BiS hint
@@ -14190,6 +16027,7 @@ function Journal:CreateSlotInfoCard(slotButton, slotName)
         card:SetBackdropBorderColor(0.4, 0.35, 0.2, 0.6)
         card.rankGlowAnim:Stop()
         card.rankGlow:Hide()
+        card.gradeIndicator:Hide()
     end
 
     -- Click handler - opens gear popup (same as clicking slot)
@@ -14219,6 +16057,9 @@ function Journal:UpdateArmoryInfoCards()
     if self.armoryPools.infoCard then
         self.armoryPools.infoCard:ReleaseAll()
     end
+
+    -- Cache average iLvl for grade gradient calculation (avoids recalculating per slot)
+    self.armoryUI.cachedAvgILvl = self:GetAverageEquippedILvl()
 
     -- Initialize storage for card references
     self.armoryUI.infoCards = self.armoryUI.infoCards or {}
@@ -14468,7 +16309,6 @@ function Journal:CalculateArmoryStats()
     local stats = {
         phase = self.armoryState.selectedPhase or 1,
         avgIlvl = 0,
-        upgradesAvail = 0,
         gearScore = 0,
     }
 
@@ -14476,13 +16316,6 @@ function Journal:CalculateArmoryStats()
     local gearScore, avgILvl = HopeAddon:GetGearScore()
     stats.gearScore = gearScore or 0
     stats.avgIlvl = avgILvl or 0
-
-    -- Count upgrade opportunities
-    for slotName, btn in pairs(self.armoryUI.slotButtons or {}) do
-        if btn.upgradeStatus == "upgrade" or btn.upgradeStatus == "major" then
-            stats.upgradesAvail = stats.upgradesAvail + 1
-        end
-    end
 
     return stats
 end
@@ -15920,11 +17753,23 @@ function Journal:PopulateBisCard(popup, bisItem)
     card.itemData = bisItem
     card.itemId = itemId
 
-    -- Ctrl+click on card also previews (standard WoW dressing room behavior)
-    card:SetScript("OnClick", function()
-        if IsControlKeyDown() then
-            if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
-            journalSelf:PreviewItemOnModel(bisItem)
+    -- Shift+click to link to chat or open dressing room, Ctrl+click to preview on model
+    card:SetScript("OnMouseUp", function(_, button)
+        if button == "LeftButton" then
+            if IsShiftKeyDown() then
+                -- Shift-click: Link to chat or open dressing room
+                local itemLink = journalSelf:GetItemLinkFromId(itemId)
+                if itemLink then
+                    if not ChatEdit_InsertLink(itemLink) then
+                        -- Chat not open, open dressing room instead
+                        DressUpItemLink(itemLink)
+                    end
+                end
+            elseif IsControlKeyDown() then
+                -- Ctrl-click: Preview on Armory model
+                if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+                journalSelf:PreviewItemOnModel(bisItem)
+            end
         end
     end)
 
@@ -16229,9 +18074,18 @@ function Journal:CreateArmoryPopupItemRow(parent, itemData, yOffset)
         row.iLevelText:SetTextColor(0.7, 0.65, 0.55)  -- Default tan
     end
 
-    -- Click handlers: Ctrl+click to preview on model (standard WoW dressing room behavior)
+    -- Click handlers: Shift+click to link, Ctrl+click to preview on model
     row:SetScript("OnClick", function()
-        if IsControlKeyDown() then
+        if IsShiftKeyDown() then
+            -- Shift-click: Link to chat or open dressing room
+            local itemLink = journalSelf:GetItemLinkFromId(itemData.id or itemData.itemId)
+            if itemLink then
+                if not ChatEdit_InsertLink(itemLink) then
+                    -- Chat not open, open dressing room instead
+                    DressUpItemLink(itemLink)
+                end
+            end
+        elseif IsControlKeyDown() then
             if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
             journalSelf:PreviewItemOnModel(itemData)
         else
@@ -16498,6 +18352,17 @@ function Journal:CreateArmoryGearPopupItemRow(parent, itemData, isBis, yOffset)
 end
 
 --[[
+    Get a proper item link from an item ID for chat linking
+    Returns the full item link or nil if item not in cache
+]]
+function Journal:GetItemLinkFromId(itemId)
+    if not itemId or itemId == 0 then return nil end
+    -- GetItemInfo returns the item link as the 2nd return value
+    local itemName, itemLink = GetItemInfo(itemId)
+    return itemLink
+end
+
+--[[
     Preview an item on the character model
 ]]
 function Journal:PreviewItemOnModel(itemData)
@@ -16675,46 +18540,6 @@ function Journal:ToggleArmorySection(sectionId)
     -- Refresh detail panel to reflect change
     if self.armoryState.selectedSlot then
         self:PopulateArmorySlotDetail(self.armoryState.selectedSlot)
-    end
-end
-
-function Journal:ToggleArmoryWishlist(itemData)
-    if not itemData or not itemData.itemId then return end
-
-    local itemId = itemData.itemId
-    if self.armoryState.wishlist[itemId] then
-        self.armoryState.wishlist[itemId] = nil
-    else
-        self.armoryState.wishlist[itemId] = true
-    end
-
-    -- Save to character data
-    if HopeAddon.charDb then
-        HopeAddon.charDb.armory = HopeAddon.charDb.armory or {}
-        HopeAddon.charDb.armory.wishlist = self.armoryState.wishlist
-    end
-
-    -- Update visuals
-    self:RefreshArmorySlotData()
-    self:UpdateArmoryFooter()
-end
-
-function Journal:IsItemWishlisted(itemId)
-    return self.armoryState.wishlist[itemId] == true
-end
-
-function Journal:OnArmoryFooterButtonClick(buttonId)
-    if buttonId == "addWishlist" then
-        -- Add all "BEST" items to wishlist (placeholder)
-        HopeAddon:Print("Wishlist feature coming soon!")
-    elseif buttonId == "close" then
-        self.armoryState.selectedSlot = nil
-        self:ClearArmoryDetailPanel()
-        -- Deselect all slots
-        for _, btn in pairs(self.armoryUI.slotButtons) do
-            btn.isSelected = false
-            self:UpdateArmorySlotVisual(btn)
-        end
     end
 end
 

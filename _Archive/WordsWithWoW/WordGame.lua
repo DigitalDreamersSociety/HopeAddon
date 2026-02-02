@@ -561,7 +561,337 @@ function WordGame:IsPlayerTurn(gameId, playerName)
 end
 
 --[[
-    Place a word on the board
+    Validate a word submission WITHOUT placing it (read-only preview)
+    @param gameId string
+    @param pendingTiles table - Array of {row, col, letter, rackIndex}
+    @param playerName string
+    @return table - {valid, error, crossWords[], estimatedScore, breakdown}
+]]
+function WordGame:ValidateWordSubmission(gameId, pendingTiles, playerName)
+    local result = {
+        valid = false,
+        error = nil,
+        crossWords = {},
+        estimatedScore = 0,
+        breakdown = nil,
+    }
+
+    local game = self.games[gameId]
+    if not game or not game.data or not game.data.state then
+        result.error = "Game not found"
+        return result
+    end
+
+    local state = game.data.state
+
+    if state.gameState == self.GAME_STATE.FINISHED then
+        result.error = "Game is finished"
+        return result
+    end
+
+    -- Check if it's player's turn
+    if not self:IsPlayerTurn(gameId, playerName) then
+        result.error = "Not your turn"
+        return result
+    end
+
+    if #pendingTiles == 0 then
+        result.error = "No tiles placed"
+        return result
+    end
+
+    -- Determine direction from pending tiles
+    local horizontal = true
+    if #pendingTiles >= 2 then
+        horizontal = (pendingTiles[1].row == pendingTiles[2].row)
+    end
+
+    -- Sort pending tiles to find start position
+    local sorted = {}
+    for _, p in ipairs(pendingTiles) do
+        table.insert(sorted, { row = p.row, col = p.col, letter = p.letter })
+    end
+
+    if horizontal then
+        table.sort(sorted, function(a, b) return a.col < b.col end)
+    else
+        table.sort(sorted, function(a, b) return a.row < b.row end)
+    end
+
+    local startRow = sorted[1].row
+    local startCol = sorted[1].col
+
+    -- Build the main word (including existing board letters)
+    local board = state.board
+    local pendingLookup = {}
+    for _, tile in ipairs(pendingTiles) do
+        pendingLookup[tile.row .. "," .. tile.col] = tile.letter:upper()
+    end
+
+    -- Helper to get letter
+    local function getLetter(row, col)
+        local key = row .. "," .. col
+        if pendingLookup[key] then
+            return pendingLookup[key]
+        end
+        return board:GetLetter(row, col)
+    end
+
+    -- Find main word extent and build word
+    local word = ""
+    if horizontal then
+        -- Extend left
+        while startCol > 1 and getLetter(startRow, startCol - 1) do
+            startCol = startCol - 1
+        end
+        -- Find end
+        local endCol = startCol
+        while endCol <= board.size and getLetter(startRow, endCol) do
+            word = word .. getLetter(startRow, endCol)
+            endCol = endCol + 1
+        end
+    else
+        -- Extend up
+        while startRow > 1 and getLetter(startRow - 1, startCol) do
+            startRow = startRow - 1
+        end
+        -- Find end
+        local endRow = startRow
+        while endRow <= board.size and getLetter(endRow, startCol) do
+            word = word .. getLetter(endRow, startCol)
+            endRow = endRow + 1
+        end
+    end
+
+    word = word:upper()
+
+    -- Check minimum word length
+    if #word < 2 then
+        result.error = "Word must be at least 2 letters"
+        return result
+    end
+
+    -- Check main word is in dictionary
+    if not self.WordDictionary:IsValidWord(word) then
+        result.error = "'" .. word .. "' is not in the dictionary"
+        return result
+    end
+
+    -- Check first word covers center
+    local isFirstWord = board:IsBoardEmpty()
+    if isFirstWord then
+        local coversCenter = false
+        for _, tile in ipairs(pendingTiles) do
+            if tile.row == board.CENTER and tile.col == board.CENTER then
+                coversCenter = true
+                break
+            end
+        end
+        if not coversCenter then
+            result.error = "First word must cover center square"
+            return result
+        end
+    else
+        -- Check tiles connect to existing board
+        local connectsToExisting = false
+        for _, tile in ipairs(pendingTiles) do
+            local adjacents = {
+                { tile.row - 1, tile.col },
+                { tile.row + 1, tile.col },
+                { tile.row, tile.col - 1 },
+                { tile.row, tile.col + 1 },
+            }
+            for _, adj in ipairs(adjacents) do
+                -- Check if adjacent to BOARD letter (not pending)
+                if board:GetLetter(adj[1], adj[2]) then
+                    connectsToExisting = true
+                    break
+                end
+            end
+            if connectsToExisting then break end
+        end
+        if not connectsToExisting then
+            result.error = "Word must connect to existing tiles"
+            return result
+        end
+    end
+
+    -- Find and validate all cross-words using read-only function
+    local potentialWords = board:FindPotentialCrossWords(sorted, horizontal)
+
+    for _, wordData in ipairs(potentialWords) do
+        local isValid = self.WordDictionary:IsValidWord(wordData.word)
+        table.insert(result.crossWords, {
+            word = wordData.word,
+            valid = isValid,
+            isMainWord = wordData.isMainWord,
+        })
+
+        if not isValid and not wordData.isMainWord then
+            result.error = "Cross-word '" .. wordData.word .. "' is not in the dictionary"
+            return result
+        end
+    end
+
+    -- Calculate potential score
+    local scoreData = board:CalculatePotentialScore(sorted, horizontal)
+    result.estimatedScore = scoreData.total
+    result.breakdown = scoreData
+
+    -- All validation passed
+    result.valid = true
+    result.word = word
+    result.horizontal = horizontal
+    result.startRow = startRow
+    result.startCol = startCol
+
+    return result
+end
+
+--[[
+    Commit a word to the board (side effects: board state ONLY)
+    Call AFTER ValidateWordSubmission() has passed
+    @param gameId string
+    @param word string
+    @param horizontal boolean
+    @param startRow number
+    @param startCol number
+    @return table - {placedTiles, formedWords} or nil on error
+]]
+function WordGame:CommitWord(gameId, word, horizontal, startRow, startCol)
+    local game = self.games[gameId]
+    if not game or not game.data or not game.data.state then
+        return nil
+    end
+
+    local state = game.data.state
+    word = word:upper()
+
+    -- Place the word on the board
+    local placedTiles = state.board:PlaceWord(word, startRow, startCol, horizontal)
+
+    if #placedTiles == 0 then
+        return nil
+    end
+
+    -- Find all words formed (main word + cross words)
+    local formedWords = state.board:FindFormedWords(placedTiles, horizontal)
+
+    -- Calculate scores for each formed word
+    for _, wordData in ipairs(formedWords) do
+        local wordScore = state.board:CalculateWordScore(
+            wordData.word,
+            wordData.startRow,
+            wordData.startCol,
+            wordData.horizontal,
+            placedTiles
+        )
+        wordData.score = wordScore or 0
+    end
+
+    return {
+        placedTiles = placedTiles,
+        formedWords = formedWords,
+    }
+end
+
+--[[
+    Finalize a turn after word is committed (side effects: scores, hands, turn, history)
+    @param gameId string
+    @param playerName string
+    @param word string
+    @param horizontal boolean
+    @param startRow number
+    @param startCol number
+    @param placedTiles table
+    @param formedWords table
+    @param totalScore number
+]]
+function WordGame:FinalizeTurn(gameId, playerName, word, horizontal, startRow, startCol, placedTiles, formedWords, totalScore)
+    local game = self.games[gameId]
+    if not game or not game.data or not game.data.state then return end
+
+    local state = game.data.state
+    local C = HopeAddon.Constants
+
+    -- Update player score
+    state.scores[playerName] = (state.scores[playerName] or 0) + totalScore
+
+    -- Record move in history
+    table.insert(state.moveHistory, {
+        player = playerName,
+        word = word,
+        startRow = startRow,
+        startCol = startCol,
+        horizontal = horizontal,
+        score = totalScore,
+        turnNumber = state.turnCount,
+    })
+
+    -- Reset consecutive passes
+    state.consecutivePasses = 0
+
+    -- Mark tiles for glow effect
+    self:MarkRecentlyPlaced(gameId, placedTiles)
+
+    -- Refill player's hand from tile bag
+    local usedLetters = {}
+    for _, tile in ipairs(placedTiles) do
+        if tile.letter then
+            table.insert(usedLetters, tile.letter)
+        end
+    end
+    self:RefillHand(gameId, playerName, usedLetters)
+
+    -- Print results
+    HopeAddon:Print(playerName .. " played '" .. word .. "' for " .. totalScore .. " points!")
+    if #formedWords > 1 then
+        local crossWords = {}
+        for i = 2, #formedWords do
+            local wd = formedWords[i]
+            table.insert(crossWords, wd.word .. " (+" .. wd.score .. ")")
+        end
+        HopeAddon:Print("Cross-words: " .. table.concat(crossWords, ", "))
+    end
+
+    -- Play sound effects based on score
+    local thresholds = C and C.WORDS_SCORE_THRESHOLDS
+    if HopeAddon.Sounds then
+        if thresholds then
+            if totalScore >= thresholds.AMAZING then
+                HopeAddon.Sounds:PlayAchievement()
+            elseif totalScore >= thresholds.GREAT then
+                HopeAddon.Sounds:PlayBell()
+            elseif totalScore >= thresholds.GOOD then
+                HopeAddon.Sounds:PlayNewEntry()
+            else
+                HopeAddon.Sounds:PlayClick()
+            end
+        else
+            HopeAddon.Sounds:PlayClick()
+        end
+    end
+
+    -- Show score toast popup
+    self:ShowScoreToast(gameId, word, totalScore, placedTiles)
+
+    -- Update UI
+    self:UpdateUI(gameId)
+
+    -- Switch turns
+    self:NextTurn(gameId)
+
+    -- Send to remote player if networked
+    if self.GameCore and game.mode == self.GameCore.GAME_MODE.REMOTE and self.GameComms then
+        local dir = horizontal and "H" or "V"
+        local moveData = string.format("%s|%s|%d|%d|%d", word, dir, startRow, startCol, totalScore)
+        self.GameComms:SendMove(game.opponent, "WORDS", gameId, moveData)
+    end
+end
+
+--[[
+    Place a word on the board (LEGACY - kept for backward compatibility with remote moves)
+    Uses new modular functions: CommitWord + FinalizeTurn
     @param gameId string
     @param word string
     @param horizontal boolean
@@ -597,26 +927,22 @@ function WordGame:PlaceWord(gameId, word, horizontal, startRow, startCol, player
     -- Check if first word
     local isFirstWord = state.board:IsBoardEmpty()
 
-    -- Validate placement
+    -- Validate placement using board's CanPlaceWord
     local canPlace, error = state.board:CanPlaceWord(word, startRow, startCol, horizontal, isFirstWord)
     if not canPlace then
         return false, error
     end
 
-    -- Place the word
-    local placedTiles = state.board:PlaceWord(word, startRow, startCol, horizontal)
-
-    -- Fix #5: Verify tiles were actually placed (guards against OOB/invalid positions)
-    if #placedTiles == 0 then
-        return false, "No valid tile positions for placement"
+    -- Commit the word to the board
+    local commitResult = self:CommitWord(gameId, word, horizontal, startRow, startCol)
+    if not commitResult then
+        return false, "Failed to place tiles"
     end
 
-    -- Fix #12: Removed undefined InvalidateRows call (row cache optimization was never implemented)
+    local placedTiles = commitResult.placedTiles
+    local formedWords = commitResult.formedWords
 
-    -- Find all words formed (main word + cross words)
-    local formedWords = state.board:FindFormedWords(placedTiles, horizontal)
-
-    -- Validate all formed words
+    -- Validate all cross-words are in dictionary
     for _, wordData in ipairs(formedWords) do
         if not self.WordDictionary:IsValidWord(wordData.word) then
             -- Undo placement
@@ -627,22 +953,13 @@ function WordGame:PlaceWord(gameId, word, horizontal, startRow, startCol, player
         end
     end
 
-    -- Calculate total score for all formed words (Fix #5: Nil guard for score)
+    -- Calculate total score
     local totalScore = 0
     for _, wordData in ipairs(formedWords) do
-        local wordScore = state.board:CalculateWordScore(
-            wordData.word,
-            wordData.startRow,
-            wordData.startCol,
-            wordData.horizontal,
-            placedTiles
-        )
-        wordScore = wordScore or 0  -- Guard against nil return
-        wordData.score = wordScore  -- Store score for display in notification
-        totalScore = totalScore + wordScore
+        totalScore = totalScore + (wordData.score or 0)
     end
 
-    -- BINGO bonus: +35 points for using all 7 tiles in one turn
+    -- BINGO bonus
     local C = HopeAddon.Constants
     local gotBingo = (#placedTiles >= self.RACK_SIZE)
     if gotBingo and C.WORDS_BINGO_BONUS then
@@ -650,83 +967,8 @@ function WordGame:PlaceWord(gameId, word, horizontal, startRow, startCol, player
         HopeAddon:Print("|cFFFFD700BINGO! +" .. C.WORDS_BINGO_BONUS .. " bonus for using all 7 tiles!|r")
     end
 
-    -- Update player score
-    state.scores[playerName] = (state.scores[playerName] or 0) + totalScore
-
-    -- Record move
-    table.insert(state.moveHistory, {
-        player = playerName,
-        word = word,
-        startRow = startRow,
-        startCol = startCol,
-        horizontal = horizontal,
-        score = totalScore,
-        turnNumber = state.turnCount,
-    })
-
-    -- Reset consecutive passes
-    state.consecutivePasses = 0
-
-    -- Mark tiles for glow effect
-    self:MarkRecentlyPlaced(gameId, placedTiles)
-
-    -- Refill player's hand from tile bag
-    -- placedTiles contains {row, col, letter} for each NEW tile placed on board
-    -- (tiles that were already on board from previous words are not in placedTiles)
-    local usedLetters = {}
-    for _, tile in ipairs(placedTiles) do
-        if tile.letter then
-            table.insert(usedLetters, tile.letter)
-        end
-    end
-    self:RefillHand(gameId, playerName, usedLetters)
-
-    -- Print results
-    HopeAddon:Print(playerName .. " played '" .. word .. "' for " .. totalScore .. " points!")
-    if #formedWords > 1 then
-        local crossWords = {}
-        for i = 2, #formedWords do
-            local wd = formedWords[i]
-            table.insert(crossWords, wd.word .. " (+" .. wd.score .. ")")
-        end
-        HopeAddon:Print("Cross-words: " .. table.concat(crossWords, ", "))
-    end
-
-    -- Play sound effects and show score toast
-    local C = HopeAddon.Constants
-    local thresholds = C and C.WORDS_SCORE_THRESHOLDS
-
-    if HopeAddon.Sounds then
-        if thresholds then
-            if totalScore >= thresholds.AMAZING then
-                HopeAddon.Sounds:PlayAchievement()
-            elseif totalScore >= thresholds.GREAT then
-                HopeAddon.Sounds:PlayBell()
-            elseif totalScore >= thresholds.GOOD then
-                HopeAddon.Sounds:PlayNewEntry()
-            else
-                HopeAddon.Sounds:PlayClick()
-            end
-        else
-            HopeAddon.Sounds:PlayClick()
-        end
-    end
-
-    -- Show score toast popup
-    self:ShowScoreToast(gameId, word, totalScore, placedTiles)
-
-    -- Update UI
-    self:UpdateUI(gameId)
-
-    -- Switch turns
-    self:NextTurn(gameId)
-
-    -- Send to remote player if networked
-    if self.GameCore and game.mode == self.GameCore.GAME_MODE.REMOTE and self.GameComms then
-        local dir = horizontal and "H" or "V"
-        local moveData = string.format("%s|%s|%d|%d|%d", word, dir, startRow, startCol, totalScore)
-        self.GameComms:SendMove(game.opponent, "WORDS", gameId, moveData)
-    end
+    -- Finalize the turn (scores, hands, history, network, UI)
+    self:FinalizeTurn(gameId, playerName, word, horizontal, startRow, startCol, placedTiles, formedWords, totalScore)
 
     return true, "Word placed successfully"
 end
@@ -1578,11 +1820,15 @@ function WordGame:ReleaseTileFrame(tile)
     if tile.glow then tile.glow:Hide() end
 
     -- Fix #6: Clear scripts that capture gameId closures to prevent cross-game pollution
+    -- Only clear scripts that exist on this tile type (drag tiles don't have OnClick)
     tile:SetScript("OnMouseDown", nil)
     tile:SetScript("OnMouseUp", nil)
     tile:SetScript("OnEnter", nil)
     tile:SetScript("OnLeave", nil)
-    tile:SetScript("OnClick", nil)
+    -- OnClick only exists on Button frames; plain Frames (like drag tiles) will error
+    if tile:GetObjectType() == "Button" then
+        tile:SetScript("OnClick", nil)
+    end
     tile.rackIndex = nil
 
     -- Return to pool if possible
@@ -2946,7 +3192,8 @@ function WordGame:CreateDragTile()
             local gameId = WordGame.dragState.gameId
             local game = WordGame.games[gameId]
             if game and game.data and game.data.ui and game.data.ui.tileFrames then
-                local targetRow, targetCol = WordGame:GetBoardTileUnderCursor(gameId, x / scale, y / scale)
+                -- Pass RAW cursor coordinates - GetBoardTileUnderCursor compares against raw screen coords from GetLeft/Right/etc
+                local targetRow, targetCol = WordGame:GetBoardTileUnderCursor(gameId, x, y)
                 if targetRow and targetCol then
                     HopeAddon:Debug("OnUpdate: Mouse released over board tile [" .. targetRow .. "," .. targetCol .. "]")
                     WordGame:EndDrag(targetRow, targetCol)
@@ -3395,11 +3642,10 @@ function WordGame:CancelDrag()
 
     local gameId = self.dragState.gameId
 
-    -- Clear OnUpdate script and release drag tile back to pool
+    -- Clear OnUpdate script and hide drag tile (it's a singleton, not pooled)
     if self.dragState.dragTile then
         self.dragState.dragTile:SetScript("OnUpdate", nil)
-        self:ReleaseTileFrame(self.dragState.dragTile)
-        self.dragState.dragTile = nil
+        self.dragState.dragTile:Hide()
     end
 
     -- Hide valid squares
@@ -3644,45 +3890,65 @@ end
 
 --[[
     Confirm and submit the pending word
+    Uses validate-first pattern: validates BEFORE clearing pending tiles
+    so user can adjust if validation fails
 ]]
 function WordGame:ConfirmPendingWord(gameId)
     local pending = self.dragState.pendingPlacements
     if #pending == 0 then
         HopeAddon:Print("No tiles placed!")
-        return
+        return false
     end
 
-    -- Build the word and determine placement
-    local word = self:GetPendingWord()
-    local direction = self.dragState.placementDirection or "H"
-    local horizontal = (direction == "H")
+    local playerName = UnitName("player")
 
-    -- Sort to find start position
-    local sorted = {}
-    for _, p in ipairs(pending) do
-        table.insert(sorted, p)
+    -- STEP 1: Validate BEFORE clearing (tiles stay if invalid)
+    local validation = self:ValidateWordSubmission(gameId, pending, playerName)
+
+    if not validation.valid then
+        HopeAddon:Print("|cFFFF0000" .. validation.error .. "|r")
+        -- Play error sound
+        if HopeAddon.Sounds then
+            HopeAddon.Sounds:PlayError()
+        end
+        -- Tiles remain on board for user to adjust
+        return false
     end
 
-    if horizontal then
-        table.sort(sorted, function(a, b) return a.col < b.col end)
-    else
-        table.sort(sorted, function(a, b) return a.row < b.row end)
-    end
-
-    local startRow = sorted[1].row
-    local startCol = sorted[1].col
-
-    -- Clear pending state before placing (so PlaceWord works correctly)
+    -- STEP 2: Validation passed - now safe to clear pending state
     self:ClearPendingTiles(gameId)
 
-    -- Attempt to place the word
-    local playerName = UnitName("player")
-    local success, message = self:PlaceWord(gameId, word, horizontal, startRow, startCol, playerName)
+    -- STEP 3: Commit the word to the board
+    local commitResult = self:CommitWord(
+        gameId,
+        validation.word,
+        validation.horizontal,
+        validation.startRow,
+        validation.startCol
+    )
 
-    if not success then
-        HopeAddon:Print("|cFFFF0000" .. message .. "|r")
-        -- Could restore pending tiles here, but for now just clear
+    if not commitResult then
+        HopeAddon:Print("|cFFFF0000Failed to place tiles on board|r")
+        return false
     end
+
+    -- STEP 4: Calculate final score (use breakdown from validation, add bingo if needed)
+    local totalScore = validation.estimatedScore
+
+    -- STEP 5: Finalize the turn (scores, history, hands, network, UI)
+    self:FinalizeTurn(
+        gameId,
+        playerName,
+        validation.word,
+        validation.horizontal,
+        validation.startRow,
+        validation.startCol,
+        commitResult.placedTiles,
+        commitResult.formedWords,
+        totalScore
+    )
+
+    return true
 end
 
 --============================================================
@@ -3831,6 +4097,7 @@ end
 
 --[[
     Update the live score display as tiles are placed
+    Now uses board:CalculatePotentialScore() for accurate cross-word scoring
 ]]
 function WordGame:UpdateLiveScore(gameId)
     local game = self.games[gameId]
@@ -3852,15 +4119,30 @@ function WordGame:UpdateLiveScore(gameId)
         return
     end
 
-    -- Build the word and calculate score
-    local word = self:GetPendingWord()
-    local estimatedScore = self:EstimatePendingScore(gameId)
-
-    -- Check for bonus squares used
-    local bonusesUsed = {}
     local state = game.data.state
     local board = state.board
 
+    -- Determine direction
+    local horizontal = true
+    if #pending >= 2 then
+        horizontal = (pending[1].row == pending[2].row)
+    end
+
+    -- Sort pending tiles for display
+    local sorted = {}
+    for _, p in ipairs(pending) do
+        table.insert(sorted, { row = p.row, col = p.col, letter = p.letter })
+    end
+
+    -- Use new board-level score calculation (includes cross-words)
+    local scoreData = board:CalculatePotentialScore(sorted, horizontal)
+    local estimatedScore = scoreData.total
+
+    -- Build main word string
+    local word = self:GetPendingWord()
+
+    -- Check for bonus squares used (for display)
+    local bonusesUsed = {}
     for _, p in ipairs(pending) do
         local bonus = board:GetBonus(p.row, p.col)
         if bonus == 1 then bonusesUsed["DL"] = true
@@ -3881,16 +4163,25 @@ function WordGame:UpdateLiveScore(gameId)
         bonusText = " |cFF888888(" .. table.concat(bonusList, ", ") .. ")|r"
     end
 
-    -- Check for BINGO (all 7 tiles used)
-    local bingoText = ""
-    if #pending >= 7 then
-        bingoText = " |cFFFFD700+35 BINGO!|r"
-        estimatedScore = estimatedScore + C.WORDS_BINGO_BONUS
+    -- Show cross-word info if any
+    local crossWordText = ""
+    if #scoreData.crossWords > 0 then
+        local crossList = {}
+        for _, cw in ipairs(scoreData.crossWords) do
+            table.insert(crossList, cw.word .. "(+" .. cw.score .. ")")
+        end
+        crossWordText = " |cFF88CCFF+" .. table.concat(crossList, ", ") .. "|r"
     end
 
-    -- Format: "DRAGON → 24 pts (DW, TL)"
-    ui.liveScoreText:SetText(string.format("|cFFFFD700%s|r → |cFF00FF00%d pts|r%s%s",
-        word, estimatedScore, bonusText, bingoText))
+    -- Check for BINGO (already included in scoreData.total if applicable)
+    local bingoText = ""
+    if scoreData.bingo then
+        bingoText = " |cFFFFD700BINGO!|r"
+    end
+
+    -- Format: "DRAGON → 24 pts (DW, TL) +AT(2) BINGO!"
+    ui.liveScoreText:SetText(string.format("|cFFFFD700%s|r → |cFF00FF00%d pts|r%s%s%s",
+        word, estimatedScore, bonusText, crossWordText, bingoText))
 end
 
 --[[

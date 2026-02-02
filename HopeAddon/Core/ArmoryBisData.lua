@@ -2212,7 +2212,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 28749, name = "King's Defender", source = "Chess Event", sourceType = "raid" },
                 alts = {
                     { id = 29362, name = "The Sun Eater", source = "Pathaleon the Calculator", sourceType = "heroic" },
-                    { id = 29155, name = "Continuum Blade", source = "Keepers of Time Revered", sourceType = "reputation" },
+                    { id = 29185, name = "Continuum Blade", source = "Keepers of Time Revered", sourceType = "reputation" },
                 }
             },
             offhand = {
@@ -2896,4 +2896,68 @@ end
 -- @return table|nil - The BiS lookup cache or nil
 function C:GetBisLookup()
     return bisLookupCache
+end
+
+-- =====================================================
+-- REPUTATION ITEM CACHE WARMUP
+-- =====================================================
+
+--[[
+    Pre-cache reputation BiS items for icon resolution
+    Called on PLAYER_LOGIN to warm up client item cache
+    This allows GetItemInfo() to return icons immediately when
+    the Reputation tab is opened, instead of showing question marks.
+
+    @return number - Count of items queued for cache warmup
+]]
+function C:WarmupReputationItemCache()
+    -- Only process Phase 1 data (most characters are here)
+    if not C.ARMORY_SPEC_BIS_DATABASE or not C.ARMORY_SPEC_BIS_DATABASE[1] then
+        return 0
+    end
+
+    local itemIds = {}
+
+    -- Collect all reputation item IDs from all specs in Phase 1
+    for guideKey, specData in pairs(C.ARMORY_SPEC_BIS_DATABASE[1]) do
+        for slot, slotData in pairs(specData) do
+            -- Check BiS item
+            if slotData.bis and slotData.bis.sourceType == "reputation" and slotData.bis.id then
+                itemIds[slotData.bis.id] = true
+            end
+            -- Check alt items
+            if slotData.alts then
+                for _, altItem in ipairs(slotData.alts) do
+                    if altItem.sourceType == "reputation" and altItem.id then
+                        itemIds[altItem.id] = true
+                    end
+                end
+            end
+        end
+    end
+
+    -- Also warmup generic faction rewards from ReputationData
+    local RepData = HopeAddon.ReputationData
+    if RepData and RepData.TBC_FACTIONS then
+        for factionName, factionData in pairs(RepData.TBC_FACTIONS) do
+            if factionData.hoverData and factionData.hoverData.rewards then
+                for standingId, rewards in pairs(factionData.hoverData.rewards) do
+                    for _, reward in ipairs(rewards) do
+                        if reward.itemId then
+                            itemIds[reward.itemId] = true
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Queue all items to GetItemInfo (triggers async cache fetch from server)
+    local count = 0
+    for itemId in pairs(itemIds) do
+        GetItemInfo(itemId)
+        count = count + 1
+    end
+
+    return count
 end

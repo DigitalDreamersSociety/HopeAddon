@@ -6,7 +6,11 @@
     - Player 1: W/S keys
     - Player 2: Up/Down arrow keys
 
-    In-person 2-player on same keyboard
+    Network Model (REMOTE mode):
+    Half-Court Authority - each player owns physics on their half of the court.
+    Ball ownership transfers at the midline (X=200) via CROSS events.
+    MISS events handle scoring when the ball passes a player's goal line.
+    This eliminates rubber banding since there's no position syncing.
 ]]
 
 local PongGame = {}
@@ -20,6 +24,7 @@ PongGame.SETTINGS = {
     -- Play area
     PLAY_WIDTH = 400,
     PLAY_HEIGHT = 300,
+    MIDLINE_X = 200,  -- PLAY_WIDTH / 2 - handoff point for half-court authority
 
     -- Paddles
     PADDLE_WIDTH = 10,
@@ -37,7 +42,7 @@ PongGame.SETTINGS = {
     WINNING_SCORE = 5,
 
     -- Network sync (REMOTE mode only)
-    NETWORK_UPDATE_HZ = 10,       -- Network update rate (reduced from 30 to 10 for bandwidth optimization)
+    NETWORK_UPDATE_HZ = 10,       -- Network update rate (only for paddle position)
 }
 
 --============================================================
@@ -170,6 +175,13 @@ function PongGame:OnCreate(gameId, game)
             serving = 1,  -- 1 or 2 - who serves next
             paused = false,
             countdown = 3,  -- Countdown before ball starts
+
+            -- Network interpolation for opponent paddle (smooth rendering)
+            paddle2Target = nil, -- Target paddle2 position from network
+
+            -- Half-court authority: each player owns physics on their half
+            -- "local" = we simulate ball, "remote" = opponent simulates, "none" = ball inactive
+            ballOwner = "local",
         },
     }
 
@@ -197,10 +209,13 @@ function PongGame:OnUpdate(gameId, dt)
 
     -- Check for opponent disconnect in REMOTE mode
     if state.isRemote and state.opponent then
+        -- Don't trigger disconnect if game already ended
+        local GameCore = HopeAddon:GetModule("GameCore")
+        if GameCore and game.state ~= GameCore.STATE.PLAYING then return end
+
         local timeSinceLastMessage = GetTime() - (state.lastOpponentMessage or GetTime())
-        if timeSinceLastMessage > 10 then  -- 10 second timeout
+        if timeSinceLastMessage > 5 then  -- 5 second timeout
             HopeAddon:Print("Opponent disconnected from Pong game")
-            local GameCore = HopeAddon:GetModule("GameCore")
             if GameCore then
                 GameCore:EndGame(gameId, "DISCONNECT")
             end
@@ -337,6 +352,7 @@ end
 
 --[[
     Serve the ball
+    Half-court authority: Host always generates serve, determines ownership based on direction
 ]]
 function PongGame:ServeBall(gameId)
     local game = self.games[gameId]
@@ -346,12 +362,24 @@ function PongGame:ServeBall(gameId)
     local ball = state.ball
     local S = self.SETTINGS
 
-    -- Reset ball position
+    -- In REMOTE mode, only host generates the serve
+    if state.isRemote and not state.isHost then
+        -- Client waits for CROSS event from host after serve
+        ball.x = S.PLAY_WIDTH / 2 - S.BALL_SIZE / 2
+        ball.y = S.PLAY_HEIGHT / 2 - S.BALL_SIZE / 2
+        ball.speed = S.BALL_INITIAL_SPEED
+        ball.dx = 0
+        ball.dy = 0
+        state.ballOwner = "none"  -- Wait for CROSS from host
+        return
+    end
+
+    -- Host or non-REMOTE mode: reset ball position
     ball.x = S.PLAY_WIDTH / 2 - S.BALL_SIZE / 2
     ball.y = S.PLAY_HEIGHT / 2 - S.BALL_SIZE / 2
     ball.speed = S.BALL_INITIAL_SPEED
 
-    -- Random angle between -45 and 45 degrees
+    -- Generate random serve angle (-45 to 45 degrees)
     local angle = (math.random() - 0.5) * math.pi / 2
 
     -- Direction based on who serves
@@ -359,6 +387,18 @@ function PongGame:ServeBall(gameId)
 
     ball.dx = math.cos(angle) * ball.speed * direction
     ball.dy = math.sin(angle) * ball.speed
+
+    -- Half-court authority: determine ball ownership based on direction
+    if state.isRemote then
+        if ball.dx > 0 then
+            -- Ball going toward opponent (right side) - send CROSS, they own it
+            self:SendCross(gameId)
+            state.ballOwner = "none"
+        else
+            -- Ball coming toward us (left side) - we own it
+            state.ballOwner = "local"
+        end
+    end
 end
 
 --[[
@@ -377,7 +417,8 @@ function PongGame:UpdatePaddles(gameId, dt)
     elseif state.isRemote then
         -- REMOTE mode: Only control paddle1 (local player)
         self:UpdateLocalPaddle(gameId, dt)
-        -- Paddle2 updated by network messages (OnOpponentMove)
+        -- Paddle2 updated by network messages, with smooth interpolation
+        self:InterpolatePaddle2(gameId, dt)
 
         -- Send paddle position to opponent
         self:SendPaddlePosition(gameId, dt)
@@ -495,26 +536,110 @@ function PongGame:UpdateLocalPaddles(gameId, dt)
 end
 
 --[[
+    Interpolate paddle2 position for smooth rendering in REMOTE mode
+]]
+function PongGame:InterpolatePaddle2(gameId, dt)
+    local game = self.games[gameId]
+    if not game then return end
+
+    local state = game.data.state
+    local S = self.SETTINGS
+    local GameCore = HopeAddon:GetModule("GameCore")
+    if not GameCore then return end
+
+    -- Smooth toward target position if we have one
+    if state.paddle2Target then
+        local paddle2 = state.paddle2
+        -- Lerp toward target (30% per frame for smooth movement)
+        paddle2.y = paddle2.y + (state.paddle2Target.y - paddle2.y) * 0.3
+        paddle2.dy = state.paddle2Target.dy
+    end
+
+    -- Clamp to play area
+    local paddle2 = state.paddle2
+    paddle2.y = GameCore:Clamp(paddle2.y, 0, S.PLAY_HEIGHT - paddle2.height)
+end
+
+--[[
     Update ball position and handle collisions
+    HALF-COURT AUTHORITY: Each player only runs physics on their half.
+    Ball ownership transfers at the midline via CROSS events.
 ]]
 function PongGame:UpdateBall(gameId, dt)
     local game = self.games[gameId]
     if not game then return end
 
     local state = game.data.state
-
-    -- In REMOTE mode, only the host runs ball physics
-    -- Client receives ball position from network updates
-    if state.isRemote and not state.isHost then
-        return
-    end
-
     local S = self.SETTINGS
     local GameCore = HopeAddon:GetModule("GameCore")
     local ball = state.ball
     local paddle1 = state.paddle1
     local paddle2 = state.paddle2
 
+    -- REMOTE mode: Half-court authority
+    if state.isRemote then
+        -- Only process physics if we own the ball
+        if state.ballOwner ~= "local" then
+            return  -- Ball is on opponent's half or inactive
+        end
+
+        -- Move ball
+        ball.x = ball.x + ball.dx * dt
+        ball.y = ball.y + ball.dy * dt
+
+        -- Top/bottom wall collision (we handle on our half)
+        if ball.y <= 0 then
+            ball.y = 0
+            ball.dy = -ball.dy
+            self:PlayBounceSound()
+        elseif ball.y + ball.size >= S.PLAY_HEIGHT then
+            ball.y = S.PLAY_HEIGHT - ball.size
+            ball.dy = -ball.dy
+            self:PlayBounceSound()
+        end
+
+        -- Paddle 1 collision (our paddle - we are authoritative)
+        if ball.dx < 0 and GameCore:CheckCollision(
+            ball.x, ball.y, ball.size, ball.size,
+            paddle1.x, paddle1.y, paddle1.width, paddle1.height
+        ) then
+            ball.x = paddle1.x + paddle1.width
+            ball.dx = -ball.dx
+
+            -- Add spin based on where ball hits paddle
+            local hitPos = (ball.y + ball.size / 2) - (paddle1.y + paddle1.height / 2)
+            local normalizedHit = hitPos / (paddle1.height / 2)
+            ball.dy = ball.dy + normalizedHit * 100
+
+            -- Increase speed
+            ball.speed = math.min(ball.speed + S.BALL_SPEED_INCREMENT, S.BALL_MAX_SPEED)
+            self:NormalizeBallSpeed(ball)
+
+            self:PlayHitSound()
+            -- No network send here - we send CROSS when ball leaves our half
+        end
+
+        -- Check if ball crossed midline (leaving our half toward opponent)
+        if ball.dx > 0 and ball.x > S.MIDLINE_X then
+            self:SendCross(gameId)
+            state.ballOwner = "none"
+            return
+        end
+
+        -- Check if we missed (ball passed our goal line)
+        if ball.x + ball.size < 0 then
+            self:SendMiss(gameId)
+            self:Score(gameId, 2)  -- Opponent scores
+            state.ballOwner = "none"
+            self:ResetBall(gameId)
+            self:StartCountdown(gameId)
+            return
+        end
+
+        return  -- Don't run non-REMOTE logic
+    end
+
+    -- Non-REMOTE modes (LOCAL, SCORE_CHALLENGE): full physics locally
     -- Move ball
     ball.x = ball.x + ball.dx * dt
     ball.y = ball.y + ball.dy * dt
@@ -530,7 +655,7 @@ function PongGame:UpdateBall(gameId, dt)
         self:PlayBounceSound()
     end
 
-    -- Paddle 1 collision (left)
+    -- Paddle 1 collision (left paddle)
     if ball.dx < 0 and GameCore:CheckCollision(
         ball.x, ball.y, ball.size, ball.size,
         paddle1.x, paddle1.y, paddle1.width, paddle1.height
@@ -538,19 +663,17 @@ function PongGame:UpdateBall(gameId, dt)
         ball.x = paddle1.x + paddle1.width
         ball.dx = -ball.dx
 
-        -- Add spin based on where ball hits paddle
         local hitPos = (ball.y + ball.size / 2) - (paddle1.y + paddle1.height / 2)
         local normalizedHit = hitPos / (paddle1.height / 2)
         ball.dy = ball.dy + normalizedHit * 100
 
-        -- Increase speed
         ball.speed = math.min(ball.speed + S.BALL_SPEED_INCREMENT, S.BALL_MAX_SPEED)
         self:NormalizeBallSpeed(ball)
 
         self:PlayHitSound()
     end
 
-    -- Paddle 2 collision (right)
+    -- Paddle 2 collision (right paddle)
     if ball.dx > 0 and GameCore:CheckCollision(
         ball.x, ball.y, ball.size, ball.size,
         paddle2.x, paddle2.y, paddle2.width, paddle2.height
@@ -558,19 +681,17 @@ function PongGame:UpdateBall(gameId, dt)
         ball.x = paddle2.x - ball.size
         ball.dx = -ball.dx
 
-        -- Add spin
         local hitPos = (ball.y + ball.size / 2) - (paddle2.y + paddle2.height / 2)
         local normalizedHit = hitPos / (paddle2.height / 2)
         ball.dy = ball.dy + normalizedHit * 100
 
-        -- Increase speed
         ball.speed = math.min(ball.speed + S.BALL_SPEED_INCREMENT, S.BALL_MAX_SPEED)
         self:NormalizeBallSpeed(ball)
 
         self:PlayHitSound()
     end
 
-    -- Score detection (ball passed paddle)
+    -- Score detection
     if ball.x + ball.size < 0 then
         -- Player 2 scores
         self:Score(gameId, 2)
@@ -593,6 +714,10 @@ end
 
 --[[
     Handle scoring
+    In REMOTE mode with half-court authority:
+    - Player 1 scores when opponent sends MISS (handled in OnOpponentMove)
+    - Player 2 scores when we send MISS (handled in UpdateBall)
+    The caller is responsible for reset/countdown in REMOTE mode.
 ]]
 function PongGame:Score(gameId, player)
     local game = self.games[gameId]
@@ -648,7 +773,13 @@ function PongGame:Score(gameId, player)
     -- Set next server (loser serves)
     state.serving = player == 1 and 2 or 1
 
-    -- Reset and start countdown
+    -- In REMOTE mode, reset/countdown is handled by the caller (UpdateBall or OnOpponentMove)
+    -- to avoid duplicate resets
+    if state.isRemote then
+        return
+    end
+
+    -- Non-REMOTE modes: reset and start countdown
     self:ResetBall(gameId)
     self:StartCountdown(gameId)
 end
@@ -683,28 +814,30 @@ function PongGame:SendPaddlePosition(gameId, dt)
     if not state.isRemote then return end
 
     local S = self.SETTINGS
-    local syncInterval = 1 / S.NETWORK_UPDATE_HZ  -- Calculate interval from Hz
+    local syncInterval = 1 / S.NETWORK_UPDATE_HZ  -- 10 Hz for paddle sync only
 
-    -- Throttle network updates (10 Hz = 67% bandwidth reduction vs 30 Hz)
-    -- Client-side physics still runs at 30 FPS for smooth local rendering
+    -- Throttle network updates for paddle position only
+    -- Ball is synced via CROSS/MISS events for half-court authority model
     state.paddleSyncTimer = (state.paddleSyncTimer or 0) + dt
     if state.paddleSyncTimer >= syncInterval then
         state.paddleSyncTimer = 0
 
         local paddle1 = state.paddle1
-        local data = string.format("PADDLE|%.2f|%.2f", paddle1.y, paddle1.dy)
-
         local GameComms = HopeAddon:GetModule("GameComms")
-        if GameComms and state.opponent then
-            GameComms:SendMove(state.opponent, "PONG", gameId, data)
+        if not GameComms or not state.opponent then return end
 
-            -- Host also sends ball state to ensure synchronized gameplay
-            if state.isHost then
-                local ball = state.ball
-                local ballData = string.format("BALL|%.2f|%.2f|%.2f|%.2f|%.2f",
-                    ball.x, ball.y, ball.dx, ball.dy, ball.speed)
-                GameComms:SendMove(state.opponent, "PONG", gameId, ballData)
-            end
+        -- Delta detection: skip if paddle hasn't moved significantly
+        local lastY = state.lastSentPaddleY or 0
+        local lastDy = state.lastSentPaddleDy or 0
+        local paddleMoved = math.abs(paddle1.y - lastY) > 2 or math.abs(paddle1.dy - lastDy) > 10
+
+        if paddleMoved then
+            -- Send paddle position only (no ball sync - that's event-based now)
+            state.syncSeq = (state.syncSeq or 0) + 1
+            local data = string.format("PADDLE|%d|%.1f|%.1f", state.syncSeq, paddle1.y, paddle1.dy)
+            GameComms:SendMove(state.opponent, "PONG", gameId, data)
+            state.lastSentPaddleY = paddle1.y
+            state.lastSentPaddleDy = paddle1.dy
         end
     end
 end
@@ -716,6 +849,10 @@ function PongGame:OnOpponentMove(sender, gameId, data)
     local state = game.data.state
     if not state.isRemote then return end
 
+    -- Check game is still playing
+    local GameCore = HopeAddon:GetModule("GameCore")
+    if GameCore and game.state ~= GameCore.STATE.PLAYING then return end
+
     -- Validate sender is the opponent
     if sender ~= state.opponent then
         HopeAddon:Debug("Ignoring PONG move from non-opponent:", sender)
@@ -725,25 +862,94 @@ function PongGame:OnOpponentMove(sender, gameId, data)
     -- Update last message timestamp for disconnect detection
     state.lastOpponentMessage = GetTime()
 
+    local S = self.SETTINGS
+
     -- Parse message type
     local msgType, p1, p2, p3, p4, p5 = strsplit("|", data)
 
     if msgType == "PADDLE" then
         -- Opponent's paddle position update
-        local paddle2 = state.paddle2
-        paddle2.y = tonumber(p1) or paddle2.y
-        paddle2.dy = tonumber(p2) or paddle2.dy
-    elseif msgType == "BALL" then
-        -- Ball state from host (only apply if we're not the host)
-        if not state.isHost then
-            local ball = state.ball
-            ball.x = tonumber(p1) or ball.x
-            ball.y = tonumber(p2) or ball.y
-            ball.dx = tonumber(p3) or ball.dx
-            ball.dy = tonumber(p4) or ball.dy
-            ball.speed = tonumber(p5) or ball.speed
+        -- Format: PADDLE|seq|y|dy
+        local seq = tonumber(p1)
+        if seq and state.lastReceivedSeq and seq <= state.lastReceivedSeq then
+            return  -- Old/duplicate message, ignore
         end
+        state.lastReceivedSeq = seq
+
+        -- Store target for interpolation
+        state.paddle2Target = {
+            y = tonumber(p2) or state.paddle2.y,
+            dy = tonumber(p3) or state.paddle2.dy,
+        }
+
+    elseif msgType == "CROSS" then
+        -- Ball crossing from opponent's half toward us
+        -- Format: CROSS|dy|speed
+        local receivedDy = tonumber(p1) or 0
+        local receivedSpeed = tonumber(p2) or S.BALL_INITIAL_SPEED
+
+        local ball = state.ball
+
+        -- Spawn ball at midline, coming toward us (from the right edge of our view)
+        ball.x = S.MIDLINE_X - ball.size
+        ball.y = S.PLAY_HEIGHT / 2 - S.BALL_SIZE / 2
+        ball.dy = receivedDy
+        ball.speed = receivedSpeed
+
+        -- Calculate dx (coming toward our paddle = negative direction)
+        local dySq = receivedDy * receivedDy
+        local speedSq = receivedSpeed * receivedSpeed
+        ball.dx = -math.sqrt(math.max(0, speedSq - dySq))
+
+        state.ballOwner = "local"  -- Take ownership
+        self:PlayBounceSound()
+
+    elseif msgType == "MISS" then
+        -- Opponent missed - we score!
+        self:Score(gameId, 1)
+        state.ballOwner = "none"
+        self:ResetBall(gameId)
+        self:StartCountdown(gameId)
     end
+end
+
+--[[
+    Send CROSS event when ball crosses midline toward opponent
+    This transfers ball ownership to the opponent
+    dy is mirrored (negated) for opponent's perspective
+]]
+function PongGame:SendCross(gameId)
+    local game = self.games[gameId]
+    if not game then return end
+
+    local state = game.data.state
+    if not state.isRemote then return end
+
+    local GameComms = HopeAddon:GetModule("GameComms")
+    if not GameComms or not state.opponent then return end
+
+    local ball = state.ball
+    -- Send dy (negated for mirrored perspective) and speed
+    -- Opponent will spawn ball at their midline edge coming toward them
+    local data = string.format("CROSS|%.1f|%.1f", -ball.dy, ball.speed)
+    GameComms:SendMove(state.opponent, "PONG", gameId, data)
+end
+
+--[[
+    Send MISS event when ball passes our goal line
+    Opponent will increment their score
+]]
+function PongGame:SendMiss(gameId)
+    local game = self.games[gameId]
+    if not game then return end
+
+    local state = game.data.state
+    if not state.isRemote then return end
+
+    local GameComms = HopeAddon:GetModule("GameComms")
+    if not GameComms or not state.opponent then return end
+
+    GameComms:SendMove(state.opponent, "PONG", gameId, "MISS")
 end
 
 function PongGame:SendGameOver(gameId, loser)
@@ -816,18 +1022,20 @@ function PongGame:CreateUI(gameId)
 
     local S = self.SETTINGS
 
-    -- Create game window
-    local window = GameUI:CreateGameWindow(gameId, "Pong", "PONG")
+    -- Create game window (use larger window for Score Challenge to fit opponent panel)
+    local windowType = state.isScoreChallenge and "PONG_CHALLENGE" or "PONG"
+    local window = GameUI:CreateGameWindow(gameId, "Pong of War", windowType)
     if not window then return end
 
     ui.window = window  -- Store in ui table
 
     local content = window.content
 
-    -- Score display at top
+    -- Score display at top (offset left when opponent panel is shown)
     local scoreContainer = CreateFrame("Frame", nil, content)
     scoreContainer:SetSize(200, 40)
-    scoreContainer:SetPoint("TOP", 0, -5)
+    local scoreOffsetX = state.isScoreChallenge and -60 or 0
+    scoreContainer:SetPoint("TOP", scoreOffsetX, -5)
 
     local p1Score = scoreContainer:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
     p1Score:SetPoint("LEFT", 20, 0)
@@ -846,9 +1054,10 @@ function PongGame:CreateUI(gameId)
     p2Score:SetTextColor(0.8, 0.2, 0.2)
     ui.scoreText.p2 = p2Score
 
-    -- Play area
+    -- Play area (offset left when opponent panel is shown to avoid overlap)
     local playArea = GameUI:CreatePlayArea(content, S.PLAY_WIDTH, S.PLAY_HEIGHT)
-    playArea:SetPoint("CENTER", 0, -10)
+    local playAreaOffsetX = state.isScoreChallenge and -60 or 0
+    playArea:SetPoint("CENTER", playAreaOffsetX, -10)
     ui.playArea = playArea
 
     -- Center line (dashed)
@@ -895,7 +1104,7 @@ function PongGame:CreateUI(gameId)
     local GameCore = HopeAddon:GetModule("GameCore")
     if state.isScoreChallenge then
         ui.opponentPanel = self:CreateOpponentPanel(content, state.opponent)
-        ui.opponentPanel:SetPoint("RIGHT", content, "RIGHT", -10, 0)
+        ui.opponentPanel:SetPoint("TOPRIGHT", content, "TOPRIGHT", -10, -45)
     end
 
     -- Controls hint
@@ -1140,8 +1349,18 @@ function PongGame:CleanupGame(gameId)
             ui.playArea = nil
         end
 
+        -- Release opponent panel (SCORE_CHALLENGE mode)
+        if ui.opponentPanel then
+            ui.opponentPanel:Hide()
+            ui.opponentPanel:SetParent(nil)
+            ui.opponentPanel = nil
+        end
+
         -- Hide window (GameUI handles destruction)
         if ui.window then
+            -- Clear script handlers to prevent memory leaks from closures
+            ui.window:SetScript("OnKeyDown", nil)
+            ui.window:SetScript("OnKeyUp", nil)
             ui.window:Hide()
             ui.window = nil
         end

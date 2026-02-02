@@ -68,7 +68,7 @@ function Companions:SendRequest(playerName)
 
     -- Check if already a companion
     if data.list[playerName] then
-        HopeAddon:Print(playerName .. " is already a companion!")
+        HopeAddon:Print(playerName .. " is already a buddy!")
         return false
     end
 
@@ -95,7 +95,7 @@ function Companions:SendRequest(playerName)
     -- Track outgoing
     data.outgoing[playerName] = { timestamp = time() }
 
-    HopeAddon:Print("Companion request sent to " .. playerName)
+    HopeAddon:Print("Buddy request sent to " .. playerName)
     return true
 end
 
@@ -131,7 +131,7 @@ function Companions:AcceptRequest(playerName)
         FellowTravelers:SendDirectMessage(playerName, MSG_COMP_ACC, UnitName("player"))
     end
 
-    HopeAddon:Print(playerName .. " is now a companion!")
+    HopeAddon:Print(playerName .. " is now your buddy!")
 
     -- Play sound
     if HopeAddon.Sounds then
@@ -156,7 +156,7 @@ function Companions:DeclineRequest(playerName)
         FellowTravelers:SendDirectMessage(playerName, MSG_COMP_DEC, UnitName("player"))
     end
 
-    HopeAddon:Print("Declined companion request from " .. playerName)
+    HopeAddon:Print("Declined buddy request from " .. playerName)
 end
 
 --[[
@@ -168,7 +168,21 @@ function Companions:RemoveCompanion(playerName)
     if not data then return end
 
     data.list[playerName] = nil
-    HopeAddon:Print(playerName .. " removed from companions")
+    HopeAddon:Print(playerName .. " removed from Buddy list")
+end
+
+--[[
+    Cancel an outgoing companion request
+    @param playerName string
+]]
+function Companions:CancelOutgoingRequest(playerName)
+    local data = GetCompanionData()
+    if not data then return end
+
+    if data.outgoing[playerName] then
+        data.outgoing[playerName] = nil
+        HopeAddon:Print("Cancelled buddy request to " .. playerName)
+    end
 end
 
 --============================================================
@@ -201,7 +215,7 @@ function Companions:HandleMessage(msgType, sender, data)
             class = fellow and fellow.class or "UNKNOWN",
             level = fellow and fellow.level or 70,
         }
-        HopeAddon:Print("|cFFFFD700" .. sender .. "|r wants to be companions!")
+        HopeAddon:Print("|cFFFFD700" .. sender .. "|r wants to be your buddy!")
 
         -- Trigger toast notification (Phase 4)
         if HopeAddon.SocialToasts then
@@ -224,7 +238,7 @@ function Companions:HandleMessage(msgType, sender, data)
                 level = fellow and fellow.level or 70,
             }
             compData.outgoing[sender] = nil
-            HopeAddon:Print("|cFF00FF00" .. sender .. "|r accepted your companion request!")
+            HopeAddon:Print("|cFF00FF00" .. sender .. "|r accepted your buddy request!")
 
             -- Play notification sound
             if HopeAddon.Sounds then
@@ -235,7 +249,7 @@ function Companions:HandleMessage(msgType, sender, data)
     elseif msgType == MSG_COMP_DEC then
         -- Our request was declined
         compData.outgoing[sender] = nil
-        HopeAddon:Print(sender .. " declined your companion request")
+        HopeAddon:Print(sender .. " declined your buddy request")
     end
 end
 
@@ -251,6 +265,17 @@ end
 function Companions:IsCompanion(playerName)
     local data = GetCompanionData()
     return data and data.list[playerName] ~= nil
+end
+
+--[[
+    Check if there is a pending outgoing request to a player
+    @param playerName string
+    @return boolean
+]]
+function Companions:HasPendingOutgoingRequest(playerName)
+    local data = GetCompanionData()
+    if not data then return false end
+    return data.outgoing[playerName] ~= nil
 end
 
 --[[

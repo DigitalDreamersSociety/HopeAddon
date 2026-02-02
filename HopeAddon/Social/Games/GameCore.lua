@@ -25,6 +25,7 @@ GameCore.GAME_TYPE = {
     TETRIS = "TETRIS",
     WORDS = "WORDS",
     BATTLESHIP = "BATTLESHIP",
+    PACMAN = "PACMAN",
 }
 
 -- Game modes

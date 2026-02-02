@@ -18,9 +18,9 @@ TetrisGame.SETTINGS = {
     INITIAL_DROP_INTERVAL = 1.0,    -- Time between automatic drops
     MIN_DROP_INTERVAL = 0.1,        -- Fastest drop speed
     SOFT_DROP_INTERVAL = 0.05,      -- Speed when holding down
-    LOCK_DELAY = 0.5,               -- Time before piece locks after landing
+    LOCK_DELAY = 0.25,              -- Time before piece locks after landing (competitive standard)
     LINE_CLEAR_DELAY = 0.3,         -- Animation time for clearing lines
-    MAX_LOCK_MOVES = 15,            -- Max moves/rotations before forced lock
+    MAX_LOCK_MOVES = 10,            -- Max moves/rotations before forced lock
     DAS_DELAY = 0.167,              -- Delayed Auto Shift initial delay (10 frames @ 60fps)
     ARR_INTERVAL = 0.033,           -- Auto Repeat Rate interval (2 frames @ 60fps)
     ENTRY_DELAY = 0.1,              -- Auto Repeat Enable (ARE) spawn delay
@@ -44,14 +44,21 @@ TetrisGame.SETTINGS = {
     -- Level progression
     LINES_PER_LEVEL = 10,
     SPEED_MULTIPLIER = 0.85,        -- Drop interval *= this per level
+
+    -- Blitz mode settings (used in SCORE_CHALLENGE)
+    BLITZ_TIME_LIMIT = 120,             -- 2-minute games
+    BLITZ_INITIAL_DROP_INTERVAL = 0.5,  -- Start 2x faster
+    BLITZ_SPEED_MULTIPLIER = 0.80,      -- More aggressive speed curve
+    BLITZ_LINES_PER_LEVEL = 5,          -- Level up twice as fast
 }
 
 -- AI Opponent settings (tuned for ~60-70% player win rate)
 TetrisGame.AI_SETTINGS = {
-    -- Decision timing (humanlike delays)
-    THINK_TIME_MIN = 0.3,           -- Minimum "thinking" time before deciding
-    THINK_TIME_MAX = 0.8,           -- Maximum "thinking" time
-    MOVE_INTERVAL = 0.05,           -- Time between AI moves (simulates key presses)
+    -- Decision timing (responsive like other game AIs)
+    THINK_TIME_MIN = 0.05,          -- Near-instant decision making
+    THINK_TIME_MAX = 0.15,          -- Maximum "thinking" time
+    MOVE_INTERVAL = 0.02,           -- Fast movement between positions
+    INSTANT_PLACEMENT = false,      -- Set true to skip visual move simulation (hard drop immediately)
 
     -- Evaluation weights
     WEIGHT_HOLES = -4.0,            -- Penalty per hole
@@ -142,7 +149,8 @@ function TetrisGame:OnCreate(gameId, game)
         ui = {
             window = nil,
             countdownText = nil,
-            opponentPanel = nil,  -- For SCORE_CHALLENGE mode
+            blitzTimerText = nil,  -- For Blitz mode timer display
+            opponentPanel = nil,   -- For SCORE_CHALLENGE mode
             boards = {
                 [1] = {
                     container = nil,
@@ -157,10 +165,12 @@ function TetrisGame:OnCreate(gameId, game)
         state = {
             -- Board setup: LOCAL has 2 boards, REMOTE/SCORE_CHALLENGE has 1 board
             boards = {
-                [1] = self:CreateBoard(1),
+                [1] = self:CreateBoard(1, isScoreChallenge),
             },
             -- Mode tracking
             isScoreChallenge = isScoreChallenge,
+            -- Blitz mode timer (only for SCORE_CHALLENGE)
+            blitzTimeRemaining = isScoreChallenge and self.SETTINGS.BLITZ_TIME_LIMIT or nil,
             -- Game state
             paused = false,
             countdown = 3,
@@ -173,7 +183,7 @@ function TetrisGame:OnCreate(gameId, game)
     -- In LOCAL mode, create second board for player 2
     -- REMOTE and SCORE_CHALLENGE modes only have 1 board
     if not isRemote and not isScoreChallenge then
-        game.data.state.boards[2] = self:CreateBoard(2)
+        game.data.state.boards[2] = self:CreateBoard(2, false)
         game.data.ui.boards[2] = {
             container = nil,
             gridFrame = nil,
@@ -188,10 +198,13 @@ function TetrisGame:OnCreate(gameId, game)
     HopeAddon:Debug("Tetris game created:", gameId, "mode:", game.mode)
 end
 
-function TetrisGame:CreateBoard(playerNum)
+function TetrisGame:CreateBoard(playerNum, isBlitz)
     local TetrisGrid = HopeAddon.TetrisGrid
     local TetrisBlocks = HopeAddon.TetrisBlocks
     local S = self.SETTINGS
+
+    -- Use blitz settings for SCORE_CHALLENGE mode
+    local initialDropInterval = isBlitz and S.BLITZ_INITIAL_DROP_INTERVAL or S.INITIAL_DROP_INTERVAL
 
     return {
         -- Grid
@@ -215,7 +228,8 @@ function TetrisGame:CreateBoard(playerNum)
 
         -- Timing
         dropTimer = 0,
-        dropInterval = S.INITIAL_DROP_INTERVAL,
+        dropInterval = initialDropInterval,
+        isBlitz = isBlitz,  -- Track blitz mode for speed/scoring calculations
         lockTimer = 0,
         lockMoveCount = 0,          -- Count moves/rotations during lock
         isLocking = false,
@@ -304,6 +318,17 @@ function TetrisGame:OnUpdate(gameId, dt)
 
     if state.paused or state.countdown > 0 or state.gameOver then
         return
+    end
+
+    -- Update blitz timer (SCORE_CHALLENGE mode)
+    if state.blitzTimeRemaining then
+        state.blitzTimeRemaining = state.blitzTimeRemaining - dt
+        if state.blitzTimeRemaining <= 0 then
+            state.blitzTimeRemaining = 0
+            -- Time's up! End the game (not game over - just time limit)
+            self:OnBlitzTimeUp(gameId)
+            return
+        end
     end
 
     -- Update all boards (1 for REMOTE, 2 for LOCAL)
@@ -500,13 +525,35 @@ function TetrisGame:UpdateAIBoard(gameId, playerNum, dt)
 
             ai.targetCol = col
             ai.targetRotation = rotation
-            ai.phase = "MOVING"
-            ai.moveTimer = 0
+
+            -- Instant placement mode: skip MOVING phase entirely
+            if AI.INSTANT_PLACEMENT then
+                -- Apply rotation and position instantly, then hard drop
+                while board.pieceRotation ~= ai.targetRotation do
+                    if not self:RotatePiece(gameId, playerNum, 1) then
+                        break  -- Can't rotate further
+                    end
+                end
+                -- Move to target column instantly
+                while board.pieceCol ~= ai.targetCol do
+                    local dCol = (board.pieceCol < ai.targetCol) and 1 or -1
+                    if not self:MovePiece(gameId, playerNum, 0, dCol) then
+                        break  -- Can't move further
+                    end
+                end
+                -- Hard drop immediately
+                self:HardDrop(gameId, playerNum)
+                self:ResetAIState(board)
+            else
+                -- Visual simulation mode: proceed to MOVING phase
+                ai.phase = "MOVING"
+                ai.moveTimer = 0
+            end
         end
         return
     end
 
-    -- Phase: MOVING - Move piece to target position
+    -- Phase: MOVING - Move piece to target position (visual simulation)
     if ai.phase == "MOVING" then
         ai.moveTimer = ai.moveTimer + dt
 
@@ -620,6 +667,35 @@ function TetrisGame:FindLandingRow(grid, blocks, col)
 
     -- Piece lands at bottom
     return TetrisGrid.HEIGHT
+end
+
+--[[
+    Calculate ghost piece position (where current piece will land)
+    @param board table - Board state
+    @return number|nil - Ghost row position
+]]
+function TetrisGame:CalculateGhostPosition(board)
+    if not board.currentPiece then return nil end
+
+    local TetrisBlocks = HopeAddon.TetrisBlocks
+    local TetrisGrid = HopeAddon.TetrisGrid
+
+    local blocks = TetrisBlocks:GetBlocks(board.currentPiece, board.pieceRotation)
+
+    -- Start from current position and move down
+    local ghostRow = board.pieceRow
+    while board.grid:CanPlace(blocks, ghostRow + 1, board.pieceCol) do
+        ghostRow = ghostRow + 1
+        -- Safety check to prevent infinite loop
+        if ghostRow > TetrisGrid.HEIGHT then break end
+    end
+
+    -- Only return ghost if it's different from current position
+    if ghostRow > board.pieceRow then
+        return ghostRow
+    end
+
+    return nil
 end
 
 --[[
@@ -1082,11 +1158,15 @@ function TetrisGame:CheckLineClears(gameId, playerNum, isTSpin, isMini)
         board.outgoingGarbage = board.outgoingGarbage + garbage
     end
 
-    -- Level up check
-    local newLevel = math.floor(board.lines / S.LINES_PER_LEVEL) + 1
+    -- Level up check (use blitz settings if in blitz mode)
+    local linesPerLevel = board.isBlitz and S.BLITZ_LINES_PER_LEVEL or S.LINES_PER_LEVEL
+    local speedMult = board.isBlitz and S.BLITZ_SPEED_MULTIPLIER or S.SPEED_MULTIPLIER
+    local initialDrop = board.isBlitz and S.BLITZ_INITIAL_DROP_INTERVAL or S.INITIAL_DROP_INTERVAL
+
+    local newLevel = math.floor(board.lines / linesPerLevel) + 1
     if newLevel > board.level then
         board.level = newLevel
-        board.dropInterval = S.INITIAL_DROP_INTERVAL * math.pow(S.SPEED_MULTIPLIER, newLevel - 1)
+        board.dropInterval = initialDrop * math.pow(speedMult, newLevel - 1)
         board.dropInterval = math.max(board.dropInterval, S.MIN_DROP_INTERVAL)
     end
 
@@ -1182,6 +1262,37 @@ end
 --============================================================
 -- GAME OVER
 --============================================================
+
+--[[
+    Called when blitz timer reaches zero
+    This is not a "game over" in the traditional sense - just time's up
+    @param gameId string
+]]
+function TetrisGame:OnBlitzTimeUp(gameId)
+    local game = self.games[gameId]
+    if not game then return end
+
+    local state = game.data.state
+    local GameCore = HopeAddon:GetModule("GameCore")
+
+    -- Mark game as over (time's up, not topped out)
+    state.gameOver = true
+
+    -- Notify ScoreChallenge module with final score
+    if game.mode == GameCore.GAME_MODE.SCORE_CHALLENGE then
+        local ScoreChallenge = HopeAddon:GetModule("ScoreChallenge")
+        if ScoreChallenge then
+            local board = state.boards[1]
+            ScoreChallenge:OnLocalGameEnded(
+                board and board.score or 0,
+                board and board.lines or 0,
+                board and board.level or 1
+            )
+        end
+    end
+
+    HopeAddon:Debug("Blitz time up! Final score:", state.boards[1] and state.boards[1].score or 0)
+end
 
 function TetrisGame:OnBoardGameOver(gameId, losingPlayer)
     local game = self.games[gameId]
@@ -1463,7 +1574,7 @@ function TetrisGame:CreateUI(gameId)
 
     -- Create window
     local windowType = isSingleBoard and "TETRIS_REMOTE" or "TETRIS"
-    local title = isScoreChallenge and "Tetris Score Battle" or "Tetris Battle"
+    local title = isScoreChallenge and "Wowtris Score Battle" or "Wowtris"
     local window = GameUI:CreateGameWindow(gameId, title, windowType)
     if not window then return end
 
@@ -1530,6 +1641,15 @@ function TetrisGame:CreateUI(gameId)
         controlsText:SetPoint("BOTTOM", 0, 5)
         controlsText:SetText("P1: A/D/W/Q/S/Space | P2: Arrows/Up/Shift/Down/Enter")
         controlsText:SetTextColor(0.5, 0.5, 0.5)
+    end
+
+    -- Blitz timer (SCORE_CHALLENGE mode only)
+    if isScoreChallenge then
+        local blitzTimerText = content:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
+        blitzTimerText:SetPoint("TOP", 0, -10)
+        blitzTimerText:SetText("2:00")
+        blitzTimerText:SetTextColor(1, 0.84, 0)  -- Gold
+        ui.blitzTimerText = blitzTimerText
     end
 
     -- Countdown overlay (common to both modes)
@@ -1629,13 +1749,14 @@ end
 
 --[[
     Create opponent status panel for SCORE_CHALLENGE mode
+    Enhanced with progress bar showing score comparison
     @param parent Frame
     @param opponentName string
     @return Frame
 ]]
 function TetrisGame:CreateOpponentPanel(parent, opponentName)
     local panel = CreateFrame("Frame", nil, parent)
-    panel:SetSize(120, 150)
+    panel:SetSize(140, 200)  -- Larger for progress bar
 
     -- Background
     local bg = panel:CreateTexture(nil, "BACKGROUND")
@@ -1660,21 +1781,47 @@ function TetrisGame:CreateOpponentPanel(parent, opponentName)
     title:SetText("VS: " .. (opponentName or "Opponent"))
     title:SetTextColor(1, 0.84, 0)  -- Gold
 
-    -- Score
+    -- Opponent Score (larger, more prominent)
     local scoreLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    scoreLabel:SetPoint("TOP", title, "BOTTOM", 0, -15)
-    scoreLabel:SetText("Score")
+    scoreLabel:SetPoint("TOP", title, "BOTTOM", 0, -12)
+    scoreLabel:SetText("Their Score")
     scoreLabel:SetTextColor(0.6, 0.6, 0.6)
 
-    local scoreValue = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    local scoreValue = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
     scoreValue:SetPoint("TOP", scoreLabel, "BOTTOM", 0, -2)
     scoreValue:SetText("0")
     scoreValue:SetTextColor(1, 1, 1)
     panel.scoreValue = scoreValue
 
+    -- Progress bar (score comparison)
+    local progressLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    progressLabel:SetPoint("TOP", scoreValue, "BOTTOM", 0, -12)
+    progressLabel:SetText("Score Lead")
+    progressLabel:SetTextColor(0.6, 0.6, 0.6)
+
+    -- Progress bar background
+    local progressBg = panel:CreateTexture(nil, "ARTWORK", nil, 1)
+    progressBg:SetPoint("TOP", progressLabel, "BOTTOM", 0, -4)
+    progressBg:SetSize(120, 16)
+    progressBg:SetColorTexture(0.2, 0.2, 0.2, 1)
+    panel.progressBg = progressBg
+
+    -- Progress bar fill
+    local progressFill = panel:CreateTexture(nil, "ARTWORK", nil, 2)
+    progressFill:SetPoint("LEFT", progressBg, "LEFT", 0, 0)
+    progressFill:SetSize(60, 16)  -- Start at 50%
+    progressFill:SetColorTexture(0.8, 0.8, 0.2, 1)  -- Yellow (tied)
+    panel.progressFill = progressFill
+
+    -- Center marker (50% line)
+    local centerLine = panel:CreateTexture(nil, "ARTWORK", nil, 3)
+    centerLine:SetPoint("CENTER", progressBg, "CENTER", 0, 0)
+    centerLine:SetSize(2, 16)
+    centerLine:SetColorTexture(1, 1, 1, 0.5)
+
     -- Lines
     local linesLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    linesLabel:SetPoint("TOP", scoreValue, "BOTTOM", 0, -10)
+    linesLabel:SetPoint("TOP", progressBg, "BOTTOM", 0, -12)
     linesLabel:SetText("Lines")
     linesLabel:SetTextColor(0.6, 0.6, 0.6)
 
@@ -1706,12 +1853,42 @@ function TetrisGame:UpdateOpponentPanel(gameId, score, lines, level, status)
     if not ui.opponentPanel then return end
 
     local panel = ui.opponentPanel
+    local state = game.data.state
+    local myScore = state.boards[1] and state.boards[1].score or 0
+
     if panel.scoreValue then
         panel.scoreValue:SetText(tostring(score))
     end
     if panel.linesValue then
         panel.linesValue:SetText(tostring(lines))
     end
+
+    -- Update progress bar (score comparison)
+    if panel.progressFill and panel.progressBg then
+        local totalScore = myScore + score
+        local progressWidth = 120  -- Full width of bar
+
+        if totalScore == 0 then
+            -- Both at 0, show as tied (50%)
+            panel.progressFill:SetSize(60, 16)
+            panel.progressFill:SetColorTexture(0.8, 0.8, 0.2, 1)  -- Yellow (tied)
+        else
+            -- Calculate our percentage of total score
+            local myPercent = myScore / totalScore
+            local fillWidth = math.max(4, math.min(progressWidth - 4, progressWidth * myPercent))
+            panel.progressFill:SetSize(fillWidth, 16)
+
+            -- Color based on who's ahead
+            if myScore > score then
+                panel.progressFill:SetColorTexture(0.2, 0.8, 0.2, 1)  -- Green (ahead)
+            elseif score > myScore then
+                panel.progressFill:SetColorTexture(0.9, 0.2, 0.2, 1)  -- Red (behind - danger!)
+            else
+                panel.progressFill:SetColorTexture(0.8, 0.8, 0.2, 1)  -- Yellow (tied)
+            end
+        end
+    end
+
     if panel.statusLabel then
         if status == "FINISHED" then
             panel.statusLabel:SetText("[FINISHED]")
@@ -1743,6 +1920,27 @@ function TetrisGame:UpdateUI(gameId)
         end
     end
 
+    -- Update blitz timer
+    if ui.blitzTimerText and state.blitzTimeRemaining then
+        local timeLeft = math.max(0, state.blitzTimeRemaining)
+        local mins = math.floor(timeLeft / 60)
+        local secs = math.floor(timeLeft % 60)
+        ui.blitzTimerText:SetText(string.format("%d:%02d", mins, secs))
+
+        -- Flash red when under 30 seconds
+        if timeLeft < 30 then
+            -- Flash between red and gold based on time
+            local flash = math.sin(GetTime() * 4) > 0
+            if flash then
+                ui.blitzTimerText:SetTextColor(1, 0.2, 0.2)  -- Red
+            else
+                ui.blitzTimerText:SetTextColor(1, 0.84, 0)   -- Gold
+            end
+        else
+            ui.blitzTimerText:SetTextColor(1, 0.84, 0)  -- Gold
+        end
+    end
+
     -- Update all boards (1 for REMOTE, 2 for LOCAL)
     for playerNum, board in pairs(state.boards) do
         self:UpdateBoardUI(gameId, playerNum)
@@ -1770,7 +1968,22 @@ function TetrisGame:UpdateBoardUI(gameId, playerNum)
         end
     end
 
-    -- Mark new piece position as dirty (cells that need to be drawn)
+    -- Mark old ghost position as dirty
+    if board.lastGhostRow and board.lastPieceType then
+        local oldBlocks = TetrisBlocks:GetBlocks(board.lastPieceType, board.lastPieceRotation)
+        for _, block in ipairs(oldBlocks) do
+            local row = board.lastGhostRow + block[1]
+            local col = board.lastPieceCol + block[2]
+            if row >= 1 and row <= TetrisGrid.HEIGHT and col >= 1 and col <= TetrisGrid.WIDTH then
+                board.grid:MarkDirty(row, col)
+            end
+        end
+    end
+
+    -- Calculate new ghost position
+    local ghostRow = self:CalculateGhostPosition(board)
+
+    -- Mark new piece and ghost positions as dirty (cells that need to be drawn)
     if board.currentPiece then
         local blocks = TetrisBlocks:GetBlocks(board.currentPiece, board.pieceRotation)
         for _, block in ipairs(blocks) do
@@ -1781,17 +1994,30 @@ function TetrisGame:UpdateBoardUI(gameId, playerNum)
             end
         end
 
+        -- Mark ghost position as dirty
+        if ghostRow then
+            for _, block in ipairs(blocks) do
+                local row = ghostRow + block[1]
+                local col = board.pieceCol + block[2]
+                if row >= 1 and row <= TetrisGrid.HEIGHT and col >= 1 and col <= TetrisGrid.WIDTH then
+                    board.grid:MarkDirty(row, col)
+                end
+            end
+        end
+
         -- Store current position as "last" for next frame
         board.lastPieceRow = board.pieceRow
         board.lastPieceCol = board.pieceCol
         board.lastPieceRotation = board.pieceRotation
         board.lastPieceType = board.currentPiece
+        board.lastGhostRow = ghostRow
     else
         -- No current piece, clear last piece tracking
         board.lastPieceRow = nil
         board.lastPieceCol = nil
         board.lastPieceRotation = nil
         board.lastPieceType = nil
+        board.lastGhostRow = nil
     end
 
     -- Redraw only dirty cells from the grid
@@ -1803,6 +2029,22 @@ function TetrisGame:UpdateBoardUI(gameId, playerNum)
                 ui.cellTextures[row][col]:SetColorTexture(color.r, color.g, color.b, 1)
             else
                 ui.cellTextures[row][col]:SetColorTexture(0.1, 0.1, 0.1, 1)
+            end
+        end
+    end
+
+    -- Draw ghost piece first (so current piece renders on top)
+    if board.currentPiece and ghostRow then
+        local blocks = TetrisBlocks:GetBlocks(board.currentPiece, board.pieceRotation)
+        local ghostColor = TetrisBlocks.COLORS.GHOST
+
+        for _, block in ipairs(blocks) do
+            local row = ghostRow + block[1]
+            local col = board.pieceCol + block[2]
+
+            if row >= 1 and row <= TetrisGrid.HEIGHT and col >= 1 and col <= TetrisGrid.WIDTH then
+                -- 40% opacity ghost - blend with background
+                ui.cellTextures[row][col]:SetColorTexture(ghostColor.r, ghostColor.g, ghostColor.b, 0.4)
             end
         end
     end
@@ -1833,7 +2075,15 @@ function TetrisGame:UpdateBoardUI(gameId, playerNum)
         end
     end
     if ui.levelLabel then
-        local levelText = "Lvl: " .. board.level
+        local levelText
+        if board.isBlitz then
+            -- Show speed percentage in blitz mode
+            local S = self.SETTINGS
+            local speedPercent = math.floor((board.dropInterval / S.BLITZ_INITIAL_DROP_INTERVAL) * 100)
+            levelText = string.format("Lvl: %d (%d%%)", board.level, speedPercent)
+        else
+            levelText = "Lvl: " .. board.level
+        end
         if ui.levelLabel:GetText() ~= levelText then
             ui.levelLabel:SetText(levelText)
         end
@@ -1870,8 +2120,19 @@ function TetrisGame:CleanupGame(gameId)
     if game.data and game.data.ui then
         local ui = game.data.ui
 
-        -- Clear countdown text FontString reference
-        ui.countdownText = nil
+        -- Clean up countdown text FontString
+        if ui.countdownText then
+            ui.countdownText:Hide()
+            ui.countdownText:SetParent(nil)
+            ui.countdownText = nil
+        end
+
+        -- Clean up blitz timer text FontString
+        if ui.blitzTimerText then
+            ui.blitzTimerText:Hide()
+            ui.blitzTimerText:SetParent(nil)
+            ui.blitzTimerText = nil
+        end
 
         -- Destroy cell textures and clear UI references for all boards
         if ui.boards then
@@ -1907,6 +2168,13 @@ function TetrisGame:CleanupGame(gameId)
                 uiBoard.levelLabel = nil
                 uiBoard.linesLabel = nil
             end
+        end
+
+        -- Release opponent panel (SCORE_CHALLENGE mode)
+        if ui.opponentPanel then
+            ui.opponentPanel:Hide()
+            ui.opponentPanel:SetParent(nil)
+            ui.opponentPanel = nil
         end
 
         -- Hide window

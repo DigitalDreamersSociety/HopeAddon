@@ -318,13 +318,7 @@ function GameComms:HandleInvite(sender, gameType, gameId, data)
     HopeAddon:Print(sender .. " has challenged you to " .. gameType .. betStr .. "!")
     HopeAddon:Print("Type /hope game accept " .. sender .. " to accept")
 
-    -- Trigger UI notification if GameUI available
-    local GameUI = HopeAddon:GetModule("GameUI")
-    if GameUI and GameUI.ShowInviteDialog then
-        GameUI:ShowInviteDialog(sender, gameType, betAmount)
-    end
-
-    -- Also forward to MinigamesUI for unified challenge popup
+    -- Forward to MinigamesUI for unified challenge popup
     local MinigamesUI = HopeAddon:GetModule("MinigamesUI")
     if MinigamesUI and MinigamesUI.ShowChallengePopup then
         MinigamesUI:ShowChallengePopup(sender, gameType, gameId, "gamecore")

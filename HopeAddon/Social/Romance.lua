@@ -342,7 +342,7 @@ function Romance:ProposeToPlayer(targetName)
 
     -- Check if already dating
     if data.status == STATUS_DATING then
-        return false, "You're already in a relationship with " .. (data.partner or "someone") .. "!"
+        return false, "You're already oath-bound with " .. (data.partner or "someone") .. "!"
     end
 
     -- Check if already proposed to someone
@@ -384,7 +384,7 @@ function Romance:ProposeToPlayer(targetName)
         HopeAddon.ActivityFeed:OnRomanceEvent("PROPOSED", targetName)
     end
 
-    HopeAddon:Print("|cFFFF69B4<3 You proposed to " .. targetName .. "!|r Waiting for their response...")
+    HopeAddon:Print("|cFFFFD700✦ You offered an oath to " .. targetName .. "!|r Waiting for their response...")
     return true
 end
 
@@ -406,7 +406,7 @@ function Romance:AcceptProposal(senderName)
 
     -- Check if already dating someone else
     if data.status == STATUS_DATING and data.partner ~= senderName then
-        return false, "You're already dating " .. (data.partner or "someone") .. "! Break up first."
+        return false, "You're already oath-bound with " .. (data.partner or "someone") .. "! Break the oath first."
     end
 
     -- Accept!
@@ -452,7 +452,7 @@ function Romance:AcceptProposal(senderName)
     -- Sync to profile for broadcasting
     SyncToProfile()
 
-    HopeAddon:Print("|cFFFF1493<3 You and " .. senderName .. " are now dating!|r")
+    HopeAddon:Print("|cFFFFA500✦ You and " .. senderName .. " are now oath-bound!|r")
     return true
 end
 
@@ -486,7 +486,7 @@ function Romance:DeclineProposal(senderName)
         data.status = STATUS_SINGLE
     end
 
-    HopeAddon:Print("You declined " .. senderName .. "'s proposal.")
+    HopeAddon:Print("You declined " .. senderName .. "'s oath.")
     return true
 end
 
@@ -502,7 +502,7 @@ function Romance:BreakUp(reason)
     end
 
     if data.status ~= STATUS_DATING or not data.partner then
-        return false, "You're not dating anyone!"
+        return false, "You're not oath-bound to anyone!"
     end
 
     local exPartner = data.partner
@@ -541,8 +541,8 @@ function Romance:BreakUp(reason)
     -- Sync to profile for broadcasting
     SyncToProfile()
 
-    local reasonText = C.BREAKUP_REASON_TEXT and C.BREAKUP_REASON_TEXT[reason] or "It's over."
-    HopeAddon:Print("|cFF808080</3 You and " .. exPartner .. " broke up. " .. reasonText .. "|r")
+    local reasonText = C.BREAKUP_REASON_TEXT and C.BREAKUP_REASON_TEXT[reason] or "The oath is broken."
+    HopeAddon:Print("|cFF808080</3 Your oath with " .. exPartner .. " was broken. " .. reasonText .. "|r")
     return true
 end
 
@@ -564,7 +564,7 @@ function Romance:CancelProposal()
     data.pendingOutgoing = nil
     data.status = STATUS_SINGLE
 
-    HopeAddon:Print("Cancelled proposal to " .. target)
+    HopeAddon:Print("Withdrew oath offer to " .. target)
     return true
 end
 
@@ -657,7 +657,7 @@ function Romance:HandleProposalReceived(sender, msgData)
         HopeAddon.SocialToasts:Show("romance_proposal", sender)
     end
 
-    HopeAddon:Print("|cFFFF69B4<3 " .. sender .. " wants to date you!|r Type /hope romance accept " .. sender .. " or /hope romance decline " .. sender)
+    HopeAddon:Print("|cFFFFD700✦ " .. sender .. " offers you a sacred oath!|r Type /hope romance accept " .. sender .. " or /hope romance decline " .. sender)
 end
 
 --[[
@@ -709,7 +709,7 @@ function Romance:HandleProposalAccepted(sender, msgData)
     -- Sync to profile for broadcasting
     SyncToProfile()
 
-    HopeAddon:Print("|cFFFF1493<3 " .. sender .. " accepted! You're now dating!|r")
+    HopeAddon:Print("|cFFFFA500✦ " .. sender .. " accepted! You are now oath-bound!|r")
 end
 
 --[[
@@ -743,7 +743,7 @@ function Romance:HandleProposalDeclined(sender, msgData)
         HopeAddon.SocialToasts:Show("romance_declined", sender)
     end
 
-    HopeAddon:Print("|cFF808080</3 " .. sender .. " declined your proposal.|r Better luck next time!")
+    HopeAddon:Print("|cFF808080</3 " .. sender .. " declined your oath.|r Better luck next time!")
 end
 
 --[[
@@ -795,8 +795,8 @@ function Romance:HandleBreakupReceived(sender, msgData)
     -- Sync to profile for broadcasting
     SyncToProfile()
 
-    local reasonText = C.BREAKUP_REASON_TEXT and C.BREAKUP_REASON_TEXT[reason] or "It's over."
-    HopeAddon:Print("|cFF808080</3 " .. sender .. " broke up with you. " .. reasonText .. "|r")
+    local reasonText = C.BREAKUP_REASON_TEXT and C.BREAKUP_REASON_TEXT[reason] or "The oath is broken."
+    HopeAddon:Print("|cFF808080</3 " .. sender .. " broke their oath with you. " .. reasonText .. "|r")
 end
 
 --============================================================
@@ -815,6 +815,11 @@ function Romance:OnEnable()
     -- Cleanup expired data
     self:CleanupExpired()
 
+    -- Periodic cleanup for long sessions (every 30 minutes)
+    self.cleanupTicker = HopeAddon.Timer:NewTicker(1800, function()
+        self:CleanupExpired()
+    end)
+
     -- Sync current status to profile (in case player logs in while dating)
     SyncToProfile()
 
@@ -822,6 +827,12 @@ function Romance:OnEnable()
 end
 
 function Romance:OnDisable()
+    -- Cancel cleanup ticker
+    if self.cleanupTicker then
+        self.cleanupTicker:Cancel()
+        self.cleanupTicker = nil
+    end
+
     -- Unregister network handlers
     if HopeAddon.FellowTravelers then
         HopeAddon.FellowTravelers:UnregisterMessageCallback("Romance")

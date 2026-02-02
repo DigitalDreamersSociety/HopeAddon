@@ -21,7 +21,7 @@ ScoreChallenge.STATE = {
 }
 
 -- Timing
-local STATUS_PING_INTERVAL = 10  -- Send status every 10 seconds
+local STATUS_PING_INTERVAL = 3   -- Send status every 3 seconds (more responsive for competitive play)
 local CHALLENGE_TIMEOUT = 60     -- Seconds before challenge expires
 local GAME_TIMEOUT = 600         -- 10 minute max game length
 local WAIT_TIMEOUT = 120         -- 2 minutes to wait for opponent after finishing
@@ -62,6 +62,8 @@ function ScoreChallenge:OnDisable()
         GameComms:UnregisterHandler("SCORE_TETRIS", "END")
         GameComms:UnregisterHandler("SCORE_PONG", "MOVE")
         GameComms:UnregisterHandler("SCORE_PONG", "END")
+        GameComms:UnregisterHandler("SCORE_PACMAN", "MOVE")
+        GameComms:UnregisterHandler("SCORE_PACMAN", "END")
     end
 
     -- Cancel active challenge
@@ -99,6 +101,14 @@ function ScoreChallenge:RegisterNetworkHandlers()
         self:OnOpponentEnded(sender, gameId, data)
     end)
     GameComms:RegisterHandler("SCORE_PONG", "END", function(sender, gameId, data)
+        self:OnOpponentEnded(sender, gameId, data)
+    end)
+
+    -- Pac-Man Score Challenge handlers
+    GameComms:RegisterHandler("SCORE_PACMAN", "MOVE", function(sender, gameId, data)
+        self:OnOpponentStatus(sender, gameId, data)
+    end)
+    GameComms:RegisterHandler("SCORE_PACMAN", "END", function(sender, gameId, data)
         self:OnOpponentEnded(sender, gameId, data)
     end)
 
@@ -284,6 +294,19 @@ function ScoreChallenge:CancelChallenge(reason)
     -- Cancel timeout timer
     if self.activeChallenge.timeoutTimer then
         self.activeChallenge.timeoutTimer:Cancel()
+        self.activeChallenge.timeoutTimer = nil
+    end
+
+    -- Cancel game timeout timer
+    if self.activeChallenge.gameTimeoutTimer then
+        self.activeChallenge.gameTimeoutTimer:Cancel()
+        self.activeChallenge.gameTimeoutTimer = nil
+    end
+
+    -- Cancel wait timeout timer
+    if self.activeChallenge.waitTimeoutTimer then
+        self.activeChallenge.waitTimeoutTimer:Cancel()
+        self.activeChallenge.waitTimeoutTimer = nil
     end
 
     -- Stop status ticker
@@ -367,9 +390,17 @@ end
 function ScoreChallenge:UpdateMyScore(score, lines, level)
     if not self.activeChallenge then return end
 
-    self.activeChallenge.myScore = score
-    self.activeChallenge.myLines = lines or 0
-    self.activeChallenge.myLevel = level or 1
+    local challenge = self.activeChallenge
+    local oldLines = challenge.myLines or 0
+
+    challenge.myScore = score
+    challenge.myLines = lines or 0
+    challenge.myLevel = level or 1
+
+    -- Send immediate ping on line clears (event-driven updates for responsive feedback)
+    if lines and lines > oldLines then
+        self:SendStatusPing()
+    end
 end
 
 --[[

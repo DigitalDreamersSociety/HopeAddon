@@ -443,6 +443,300 @@ function WordBoard:GetHorizontalWord(row, col)
 end
 
 --============================================================
+-- READ-ONLY VALIDATION (No side effects - for preview/validation)
+--============================================================
+
+--[[
+    Find what cross-words WOULD be formed if tiles were placed
+    Works WITHOUT placing tiles - uses pending tile data directly
+    @param pendingTiles table - Array of {row, col, letter}
+    @param horizontal boolean - Direction of main word
+    @return table - Array of {word, startRow, startCol, horizontal, isMainWord}
+]]
+function WordBoard:FindPotentialCrossWords(pendingTiles, horizontal)
+    local words = {}
+    if #pendingTiles == 0 then return words end
+
+    -- Create a lookup for pending tiles (not yet on board)
+    local pendingLookup = {}
+    for _, tile in ipairs(pendingTiles) do
+        pendingLookup[tile.row .. "," .. tile.col] = tile.letter:upper()
+    end
+
+    -- Helper to get letter (checks pending first, then board)
+    local function getLetter(row, col)
+        local key = row .. "," .. col
+        if pendingLookup[key] then
+            return pendingLookup[key]
+        end
+        return self:GetLetter(row, col)
+    end
+
+    -- Find main word extent
+    local minRow, maxRow = pendingTiles[1].row, pendingTiles[1].row
+    local minCol, maxCol = pendingTiles[1].col, pendingTiles[1].col
+
+    for _, tile in ipairs(pendingTiles) do
+        minRow = math.min(minRow, tile.row)
+        maxRow = math.max(maxRow, tile.row)
+        minCol = math.min(minCol, tile.col)
+        maxCol = math.max(maxCol, tile.col)
+    end
+
+    -- Build main word (extending to include adjacent existing tiles)
+    if horizontal then
+        -- Extend left
+        while minCol > 1 and getLetter(minRow, minCol - 1) do
+            minCol = minCol - 1
+        end
+        -- Extend right
+        while maxCol < self.size and getLetter(minRow, maxCol + 1) do
+            maxCol = maxCol + 1
+        end
+
+        -- Build main word string
+        local mainWord = ""
+        for col = minCol, maxCol do
+            local letter = getLetter(minRow, col)
+            if letter then
+                mainWord = mainWord .. letter
+            end
+        end
+
+        if #mainWord >= 2 then
+            table.insert(words, {
+                word = mainWord,
+                startRow = minRow,
+                startCol = minCol,
+                horizontal = true,
+                isMainWord = true,
+            })
+        end
+
+        -- Check vertical cross-words for each PENDING tile only
+        for _, tile in ipairs(pendingTiles) do
+            local crossWord = self:GetPotentialVerticalWord(tile.row, tile.col, pendingLookup)
+            if crossWord and #crossWord.word >= 2 then
+                crossWord.isMainWord = false
+                table.insert(words, crossWord)
+            end
+        end
+    else
+        -- Vertical main word - extend up and down
+        while minRow > 1 and getLetter(minRow - 1, minCol) do
+            minRow = minRow - 1
+        end
+        while maxRow < self.size and getLetter(maxRow + 1, minCol) do
+            maxRow = maxRow + 1
+        end
+
+        -- Build main word string
+        local mainWord = ""
+        for row = minRow, maxRow do
+            local letter = getLetter(row, minCol)
+            if letter then
+                mainWord = mainWord .. letter
+            end
+        end
+
+        if #mainWord >= 2 then
+            table.insert(words, {
+                word = mainWord,
+                startRow = minRow,
+                startCol = minCol,
+                horizontal = false,
+                isMainWord = true,
+            })
+        end
+
+        -- Check horizontal cross-words for each PENDING tile only
+        for _, tile in ipairs(pendingTiles) do
+            local crossWord = self:GetPotentialHorizontalWord(tile.row, tile.col, pendingLookup)
+            if crossWord and #crossWord.word >= 2 then
+                crossWord.isMainWord = false
+                table.insert(words, crossWord)
+            end
+        end
+    end
+
+    return words
+end
+
+--[[
+    Get vertical word at position, considering pending tiles
+    @param row number
+    @param col number
+    @param pendingLookup table - {["row,col"] = "LETTER"}
+    @return table or nil - {word, startRow, startCol, horizontal}
+]]
+function WordBoard:GetPotentialVerticalWord(row, col, pendingLookup)
+    -- Helper to get letter (checks pending first, then board)
+    local function getLetter(r, c)
+        local key = r .. "," .. c
+        if pendingLookup[key] then
+            return pendingLookup[key]
+        end
+        return self:GetLetter(r, c)
+    end
+
+    local startRow = row
+    while startRow > 1 and getLetter(startRow - 1, col) do
+        startRow = startRow - 1
+    end
+
+    local endRow = row
+    while endRow < self.size and getLetter(endRow + 1, col) do
+        endRow = endRow + 1
+    end
+
+    -- Single letter = no cross word
+    if startRow == endRow then return nil end
+
+    local word = ""
+    for r = startRow, endRow do
+        local letter = getLetter(r, col)
+        if letter then
+            word = word .. letter
+        end
+    end
+
+    return {
+        word = word,
+        startRow = startRow,
+        startCol = col,
+        horizontal = false,
+    }
+end
+
+--[[
+    Get horizontal word at position, considering pending tiles
+    @param row number
+    @param col number
+    @param pendingLookup table - {["row,col"] = "LETTER"}
+    @return table or nil - {word, startRow, startCol, horizontal}
+]]
+function WordBoard:GetPotentialHorizontalWord(row, col, pendingLookup)
+    -- Helper to get letter (checks pending first, then board)
+    local function getLetter(r, c)
+        local key = r .. "," .. c
+        if pendingLookup[key] then
+            return pendingLookup[key]
+        end
+        return self:GetLetter(r, c)
+    end
+
+    local startCol = col
+    while startCol > 1 and getLetter(row, startCol - 1) do
+        startCol = startCol - 1
+    end
+
+    local endCol = col
+    while endCol < self.size and getLetter(row, endCol + 1) do
+        endCol = endCol + 1
+    end
+
+    -- Single letter = no cross word
+    if startCol == endCol then return nil end
+
+    local word = ""
+    for c = startCol, endCol do
+        local letter = getLetter(row, c)
+        if letter then
+            word = word .. letter
+        end
+    end
+
+    return {
+        word = word,
+        startRow = row,
+        startCol = startCol,
+        horizontal = true,
+    }
+end
+
+--[[
+    Calculate potential score for a placement WITHOUT placing tiles
+    @param pendingTiles table - Array of {row, col, letter}
+    @param horizontal boolean - Direction of main word
+    @return table - {total, mainWord{word,score}, crossWords[{word,score}], bingo}
+]]
+function WordBoard:CalculatePotentialScore(pendingTiles, horizontal)
+    local WordDictionary = HopeAddon.WordDictionary
+    local result = {
+        total = 0,
+        mainWord = nil,
+        crossWords = {},
+        bingo = (#pendingTiles >= 7),
+    }
+
+    -- Find all words that would be formed
+    local words = self:FindPotentialCrossWords(pendingTiles, horizontal)
+
+    -- Build set of new tile positions
+    local isNewTile = {}
+    for _, tile in ipairs(pendingTiles) do
+        isNewTile[tile.row .. "," .. tile.col] = tile.letter:upper()
+    end
+
+    -- Helper to get letter (pending first, then board)
+    local function getLetter(row, col)
+        local key = row .. "," .. col
+        if isNewTile[key] then
+            return isNewTile[key]
+        end
+        return self:GetLetter(row, col)
+    end
+
+    -- Calculate score for each word
+    for _, wordData in ipairs(words) do
+        local wordScore = 0
+        local wordMultiplier = 1
+
+        for i = 1, #wordData.word do
+            local row = wordData.horizontal and wordData.startRow or (wordData.startRow + i - 1)
+            local col = wordData.horizontal and (wordData.startCol + i - 1) or wordData.startCol
+            local letter = wordData.word:sub(i, i)
+            local letterValue = WordDictionary:GetLetterValue(letter)
+            local bonus = self:GetBonus(row, col)
+
+            -- Bonuses only apply to newly placed tiles
+            local key = row .. "," .. col
+            if isNewTile[key] then
+                if bonus == self.BONUS.DOUBLE_LETTER then
+                    letterValue = letterValue * 2
+                elseif bonus == self.BONUS.TRIPLE_LETTER then
+                    letterValue = letterValue * 3
+                elseif bonus == self.BONUS.DOUBLE_WORD or bonus == self.BONUS.CENTER then
+                    wordMultiplier = wordMultiplier * 2
+                elseif bonus == self.BONUS.TRIPLE_WORD then
+                    wordMultiplier = wordMultiplier * 3
+                end
+            end
+
+            wordScore = wordScore + letterValue
+        end
+
+        wordScore = wordScore * wordMultiplier
+        wordData.score = wordScore
+        result.total = result.total + wordScore
+
+        if wordData.isMainWord then
+            result.mainWord = { word = wordData.word, score = wordScore }
+        else
+            table.insert(result.crossWords, { word = wordData.word, score = wordScore })
+        end
+    end
+
+    -- Add bingo bonus if applicable
+    local C = HopeAddon.Constants
+    if result.bingo and C and C.WORDS_BINGO_BONUS then
+        result.total = result.total + C.WORDS_BINGO_BONUS
+    end
+
+    return result
+end
+
+--============================================================
 -- UTILITY
 --============================================================
 

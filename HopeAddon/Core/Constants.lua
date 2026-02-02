@@ -155,6 +155,14 @@ C.TBC_DUNGEONS = {
         finalBossNPC = 24664,
         icon = "Spell_Fire_BurnoutGreen",
     },
+    -- Test Dungeon (Stockades)
+    ["Stockades"] = {
+        key = "stockades",
+        zone = "Stormwind City",
+        finalBoss = "Bazil Thredd",
+        finalBossNPC = 1716,
+        icon = "INV_Misc_Key_10",
+    },
 }
 
 -- Reverse lookup: NPC ID -> dungeon key
@@ -180,6 +188,78 @@ C.ATTUNEMENT_DIFFICULTY = {
 }
 
 --============================================================
+-- PREREQUISITE ICONS AND STATUS COLORS
+--============================================================
+C.PREREQUISITE_ICONS = {
+    key = "INV_Misc_Key_10",
+    reputation = "Achievement_Reputation_01",
+    dungeon = "INV_Misc_Rune_07",
+    quest = "INV_Misc_Note_01",
+    item = "INV_Misc_Bag_10",
+    default = "INV_Misc_QuestionMark",
+}
+
+C.PREREQUISITE_STATUS_COLORS = {
+    completed = { bg = { 0.1, 0.3, 0.1, 0.8 }, border = "FEL_GREEN" },
+    progress = { bg = { 0.3, 0.25, 0.1, 0.8 }, border = "GOLD_BRIGHT" },
+    pending = { bg = { 0.15, 0.15, 0.15, 0.8 }, border = "SHADOW_GREY" },  -- Use SHADOW_GREY from HopeAddon.colors
+}
+
+--============================================================
+-- PHASE BORDER COLORS (for attunement card theming)
+--============================================================
+C.PHASE_BORDER_COLORS = {
+    [1] = { 0.50, 0.30, 0.70, 1.0 },  -- KARA_PURPLE (T4)
+    [2] = { 0.20, 0.60, 0.90, 1.0 },  -- SSC_BLUE (T5)
+    [3] = { 0.30, 0.80, 0.30, 1.0 },  -- BT_FEL (T6)
+}
+
+--============================================================
+-- PREREQUISITE CARD DIMENSIONS
+--============================================================
+C.PREREQUISITE_CARD_HEIGHT = 42  -- Taller for better readability
+
+--============================================================
+-- ATTUNEMENT HEADER CARD DIMENSIONS
+--============================================================
+C.ATTUNEMENT_HEADER_CARD = {
+    HEIGHT = 58,
+    ICON_SIZE = 40,
+    ICON_BORDER = 2,
+    PADDING = 10,
+    RAID_ICONS = {
+        karazhan = "INV_Misc_Key_10",
+        ssc = "INV_Misc_MonsterClaw_03",
+        tk = "Spell_Arcane_PortalShattrath",
+        hyjal = "Spell_Fire_Burnout",
+        bt = "INV_Weapon_Glaive_01",
+        cipher = "INV_Misc_Book_06",
+    },
+}
+
+--============================================================
+-- ATTUNEMENT PHASE HEADER STYLING
+--============================================================
+C.ATTUNEMENT_PHASE_HEADER = {
+    HEIGHT = 32,
+    ICONS = {
+        [1] = "INV_Misc_Key_10",           -- Karazhan key theme
+        [2] = "INV_Misc_MonsterClaw_03",   -- SSC serpent theme
+        [3] = "Spell_Shadow_Possession",   -- BT demon theme
+    },
+    DESCRIPTIONS = {
+        [1] = "Tier 4 Content",
+        [2] = "Tier 5 Content",
+        [3] = "Tier 6 Content",
+    },
+    COLORS = {
+        [1] = "KARA_PURPLE",
+        [2] = "SSC_BLUE",
+        [3] = "BT_FEL",
+    },
+}
+
+--============================================================
 -- KARAZHAN ATTUNEMENT DATA
 --============================================================
 C.KARAZHAN_ATTUNEMENT = {
@@ -194,7 +274,7 @@ C.KARAZHAN_ATTUNEMENT = {
     chapters = {
         {
             name = "The Call",
-            story = "Strange energies emanate from the ancient tower of Karazhan. Archmage Alturus of the Violet Eye has sensed these disturbances and seeks adventurers brave enough to investigate.",
+            story = "Haunted tower needs heroes. Alturus is hiring - no resume required!",
             locationIcon = "Spell_Arcane_PortalShattrath",
             questGiver = "Archmage Alturus",
             location = "Deadwind Pass (47.0, 75.6)",
@@ -222,7 +302,7 @@ C.KARAZHAN_ATTUNEMENT = {
         },
         {
             name = "Contact from Dalaran",
-            story = "Alturus's findings must be delivered to Archmage Cedric, who studies the magical barrier around the ruins of Dalaran in the Alterac Mountains.",
+            story = "This couldn't be a magical email? Nope. Hand-deliver to Cedric. In the mountains. Fun.",
             locationIcon = "Spell_Holy_MindSooth",
             questGiver = "Archmage Alturus",
             location = "Deadwind Pass",
@@ -246,7 +326,7 @@ C.KARAZHAN_ATTUNEMENT = {
         },
         {
             name = "Khadgar",
-            story = "Archmage Cedric recognizes the severity of the situation and directs you to seek the legendary Khadgar in Shattrath City - the only mage powerful enough to forge a new key to Karazhan.",
+            story = "Cedric says this is above his pay grade. Go find Khadgar in Shattrath - he's the key guy.",
             locationIcon = "Spell_Arcane_PortalShattrath",
             questGiver = "Archmage Cedric",
             location = "Alterac Mountains (15.6, 54.4)",
@@ -270,7 +350,7 @@ C.KARAZHAN_ATTUNEMENT = {
         },
         {
             name = "The First Fragment",
-            story = "Khadgar explains that the original key was shattered long ago. To forge a new Master's Key, you must recover three key fragments hidden in Outland's most dangerous dungeons. The first lies within Shadow Labyrinth.",
+            story = "Key fragment #1: Shadow Labyrinth. It's a maze full of shadows. Shocking, I know.",
             locationIcon = "Spell_Shadow_ShadeTrueSight",
             questGiver = "Khadgar",
             location = "Shattrath City (54.8, 44.6)",
@@ -303,7 +383,7 @@ C.KARAZHAN_ATTUNEMENT = {
         },
         {
             name = "The Second and Third Fragments",
-            story = "With the first fragment secured, Khadgar sends you to retrieve the remaining two pieces. The second lies beneath the waters of the Steamvault, while the third is locked away in the Arcatraz prison.",
+            story = "Fragment #2: underwater in Steamvault. #3: space prison. Pack swim trunks AND a rocket.",
             locationIcon = "INV_Gizmo_02",
             questGiver = "Khadgar",
             location = "Shattrath City (54.8, 44.6)",
@@ -338,7 +418,7 @@ C.KARAZHAN_ATTUNEMENT = {
         },
         {
             name = "The Master's Touch",
-            story = "With all three fragments recovered, Khadgar can now forge the key - but it requires the touch of Medivh himself. You must travel through time to the Black Morass and protect Medivh during the Opening of the Dark Portal.",
+            story = "Key needs Medivh's blessing. He's dead. Solution? Time travel! Protect past-Medivh at Black Morass.",
             locationIcon = "Spell_Arcane_PortalOrgrimmar",
             questGiver = "Khadgar",
             location = "Shattrath City (54.8, 44.6)",
@@ -374,7 +454,7 @@ C.KARAZHAN_ATTUNEMENT = {
         },
         {
             name = "Return to Khadgar",
-            story = "Medivh has blessed your restored key with his power. Return to Khadgar in Shattrath to complete the attunement and claim your Master's Key - the artifact that will grant you entry to the haunted halls of Karazhan.",
+            story = "FINALLY. Bring the blessed key to Khadgar. You've earned your ticket to the haunted house.",
             locationIcon = "INV_Misc_Key_10",
             questGiver = "Medivh",
             location = "The Black Morass (after completion)",
@@ -404,9 +484,34 @@ C.KARAZHAN_ATTUNEMENT = {
 
     -- Summary of all prerequisites
     prerequisites = {
-        { name = "Shadow Labyrinth Key", source = "Drops from Talon King Ikiss in Sethekk Halls", required = true },
-        { name = "Arcatraz Key", source = "Warden's Cage quest chain in Netherstorm (or Rogue 350 Lockpicking)", required = true },
-        { name = "Keepers of Time - Friendly", source = "Complete Old Hillsbrad Foothills dungeon", required = true },
+        {
+            name = "Shadow Labyrinth Key",
+            source = "Drops from Talon King Ikiss in Sethekk Halls",
+            type = "key",
+            icon = "INV_Misc_Key_07",
+            checkMethod = "item",
+            checkId = 27991,  -- Entry to the Black Morass (Shadow Lab Key)
+            required = true,
+        },
+        {
+            name = "Arcatraz Key",
+            source = "Warden's Cage quest chain in Netherstorm (or Rogue 350 Lockpicking)",
+            type = "key",
+            icon = "INV_Misc_Key_11",
+            checkMethod = "item",
+            checkId = 31084,  -- Key to the Arcatraz
+            required = true,
+        },
+        {
+            name = "Keepers of Time - Friendly",
+            source = "Complete Old Hillsbrad Foothills dungeon",
+            type = "reputation",
+            icon = "Achievement_Reputation_01",
+            checkMethod = "reputation",
+            checkId = 989,  -- Keepers of Time faction ID
+            checkStanding = 4,  -- Friendly = 4
+            required = true,
+        },
     },
 }
 
@@ -448,7 +553,7 @@ C.SSC_ATTUNEMENT = {
     chapters = {
         {
             name = "The Cudgel of Kar'desh",
-            story = "Skar'this the Heretic in the Slave Pens needs the signets of the elements to forge the Cudgel...",
+            story = "Skar'this needs fancy rings to make a stick. Collect elemental signets from heroics!",
             locationIcon = "INV_Misc_Fish_14",
             quests = {
                 { id = 10901, name = "The Cudgel of Kar'desh", requires = {"Earthen Signet (Gruul)", "Blazing Signet (Nightbane)"} },
@@ -475,7 +580,7 @@ C.TK_ATTUNEMENT = {
     chapters = {
         {
             name = "The Tempest Key",
-            story = "A'dal in Shattrath recognizes your deeds and begins your trials...",
+            story = "A'dal says 'prove yourself.' Four trials stand between you and space elves.",
             locationIcon = "Spell_Holy_SurgeOfLight",
             quests = {
                 { id = 10883, name = "The Tempest Key" },
@@ -483,7 +588,7 @@ C.TK_ATTUNEMENT = {
         },
         {
             name = "Trial of the Naaru: Mercy",
-            story = "Save the prisoners in Heroic Shattered Halls before they are executed...",
+            story = "Heroic Shattered Halls speedrun! Save the prisoners before... well, you know.",
             locationIcon = "Ability_Warrior_Rampage",
             quests = {
                 { id = 10884, name = "Trial of the Naaru: Mercy", dungeon = "Heroic Shattered Halls", requires = "Save prisoners, obtain Executioner's Axe" },
@@ -491,7 +596,7 @@ C.TK_ATTUNEMENT = {
         },
         {
             name = "Trial of the Naaru: Strength",
-            story = "Prove your strength by retrieving artifacts from two Heroic dungeons...",
+            story = "Strength test: grab loot from TWO heroic dungeons. Do you even lift, adventurer?",
             locationIcon = "INV_Gizmo_02",
             quests = {
                 { id = 10885, name = "Trial of the Naaru: Strength", dungeons = {"Heroic Steamvault", "Heroic Shadow Labyrinth"}, requires = "Kalithresh's Trident + Murmur's Essence" },
@@ -499,7 +604,7 @@ C.TK_ATTUNEMENT = {
         },
         {
             name = "Trial of the Naaru: Tenacity",
-            story = "Protect Millhouse Manastorm in Heroic Arcatraz...",
+            story = "Keep the loudmouth gnome alive in space prison. Tenacity indeed.",
             locationIcon = "Spell_Arcane_Arcane01",
             quests = {
                 { id = 10886, name = "Trial of the Naaru: Tenacity", dungeon = "Heroic Arcatraz", requires = "Keep Millhouse Manastorm alive" },
@@ -507,7 +612,7 @@ C.TK_ATTUNEMENT = {
         },
         {
             name = "Trial of the Naaru: Magtheridon",
-            story = "Defeat the Pit Lord imprisoned beneath Hellfire Citadel...",
+            story = "There's a Pit Lord under Hellfire Citadel. Make him not alive anymore.",
             locationIcon = "Spell_Shadow_SummonFelHunter",
             quests = {
                 { id = 10888, name = "Trial of the Naaru: Magtheridon", raid = "Magtheridon's Lair (25-man)" },
@@ -543,7 +648,7 @@ C.CIPHER_OF_DAMNATION = {
     chapters = {
         {
             name = "The Hand of Gul'dan",
-            story = "Investigate the corruption at the Hand of Gul'dan...",
+            story = "Bad vibes at Gul'dan's hand-shaped volcano. Time to poke around!",
             locationIcon = "Spell_Shadow_SummonFelHunter",
             quests = {
                 { id = 10680, name = "The Hand of Gul'dan", faction = "Horde" },
@@ -552,7 +657,7 @@ C.CIPHER_OF_DAMNATION = {
         },
         {
             name = "Enraged Spirits",
-            story = "The elemental spirits are enraged by the corruption...",
+            story = "Spirits are throwing a tantrum. Someone corrupted their home. Fix it!",
             locationIcon = "Spell_Fire_Burnout",
             quests = {
                 { id = 10458, name = "Enraged Spirits of Fire and Earth" },
@@ -562,7 +667,7 @@ C.CIPHER_OF_DAMNATION = {
         },
         {
             name = "Oronok's Legacy",
-            story = "Oronok Torn-heart holds the key to the Cipher...",
+            story = "Oronok has Cipher info, but it's a family affair. Hope you like errands!",
             locationIcon = "Spell_Shadow_Possession",
             quests = {
                 { id = 10512, name = "Oronok Torn-heart" },
@@ -573,7 +678,7 @@ C.CIPHER_OF_DAMNATION = {
         },
         {
             name = "Grom'tor's Fragment",
-            story = "Oronok's first son guards a fragment of the Cipher...",
+            story = "Grom'tor doesn't have friends, he has family. Help him get his fragment. Ride or die.",
             locationIcon = "Spell_Shadow_Possession",
             quests = {
                 { id = 10520, name = "Grom'tor, Son of Oronok" },
@@ -583,7 +688,7 @@ C.CIPHER_OF_DAMNATION = {
         },
         {
             name = "Ar'tor's Fragment",
-            story = "The second son requires your aid to recover his fragment...",
+            story = "Son #2 got grabbed. This rescue? It's one last job... until the next one.",
             locationIcon = "Spell_Shadow_Possession",
             quests = {
                 { id = 10536, name = "Ar'tor, Son of Oronok" },
@@ -595,7 +700,7 @@ C.CIPHER_OF_DAMNATION = {
         },
         {
             name = "Borak's Fragment",
-            story = "The third son's fragment lies in dangerous territory...",
+            story = "Last brother, last fragment. Cross the finish line for the family!",
             locationIcon = "Spell_Shadow_Possession",
             quests = {
                 { id = 10563, name = "Borak, Son of Oronok" },
@@ -608,7 +713,7 @@ C.CIPHER_OF_DAMNATION = {
         },
         {
             name = "The Cipher Complete",
-            story = "With all fragments assembled, face Cyrukh the Firelord...",
+            story = "All fragments ready! Time to hit the NOS and burn down Cyrukh!",
             locationIcon = "Spell_Fire_Burnout",
             quests = {
                 { id = 10588, name = "The Cipher of Damnation", boss = "Cyrukh the Firelord" },
@@ -640,7 +745,7 @@ C.HYJAL_ATTUNEMENT = {
     chapters = {
         {
             name = "The Vials of Eternity",
-            story = "Soridormi in the Caverns of Time requires the vials held by the most powerful beings in Outland...",
+            story = "Dragon needs bottle service. VIP bottles only - from Vashj and Kael'thas.",
             locationIcon = "Spell_Arcane_PortalOrgrimmar",
             quests = {
                 { id = 10445, name = "The Vials of Eternity", requires = {"Vashj's Vial Remnant (Lady Vashj)", "Kael's Vial Remnant (Kael'thas)"} },
@@ -668,7 +773,7 @@ C.BT_ATTUNEMENT = {
     aldorChapters = {
         {
             name = "Tablets of Baa'ri (Aldor)",
-            story = "The Aldor seek knowledge of the Ashtongue Deathsworn...",
+            story = "The Aldor want tablets about snake people. Holy homework time!",
             locationIcon = "INV_Misc_Token_Aldor",
             quests = {
                 { id = 10568, name = "Tablets of Baa'ri" },
@@ -676,7 +781,7 @@ C.BT_ATTUNEMENT = {
         },
         {
             name = "Oronu the Elder (Aldor)",
-            story = "Find and speak with Oronu the Elder...",
+            story = "Find the old wise guy. The Aldor say he knows stuff.",
             locationIcon = "INV_Misc_Token_Aldor",
             quests = {
                 { id = 10571, name = "Oronu the Elder" },
@@ -684,7 +789,7 @@ C.BT_ATTUNEMENT = {
         },
         {
             name = "The Ashtongue Corruptors (Aldor)",
-            story = "Eliminate the Ashtongue corruptors...",
+            story = "Light's cleanup crew reporting for duty. Eliminate the corruptors!",
             locationIcon = "Spell_Shadow_SummonFelHunter",
             quests = {
                 { id = 10574, name = "The Ashtongue Corruptors" },
@@ -692,7 +797,7 @@ C.BT_ATTUNEMENT = {
         },
         {
             name = "The Warden's Cage (Aldor)",
-            story = "Find Akama's prison...",
+            story = "Find Akama's cage. Time to go full Michael Scofield on this temple.",
             locationIcon = "Spell_Shadow_Possession",
             quests = {
                 { id = 10575, name = "The Warden's Cage" },
@@ -704,7 +809,7 @@ C.BT_ATTUNEMENT = {
     scryerChapters = {
         {
             name = "Tablets of Baa'ri (Scryer)",
-            story = "The Scryers seek knowledge of the Ashtongue Deathsworn...",
+            story = "Get the tablets. The Scryers are updating their Burn Book on the Ashtongue.",
             locationIcon = "INV_Misc_Token_Scryer",
             quests = {
                 { id = 10683, name = "Tablets of Baa'ri" },
@@ -712,7 +817,7 @@ C.BT_ATTUNEMENT = {
         },
         {
             name = "Oronu the Elder (Scryer)",
-            story = "Find and speak with Oronu the Elder...",
+            story = "Get in loser, we're going to see Oronu. The Scryers need his secrets.",
             locationIcon = "INV_Misc_Token_Scryer",
             quests = {
                 { id = 10684, name = "Oronu the Elder" },
@@ -720,7 +825,7 @@ C.BT_ATTUNEMENT = {
         },
         {
             name = "The Ashtongue Corruptors (Scryer)",
-            story = "Eliminate the Ashtongue corruptors...",
+            story = "On Wednesdays, we eliminate corruptors. You can't sit with us, Ashtongue!",
             locationIcon = "Spell_Shadow_SummonFelHunter",
             quests = {
                 { id = 10685, name = "The Ashtongue Corruptors" },
@@ -728,7 +833,7 @@ C.BT_ATTUNEMENT = {
         },
         {
             name = "The Warden's Cage (Scryer)",
-            story = "Find Akama's prison...",
+            story = "Locate the prison. Illidan doesn't even GO here but we're rescuing Akama anyway.",
             locationIcon = "Spell_Shadow_Possession",
             quests = {
                 { id = 10686, name = "The Warden's Cage" },
@@ -740,7 +845,7 @@ C.BT_ATTUNEMENT = {
     chapters = {
         {
             name = "Proof of Allegiance",
-            story = "Prove your allegiance by eliminating Zandras...",
+            story = "'What's the job?' Kill Zandras. 'I'm listening.'",
             locationIcon = "Spell_Shadow_Possession",
             quests = {
                 { id = 10622, name = "Proof of Allegiance", requires = "Kill Zandras" },
@@ -748,7 +853,7 @@ C.BT_ATTUNEMENT = {
         },
         {
             name = "Akama",
-            story = "Speak with Akama, leader of the Ashtongue Deathsworn...",
+            story = "Meet Akama. He's the mastermind. He's got a plan. It's crazy enough to work.",
             locationIcon = "Spell_Shadow_Possession",
             quests = {
                 { id = 10628, name = "Akama" },
@@ -756,7 +861,7 @@ C.BT_ATTUNEMENT = {
         },
         {
             name = "A Mysterious Portent",
-            story = "Find Seer Udalo within the Arcatraz...",
+            story = "Need intel? Seer Udalo's our inside man. He's in space prison. Minor detail.",
             locationIcon = "Spell_Arcane_Arcane01",
             quests = {
                 { id = 10706, name = "A Mysterious Portent", dungeon = "The Arcatraz" },
@@ -764,7 +869,7 @@ C.BT_ATTUNEMENT = {
         },
         {
             name = "The Ata'mal Terrace",
-            story = "Retrieve the Heart of Fury from Shadowmoon Valley...",
+            story = "The Heart of Fury - our MacGuffin. Grab it from Shadowmoon. Don't trigger alarms.",
             locationIcon = "Spell_Shadow_Possession",
             quests = {
                 { id = 10707, name = "The Ata'mal Terrace", requires = "Heart of Fury" },
@@ -772,7 +877,7 @@ C.BT_ATTUNEMENT = {
         },
         {
             name = "Akama's Promise",
-            story = "Return to A'dal with Akama's promise...",
+            story = "A'dal's the backer. Tell the glowing orb that Akama's in. Deal's on.",
             locationIcon = "Spell_Holy_SurgeOfLight",
             quests = {
                 { id = 10708, name = "Akama's Promise" },
@@ -780,7 +885,7 @@ C.BT_ATTUNEMENT = {
         },
         {
             name = "The Secret Compromised",
-            story = "Fathom-Lord Karathress must be eliminated...",
+            story = "Karathress knows too much. In heist terms: loose end. Handle it.",
             locationIcon = "INV_Misc_MonsterClaw_03",
             quests = {
                 { id = 10944, name = "The Secret Compromised", raid = "Serpentshrine Cavern", boss = "Fathom-Lord Karathress" },
@@ -788,7 +893,7 @@ C.BT_ATTUNEMENT = {
         },
         {
             name = "Ruse of the Ashtongue",
-            story = "Don the Ashtongue Cowl and slay Al'ar in Tempest Keep...",
+            story = "Every heist needs face work. Put on the cowl, blend in, eliminate the target.",
             locationIcon = "Spell_Arcane_PortalShattrath",
             quests = {
                 { id = 10946, name = "Ruse of the Ashtongue", raid = "Tempest Keep", boss = "Al'ar", requires = "Wear Ashtongue Cowl" },
@@ -796,7 +901,7 @@ C.BT_ATTUNEMENT = {
         },
         {
             name = "An Artifact From the Past",
-            story = "Journey to Mount Hyjal and retrieve a Time-Phased Phylactery...",
+            story = "The phylactery job. Get in, grab the artifact, get out. Classic heist.",
             locationIcon = "Spell_Fire_Burnout",
             quests = {
                 { id = 10947, name = "An Artifact From the Past", raid = "Mount Hyjal", boss = "Rage Winterchill" },
@@ -804,7 +909,7 @@ C.BT_ATTUNEMENT = {
         },
         {
             name = "The Hostage Soul",
-            story = "Speak with A'dal about the Medallion of Karabor...",
+            story = "I pity the soul trapped in this medallion. Ask A'dal how to free it!",
             locationIcon = "Spell_Holy_SurgeOfLight",
             quests = {
                 { id = 10948, name = "The Hostage Soul" },
@@ -812,7 +917,7 @@ C.BT_ATTUNEMENT = {
         },
         {
             name = "Entry into the Black Temple",
-            story = "Xi'ri awaits at the gates of the Black Temple...",
+            story = "Meet Xi'ri at the rendezvous point. The Black Temple job starts NOW.",
             locationIcon = "INV_Weapon_Glaive_01",
             quests = {
                 { id = 10949, name = "Entry Into the Black Temple" },
@@ -820,7 +925,7 @@ C.BT_ATTUNEMENT = {
         },
         {
             name = "A Distraction for Akama",
-            story = "The final step - aid Akama's assault on the temple...",
+            story = "Create the distraction. Akama makes the grab. This is the big score!",
             locationIcon = "INV_Weapon_Glaive_01",
             quests = {
                 { id = 10985, name = "A Distraction for Akama", reward = "Medallion of Karabor" },
@@ -950,27 +1055,27 @@ end
 C.ATTUNEMENT_MILESTONES = {
     karazhan = {
         title = "Key to the Tower",
-        story = "The Master's Key is yours. Karazhan awaits.",
+        story = "Welcome to Karazhan! Free admission to the spookiest tower in Azeroth.",
         icon = "INV_Misc_Key_10",
     },
     ssc = {
         title = "Into the Depths",
-        story = "The Cudgel of Kar'desh grants you passage. Lady Vashj's sanctum lies open before you.",
+        story = "Fin-ally! Swim on down to Vashj's place. Don't forget to hold your breath!",
         icon = "Spell_Frost_SummonWaterElemental",
     },
     tk = {
         title = "The Trials Complete",
-        story = "A'dal's trials are complete. The Eye awaits those who proved worthy.",
+        story = "Trials complete! Time to visit the space elves. Bring sunscreen for The Eye.",
         icon = "Spell_Fire_BurnoutGreen",
     },
     hyjal = {
         title = "Witness to History",
-        story = "With the Vials of Eternity, you may witness the Battle for Mount Hyjal.",
+        story = "Got the vials? You're now cleared to witness the most epic battle ever. Don't blink!",
         icon = "INV_Potion_101",
     },
     bt = {
         title = "Illidan Awaits",
-        story = "The Medallion of Karabor marks you as ally to Akama. The Black Temple opens its gates.",
+        story = "Heist complete. The Medallion's yours. Illidan never saw it coming.",
         icon = "INV_Jewelry_Necklace_36",
     },
 }
@@ -3843,7 +3948,7 @@ C.GAME_DEFINITIONS = {
     },
     {
         id = "pong",
-        name = "Pong",
+        name = "Pong of War",
         description = "Classic arcade paddle action - local 2P or challenge a friend!",
         icon = "Interface\\Icons\\INV_Misc_PunchCards_Yellow",
         hasLocal = true,
@@ -3853,23 +3958,13 @@ C.GAME_DEFINITIONS = {
     },
     {
         id = "tetris",
-        name = "Tetris Battle",
+        name = "Wowtris",
         description = "Clear lines! Local 2P with garbage or Score Challenge vs friends",
         icon = "Interface\\Icons\\INV_Misc_Gem_Variety_01",
         hasLocal = true,
         hasRemote = true,  -- Score Challenge mode
         system = "gamecore",
         color = "ARCANE_PURPLE",
-    },
-    {
-        id = "words",
-        name = "Words with WoW",
-        description = "Scrabble-style word game with WoW vocabulary",
-        icon = "Interface\\Icons\\INV_Misc_Book_07",
-        hasLocal = true,
-        hasRemote = true,
-        system = "gamecore",
-        color = "BRONZE",
     },
     {
         id = "battleship",
@@ -3883,13 +3978,23 @@ C.GAME_DEFINITIONS = {
     },
     {
         id = "wordle",
-        name = "WoW Wordle",
+        name = "WoWdle",
         description = "Guess the 5-letter WoW word in 6 tries!",
         icon = "Interface\\Icons\\INV_Misc_Note_06",
         hasLocal = true,
         hasRemote = true,
         system = "gamecore",
         color = "FEL_GREEN",
+    },
+    {
+        id = "pacman",
+        name = "Pac-Wow",
+        description = "Classic arcade maze game - eat pellets, avoid ghosts!",
+        icon = "Interface\\Icons\\INV_Misc_Food_11",
+        hasLocal = true,
+        hasRemote = true,  -- Score Challenge mode
+        system = "gamecore",
+        color = "GOLD",
     },
 }
 
@@ -3903,135 +4008,6 @@ end
 function C:GetGameDefinition(gameId)
     return self.GAME_BY_ID[gameId]
 end
-
---============================================================
--- WORDS WITH WOW UI CONSTANTS
--- TBC-themed visual styling for the word game board
---============================================================
-
--- Bonus square colors (TBC themed: fel green, sky blue, arcane purple, hellfire red, gold)
-C.WORDS_BONUS_COLORS = {
-    [0] = { r = 0.95, g = 0.90, b = 0.75, a = 1.0 },   -- NONE: Parchment tan
-    [1] = { r = 0.3,  g = 0.8,  b = 0.6,  a = 0.7 },   -- DOUBLE_LETTER: Fel green
-    [2] = { r = 0.4,  g = 0.6,  b = 1.0,  a = 0.7 },   -- TRIPLE_LETTER: Sky blue
-    [3] = { r = 0.8,  g = 0.4,  b = 0.8,  a = 0.7 },   -- DOUBLE_WORD: Arcane purple
-    [4] = { r = 1.0,  g = 0.3,  b = 0.2,  a = 0.7 },   -- TRIPLE_WORD: Hellfire red
-    [5] = { r = 1.0,  g = 0.84, b = 0,    a = 0.9 },   -- CENTER: Gold star
-}
-
--- Bonus square labels
-C.WORDS_BONUS_LABELS = {
-    [0] = "",      -- Empty
-    [1] = "DL",    -- Double Letter
-    [2] = "TL",    -- Triple Letter
-    [3] = "DW",    -- Double Word
-    [4] = "TW",    -- Triple Word
-    [5] = "★",     -- Center star
-}
-
--- Bonus square tooltip text
-C.WORDS_BONUS_NAMES = {
-    [0] = "",
-    [1] = "Double Letter Score",
-    [2] = "Triple Letter Score",
-    [3] = "Double Word Score",
-    [4] = "Triple Word Score",
-    [5] = "Center - Start Here!",
-}
-
--- Tile appearance
--- Note: Tile size is defined directly in WordGame.lua (self.TILE_SIZE) for flexibility
-C.WORDS_TILE_COLORS = {
-    PLACED = { r = 0.95, g = 0.90, b = 0.80, a = 1.0 },      -- Placed tile background
-    PLACED_BORDER = { r = 0.6, g = 0.5, b = 0.35, a = 1.0 }, -- Placed tile border
-    NEW_GLOW = { r = 1.0, g = 0.84, b = 0, a = 0.6 },        -- Recently placed glow
-    LETTER = { r = 0.15, g = 0.10, b = 0.05, a = 1.0 },      -- Letter text color
-    POINTS = { r = 0.4, g = 0.35, b = 0.25, a = 1.0 },       -- Point value color
-}
-
--- Score thresholds for celebrations
-C.WORDS_SCORE_THRESHOLDS = {
-    GOOD = 20,      -- Play sound
-    GREAT = 30,     -- Sparkles
-    AMAZING = 50,   -- Full celebration
-}
-
--- Drag and drop colors
-C.WORDS_DRAG_COLORS = {
-    VALID_DROP = { r = 0.3, g = 0.9, b = 0.3, a = 0.5 },      -- Green glow for valid squares
-    VALID_HOVER = { r = 0.4, g = 1.0, b = 0.4, a = 0.7 },     -- Brighter green on hover
-    INVALID_DROP = { r = 0.9, g = 0.3, b = 0.3, a = 0.3 },    -- Red tint for invalid
-    PENDING_TILE = { r = 0.9, g = 0.85, b = 0.6, a = 1.0 },   -- Slightly different for pending
-    PENDING_BORDER = { r = 0.8, g = 0.6, b = 0.2, a = 1.0 },  -- Gold border for pending
-    DRAG_SHADOW = { r = 0, g = 0, b = 0, a = 0.4 },           -- Shadow under drag tile
-    RACK_HIGHLIGHT = { r = 1.0, g = 0.84, b = 0, a = 0.3 },   -- Highlight available rack tiles
-}
-
--- Words with Friends style bonuses
-C.WORDS_BINGO_BONUS = 35  -- Bonus for using all 7 tiles in one turn
-
--- Button bar colors (Words with Friends style)
-C.WORDS_BUTTON_COLORS = {
-    SHUFFLE = { r = 0.3, g = 0.5, b = 0.8 },   -- Blue
-    SWAP = { r = 0.9, g = 0.6, b = 0.2 },      -- Orange
-    RECALL = { r = 0.9, g = 0.8, b = 0.3 },    -- Yellow
-    PASS = { r = 0.5, g = 0.5, b = 0.5 },      -- Gray
-    PLAY = { r = 0.3, g = 0.8, b = 0.3 },      -- Green
-    DISABLED = { r = 0.3, g = 0.3, b = 0.3 },  -- Disabled gray
-}
-
--- Online status indicator thresholds (for remote games)
-C.WORDS_ONLINE_STATUS = {
-    ACTIVE_THRESHOLD = 60,          -- Seconds - "Active" if seen within 1 minute
-    RECENT_THRESHOLD = 300,         -- Seconds - "Online" if seen within 5 minutes
-    STALE_THRESHOLD = 900,          -- Seconds - "Away" if seen within 15 minutes
-    -- Beyond STALE_THRESHOLD = "Offline"
-}
-
--- Hint system states (derived from game state in GetHintState)
-C.WORDS_HINT_STATE = {
-    FIRST_MOVE = "FIRST_MOVE",           -- First word, no tiles placed yet
-    PLACE_TILES = "PLACE_TILES",         -- Your turn, no tiles on board yet
-    KEEP_PLACING = "KEEP_PLACING",       -- Tiles placed but word incomplete/invalid
-    INVALID_WORD = "INVALID_WORD",       -- Word formed but not in dictionary
-    MUST_COVER_CENTER = "MUST_COVER_CENTER", -- First word doesn't cover center
-    NOT_CONNECTED = "NOT_CONNECTED",     -- Word not connected to existing tiles
-    READY_TO_PLAY = "READY_TO_PLAY",     -- Valid word ready, PLAY button enabled
-    AI_THINKING = "AI_THINKING",         -- AI opponent's turn (practice mode)
-    OPPONENT_TURN = "OPPONENT_TURN",     -- Remote opponent's turn
-    GAME_OVER = "GAME_OVER",             -- Game has ended
-}
-
--- Step indicator definitions (3-step flow)
-C.WORDS_HINT_STEPS = {
-    { id = "place", label = "1. Place", activeLabel = "Place Tiles", icon = "INV_Misc_Rune_01" },
-    { id = "form",  label = "2. Form",  activeLabel = "Form Word",   icon = "INV_Misc_Rune_05" },
-    { id = "play",  label = "3. Play",  activeLabel = "Play!",       icon = "Spell_Holy_SealOfRighteousness" },
-}
-
--- Contextual hint messages (format strings with %s placeholders)
-C.WORDS_HINT_MESSAGES = {
-    FIRST_MOVE = "First word must cover the center ★ square",
-    PLACE_TILES = "Drag a tile from your rack to the board",
-    KEEP_PLACING = "Keep placing tiles to form a word",
-    WORD_READY = "%s looks good! Click PLAY",
-    INVALID_WORD = "%s is not in the dictionary",
-    MUST_COVER_CENTER = "Word must cover the center ★ square",
-    NOT_CONNECTED = "Word must connect to existing tiles",
-    AI_THINKING = "Opponent is thinking...",
-    OPPONENT_TURN = "Waiting for %s...",
-    GAME_OVER = "",
-}
-
--- Hint UI colors (TBC theme: gold, grey, green)
-C.WORDS_HINT_COLORS = {
-    STEP_ACTIVE = { r = 1.0, g = 0.84, b = 0, a = 1.0 },      -- Gold - current step
-    STEP_PENDING = { r = 0.5, g = 0.5, b = 0.5, a = 0.6 },    -- Grey - future steps
-    STEP_COMPLETE = { r = 0.3, g = 0.9, b = 0.3, a = 1.0 },   -- Green - completed steps
-    HINT_TEXT = { r = 0.9, g = 0.85, b = 0.7, a = 1.0 },      -- Parchment text
-    HINT_ERROR = { r = 1.0, g = 0.4, b = 0.4, a = 1.0 },      -- Red - error hints
-    CENTER_PULSE = { r = 1.0, g = 0.84, b = 0, a = 0.8 },     -- Gold pulse for center
-}
 
 --============================================================
 -- WOW WORDLE CONSTANTS
@@ -4094,23 +4070,23 @@ C.WORDLE_COLORS = {
 
 -- Wordle UI dimensions (expanded for better layout)
 C.WORDLE_UI = {
-    -- Window dimensions (increased height for proper spacing)
-    WINDOW_WIDTH = 420,
-    WINDOW_HEIGHT = 680,            -- Was 620, +60px for layout clearance
+    -- Window dimensions (increased for hint button area)
+    WINDOW_WIDTH = 460,             -- Was 420, +40px for breathing room
+    WINDOW_HEIGHT = 720,            -- Was 680, +40px for hint button area
 
     -- Letter box dimensions
     BOX_SIZE = 56,
     BOX_GAP = 8,
-    GRID_TOP = -60,                 -- Was -50, more header room
+    GRID_TOP = -100,                -- Was -60, pushed down for hint button
 
     -- Keyboard dimensions (slightly larger keys)
     KEY_WIDTH = 36,                 -- Was 32
     KEY_HEIGHT = 52,                -- Was 48
     KEY_GAP = 6,                    -- Was 4
-    KEYBOARD_TOP = -460,            -- Was -450, adjusted for grid position
+    KEYBOARD_TOP = -500,            -- Was -460, pushed down to maintain spacing
 
     -- Position offsets
-    TOAST_TOP = -60,                -- Toast position below subtitle
+    TOAST_TOP = -100,               -- Toast position below hint button
     STATUS_BOTTOM = 15,             -- Status text offset from bottom
     TOAST_PADDING = 12,             -- P2.7: Toast frame padding
 
@@ -4397,7 +4373,7 @@ C.RP_STATUS_COLORS = {
 -- No heroics, no raids
 --============================================================
 C.CLASS_LOOT_HOTLIST = {
-    -- Standing values: 4=Friendly, 5=Honored, 6=Revered, 7=Revered, 8=Exalted
+    -- Standing values: 5=Friendly, 6=Honored, 7=Revered, 8=Exalted
     ["DRUID"] = {
         {
             source = "Cenarion Expedition @ Exalted",
@@ -4788,6 +4764,7 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         },
                     },
                 },
+                -- Alliance: Honor Hold ranged weapon
                 { itemId = 29152, name = "Marksman's Bow", icon = "INV_Weapon_Bow_18", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Honor Hold @ Revered", sourceType = "rep", faction = "Honor Hold", standing = 7,
                     hoverData = {
                         repSources = {
@@ -4804,6 +4781,31 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                             "Should reach Revered just from questing",
                             "If short, run Shattered Halls (fastest)",
                             "Buy from Logistics Officer Ulrike in Honor Hold",
+                        },
+                        alternatives = {
+                            "Nerubian Slavemaker (Naxx - if you have it)",
+                            "Emberhawk Crossbow (H OHB)",
+                            "Melmorta's Twilight Longbow (H BM)",
+                        },
+                    },
+                },
+                -- Horde: Thrallmar ranged weapon
+                { itemId = 29151, name = "Warsong Crossbow", icon = "INV_Weapon_Crossbow_10", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Thrallmar @ Revered", sourceType = "rep", faction = "Thrallmar", standing = 7,
+                    hoverData = {
+                        repSources = {
+                            "Hellfire Ramparts/Blood Furnace (10 rep/kill)",
+                            "Shattered Halls (15-25 rep/kill)",
+                            "Hellfire Peninsula quests (~10k rep total)",
+                        },
+                        statPriority = {
+                            "Best ranged slot for melee - stat stick",
+                            "+16 Hit is huge for reaching hit cap",
+                            "Better than Nerubian Slavemaker until Kara",
+                        },
+                        tips = {
+                            "Should reach Revered just from questing",
+                            "If short, run Shattered Halls (fastest)",
+                            "Buy from Quartermaster Urgronn in Thrallmar",
                         },
                         alternatives = {
                             "Nerubian Slavemaker (Naxx - if you have it)",
@@ -4875,6 +4877,7 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         },
                     },
                 },
+                -- Alliance: Honor Hold ranged weapon
                 { itemId = 29152, name = "Marksman's Bow", icon = "INV_Weapon_Bow_18", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Honor Hold @ Revered", sourceType = "rep", faction = "Honor Hold", standing = 7,
                     hoverData = {
                         repSources = {
@@ -4891,6 +4894,31 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                             "Should reach Revered just from questing",
                             "If short, run Shattered Halls (fastest)",
                             "Buy from Logistics Officer Ulrike in Honor Hold",
+                        },
+                        alternatives = {
+                            "Nerubian Slavemaker (Naxx - if you have it)",
+                            "Emberhawk Crossbow (H OHB)",
+                            "Melmorta's Twilight Longbow (H BM)",
+                        },
+                    },
+                },
+                -- Horde: Thrallmar ranged weapon
+                { itemId = 29151, name = "Warsong Crossbow", icon = "INV_Weapon_Crossbow_10", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Thrallmar @ Revered", sourceType = "rep", faction = "Thrallmar", standing = 7,
+                    hoverData = {
+                        repSources = {
+                            "Hellfire Ramparts/Blood Furnace (10 rep/kill)",
+                            "Shattered Halls (15-25 rep/kill)",
+                            "Hellfire Peninsula quests (~10k rep total)",
+                        },
+                        statPriority = {
+                            "Best ranged slot for melee - stat stick",
+                            "+16 Hit is huge for reaching hit cap",
+                            "Better than Nerubian Slavemaker until Kara",
+                        },
+                        tips = {
+                            "Should reach Revered just from questing",
+                            "If short, run Shattered Halls (fastest)",
+                            "Buy from Quartermaster Urgronn in Thrallmar",
                         },
                         alternatives = {
                             "Nerubian Slavemaker (Naxx - if you have it)",
@@ -4938,7 +4966,7 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 3: Protection (Tank)
         [3] = {
             rep = {
-                { itemId = 29167, name = "Bladespire Warbands", icon = "INV_Bracer_16", quality = "epic", slot = "Wrist", stats = "+33 Sta, +21 Def Rating", source = "Keepers of Time @ Exalted", sourceType = "rep", faction = "Keepers of Time", standing = 8,
+                { itemId = 29527, name = "Timewarden's Leggings", icon = "INV_Pants_Plate_17", quality = "epic", slot = "Legs", stats = "+55 Sta, +23 Def Rating, +22 Dodge", source = "Keepers of Time @ Exalted", sourceType = "rep", faction = "Keepers of Time", standing = 8,
                     hoverData = {
                         repSources = {
                             "Old Hillsbrad Foothills (8 rep/kill)",
@@ -4946,9 +4974,9 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                             "Caverns of Time attunement questline",
                         },
                         statPriority = {
-                            "Best pre-raid tank bracers",
-                            "+21 Defense helps reach 490 cap",
-                            "+33 Stamina for effective health",
+                            "Excellent pre-raid tank legs",
+                            "+23 Defense helps reach 490 cap",
+                            "+55 Stamina for effective health",
                         },
                         tips = {
                             "Black Morass Heroic is fastest at 70",
@@ -4956,9 +4984,9 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                             "Buy from Alurmi in Caverns of Time",
                         },
                         alternatives = {
-                            "Bracers of Dignity (H Mechanar)",
-                            "Bracers of the Green Fortress (BS BoE)",
-                            "Vambraces of Courage (H SH)",
+                            "Timewarden's Leggings (same source)",
+                            "Felsteel Leggings (Blacksmithing)",
+                            "Legplates of the Bold (H MgT)",
                         },
                     },
                 },
@@ -5010,6 +5038,7 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         },
                     },
                 },
+                -- Alliance: Honor Hold ranged weapon
                 { itemId = 29152, name = "Marksman's Bow", icon = "INV_Weapon_Bow_18", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Honor Hold @ Revered", sourceType = "rep", faction = "Honor Hold", standing = 7,
                     hoverData = {
                         repSources = {
@@ -5026,6 +5055,30 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                             "Only need Revered - easy grind",
                             "Do all HFP quests first for fast rep",
                             "Buy from Logistics Officer Ulrike in Honor Hold",
+                        },
+                        alternatives = {
+                            "Felsteel Whisper Knives (Engineering)",
+                            "Low priority slot for tanks",
+                        },
+                    },
+                },
+                -- Horde: Thrallmar ranged weapon
+                { itemId = 29151, name = "Warsong Crossbow", icon = "INV_Weapon_Crossbow_10", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Thrallmar @ Revered", sourceType = "rep", faction = "Thrallmar", standing = 7,
+                    hoverData = {
+                        repSources = {
+                            "Hellfire Ramparts/Blood Furnace (10 rep/kill)",
+                            "Shattered Halls (15-25 rep/kill)",
+                            "Hellfire Peninsula quests (~10k rep total)",
+                        },
+                        statPriority = {
+                            "Stat stick for Protection Warriors",
+                            "+16 Hit Rating helps threat abilities land",
+                            "Agility provides small dodge bonus",
+                        },
+                        tips = {
+                            "Only need Revered - easy grind",
+                            "Do all HFP quests first for fast rep",
+                            "Buy from Quartermaster Urgronn in Thrallmar",
                         },
                         alternatives = {
                             "Felsteel Whisper Knives (Engineering)",
@@ -5164,7 +5217,7 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 2: Protection (Tank)
         [2] = {
             rep = {
-                { itemId = 29167, name = "Bladespire Warbands", icon = "INV_Bracer_16", quality = "epic", slot = "Wrist", stats = "+33 Sta, +21 Def Rating", source = "Keepers of Time @ Exalted", sourceType = "rep", faction = "Keepers of Time", standing = 8,
+                { itemId = 29527, name = "Timewarden's Leggings", icon = "INV_Pants_Plate_17", quality = "epic", slot = "Legs", stats = "+55 Sta, +23 Def Rating, +22 Dodge", source = "Keepers of Time @ Exalted", sourceType = "rep", faction = "Keepers of Time", standing = 8,
                     hoverData = {
                         repSources = {
                             "Old Hillsbrad Foothills (10-25 rep/kill)",
@@ -5172,9 +5225,9 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                             "Caverns of Time quests (~4.5k rep total)",
                         },
                         statPriority = {
-                            "Best pre-raid tank bracers for Paladins",
-                            "+21 Defense helps reach 490 def cap",
-                            "+33 Stamina adds ~330 HP",
+                            "Excellent pre-raid tank legs for Paladins",
+                            "+23 Defense helps reach 490 def cap",
+                            "+55 Stamina adds ~550 HP",
                         },
                         tips = {
                             "Long grind - start Heroics early once Revered",
@@ -5182,9 +5235,9 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                             "Buy from Alurmi in Caverns of Time",
                         },
                         alternatives = {
-                            "Bracers of the Green Fortress (Blacksmithing)",
+                            "Felsteel Leggings (Blacksmithing)",
                             "Sha'tari Wrought Armguards (Shattered Halls)",
-                            "Mok'Nathal Hero's Bracers (Quest)",
+                            "Bold Legplates (Quest)",
                         },
                     },
                 },
@@ -5275,6 +5328,7 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         },
                     },
                 },
+                -- Alliance: Honor Hold ranged weapon
                 { itemId = 29152, name = "Marksman's Bow", icon = "INV_Weapon_Bow_18", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Honor Hold @ Revered", sourceType = "rep", faction = "Honor Hold", standing = 7,
                     hoverData = {
                         repSources = {
@@ -5291,6 +5345,31 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                             "Only need Revered - relatively easy grind",
                             "Do all HFP quests first for easy rep",
                             "Buy from Logistics Officer Ulrike (Honor Hold)",
+                        },
+                        alternatives = {
+                            "Don Santos' Famous Hunting Rifle (AH)",
+                            "Felsteel Whisper Knives (Throwing)",
+                            "Skip this slot - low priority for Ret",
+                        },
+                    },
+                },
+                -- Horde: Thrallmar ranged weapon
+                { itemId = 29151, name = "Warsong Crossbow", icon = "INV_Weapon_Crossbow_10", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Thrallmar @ Revered", sourceType = "rep", faction = "Thrallmar", standing = 7,
+                    hoverData = {
+                        repSources = {
+                            "Hellfire Ramparts/Blood Furnace (10 rep/kill)",
+                            "Shattered Halls (15-25 rep/kill)",
+                            "Hellfire Peninsula quests (~8k rep total)",
+                        },
+                        statPriority = {
+                            "Stat stick for Paladins (ranged slot rarely used)",
+                            "+16 Hit Rating is valuable for reaching cap",
+                            "Decent Agi and Stamina for passives",
+                        },
+                        tips = {
+                            "Only need Revered - relatively easy grind",
+                            "Do all HFP quests first for easy rep",
+                            "Buy from Quartermaster Urgronn (Thrallmar)",
                         },
                         alternatives = {
                             "Don Santos' Famous Hunting Rifle (AH)",
@@ -5496,14 +5575,6 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         alternatives = { "Braxxis' Staff of Slumber (H Underbog)", "Terestian's Stranglestaff (Kara)" },
                     },
                 },
-                { itemId = 29170, name = "Windcaller's Orb", icon = "INV_Misc_Orb_02", quality = "epic", slot = "Off Hand", stats = "+27 Sta, +18 Int, +18 Spi", source = "Cenarion Expedition @ Revered", sourceType = "rep", faction = "Cenarion Expedition", standing = 7,
-                    hoverData = {
-                        repSources = { "Coilfang dungeons (10-25 rep/kill)", "Turn in Plant Parts (250 rep/10, until Honored)" },
-                        statPriority = { "Good caster off-hand for Resto set", "+27 Stamina adds survivability", "Not used in Bear form (2H weapon)" },
-                        tips = { "Only need Revered - moderate grind", "Buy from Fedryen Swiftspear in Cenarion Refuge" },
-                        alternatives = { "Lamp of Peaceful Repose (H Bot)", "Tears of Heaven (Aldor Exalted)" },
-                    },
-                },
                 { itemId = 27744, name = "Idol of Ursoc", icon = "INV_Relics_IdolofFerocity", quality = "rare", slot = "Relic", stats = "+Maul damage +54", source = "Hungarfen (Heroic Underbog)", sourceType = "heroic", faction = "Cenarion Expedition", standing = 7,
                     hoverData = {
                         repSources = { "Coilfang dungeons (10-25 rep/kill)", "Turn in Plant Parts (250 rep/10, until Honored)" },
@@ -5543,11 +5614,11 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         alternatives = { "Bangle of Endless Blessings (H Arc)", "Essence of the Martyr (41 Badges)" },
                     },
                 },
-                { itemId = 29170, name = "Windcaller's Orb", icon = "INV_Misc_Orb_02", quality = "epic", slot = "Off Hand", stats = "+27 Sta, +18 Int, +18 Spi", source = "Cenarion Expedition @ Revered", sourceType = "rep", faction = "Cenarion Expedition", standing = 7,
+                { itemId = 29170, name = "Windcaller's Orb", icon = "INV_Misc_Orb_02", quality = "epic", slot = "Off Hand", stats = "+27 Sta, +18 Int, +18 Spi", source = "Cenarion Expedition @ Exalted", sourceType = "rep", faction = "Cenarion Expedition", standing = 8,
                     hoverData = {
                         repSources = { "Coilfang dungeons (10-25 rep/kill)", "Turn in Plant Parts (250 rep/10, until Honored)" },
                         statPriority = { "Good caster off-hand for Resto Druid", "+18 Spirit benefits mana regen" },
-                        tips = { "Only need Revered - moderate grind", "Buy from Fedryen Swiftspear in Cenarion Refuge" },
+                        tips = { "Long grind to Exalted - start CE dungeons early", "Buy from Fedryen Swiftspear in Cenarion Refuge" },
                         alternatives = { "Lamp of Peaceful Repose (H Bot)", "Tears of Heaven (Aldor Exalted)" },
                     },
                 },
@@ -5585,6 +5656,45 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                 { itemId = 21873, name = "Primal Mooncloth Robe", icon = "INV_Chest_Cloth_44", quality = "epic", slot = "Chest", stats = "+30 Sta, +24 Int, +92 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
                 { itemId = 21874, name = "Primal Mooncloth Shoulders", icon = "INV_Shoulder_25", quality = "epic", slot = "Shoulder", stats = "+21 Sta, +18 Int, +68 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
                 { itemId = 21875, name = "Primal Mooncloth Belt", icon = "INV_Belt_13", quality = "epic", slot = "Waist", stats = "+18 Sta, +17 Int, +55 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+            },
+        },
+        -- Tab 4: Feral (Cat DPS)
+        [4] = {
+            rep = {
+                { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_30naxxramas", quality = "epic", slot = "Neck", stats = "+20 Agi, +24 Sta, +22 Hit", source = "The Consortium @ Exalted", sourceType = "rep", faction = "The Consortium", standing = 8,
+                    hoverData = {
+                        repSources = { "Mana-Tombs (Normal: 5-10, Heroic: 15-25 rep/kill)", "Turn in Oshu'gun Crystal Powder Samples (250 rep/10)", "Consortium quests in Nagrand and Netherstorm" },
+                        statPriority = { "BiS pre-raid neck for Cat DPS", "+22 Hit Rating helps reach melee hit cap (9%)", "+20 Agility provides crit and AP" },
+                        tips = { "Farm Oshu'gun Powder from Nagrand ogres/ethereals", "Mana-Tombs Heroic is fastest once keyed", "Buy from Karaaz in Stormspire (Netherstorm)" },
+                        alternatives = { "Natasha's Ember Necklace (Nagrand quest)", "Necklace of the Deep (Fishing)", "Worgen Claw Necklace (H Underbog)" },
+                    },
+                },
+                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8,
+                    hoverData = {
+                        repSources = { "Auchenai Crypts/Sethekk Halls (10 rep/kill)", "Shadow Labyrinth (12-25 rep/kill)" },
+                        statPriority = { "Excellent ring with Hit for Cat DPS", "+23 Hit helps reach dual-wield cap for abilities", "Stamina adds survivability" },
+                        tips = { "Shadow Lab is best rep but harder", "Buy from Nakodu in Lower City" },
+                        alternatives = { "Ring of Umbral Doom (H Sethekk)", "Delicate Eternium Ring (Jewelcrafting)" },
+                    },
+                },
+                { itemId = 29383, name = "Bloodlust Brooch", icon = "INV_Jewelry_Trinket_13", quality = "epic", slot = "Trinket", stats = "+72 AP, Use: +278 AP", source = "G'eras (41 Badges)", sourceType = "badge",
+                    hoverData = {
+                        badgeSources = { "Heroic dungeons (1 badge per boss)", "Karazhan bosses (1-2 badges each)", "Gruul/Magtheridon (2 badges each)" },
+                        statPriority = { "BiS trinket for Cat DPS", "+72 AP passive + 278 AP on-use burst", "20 sec duration, 2 min cooldown" },
+                        tips = { "Priority badge purchase for melee", "Use on-use with Tiger's Fury", "Buy from G'eras in Shattrath (Terrace of Light)" },
+                        alternatives = { "Hourglass of the Unraveller (H BM)", "Abacus of Violent Odds (H Mech)" },
+                    },
+                },
+            },
+            drops = {
+                { itemId = 28034, name = "Hourglass of the Unraveller", icon = "INV_Misc_PocketWatch_01", quality = "rare", slot = "Trinket", stats = "+32 Hit, Haste proc", source = "Black Morass (Normal)", sourceType = "drops" },
+                { itemId = 27890, name = "Girdle of Ferocity", icon = "INV_Belt_13", quality = "epic", slot = "Waist", stats = "+31 Str, +16 Agi, +36 Sta", source = "Heroic Shattered Halls", sourceType = "drops" },
+                { itemId = 27994, name = "Spaulders of Dementia", icon = "INV_Shoulder_25", quality = "rare", slot = "Shoulder", stats = "+28 Str, +28 Sta, +22 Crit", source = "Heroic Sethekk Halls", sourceType = "drops" },
+            },
+            crafted = {
+                { itemId = 25695, name = "Fel Leather Gloves", icon = "INV_Gauntlets_25", quality = "rare", slot = "Hands", stats = "+27 Agi, +26 Sta, +15 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+                { itemId = 25696, name = "Fel Leather Leggings", icon = "INV_Pants_Leather_09", quality = "rare", slot = "Legs", stats = "+30 Agi, +29 Sta, +17 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+                { itemId = 25697, name = "Fel Leather Boots", icon = "INV_Boots_Chain_08", quality = "rare", slot = "Feet", stats = "+24 Agi, +23 Sta, +14 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
             },
         },
     },
@@ -5978,11 +6088,21 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 1: Beast Mastery (Ranged DPS)
         [1] = {
             rep = {
+                -- Alliance: Honor Hold bow
                 { itemId = 29152, name = "Marksman's Bow", icon = "INV_Weapon_Bow_18", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Honor Hold @ Revered", sourceType = "rep", faction = "Honor Hold", standing = 7,
                     hoverData = {
                         repSources = { "Hellfire Ramparts / Blood Furnace / Shattered Halls (10-25 rep/kill)", "Hellfire Peninsula quests (~8k rep)", "Marks of Honor Hold PvP turn-in (250 rep per mark)" },
                         statPriority = { "Best pre-raid bow for all Hunter specs", "+16 Hit helps reach ranged hit cap (9%)", "Weapon DPS is your most important stat" },
                         tips = { "Hellfire dungeons give rep even at 70", "Shattered Halls Heroic is fastest", "Buy from Logistics Officer Ulrike in Honor Hold" },
+                        alternatives = { "Sunfury Bow of the Phoenix (Kael)", "Wrathtide Longbow (H Underbog)", "Steelhawk Crossbow (Quest)" },
+                    },
+                },
+                -- Horde: Thrallmar crossbow
+                { itemId = 29151, name = "Warsong Crossbow", icon = "INV_Weapon_Crossbow_10", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Thrallmar @ Revered", sourceType = "rep", faction = "Thrallmar", standing = 7,
+                    hoverData = {
+                        repSources = { "Hellfire Ramparts / Blood Furnace / Shattered Halls (10-25 rep/kill)", "Hellfire Peninsula quests (~8k rep)", "Marks of Thrallmar PvP turn-in (250 rep per mark)" },
+                        statPriority = { "Best pre-raid crossbow for all Hunter specs", "+16 Hit helps reach ranged hit cap (9%)", "Weapon DPS is your most important stat" },
+                        tips = { "Hellfire dungeons give rep even at 70", "Shattered Halls Heroic is fastest", "Buy from Quartermaster Urgronn in Thrallmar" },
                         alternatives = { "Sunfury Bow of the Phoenix (Kael)", "Wrathtide Longbow (H Underbog)", "Steelhawk Crossbow (Quest)" },
                     },
                 },
@@ -6016,11 +6136,21 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 2: Marksmanship (Ranged DPS)
         [2] = {
             rep = {
+                -- Alliance: Honor Hold bow
                 { itemId = 29152, name = "Marksman's Bow", icon = "INV_Weapon_Bow_18", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Honor Hold @ Revered", sourceType = "rep", faction = "Honor Hold", standing = 7,
                     hoverData = {
                         repSources = { "Hellfire Ramparts / Blood Furnace / Shattered Halls (10-25 rep/kill)", "Hellfire Peninsula quests (~8k rep)", "Marks of Honor Hold PvP turn-in (250 rep per mark)" },
                         statPriority = { "BiS pre-raid bow for Marksmanship Hunter", "+16 Hit critical for Aimed Shot hits", "Weapon DPS directly affects Aimed Shot damage" },
                         tips = { "MM Hunters need more hit than BM", "Shattered Halls Heroic is fastest", "Buy from Logistics Officer Ulrike in Honor Hold" },
+                        alternatives = { "Sunfury Bow of the Phoenix (Kael)", "Wrathtide Longbow (H Underbog)", "Steelhawk Crossbow (Quest)" },
+                    },
+                },
+                -- Horde: Thrallmar crossbow
+                { itemId = 29151, name = "Warsong Crossbow", icon = "INV_Weapon_Crossbow_10", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Thrallmar @ Revered", sourceType = "rep", faction = "Thrallmar", standing = 7,
+                    hoverData = {
+                        repSources = { "Hellfire Ramparts / Blood Furnace / Shattered Halls (10-25 rep/kill)", "Hellfire Peninsula quests (~8k rep)", "Marks of Thrallmar PvP turn-in (250 rep per mark)" },
+                        statPriority = { "BiS pre-raid crossbow for Marksmanship Hunter", "+16 Hit critical for Aimed Shot hits", "Weapon DPS directly affects Aimed Shot damage" },
+                        tips = { "MM Hunters need more hit than BM", "Shattered Halls Heroic is fastest", "Buy from Quartermaster Urgronn in Thrallmar" },
                         alternatives = { "Sunfury Bow of the Phoenix (Kael)", "Wrathtide Longbow (H Underbog)", "Steelhawk Crossbow (Quest)" },
                     },
                 },
@@ -6055,11 +6185,21 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
         -- Tab 3: Survival (Ranged DPS)
         [3] = {
             rep = {
+                -- Alliance: Honor Hold bow
                 { itemId = 29152, name = "Marksman's Bow", icon = "INV_Weapon_Bow_18", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Honor Hold @ Revered", sourceType = "rep", faction = "Honor Hold", standing = 7,
                     hoverData = {
                         repSources = { "Hellfire Ramparts / Blood Furnace / Shattered Halls (10-25 rep/kill)", "Hellfire Peninsula quests (~8k rep)", "Marks of Honor Hold PvP turn-in (250 rep per mark)" },
                         statPriority = { "BiS pre-raid bow for Survival Hunter", "+16 Hit critical for trap consistency", "Agility scales with Survival talents" },
                         tips = { "Survival benefits heavily from Agility", "Shattered Halls Heroic is fastest", "Buy from Logistics Officer Ulrike in Honor Hold" },
+                        alternatives = { "Sunfury Bow of the Phoenix (Kael)", "Wrathtide Longbow (H Underbog)", "Steelhawk Crossbow (Quest)" },
+                    },
+                },
+                -- Horde: Thrallmar crossbow
+                { itemId = 29151, name = "Warsong Crossbow", icon = "INV_Weapon_Crossbow_10", quality = "epic", slot = "Ranged", stats = "+14 Agi, +8 Sta, +16 Hit", source = "Thrallmar @ Revered", sourceType = "rep", faction = "Thrallmar", standing = 7,
+                    hoverData = {
+                        repSources = { "Hellfire Ramparts / Blood Furnace / Shattered Halls (10-25 rep/kill)", "Hellfire Peninsula quests (~8k rep)", "Marks of Thrallmar PvP turn-in (250 rep per mark)" },
+                        statPriority = { "BiS pre-raid crossbow for Survival Hunter", "+16 Hit critical for trap consistency", "Agility scales with Survival talents" },
+                        tips = { "Survival benefits heavily from Agility", "Shattered Halls Heroic is fastest", "Buy from Quartermaster Urgronn in Thrallmar" },
                         alternatives = { "Sunfury Bow of the Phoenix (Kael)", "Wrathtide Longbow (H Underbog)", "Steelhawk Crossbow (Quest)" },
                     },
                 },
@@ -6726,7 +6866,7 @@ C.GUILD_DATA_DEFAULTS = {
 
 C.SOCIAL_TAB = {
     -- Tab bar
-    TAB_WIDTH = 77,   -- Width to fit 6 tabs including "Companions" label
+    TAB_WIDTH = 77,   -- Width to fit 6 tabs including "Buddy" label
     TAB_HEIGHT = 24,
     TAB_SPACING = 3,  -- Wider gaps for visual balance
 
@@ -6769,6 +6909,11 @@ C.SOCIAL_TAB = {
     -- Loot
     LOOT_MIN_QUALITY = 4,           -- Epic
     LOOT_COMMENT_MAX = 100,
+
+    -- Guild Loot Board (Phase 62)
+    LOOT_BOARD_MAX_VISIBLE = 10,
+    LOOT_BOARD_ROW_HEIGHT = 48,
+    LOOT_BOARD_HEADER_HEIGHT = 32,
 }
 
 --============================================================
@@ -6831,7 +6976,7 @@ C.FEED_ACTIVITY_ICONS = {
     GAME = "Interface\\Icons\\INV_Misc_Dice_02",          -- GAME
     BADGE = "Interface\\Icons\\Achievement_General",       -- BADGE
     LOOT = "Interface\\Icons\\INV_Misc_Bag_10",           -- LOOT
-    ROM = "Interface\\Icons\\INV_ValentinesCard02",       -- ROMANCE
+    ROM = "Interface\\Icons\\Spell_Holy_SealOfRighteousness",  -- ROMANCE/OATH
     MUG = "Interface\\Icons\\INV_Drink_04",               -- MUG
     -- New post types (Phase 50)
     IC = "Interface\\Icons\\Spell_Holy_MindVision",       -- IC_POST
@@ -6849,7 +6994,7 @@ C.FEED_ACTIVITY_BORDERS = {
     GAME = { 0.61, 0.19, 1.0 },      -- GAME: Arcane purple
     BADGE = { 1.0, 0.84, 0 },        -- BADGE: Gold
     LOOT = { 0.64, 0.21, 0.93 },     -- LOOT: Epic purple
-    ROM = { 1.0, 0.08, 0.58 },       -- ROMANCE: Deep pink
+    ROM = { 1, 0.65, 0 },            -- ROMANCE/OATH: Orange-Gold
     MUG = { 1.0, 0.84, 0 },          -- MUG: Gold
     -- New post types (Phase 50)
     IC = { 0.2, 0.8, 0.2 },          -- IC_POST: Fel green
@@ -6876,31 +7021,31 @@ C.RP_STATUS = {
 }
 
 --[[
-    Romance System ("Azeroth Relationship Status")
-    Public, exclusive one-partner romantic relationship system
-    Like Facebook relationship status for WoW RP players
+    Oath System ("Sacred Oath Bond")
+    Public, exclusive one-partner oath system
+    RPG-friendly, gender-neutral bonding mechanic
 ]]
 C.ROMANCE_STATUS = {
     SINGLE = {
         id = "SINGLE",
-        label = "Single",
+        label = "Unbound",
         color = "808080",
-        icon = "INV_ValentinesCard01",
+        icon = "Spell_Holy_SealOfWisdom",
         emoji = "",
     },
     PROPOSED = {
         id = "PROPOSED",
-        label = "It's Pending...",
-        color = "FF69B4",
-        icon = "INV_ValentinesCandy",
-        emoji = "<3",
+        label = "Oath Pending...",
+        color = "FFD700",
+        icon = "Spell_Holy_DivineIllumination",
+        emoji = "✦",
     },
     DATING = {
         id = "DATING",
-        label = "In a Relationship",
-        color = "FF1493",
-        icon = "INV_ValentinesCard02",
-        emoji = "<3",
+        label = "Oath-Bound",
+        color = "FFA500",
+        icon = "Spell_Holy_SealOfRighteousness",
+        emoji = "✦",
     },
 }
 
@@ -6925,12 +7070,12 @@ C.ROMANCE_TIMINGS = {
     },
 }
 
--- Breakup reason display text (humorous)
+-- Breakup reason display text (oath-themed)
 C.BREAKUP_REASON_TEXT = {
-    mutual = "It was mutual.",
-    grew_apart = "They grew apart.",
-    found_another = "Someone else caught their eye.",
-    its_not_you = "It's not you, it's me.",
+    mutual = "The oath was dissolved by mutual consent.",
+    grew_apart = "Their paths diverged.",
+    found_another = "A new oath called to them.",
+    its_not_you = "The oath could not be upheld.",
 }
 
 --[[
@@ -7213,17 +7358,6 @@ C.ARMORY_SPEC_DROPDOWN = {
     OFFSET_X = -10,
     OFFSET_Y = 0,
     MENU_WIDTH = 110,
-}
-
--- Preset dropdown (wishlist presets)
-C.ARMORY_PRESET_DROPDOWN = {
-    WIDTH = 120,
-    HEIGHT = 28,
-    ANCHOR = "RIGHT",           -- Anchor to phaseBar's RIGHT edge
-    OFFSET_X = -160,            -- 10 (edge gap) + 140 (spec dropdown visual width) + 10 (inter-dropdown gap)
-    OFFSET_Y = 0,
-    MENU_WIDTH = 110,
-    MAX_PRESETS = 5,  -- Maximum saved presets
 }
 
 -- Character View - Centered layout (replaces paperdoll + detail panel)
@@ -7535,7 +7669,6 @@ C.ARMORY_SLOT_BUTTON = {
         upgrade   = { border = "GOLD_BRIGHT",  indicator = "GOLD_BRIGHT" },
         major     = { border = "HELLFIRE_RED", indicator = "HELLFIRE_RED" },
         selected  = { border = "ARCANE_PURPLE",indicator = nil },
-        wishlisted= { border = "EPIC_PURPLE",  indicator = "EPIC_PURPLE" },
     },
     INDICATOR_ICONS = {
         bis       = { icon = "Interface\\RAIDFRAME\\ReadyCheck-Ready", symbol = "★" },
@@ -7543,7 +7676,6 @@ C.ARMORY_SLOT_BUTTON = {
         minor     = { icon = "Interface\\BUTTONS\\UI-MicroStream-Green", symbol = "↑" },
         upgrade   = { icon = "Interface\\BUTTONS\\UI-MicroStream-Yellow", symbol = "↑↑" },
         major     = { icon = "Interface\\DialogFrame\\UI-Dialog-Icon-AlertNew", symbol = "!!" },
-        wishlisted= { icon = "Interface\\BUTTONS\\UI-GroupLoot-Coin-Up", symbol = "♥" },
         tier      = { icon = "Interface\\ICONS\\INV_Misc_Token_SoulTrader", symbol = "T" },
     },
 }
@@ -7609,6 +7741,39 @@ C.ARMORY_INFO_CARD = {
     -- Glow overlay for hover effect
     GLOW_INTENSITY = 0.6,
 
+    -- iLvl vs Average thresholds for grade system
+    -- Compares slot iLvl to player's average equipped iLvl
+    THRESHOLD_EXCELLENT = 10,   -- >=+10 above average (epic purple)
+    THRESHOLD_GOOD = 3,         -- +3 to +9 above average (rare blue)
+    THRESHOLD_UPGRADE = -3,     -- -3 to -9 below average (common white)
+    THRESHOLD_URGENT = -10,     -- <=-10 below average (poor grey/red)
+    -- Note: -2 to +2 = OKAY (uncommon green)
+
+    -- Grade indicator icons and colors (traffic light style)
+    -- Uses WoW's built-in indicator textures with vertex coloring
+    GRADE_ICONS = {
+        EXCELLENT = {
+            icon = "Interface\\COMMON\\Indicator-Green",  -- Will be recolored purple
+            color = { r = 0.64, g = 0.21, b = 0.93 },     -- Epic purple
+        },
+        GOOD = {
+            icon = "Interface\\COMMON\\Indicator-Green",  -- Will be recolored blue
+            color = { r = 0.00, g = 0.70, b = 1.00 },     -- Bright blue
+        },
+        OKAY = {
+            icon = "Interface\\COMMON\\Indicator-Green",  -- Native green
+            color = { r = 0.12, g = 1.00, b = 0.00 },     -- Uncommon green
+        },
+        UPGRADE = {
+            icon = "Interface\\COMMON\\Indicator-Yellow", -- Native yellow
+            color = { r = 1.00, g = 0.82, b = 0.00 },     -- Yellow/gold
+        },
+        URGENT = {
+            icon = "Interface\\COMMON\\Indicator-Red",    -- Native red
+            color = { r = 1.00, g = 0.20, b = 0.20 },     -- Bright red
+        },
+    },
+
     -- Card position offsets by slot (relative to slot button)
     -- LEFT column slots: cards extend LEFT (negative X)
     -- RIGHT column slots: cards extend RIGHT (positive X)
@@ -7651,7 +7816,6 @@ C.ARMORY_FOOTER = {
     STAT_GAP = 30,
     STATS = {
         { id = "avgIlvl",       label = "Avg iLvl:",    format = "%d" },
-        { id = "upgradesAvail", label = "Upgrades:",    format = "%d slots" },
     },
     BACKDROP = {
         bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
@@ -7724,7 +7888,6 @@ C.ARMORY_UPGRADE_CARD = {
     STATS_OFFSET = { x = 64, y = -44 },
     SOURCE_OFFSET = { x = 64, y = -60 },
     UPGRADE_BADGE_OFFSET = { x = -10, y = -12 },
-    WISHLIST_OFFSET = { x = -10, y = -45 },
     RANK_BADGE_WIDTH = 45,
     RANK_BADGE_HEIGHT = 18,
     RANK_COLORS = {
@@ -7733,9 +7896,6 @@ C.ARMORY_UPGRADE_CARD = {
     },
     UPGRADE_BADGE_WIDTH = 50,
     UPGRADE_BADGE_HEIGHT = 20,
-    WISHLIST_SIZE = 24,
-    WISHLIST_ICON_ON = "Interface\\ICONS\\INV_ValentinesCard02",
-    WISHLIST_ICON_OFF = "Interface\\ICONS\\INV_ValentinesCard01",
     BACKDROP = {
         bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
@@ -7826,10 +7986,14 @@ C.ARMORY_ASSETS = {
 C.BOSS_LOOT_POPUP = {
     -- Dimensions
     WIDTH = 380,
+    MIN_HEIGHT = 200,
     MAX_HEIGHT = 450,
     HEADER_HEIGHT = 44,
+    INFO_SECTION_HEIGHT = 50,
+    FOOTER_HEIGHT = 28,
     PADDING = 12,
     ROW_HEIGHT = 44,
+    ROW_GAP = 4,
     ICON_SIZE = 36,
     BIS_STAR_SIZE = 14,
     BIS_COLOR = { r = 1, g = 0.84, b = 0 },  -- Gold star for BiS
@@ -7851,6 +8015,44 @@ C.BOSS_LOOT_POPUP = {
         rare = { r = 0.0, g = 0.44, b = 0.87 },
         epic = { r = 0.64, g = 0.21, b = 0.93 },
         legendary = { r = 1.0, g = 0.5, b = 0.0 },
+    },
+}
+
+-- Reputation Loot Popup (similar to boss loot popup)
+C.REPUTATION_LOOT_POPUP = {
+    -- Dimensions
+    WIDTH = 400,
+    MIN_HEIGHT = 250,
+    MAX_HEIGHT = 500,
+    HEADER_HEIGHT = 50,
+    TIER_HEADER_HEIGHT = 24,
+    FOOTER_HEIGHT = 32,
+    PADDING = 12,
+    ROW_HEIGHT = 40,
+    ROW_GAP = 3,
+    ICON_SIZE = 32,
+    CHECKBOX_SIZE = 20,
+    TRACKED_STAR_SIZE = 14,
+    GOAL_COLOR = { r = 1, g = 0.84, b = 0 },  -- Gold for goal item
+
+    -- Backdrop styling
+    BACKDROP = {
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
+        edgeSize = 16,
+        insets = { left = 4, right = 4, top = 4, bottom = 4 },
+    },
+    BG_COLOR = { r = 0.08, g = 0.06, b = 0.04, a = 0.95 },
+    BORDER_COLOR = { r = 0.8, g = 0.7, b = 0.3, a = 1 },
+
+    -- Quality colors for loot items
+    QUALITY_COLORS = {
+        [0] = { r = 0.62, g = 0.62, b = 0.62 },  -- Poor (grey)
+        [1] = { r = 1.0, g = 1.0, b = 1.0 },     -- Common (white)
+        [2] = { r = 0.12, g = 1.0, b = 0.0 },    -- Uncommon (green)
+        [3] = { r = 0.0, g = 0.44, b = 0.87 },   -- Rare (blue)
+        [4] = { r = 0.64, g = 0.21, b = 0.93 },  -- Epic (purple)
+        [5] = { r = 1.0, g = 0.5, b = 0.0 },     -- Legendary (orange)
     },
 }
 
@@ -8605,7 +8807,7 @@ C.CALENDAR_TIMINGS = {
     NOTIFICATION_CHECK_INTERVAL = 60,  -- seconds
     NOTIFICATION_1HR = 3600,           -- 1 hour in seconds
     NOTIFICATION_15MIN = 900,          -- 15 min in seconds
-    EVENT_EXPIRY_HOURS = 24,           -- hours after event ends
+    EVENT_EXPIRY_HOURS = 720,          -- 30 days after event ends (720 hours)
     MAX_TEMPLATES = 10,                -- max saved templates per character
 }
 
@@ -8626,8 +8828,8 @@ C.CALENDAR_UI = {
     EVENT_CARD_HEIGHT = 50,            -- Increased for color stripe
     EVENT_CARD_SPACING = 4,
     DAY_PANEL_HEIGHT = 200,
-    DETAIL_POPUP_WIDTH = 380,          -- Wider for role columns
-    DETAIL_POPUP_HEIGHT = 480,         -- Taller for matrix UI + needs bar
+    DETAIL_POPUP_WIDTH = 420,          -- Wider for info cards layout
+    DETAIL_POPUP_HEIGHT = 500,         -- Taller for improved sections
     CREATE_POPUP_WIDTH = 400,
     CREATE_POPUP_HEIGHT = 560,         -- Taller for template dropdown
     DAY_NAMES = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" },
@@ -8635,7 +8837,7 @@ C.CALENDAR_UI = {
                    "July", "August", "September", "October", "November", "December" },
 }
 
--- Calendar slot-based event indicators
+-- Calendar slot-based event indicators (colored squares in day cells)
 C.CALENDAR_SLOT_UI = {
     SLOT_SIZE = 10,           -- 10x10px squares
     SLOT_SPACING = 2,         -- Gap between squares
@@ -8644,6 +8846,74 @@ C.CALENDAR_SLOT_UI = {
     SERVER_ROW_Y = 14,        -- Y offset from slot container bottom for server row
     GUILD_ROW_Y = 2,          -- Y offset from slot container bottom for guild row
     OVERFLOW_FONT_SIZE = 8,   -- Font size for "+N" overflow indicator
+}
+
+-- Mini event cards for calendar day cells
+-- Each event displays as a small horizontal card with icon, time, and title
+C.CALENDAR_MINI_CARD = {
+    WIDTH = 60,               -- Card width in pixels
+    HEIGHT = 14,              -- Card height in pixels
+    ICON_SIZE = 10,           -- Event type icon size
+    STRIPE_WIDTH = 3,         -- Left color stripe width
+    TIME_WIDTH = 28,          -- Width allocated for time text
+    SPACING = 1,              -- Vertical spacing between cards
+    MAX_VISIBLE = 6,          -- Max cards before showing overflow
+    BASE_CELL_HEIGHT = 30,    -- Day number + padding (minimum)
+    MAX_CELL_HEIGHT = 110,    -- Maximum cell height
+}
+
+-- Event priority for display order in calendar cells
+-- Lower number = higher priority (shown first)
+C.CALENDAR_EVENT_PRIORITY = {
+    SERVER = 1,               -- Server events always first
+    RAID = 2,                 -- Raids second
+    DUNGEON = 3,              -- Dungeons third
+    RP_EVENT = 4,             -- RP events fourth
+    OTHER = 5,                -- Everything else last
+}
+
+-- Continuous week calendar view settings
+C.CALENDAR_WEEK_VIEW = {
+    WEEK_ROW_HEIGHT = 70,     -- Height of each week row
+    WEEKS_TO_SHOW = 8,        -- Number of weeks to display
+    DAY_CELL_WIDTH = 68,      -- Width of each day cell in week view
+    DAY_CELL_SPACING = 2,     -- Spacing between cells
+    SCROLL_HEIGHT = 500,      -- Scroll frame height
+}
+
+-- Day events popup dimensions (shown when clicking a day)
+C.CALENDAR_DAY_POPUP = {
+    WIDTH = 320,
+    HEIGHT = 350,
+    EVENT_CARD_HEIGHT = 50,
+    EVENT_CARD_SPACING = 4,
+}
+
+-- Unified day popup dimensions (master-detail view)
+C.CALENDAR_UNIFIED_POPUP = {
+    WIDTH = 680,
+    HEIGHT = 520,
+    LEFT_PANEL_WIDTH = 220,
+    DIVIDER_WIDTH = 2,
+    RIGHT_PANEL_WIDTH = 440,
+    EVENT_CARD_HEIGHT = 60,
+    EVENT_CARD_SPACING = 4,
+}
+
+-- Month header colors for first-of-month display
+C.CALENDAR_MONTH_COLORS = {
+    [1]  = { r = 0.7, g = 0.85, b = 1.0, name = "January" },     -- Icy blue (winter)
+    [2]  = { r = 1.0, g = 0.4, b = 0.6, name = "February" },     -- Pink (love)
+    [3]  = { r = 0.4, g = 0.9, b = 0.4, name = "March" },        -- Green (spring)
+    [4]  = { r = 0.6, g = 0.8, b = 1.0, name = "April" },        -- Light blue (rain)
+    [5]  = { r = 1.0, g = 0.95, b = 0.4, name = "May" },         -- Yellow (flowers)
+    [6]  = { r = 1.0, g = 0.6, b = 0.2, name = "June" },         -- Orange (summer)
+    [7]  = { r = 1.0, g = 0.3, b = 0.3, name = "July" },         -- Red (hot)
+    [8]  = { r = 1.0, g = 0.7, b = 0.0, name = "August" },       -- Golden (harvest)
+    [9]  = { r = 0.8, g = 0.5, b = 0.2, name = "September" },    -- Brown (autumn)
+    [10] = { r = 1.0, g = 0.5, b = 0.0, name = "October" },      -- Orange (halloween)
+    [11] = { r = 0.6, g = 0.4, b = 0.2, name = "November" },     -- Brown (thanksgiving)
+    [12] = { r = 0.3, g = 0.6, b = 0.9, name = "December" },     -- Blue (winter)
 }
 
 C.CALENDAR_EVENT_TYPES = {
@@ -8670,16 +8940,21 @@ C.CALENDAR_ROLES = {
 }
 
 C.CALENDAR_RAID_OPTIONS = {
-    { name = "Karazhan", key = "karazhan", size = 10 },
-    { name = "Gruul's Lair", key = "gruul", size = 25 },
-    { name = "Magtheridon's Lair", key = "magtheridon", size = 25 },
-    { name = "Serpentshrine Cavern", key = "ssc", size = 25 },
-    { name = "Tempest Keep", key = "tk", size = 25 },
-    { name = "Hyjal Summit", key = "hyjal", size = 25 },
-    { name = "Black Temple", key = "bt", size = 25 },
-    { name = "Zul'Aman", key = "za", size = 10 },
-    { name = "Sunwell Plateau", key = "sunwell", size = 25 },
-    { name = "Custom", key = "custom" },
+    -- TBC Raids
+    { name = "Karazhan (10-man)", key = "karazhan", size = 10, eventType = "RAID" },
+    { name = "Gruul's Lair (25-man)", key = "gruul", size = 25, eventType = "RAID" },
+    { name = "Magtheridon's Lair (25-man)", key = "magtheridon", size = 25, eventType = "RAID" },
+    { name = "Serpentshrine Cavern (25-man)", key = "ssc", size = 25, eventType = "RAID" },
+    { name = "Tempest Keep (25-man)", key = "tk", size = 25, eventType = "RAID" },
+    { name = "Hyjal Summit (25-man)", key = "hyjal", size = 25, eventType = "RAID" },
+    { name = "Black Temple (25-man)", key = "bt", size = 25, eventType = "RAID" },
+    { name = "Zul'Aman (10-man)", key = "za", size = 10, eventType = "RAID" },
+    { name = "Sunwell Plateau (25-man)", key = "sunwell", size = 25, eventType = "RAID" },
+    -- Dungeon Options
+    { name = "Dungeon Spamming (5-man)", key = "dungeon_spam", size = 5, eventType = "DUNGEON" },
+    { name = "Character Leveling (5-man)", key = "char_leveling", size = 5, eventType = "DUNGEON" },
+    -- Custom
+    { name = "Custom Event", key = "custom", eventType = "OTHER" },
 }
 
 C.CALENDAR_RAID_SIZES = {
@@ -8692,6 +8967,25 @@ C.CALENDAR_SIGNUP_STATUS = {
     DECLINED = { name = "Declined", icon = "Interface\\RAIDFRAME\\ReadyCheck-NotReady" },
     TENTATIVE = { name = "Tentative", icon = "Interface\\RAIDFRAME\\ReadyCheck-Waiting" },
     PENDING = { name = "Pending", icon = "Interface\\Icons\\INV_Misc_QuestionMark" },
+}
+
+-- Custom event color presets for calendar events
+C.CALENDAR_EVENT_COLOR_PRESETS = {
+    { name = "Default", key = "default" },  -- Uses event type color
+    { name = "Orange", key = "orange", color = { r = 1.0, g = 0.5, b = 0.0 } },
+    { name = "Blue", key = "blue", color = { r = 0.0, g = 0.7, b = 1.0 } },
+    { name = "Purple", key = "purple", color = { r = 0.8, g = 0.2, b = 0.8 } },
+    { name = "Green", key = "green", color = { r = 0.2, g = 0.8, b = 0.2 } },
+    { name = "Red", key = "red", color = { r = 0.8, g = 0.2, b = 0.2 } },
+    { name = "Gold", key = "gold", color = { r = 1.0, g = 0.84, b = 0.0 } },
+    { name = "Teal", key = "teal", color = { r = 0.0, g = 0.8, b = 0.6 } },
+}
+
+-- Roster status for finalized event rosters (set by event creator)
+C.CALENDAR_ROSTER_STATUS = {
+    TEAM = { name = "In Team", color = { r = 0.2, g = 0.8, b = 0.2 }, icon = "+" },
+    ALTERNATE = { name = "Alternate", color = { r = 1.0, g = 0.84, b = 0.0 }, icon = "~" },
+    DECLINED = { name = "Declined", color = { r = 0.8, g = 0.2, b = 0.2 }, icon = "-" },
 }
 
 -- ============================================================================
@@ -8726,8 +9020,10 @@ C.CALENDAR_VALIDATION = {
         date = "YYYY-MM-DD",        -- Date string
         startTime = "HH:MM",        -- Start time (or "All Day" for all-day events)
         description = "...",        -- Event description (no length limit)
-        icon = "Icon_Name",         -- Icon texture name (without Interface\\Icons\\)
+        icon = "Icon_Name",         -- Icon texture path (full path)
         permanent = false,          -- true = repeating yearly, false = one-time
+        backgroundTexture = "...",  -- (Optional) Texture path for themed day background
+        themeColor = { r, g, b },   -- (Optional) Theme color for border/tint
     }
 ]]
 C.SERVER_EVENTS = {
@@ -8736,11 +9032,13 @@ C.SERVER_EVENTS = {
         id = "dark_portal_opening",
         title = "The Dark Portal Opens",
         eventType = "SERVER",
-        date = "2007-01-16",
+        date = "2026-02-05",
         startTime = "00:01",
         description = "The Dark Portal has reopened! Journey through to Outland awaits all heroes of Azeroth. Speak with your faction's representative in the Blasted Lands to begin your adventure.",
-        icon = "Interface\\Icons\\Spell_Shadow_DeathPact",
+        icon = "Interface\\Icons\\Spell_Arcane_PortalUndercity",
         permanent = false,
+        backgroundTexture = "Interface\\Icons\\Spell_Arcane_PortalUndercity",
+        themeColor = { r = 0.4, g = 0.8, b = 0.2 },  -- Fel green
     },
     -- Test event for verifying server event display (remove after testing)
     {
@@ -8752,6 +9050,8 @@ C.SERVER_EVENTS = {
         description = "Weekly server maintenance. Expect approximately 2 hours of downtime.",
         icon = "Interface\\Icons\\Spell_Holy_Resurrection",
         permanent = false,
+        backgroundTexture = "Interface\\Icons\\Spell_Holy_Resurrection",
+        themeColor = { r = 1, g = 0.84, b = 0 },  -- Gold
     },
     -- Add future server events here as needed
     -- Example format for a future event:
@@ -8945,7 +9245,27 @@ function C:FormatBannerTime(timeStr)
     if timeStr == "WEEKLY_RESET" then
         return "Weekly Reset"
     end
-    return timeStr
+
+    -- Convert 24h format to 12h AM/PM PST format
+    local hour, minute = timeStr:match("^(%d+):(%d+)$")
+    if not hour then return timeStr end
+
+    hour = tonumber(hour)
+    local ampm = "AM"
+    local displayHour = hour
+
+    if hour == 0 then
+        displayHour = 12
+        ampm = "AM"
+    elseif hour == 12 then
+        displayHour = 12
+        ampm = "PM"
+    elseif hour > 12 then
+        displayHour = hour - 12
+        ampm = "PM"
+    end
+
+    return string.format("%d:%s %s PST", displayHour, minute, ampm)
 end
 
 -- ============================================================================
@@ -8958,6 +9278,79 @@ C.JOURNEY_NEXT_EVENT = {
     ICON_SIZE = 36,
     BORDER_WIDTH = 2,
 }
+
+-- Upcoming Event Card Configuration
+C.JOURNEY_UPCOMING_CARD = {
+    CONTAINER_HEIGHT = 85,    -- Same as NEXT EVENT
+    ICON_SIZE = 36,           -- Same as NEXT EVENT
+    BORDER_WIDTH = 2,
+    MAX_EVENTS = 3,           -- Max cards to show
+    CARD_SPACING = 8,
+}
+
+-- Raid-specific icons (mapped by raidKey)
+C.CALENDAR_RAID_ICONS = {
+    karazhan = "Interface\\Icons\\INV_Misc_Key_10",
+    gruul = "Interface\\Icons\\Ability_Hunter_Pet_Devilsaur",
+    magtheridon = "Interface\\Icons\\Spell_Shadow_SummonFelGuard",
+    ssc = "Interface\\Icons\\Spell_Frost_SummonWaterElemental",
+    tk = "Interface\\Icons\\Spell_Fire_BurnoutGreen",
+    hyjal = "Interface\\Icons\\INV_Potion_101",
+    bt = "Interface\\Icons\\INV_Weapon_Glaive_01",
+    za = "Interface\\Icons\\Spell_Nature_BloodLust",
+    sunwell = "Interface\\Icons\\Spell_Fire_FelFlameRing",
+}
+
+-- Color themes for event cards (by eventType)
+C.CALENDAR_EVENT_CARD_THEMES = {
+    RAID = {
+        bg = { r = 0.25, g = 0.12, b = 0.02, a = 0.95 },
+        border = { r = 1.0, g = 0.5, b = 0.0, a = 1.0 },
+        title = { r = 1.0, g = 0.6, b = 0.2, a = 1.0 },
+        text = { r = 0.95, g = 0.85, b = 0.70, a = 1.0 },
+    },
+    DUNGEON = {
+        bg = { r = 0.02, g = 0.12, b = 0.25, a = 0.95 },
+        border = { r = 0.0, g = 0.7, b = 1.0, a = 1.0 },
+        title = { r = 0.3, g = 0.8, b = 1.0, a = 1.0 },
+        text = { r = 0.70, g = 0.90, b = 0.95, a = 1.0 },
+    },
+    RP_EVENT = {
+        bg = { r = 0.20, g = 0.05, b = 0.20, a = 0.95 },
+        border = { r = 0.8, g = 0.2, b = 0.8, a = 1.0 },
+        title = { r = 0.9, g = 0.4, b = 0.9, a = 1.0 },
+        text = { r = 0.90, g = 0.75, b = 0.90, a = 1.0 },
+    },
+    OTHER = {
+        bg = { r = 0.12, g = 0.12, b = 0.12, a = 0.95 },
+        border = { r = 0.6, g = 0.6, b = 0.6, a = 1.0 },
+        title = { r = 0.8, g = 0.8, b = 0.8, a = 1.0 },
+        text = { r = 0.70, g = 0.70, b = 0.70, a = 1.0 },
+    },
+    SERVER = {
+        bg = { r = 0.20, g = 0.16, b = 0.06, a = 0.95 },
+        border = { r = 1.0, g = 0.84, b = 0.0, a = 1.0 },
+        title = { r = 1.0, g = 0.84, b = 0.0, a = 1.0 },
+        text = { r = 0.95, g = 0.90, b = 0.70, a = 1.0 },
+    },
+}
+
+-- Get icon for calendar event (raidKey > eventType > fallback)
+function C:GetCalendarEventIcon(event)
+    if event.raidKey and C.CALENDAR_RAID_ICONS[event.raidKey] then
+        return C.CALENDAR_RAID_ICONS[event.raidKey]
+    end
+    local eventTypeData = C.CALENDAR_EVENT_TYPES[event.eventType]
+    if eventTypeData and eventTypeData.icon then
+        return eventTypeData.icon
+    end
+    return "Interface\\Icons\\INV_Misc_QuestionMark"
+end
+
+-- Get color theme for event card
+function C:GetCalendarEventTheme(eventType)
+    return C.CALENDAR_EVENT_CARD_THEMES[eventType] or C.CALENDAR_EVENT_CARD_THEMES.OTHER
+end
 
 -- Get next upcoming app-wide event (or most recent if all passed)
 function C:GetNextAppWideEvent()

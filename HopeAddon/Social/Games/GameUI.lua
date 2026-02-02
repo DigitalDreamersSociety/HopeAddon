@@ -21,9 +21,12 @@ GameUI.WINDOW_SIZES = {
     LARGE = { width = 600, height = 500 },
     PONG = { width = 500, height = 400 },
     TETRIS = { width = 700, height = 550 },
-    TETRIS_REMOTE = { width = 480, height = 520 },  -- Single board + opponent panel for Score Challenge
+    TETRIS_REMOTE = { width = 500, height = 560 },  -- Single board + opponent panel for Score Challenge
     WORDS = { width = 700, height = 750 },  -- Larger for graphical tiles + tile rack + hint system
-    BATTLESHIP = { width = 700, height = 680 },  -- Two 10x10 grids + instructions + announcements area
+    BATTLESHIP = { width = 850, height = 760 },  -- Two 10x10 grids + side panels + instructions + announcements area
+    PACMAN = { width = 420, height = 500 },
+    PACMAN_CHALLENGE = { width = 540, height = 520 },  -- Pac-Man + opponent panel for Score Challenge
+    PONG_CHALLENGE = { width = 620, height = 400 },  -- Pong + opponent panel for Score Challenge
 }
 
 -- Centralized font constants for game UIs (L3 fix)
@@ -132,13 +135,11 @@ function GameUI:OnDisable()
 
     -- Fix #8: Clear invite dialog closures before destroying
     if self.inviteDialog then
-        -- Clear button scripts that capture dialog reference
+        -- Clear button scripts that capture dialog reference (use pcall for safety)
         for _, child in ipairs({self.inviteDialog:GetChildren()}) do
-            if child.SetScript then
-                child:SetScript("OnClick", nil)
-                child:SetScript("OnEnter", nil)
-                child:SetScript("OnLeave", nil)
-            end
+            pcall(child.SetScript, child, "OnClick", nil)
+            pcall(child.SetScript, child, "OnEnter", nil)
+            pcall(child.SetScript, child, "OnLeave", nil)
         end
         self.inviteDialog:Hide()
         self.inviteDialog:SetParent(nil)
@@ -272,6 +273,7 @@ end
 function GameUI:DestroyGameWindow(gameId)
     local window = self.gameWindows[gameId]
     if window then
+        window:SetScript("OnKeyDown", nil)
         window:Hide()
         window:SetParent(nil)
         self.gameWindows[gameId] = nil
@@ -428,9 +430,9 @@ function GameUI:ShowInviteDialog(sender, gameType, betAmount)
     -- Update text
     local gameNames = {
         DEATH_ROLL = "Death Roll",
-        PONG = "Pong",
-        TETRIS = "Tetris Battle",
-        WORDS = "Words with WoW",
+        PONG = "Pong of War",
+        TETRIS = "Wowtris",
+        WORDS = "WoWdle",
     }
     local gameName = gameNames[gameType] or gameType
 
@@ -693,6 +695,12 @@ function GameUI:UpdateOpponentStatus(gameId, score, lines, level, status)
     local PongGame = HopeAddon:GetModule("PongGame")
     if PongGame and PongGame.UpdateOpponentPanel then
         PongGame:UpdateOpponentPanel(gameId, score, lines, level, status)
+    end
+
+    -- Try PacManGame
+    local PacManGame = HopeAddon:GetModule("PacManGame")
+    if PacManGame and PacManGame.UpdateOpponentPanel then
+        PacManGame:UpdateOpponentPanel(gameId, score, lines, level, status)
     end
 end
 

@@ -18,16 +18,16 @@ local WordleGame = HopeAddon.WordleGame
 local function GetUI()
     local C = HopeAddon.Constants
     return C and C.WORDLE_UI or {
-        WINDOW_WIDTH = 420,
-        WINDOW_HEIGHT = 680,
+        WINDOW_WIDTH = 460,
+        WINDOW_HEIGHT = 720,
         BOX_SIZE = 56,
         BOX_GAP = 8,
-        GRID_TOP = -60,
+        GRID_TOP = -100,
         KEY_WIDTH = 36,
         KEY_HEIGHT = 52,
         KEY_GAP = 6,
-        KEYBOARD_TOP = -460,
-        TOAST_TOP = -60,
+        KEYBOARD_TOP = -500,
+        TOAST_TOP = -100,
         STATUS_BOTTOM = 15,
         TOAST_PADDING = 32,
         LETTER_FONT_SIZE = 28,
@@ -70,6 +70,7 @@ WordleGame.ui = {
     keyboardKeys = {},      -- [letter] = key button
     statusText = nil,       -- Status line
     title = nil,            -- Title text
+    hintBtn = nil,          -- Hint button
     -- Issue #28: Track animation timers for cleanup
     animationTimers = {},   -- Array of timer handles for cancellation
 }
@@ -98,6 +99,9 @@ function WordleGame:ShowUI(gameId)
 
     -- Update with current game state
     self:UpdateUI(gameId)
+
+    -- Update hint button state
+    self:UpdateHintButton()
 
     -- Show frame
     self.ui.frame:Show()
@@ -151,7 +155,7 @@ function WordleGame:CreateMainFrame()
     -- Title (combined header section)
     local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("TOP", frame, "TOP", 0, -12)
-    title:SetText("|cFF6AAA64W|cFFC9B458o|cFF787C7EW|r |cFFFFD700Wordle|r")
+    title:SetText("|cFF6AAA64W|cFFC9B458o|cFF787C7EW|cFFFFD700dle|r")
     self.ui.title = title
 
     -- Close button
@@ -173,6 +177,43 @@ function WordleGame:CreateMainFrame()
     headerLine:SetSize(UI.WINDOW_WIDTH - 40, 1)
     headerLine:SetPoint("TOP", subtitle, "BOTTOM", 0, -8)
     self.ui.headerLine = headerLine
+
+    -- Hint button (positioned below header separator)
+    local hintBtn = CreateFrame("Button", nil, frame, "BackdropTemplate")
+    hintBtn:SetSize(90, 28)
+    hintBtn:SetPoint("TOP", headerLine, "BOTTOM", 0, -10)
+    hintBtn:RegisterForClicks("AnyUp")
+    hintBtn:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Buttons\\WHITE8x8",
+        edgeSize = 1,
+    })
+    hintBtn:SetBackdropColor(0.2, 0.5, 0.3, 1)  -- Green tint
+    hintBtn:SetBackdropBorderColor(0.4, 0.8, 0.4, 1)
+
+    local hintText = hintBtn:CreateFontString(nil, "OVERLAY")
+    hintText:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+    hintText:SetPoint("CENTER")
+    hintText:SetText("|cFFFFFFFFHint (2)|r")
+    hintBtn.text = hintText
+
+    hintBtn:SetScript("OnClick", function()
+        WordleGame:UseHint(WordleGame.currentGameId)
+    end)
+
+    -- Hover effects (only when enabled)
+    hintBtn:SetScript("OnEnter", function(self)
+        if self:IsEnabled() then
+            self:SetBackdropColor(0.3, 0.6, 0.4, 1)
+        end
+    end)
+    hintBtn:SetScript("OnLeave", function(self)
+        if self:IsEnabled() then
+            self:SetBackdropColor(0.2, 0.5, 0.3, 1)
+        end
+    end)
+
+    self.ui.hintBtn = hintBtn
 
     -- Create letter grid
     self:CreateLetterGrid(frame)
@@ -618,6 +659,9 @@ function WordleGame:UpdateUI(gameId)
     end
 
     self.ui.statusText:SetText(statusText)
+
+    -- Update hint button state
+    self:UpdateHintButton()
 end
 
 --[[
@@ -625,6 +669,15 @@ end
 ]]
 function WordleGame:ResetUIState()
     local COLORS = GetColors()
+
+    -- Issue #28: Clear previous animation timers to prevent accumulation across games
+    if self.ui.animationTimers then
+        for _, timer in ipairs(self.ui.animationTimers) do
+            if timer and timer.Cancel then timer:Cancel() end
+        end
+        wipe(self.ui.animationTimers)
+    end
+    self.ui.animationTimers = {}
 
     -- Clear all letter boxes
     for row = 1, self.MAX_GUESSES do
@@ -1091,6 +1144,35 @@ function WordleGame:UpdateStatusText(gameId)
     end
 
     self.ui.statusText:SetText(statusText)
+end
+
+--[[
+    Update hint button state based on game state
+]]
+function WordleGame:UpdateHintButton()
+    if not self.ui.hintBtn then return end
+
+    local game = self:GetCurrentGame()
+    if not game or game.state ~= self.STATE.PLAYING then
+        -- Game not active - disable hint button
+        self.ui.hintBtn:SetAlpha(0.3)
+        self.ui.hintBtn:Disable()
+        self.ui.hintBtn:SetBackdropColor(0.3, 0.3, 0.3, 1)  -- Grey when disabled
+        self.ui.hintBtn.text:SetText("|cFF888888No Hints|r")
+        return
+    end
+
+    local hintsRemaining = 2 - (game.hintsUsed or 0)
+    if hintsRemaining > 0 then
+        self.ui.hintBtn:SetAlpha(1)
+        self.ui.hintBtn:Enable()
+        self.ui.hintBtn.text:SetText("|cFFFFFFFFHint (" .. hintsRemaining .. ")|r")
+    else
+        self.ui.hintBtn:SetAlpha(0.3)
+        self.ui.hintBtn:Disable()
+        self.ui.hintBtn:SetBackdropColor(0.3, 0.3, 0.3, 1)  -- Grey when disabled
+        self.ui.hintBtn.text:SetText("|cFF888888No Hints|r")
+    end
 end
 
 --============================================================

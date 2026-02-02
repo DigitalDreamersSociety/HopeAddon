@@ -547,7 +547,7 @@ end
     Routes to the correct module based on game type.
 
     @param targetName string - Player to challenge
-    @param gameId string - Game ID (rps, deathroll, pong, tetris, words, battleship)
+    @param gameId string - Game ID (rps, deathroll, pong, tetris, battleship)
     @param betAmount number|nil - Optional bet for death roll
     @return boolean - True if challenge was sent
 ]]
@@ -573,15 +573,22 @@ function HopeAddon:SendChallenge(targetName, gameId, betAmount)
             GameComms:SendInvite(targetName, "DEATH_ROLL", betAmount or 0)
             return true
         end
-    -- Tetris and Pong use Score Challenge for remote play
-    elseif gameId == "tetris" or gameId == "pong" then
+    -- Tetris uses Score Challenge for remote play
+    elseif gameId == "tetris" then
         local ScoreChallenge = self:GetModule("ScoreChallenge")
         if ScoreChallenge then
-            ScoreChallenge:StartChallenge(targetName, gameId:upper())
+            ScoreChallenge:StartChallenge(targetName, "TETRIS")
             return true
         end
-    -- Words and Battleship use GameComms
-    elseif gameId == "words" or gameId == "battleship" then
+    -- Pong uses GameComms for true head-to-head play
+    elseif gameId == "pong" then
+        local GameComms = self:GetModule("GameComms")
+        if GameComms then
+            GameComms:SendInvite(targetName, "PONG", 0)
+            return true
+        end
+    -- Battleship uses GameComms
+    elseif gameId == "battleship" then
         local GameComms = self:GetModule("GameComms")
         if GameComms then
             GameComms:SendInvite(targetName, gameId:upper(), 0)
@@ -592,6 +599,13 @@ function HopeAddon:SendChallenge(targetName, gameId, betAmount)
         local WordleGame = self:GetModule("WordleGame")
         if WordleGame then
             WordleGame:SendChallenge(targetName)
+            return true
+        end
+    -- Pac-Man uses Score Challenge for remote play
+    elseif gameId == "pacman" then
+        local ScoreChallenge = self:GetModule("ScoreChallenge")
+        if ScoreChallenge then
+            ScoreChallenge:StartChallenge(targetName, "PACMAN")
             return true
         end
     else
@@ -861,6 +875,23 @@ function HopeAddon:GetPlayerSpec()
         end
     end
 
+    -- Special handling for Druid Feral: Distinguish Bear (Tank) vs Cat (DPS)
+    local _, classToken = UnitClass("player")
+    if classToken == "DRUID" and specTab == 2 then
+        -- Check for Thick Hide (Feral Tab, Tier 1, Talent 5) - Bear tank talent
+        -- Bears take Thick Hide for the armor bonus; Cat DPS rarely take it
+        -- TBC Classic: GetTalentInfo(tabIndex, talentIndex) returns name, iconPath, tier, column, currentRank, maxRank
+        local _, _, _, _, thickHidePoints = GetTalentInfo(2, 5)
+
+        -- If no Thick Hide points, treat as Cat DPS (spec 4)
+        if (thickHidePoints or 0) == 0 then
+            specTab = 4
+            specName = "Feral (Cat)"
+        else
+            specName = "Feral (Bear)"
+        end
+    end
+
     return specName, specTab, maxPoints
 end
 
@@ -1008,6 +1039,7 @@ eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:RegisterEvent("PLAYER_LOGOUT")
 eventFrame:RegisterEvent("PLAYER_REGEN_DISABLED")  -- Combat start
 eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")   -- Combat end
+eventFrame:RegisterEvent("PLAYER_TALENT_UPDATE")   -- Dual spec switch
 
 eventFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "ADDON_LOADED" then
@@ -1023,6 +1055,8 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         HopeAddon:OnCombatStart()
     elseif event == "PLAYER_REGEN_ENABLED" then
         HopeAddon:OnCombatEnd()
+    elseif event == "PLAYER_TALENT_UPDATE" then
+        HopeAddon:OnTalentUpdate()
     end
 end)
 
@@ -1075,10 +1109,11 @@ function HopeAddon:MigrateCharacterData()
     db.reputation = db.reputation or {}
     db.reputation.milestones = db.reputation.milestones or {}
     db.reputation.currentStandings = db.reputation.currentStandings or {}
+    db.reputation.trackedItems = db.reputation.trackedItems or {}
+    -- goalItem can be nil, no need to initialize
 
     -- Ensure armory structure exists
     db.armory = db.armory or {}
-    db.armory.wishlist = db.armory.wishlist or {}
     db.armory.expandedSections = db.armory.expandedSections or {}
 
     -- Migrate old selectedTier (4-6) to new selectedPhase (1-5)
@@ -1196,6 +1231,13 @@ function HopeAddon:OnPlayerLogin()
         local name = UnitName("player")
         local level = UnitLevel("player")
         self:Print("Welcome back, " .. name .. "! (Level " .. level .. ")")
+    end
+
+    -- Warmup reputation BiS item cache for icon resolution
+    -- This queues GetItemInfo() calls so icons are available when Reputation tab opens
+    if HopeAddon.Constants and HopeAddon.Constants.WarmupReputationItemCache then
+        local count = HopeAddon.Constants:WarmupReputationItemCache()
+        self:Debug("Warmed up " .. count .. " reputation items for icon cache")
     end
 end
 
@@ -1327,6 +1369,30 @@ function HopeAddon:IsUIHiddenForCombat()
 end
 
 --[[
+    Talent Update Handler
+    Called when player switches specs (dual spec) to refresh gear recommendations
+]]
+function HopeAddon:OnTalentUpdate()
+    -- Refresh Armory UI if it's loaded and visible
+    local Armory = self.Armory
+    if Armory and Armory.mainFrame and Armory.mainFrame:IsShown() then
+        if Armory.RefreshDisplay then
+            Armory:RefreshDisplay()
+        end
+    end
+
+    -- Refresh Journal gear tab if visible
+    local Journal = self.Journal
+    if Journal and Journal.mainFrame and Journal.mainFrame:IsShown() then
+        if Journal.RefreshGearTab then
+            Journal:RefreshGearTab()
+        end
+    end
+
+    self:Debug("Talent update detected - refreshed gear recommendations")
+end
+
+--[[
     Default Database Structures
 ]]
 function HopeAddon:GetDefaultDB()
@@ -1433,15 +1499,8 @@ function HopeAddon:GetDefaultCharDB()
             milestones = {},        -- [factionName][standingId] = entry
             aldorScryerChoice = nil, -- { chosen, opposing, date }
             currentStandings = {},   -- snapshot cache
-        },
-
-        -- Saved games (for async multiplayer)
-        savedGames = {
-            words = {
-                games = {},             -- [opponentName] = serialized game state
-                pendingInvites = {},    -- [senderName] = { state, timestamp }
-                sentInvites = {},       -- [recipientName] = { state, timestamp }
-            },
+            trackedItems = {},      -- [itemId] = { factionName, standingId, dateAdded }
+            goalItem = nil,         -- { itemId, factionName, standingId } - primary goal
         },
 
         -- Wordle game statistics
@@ -1525,7 +1584,6 @@ function HopeAddon:GetDefaultCharDB()
         armory = {
             selectedPhase = 1,          -- Current phase (1-5), matching TBC content phases
             selectedSpec = nil,         -- Spec index (1-3) or nil
-            wishlist = {},              -- [itemId] = true for wishlisted items
             expandedSections = {},      -- [sectionId] = bool for collapsed state
         },
     }
@@ -1704,109 +1762,6 @@ SlashCmdList["HOPE"] = function(msg)
                 HopeAddon:Print("DeathRollGame module not loaded!")
             end
         end
-    elseif cmd:find("^words") then
-        -- /hope words <player|list|forfeit>
-        local _, _, subCmd = cmd:find("^words%s*(%S*)")
-        local WordGame = HopeAddon:GetModule("WordGame")
-
-        if not subCmd or subCmd == "" then
-            -- No argument - start local practice game
-            if WordGame then
-                WordGame:StartGame(nil)
-            else
-                HopeAddon:Print("WordGame module not loaded!")
-            end
-        elseif subCmd == "list" then
-            -- List saved games
-            if WordGame then
-                WordGame:ListSavedGames()
-            else
-                HopeAddon:Print("WordGame module not loaded!")
-            end
-        elseif subCmd:find("^forfeit%s*") then
-            -- Forfeit a game: /hope words forfeit <player>
-            local _, _, opponentName = cmd:find("^words%s+forfeit%s+(%S+)")
-            if opponentName and opponentName ~= "" then
-                local valid, err = ValidatePlayerName(opponentName)
-                if not valid then
-                    HopeAddon:Print("|cFFFF0000Error:|r " .. err)
-                    return
-                end
-                if WordGame then
-                    WordGame:ForfeitGame(opponentName)
-                else
-                    HopeAddon:Print("WordGame module not loaded!")
-                end
-            else
-                HopeAddon:Print("Usage: /hope words forfeit <player>")
-            end
-        elseif subCmd == "accept" then
-            -- Accept pending Words invite: /hope words accept [player]
-            local _, _, senderName = cmd:find("^words%s+accept%s*(%S*)")
-            local WordGameInvites = HopeAddon:GetModule("WordGameInvites")
-            if WordGameInvites then
-                if senderName and senderName ~= "" then
-                    WordGameInvites:AcceptInvite(senderName)
-                elseif WordGameInvites:HasPendingInvites() then
-                    -- Accept first pending
-                    for challenger, _ in pairs(WordGameInvites:GetPendingInvites()) do
-                        WordGameInvites:AcceptInvite(challenger)
-                        break
-                    end
-                else
-                    HopeAddon:Print("No pending Words invites.")
-                end
-            else
-                HopeAddon:Print("WordGameInvites module not loaded!")
-            end
-        elseif subCmd == "decline" then
-            -- Decline pending Words invite: /hope words decline [player]
-            local _, _, senderName = cmd:find("^words%s+decline%s*(%S*)")
-            local WordGameInvites = HopeAddon:GetModule("WordGameInvites")
-            if WordGameInvites then
-                if senderName and senderName ~= "" then
-                    WordGameInvites:DeclineInvite(senderName)
-                elseif WordGameInvites:HasPendingInvites() then
-                    for challenger, _ in pairs(WordGameInvites:GetPendingInvites()) do
-                        WordGameInvites:DeclineInvite(challenger)
-                        break
-                    end
-                else
-                    HopeAddon:Print("No pending Words invites.")
-                end
-            else
-                HopeAddon:Print("WordGameInvites module not loaded!")
-            end
-        else
-            -- Assume it's a player name - resume existing game or send invite
-            local targetName = subCmd
-            local valid, err = ValidatePlayerName(targetName)
-            if not valid then
-                HopeAddon:Print("|cFFFF0000Error:|r " .. err)
-                return
-            end
-
-            -- Try to resume existing game first
-            local Persistence = HopeAddon:GetModule("WordGamePersistence")
-            if Persistence and Persistence:HasGame(targetName) then
-                if WordGame then
-                    local gameId, resumeErr = WordGame:ResumeGame(targetName)
-                    if not gameId then
-                        HopeAddon:Print("|cFFFF0000Error:|r " .. (resumeErr or "Failed to resume game"))
-                    end
-                else
-                    HopeAddon:Print("WordGame module not loaded!")
-                end
-            else
-                -- No saved game - send invite
-                local WordGameInvites = HopeAddon:GetModule("WordGameInvites")
-                if WordGameInvites then
-                    WordGameInvites:SendInvite(targetName)
-                else
-                    HopeAddon:Print("WordGameInvites module not loaded!")
-                end
-            end
-        end
     elseif cmd:find("^battleship") then
         -- /hope battleship [player]
         local _, _, targetName = cmd:find("^battleship%s*(%S*)")
@@ -1930,21 +1885,6 @@ SlashCmdList["HOPE"] = function(msg)
             return
         end
 
-        -- Check Words invites
-        local WordGameInvites = HopeAddon:GetModule("WordGameInvites")
-        if WordGameInvites and WordGameInvites:HasPendingInvites() then
-            if targetName and targetName ~= "" then
-                WordGameInvites:AcceptInvite(targetName)
-            else
-                -- Accept first pending Words invite
-                for challenger, _ in pairs(WordGameInvites:GetPendingInvites()) do
-                    WordGameInvites:AcceptInvite(challenger)
-                    break
-                end
-            end
-            return
-        end
-
         -- Check ScoreChallenge
         local ScoreChallenge = HopeAddon:GetModule("ScoreChallenge")
         if ScoreChallenge and ScoreChallenge:HasPendingChallenges() then
@@ -1966,7 +1906,7 @@ SlashCmdList["HOPE"] = function(msg)
         end
 
     elseif cmd:find("^decline") then
-        -- Check for pending challenges in order: Wordle, Words, ScoreChallenge, Minigames
+        -- Check for pending challenges in order: Wordle, ScoreChallenge, Minigames
         local _, _, targetName = cmd:find("^decline%s*(%S*)")
 
         -- Check Wordle challenges first
@@ -1977,20 +1917,6 @@ SlashCmdList["HOPE"] = function(msg)
             else
                 for challenger, _ in pairs(WordleGame:GetPendingChallenges()) do
                     WordleGame:DeclineChallenge(challenger)
-                    break
-                end
-            end
-            return
-        end
-
-        -- Check Words invites
-        local WordGameInvites = HopeAddon:GetModule("WordGameInvites")
-        if WordGameInvites and WordGameInvites:HasPendingInvites() then
-            if targetName and targetName ~= "" then
-                WordGameInvites:DeclineInvite(targetName)
-            else
-                for challenger, _ in pairs(WordGameInvites:GetPendingInvites()) do
-                    WordGameInvites:DeclineInvite(challenger)
                     break
                 end
             end
@@ -2028,12 +1954,15 @@ SlashCmdList["HOPE"] = function(msg)
                 Minigames:CancelGame("user_cancelled")
             end
         end
-    elseif cmd:find("^propose") then
-        -- /hope propose <player> - Propose to a player
+    elseif cmd:find("^propose") or cmd:find("^oath%s") or cmd == "oath" then
+        -- /hope oath <player> (or legacy /hope propose) - Offer an oath to a player
         local _, _, targetName = cmd:find("^propose%s+(%S+)")
         if not targetName then
-            HopeAddon:Print("Usage: /hope propose <player>")
-            HopeAddon:Print("  Example: /hope propose Jaina")
+            _, _, targetName = cmd:find("^oath%s+(%S+)")
+        end
+        if not targetName then
+            HopeAddon:Print("Usage: /hope oath <player>")
+            HopeAddon:Print("  Example: /hope oath Jaina")
         else
             local valid, err = ValidatePlayerName(targetName)
             if not valid then
@@ -2047,17 +1976,17 @@ SlashCmdList["HOPE"] = function(msg)
                 HopeAddon:Print("Romance module not loaded!")
             end
         end
-    elseif cmd == "breakup" then
-        -- /hope breakup - Break up with your partner
+    elseif cmd == "breakup" or cmd == "breakoath" then
+        -- /hope breakoath (or legacy /hope breakup) - Break your oath
         local Romance = HopeAddon:GetModule("Romance")
         if Romance then
             local romance = HopeAddon:GetSocialRomance()
             if romance and romance.status == "DATING" and romance.partner then
                 -- Show confirmation dialog
                 StaticPopupDialogs["HOPE_CONFIRM_BREAKUP"] = {
-                    text = "Are you sure you want to break up with " .. romance.partner .. "?\n\nThis will be announced to all Fellow Travelers.",
-                    button1 = "Yes, it's over",
-                    button2 = "Wait, no!",
+                    text = "Are you sure you want to break your oath with " .. romance.partner .. "?\n\nThis will be announced to all Fellow Travelers.",
+                    button1 = "Break the Oath",
+                    button2 = "Keep the Oath",
                     OnAccept = function()
                         HopeAddon.Romance:BreakUp("its_not_you")
                     end,
@@ -2068,34 +1997,34 @@ SlashCmdList["HOPE"] = function(msg)
                 }
                 StaticPopup_Show("HOPE_CONFIRM_BREAKUP")
             else
-                HopeAddon:Print("|cFF808080You're not currently in a relationship.|r")
+                HopeAddon:Print("|cFF808080You're not currently oath-bound.|r")
             end
         else
             HopeAddon:Print("Romance module not loaded!")
         end
-    elseif cmd == "relationship" then
-        -- /hope relationship - Show current relationship status
+    elseif cmd == "relationship" or cmd == "oathstatus" then
+        -- /hope oathstatus (or legacy /hope relationship) - Show current oath status
         local romance = HopeAddon:GetSocialRomance()
         if romance then
             local C = HopeAddon.Constants
             local status = C.ROMANCE_STATUS[romance.status]
             if status then
-                HopeAddon:Print("|cFFFF69B4=== Relationship Status ===|r")
+                HopeAddon:Print("|cFFFFD700=== Oath Status ===|r")
                 HopeAddon:Print("Status: |cFF" .. status.color .. status.label .. "|r " .. status.emoji)
                 if romance.partner then
                     local since = romance.since and date("%B %d, %Y", romance.since) or "Unknown"
-                    HopeAddon:Print("Partner: |cFF00FF00" .. romance.partner .. "|r")
+                    HopeAddon:Print("Oath-Bound Ally: |cFF00FF00" .. romance.partner .. "|r")
                     HopeAddon:Print("Since: " .. since)
                 end
                 if romance.pendingOutgoing then
-                    HopeAddon:Print("Pending proposal to: |cFFFF69B4" .. romance.pendingOutgoing.to .. "|r")
+                    HopeAddon:Print("Oath offered to: |cFFFFD700" .. romance.pendingOutgoing.to .. "|r")
                 end
                 -- pendingIncoming is a table keyed by name, not an array
                 if romance.pendingIncoming then
                     local count = 0
                     for _ in pairs(romance.pendingIncoming) do count = count + 1 end
                     if count > 0 then
-                        HopeAddon:Print("Incoming proposals: |cFFFF69B4" .. count .. "|r")
+                        HopeAddon:Print("Incoming oaths: |cFFFFD700" .. count .. "|r")
                         for name, _ in pairs(romance.pendingIncoming) do
                             HopeAddon:Print("  - " .. name)
                         end
@@ -2167,9 +2096,6 @@ SlashCmdList["HOPE"] = function(msg)
         HopeAddon:Print("  /hope tetris [player] - Start Tetris Battle (local or vs player)")
         HopeAddon:Print("  /hope pong [player] - Start Pong (local or vs player)")
         HopeAddon:Print("  /hope deathroll [player] - Start Death Roll (local or vs player)")
-        HopeAddon:Print("  /hope words <player> - Challenge to Words with WoW")
-        HopeAddon:Print("  /word <word> <H/V> <row> <col> - Place word in active Words game")
-        HopeAddon:Print("  /pass - Pass your turn in active Words game")
         HopeAddon:Print("  /hope battleship [player] - Start Battleship (local or vs player)")
         HopeAddon:Print("  /fire <coord> - Fire at coordinate in Battleship (e.g., /fire A5)")
         HopeAddon:Print("  /ready - Signal ships placed in Battleship")
@@ -2181,10 +2107,10 @@ SlashCmdList["HOPE"] = function(msg)
         HopeAddon:Print("  /hope challenge <player> [rps] - Challenge to Rock-Paper-Scissors")
         HopeAddon:Print("  /hope accept/decline - Respond to challenge")
         HopeAddon:Print("  /hope cancel - Cancel current game")
-        HopeAddon:Print("  |cFFFF69B4Romance:|r")
-        HopeAddon:Print("  /hope propose <player> - Propose to a Fellow Traveler")
-        HopeAddon:Print("  /hope breakup - End your current relationship")
-        HopeAddon:Print("  /hope relationship - Show your relationship status")
+        HopeAddon:Print("  |cFFFFD700Oaths:|r")
+        HopeAddon:Print("  /hope oath <player> - Offer an oath to a Fellow Traveler")
+        HopeAddon:Print("  /hope breakoath - Break your current oath")
+        HopeAddon:Print("  /hope oathstatus - Show your oath status")
         HopeAddon:Print("  /hope demo - Populate sample data for UI testing")
         HopeAddon:Print("  /hope reset demo - Clear demo data")
         HopeAddon:Print("  /hope reset confirm - Reset all data")
@@ -2193,84 +2119,6 @@ SlashCmdList["HOPE"] = function(msg)
         HopeAddon:Print("  /hope sr <raid> <item> - Set your soft reserve")
         HopeAddon:Print("  /hope sr list - Show your reserves")
         HopeAddon:Print("  /hope sr guild [raid] - Show guild reserves")
-    end
-end
-
--- /word slash command for Words with WoW gameplay
-SLASH_WORD1 = "/word"
-SlashCmdList["WORD"] = function(msg)
-    local WordGame = HopeAddon:GetModule("WordGame")
-    if not WordGame then
-        HopeAddon:Print("WordGame module not loaded!")
-        return
-    end
-
-    local GameCore = HopeAddon:GetModule("GameCore")
-    if not GameCore then
-        HopeAddon:Print("GameCore module not loaded!")
-        return
-    end
-
-    -- Find active Words with WoW game for this player
-    local playerName = UnitName("player")
-    local activeGame = nil
-    local activeGameId = nil
-
-    for gameId, game in pairs(WordGame:GetActiveGames()) do
-        if game.player1 == playerName or game.player2 == playerName then
-            activeGame = game
-            activeGameId = gameId
-            break
-        end
-    end
-
-    if not activeGame then
-        HopeAddon:Print("You are not in an active Words with WoW game!")
-        HopeAddon:Print("Use /hope words <player> to start a game")
-        return
-    end
-
-    -- Parse command: /word <word> <H/V> <row> <col>
-    local word, direction, row, col = strsplit(" ", msg)
-
-    local success, message = WordGame:ParseAndPlaceWord(activeGameId, word, direction, row, col, playerName)
-
-    if not success then
-        HopeAddon:Print("|cFFFF0000Error:|r " .. message)
-    end
-end
-
--- /pass slash command for Words with WoW gameplay
-SLASH_PASS1 = "/pass"
-SlashCmdList["PASS"] = function(msg)
-    local WordGame = HopeAddon:GetModule("WordGame")
-    if not WordGame then
-        HopeAddon:Print("WordGame module not loaded!")
-        return
-    end
-
-    -- Find active Words with WoW game for this player
-    local playerName = UnitName("player")
-    local activeGame = nil
-    local activeGameId = nil
-
-    for gameId, game in pairs(WordGame:GetActiveGames()) do
-        if game.player1 == playerName or game.player2 == playerName then
-            activeGame = game
-            activeGameId = gameId
-            break
-        end
-    end
-
-    if not activeGame then
-        HopeAddon:Print("You are not in an active Words with WoW game!")
-        return
-    end
-
-    local success, message = WordGame:PassTurn(activeGameId, playerName)
-
-    if not success then
-        HopeAddon:Print("|cFFFF0000Error:|r " .. message)
     end
 end
 
@@ -2531,11 +2379,10 @@ function HopeAddon:PopulateDemoData()
         }
     }
 
-    -- Sylvanas: Tough opponent, great at words
+    -- Sylvanas: Tough opponent
     charDb.travelers.known["Sylvanas"].stats = {
         minigames = {
             rps = { wins = 6, losses = 2, ties = 0, lastPlayed = timestamp },
-            words = { wins = 4, losses = 1, highestScore = 185, lastPlayed = timestamp },
         }
     }
 

@@ -37,11 +37,36 @@ local COLORS = {
     PREVIEW_INVALID = { r = 0.8, g = 0.2, b = 0.2 },
 }
 
+-- Per-ship colors for visual distinction
+local SHIP_COLORS = {
+    carrier = { r = 0.6, g = 0.3, b = 0.6 },     -- Purple
+    battleship = { r = 0.3, g = 0.5, b = 0.7 },  -- Steel blue
+    cruiser = { r = 0.2, g = 0.6, b = 0.5 },     -- Teal
+    submarine = { r = 0.5, g = 0.5, b = 0.3 },   -- Olive/khaki
+    destroyer = { r = 0.6, g = 0.4, b = 0.3 },   -- Brown/rust
+}
+
 -- Error messages for placement failures
 local PLACEMENT_ERRORS = {
     OUT_OF_BOUNDS = "Ship doesn't fit! Press R to rotate or click closer to center.",
     OVERLAP = "Ships can't overlap! Choose empty cells.",
     INVALID_SHIP = "Invalid ship selection.",
+}
+
+-- Side Panel Constants
+local SIDE_PANEL_WIDTH = 100
+local SIDE_PANEL_GAP = 14      -- Gap between panel and grids
+local SHIP_ROW_HEIGHT = 40
+local HEALTH_BAR_WIDTH = 85
+local HEALTH_BAR_HEIGHT = 8
+local STATS_SECTION_HEIGHT = 60
+
+-- Health bar colors based on damage
+local HEALTH_COLORS = {
+    FULL = { r = 0.2, g = 0.7, b = 0.3 },      -- Green (100%)
+    DAMAGED = { r = 0.9, g = 0.7, b = 0.2 },   -- Yellow (50-99%)
+    CRITICAL = { r = 0.9, g = 0.3, b = 0.2 },  -- Red (1-49%)
+    SUNK = { r = 0.4, g = 0.1, b = 0.1 },      -- Dark red (0%)
 }
 
 --============================================================
@@ -109,6 +134,23 @@ function BattleshipGame:OnCreate(gameId, game)
                 statusText = nil,
                 shipButtons = {},
                 cells = { player = {}, enemy = {} },
+                -- Side panels for ship status tracking
+                leftPanel = {
+                    frame = nil,
+                    ships = {},            -- Ship row frames by shipId
+                    statsFrame = nil,
+                    shipsRemainingText = nil,
+                    hitsTakenText = nil,
+                },
+                rightPanel = {
+                    frame = nil,
+                    ships = {},
+                    statsFrame = nil,
+                    hitsText = nil,
+                    missesText = nil,
+                    accuracyText = nil,
+                    sunkCountText = nil,
+                },
             },
             state = {
                 phase = "PLACEMENT",  -- PLACEMENT, WAITING_OPPONENT, PLAYING, ENDED
@@ -174,7 +216,15 @@ function BattleshipGame:OnEnd(gameId, reason)
             shipsRemaining = HopeAddon.BattleshipBoard:GetShipsRemaining(gameData.data.state.playerBoard),
             shotsFired = gameData.data.state.shotsFired or 0,
         }
-        BattleshipUI:ShowVictoryOverlay(gameId, didWin, stats)
+
+        -- Delay victory overlay to let final shot animation complete
+        local delay = BattleshipUI:GetAnimationDuration() + 0.2
+        HopeAddon.Timer:After(delay, function()
+            -- Verify game still exists before showing overlay
+            if self.games[gameId] then
+                BattleshipUI:ShowVictoryOverlay(gameId, didWin, stats)
+            end
+        end)
     else
         -- Fallback to simple text
         if gameData.data.ui.statusText then
@@ -307,6 +357,13 @@ function BattleshipGame:PlayerShoot(gameId, row, col)
             end
         end
 
+        -- Update side panels: reveal enemy ship if sunk, update stats
+        if result.sunk and result.shipId then
+            state.sunkEnemyShips = (state.sunkEnemyShips or 0) + 1
+            self:RevealEnemyShip(gameId, result.shipId, result.shipName)
+        end
+        self:UpdatePanelStats(gameId)
+
         -- Check for win
         if Board:AllShipsSunk(state.enemyBoard) then
             state.winner = "player"
@@ -390,6 +447,12 @@ function BattleshipGame:AITurn(gameId)
             end
         end
     end
+
+    -- Update side panels: update player ship status if hit
+    if result.hit and result.shipId then
+        self:UpdatePlayerShipStatus(gameId, result.shipId)
+    end
+    self:UpdatePanelStats(gameId)
 
     -- Check for loss
     if Board:AllShipsSunk(state.playerBoard) then
@@ -505,6 +568,15 @@ function BattleshipGame:ShowUI(gameId)
     local window = GameUI:CreateGameWindow(gameId, "BATTLESHIP")
     gameData.data.ui.window = window
 
+    -- Apply naval-themed styling to window (unique to Battleship)
+    window:SetBackdropColor(0.06, 0.10, 0.14, 0.98)  -- Deep ocean (based on WATER color)
+    window:SetBackdropBorderColor(0.25, 0.45, 0.65, 1)  -- Steel blue border
+
+    -- Style title bar with naval theme
+    if window.titleBar then
+        window.titleBar:SetBackdropColor(0.10, 0.18, 0.28, 1)  -- Navy blue
+    end
+
     -- Set title
     if window.title then
         window.title:SetText(HopeAddon:ColorText("BATTLESHIP", "SKY_BLUE"))
@@ -512,8 +584,19 @@ function BattleshipGame:ShowUI(gameId)
 
     -- Create content area
     local content = CreateFrame("Frame", nil, window)
-    content:SetPoint("TOPLEFT", window, "TOPLEFT", 10, -50)
-    content:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", -10, 40)
+    content:SetPoint("TOPLEFT", window, "TOPLEFT", 15, -45)
+    content:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", -15, 15)
+
+    -- Create decorative inner border (naval styling)
+    local innerBorder = CreateBackdropFrame("Frame", nil, window)
+    innerBorder:SetPoint("TOPLEFT", window, "TOPLEFT", 5, -5)
+    innerBorder:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", -5, 5)
+    innerBorder:SetBackdrop({
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 12,
+    })
+    innerBorder:SetBackdropBorderColor(0.20, 0.35, 0.55, 0.5)  -- Subtle steel blue accent
+    innerBorder:SetFrameLevel(window:GetFrameLevel() + 1)
 
     -- Initialize shot counter for stats
     gameData.data.state.shotsFired = 0
@@ -523,10 +606,11 @@ function BattleshipGame:ShowUI(gameId)
     topAnnouncement:SetHeight(TOP_ANNOUNCEMENT_HEIGHT)
     topAnnouncement:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
     topAnnouncement:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, 0)
+    topAnnouncement:SetFrameLevel(content:GetFrameLevel() + 10)  -- Above grids for text visibility
     -- Subtle background
     local topBg = topAnnouncement:CreateTexture(nil, "BACKGROUND")
     topBg:SetAllPoints()
-    topBg:SetColorTexture(0.05, 0.1, 0.15, 0.5)
+    topBg:SetColorTexture(0.05, 0.09, 0.13, 0.6)  -- Slightly more visible, matches theme
     gameData.data.ui.topAnnouncement = topAnnouncement
 
     -- Create BOTTOM STATUS BAR for turn info and instructions
@@ -534,14 +618,15 @@ function BattleshipGame:ShowUI(gameId)
     bottomStatus:SetHeight(BOTTOM_STATUS_HEIGHT)
     bottomStatus:SetPoint("BOTTOMLEFT", content, "BOTTOMLEFT", 0, 0)
     bottomStatus:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", 0, 0)
+    bottomStatus:SetFrameLevel(content:GetFrameLevel() + 10)  -- Above grids for text visibility
     bottomStatus:SetBackdrop({
         bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         tile = true, tileSize = 16, edgeSize = 16,
         insets = { left = 4, right = 4, top = 4, bottom = 4 }
     })
-    bottomStatus:SetBackdropColor(0.1, 0.15, 0.2, 0.95)
-    bottomStatus:SetBackdropBorderColor(0.4, 0.6, 0.8, 1)
+    bottomStatus:SetBackdropColor(0.06, 0.10, 0.14, 0.98)  -- Match window background
+    bottomStatus:SetBackdropBorderColor(0.25, 0.45, 0.65, 1)  -- Match window border
     gameData.data.ui.bottomStatus = bottomStatus
 
     -- Turn indicator text (large, centered)
@@ -562,15 +647,24 @@ function BattleshipGame:ShowUI(gameId)
     end
 
     -- Create grids container (between top announcement and bottom status)
+    -- Use explicit sizing instead of flexible anchoring to prevent layout issues
+    local Board = HopeAddon.BattleshipBoard
+    local singleGridWidth = (Board.GRID_SIZE + 1) * CELL_SIZE  -- 286px
+    local singleGridHeight = (Board.GRID_SIZE + 1) * CELL_SIZE + HEADER_HEIGHT  -- 316px
+    local totalGridsWidth = singleGridWidth * 2 + CENTER_GAP  -- 592px
+
     local gridsContainer = CreateFrame("Frame", nil, content)
-    gridsContainer:SetPoint("TOPLEFT", topAnnouncement, "BOTTOMLEFT", 0, -SECTION_GAP)
-    gridsContainer:SetPoint("RIGHT", content, "RIGHT", 0, 0)
-    gridsContainer:SetPoint("BOTTOM", bottomStatus, "TOP", 0, SECTION_GAP)
+    gridsContainer:SetSize(totalGridsWidth, singleGridHeight)
+    gridsContainer:SetPoint("TOP", topAnnouncement, "BOTTOM", 0, -SECTION_GAP)
+    gridsContainer:SetFrameLevel(content:GetFrameLevel() + 1)  -- Below text elements
     gameData.data.ui.gridsContainer = gridsContainer
 
     -- Create grids side by side
     self:CreatePlayerGrid(gameId, gridsContainer)
     self:CreateEnemyGrid(gameId, gridsContainer)
+
+    -- Create side panels for ship status tracking
+    self:CreateSidePanels(gameId, content, gridsContainer)
 
     -- Error message text (above bottom status bar)
     local errorText = content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -631,15 +725,15 @@ function BattleshipGame:CreatePlayerGrid(gameId, parent)
     local gridWidth = (Board.GRID_SIZE + 1) * CELL_SIZE
     local gridHeight = (Board.GRID_SIZE + 1) * CELL_SIZE + HEADER_HEIGHT
     gridFrame:SetSize(gridWidth, gridHeight)
-    -- Anchor to center-right so there's a gap between grids
-    gridFrame:SetPoint("RIGHT", parent, "CENTER", -CENTER_GAP/2, 0)
+    -- Use TOPLEFT anchor for predictable positioning
+    gridFrame:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, 0)
     gameData.data.ui.playerGrid = gridFrame
 
     -- Header
     local header = gridFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     header:SetPoint("TOP", gridFrame, "TOP", 0, 0)
     header:SetText("YOUR FLEET")
-    header:SetTextColor(0.8, 0.8, 0.8)
+    header:SetTextColor(0.5, 0.75, 0.9)  -- Light ocean blue (friendly)
 
     -- Column labels (A-J)
     for col = 1, Board.GRID_SIZE do
@@ -677,15 +771,16 @@ function BattleshipGame:CreateEnemyGrid(gameId, parent)
     local gridWidth = (Board.GRID_SIZE + 1) * CELL_SIZE
     local gridHeight = (Board.GRID_SIZE + 1) * CELL_SIZE + HEADER_HEIGHT
     gridFrame:SetSize(gridWidth, gridHeight)
-    -- Anchor to center-left so there's a gap between grids
-    gridFrame:SetPoint("LEFT", parent, "CENTER", CENTER_GAP/2, 0)
+    -- Position to the right of player grid + gap using TOPLEFT anchor
+    local singleGridWidth = (Board.GRID_SIZE + 1) * CELL_SIZE
+    gridFrame:SetPoint("TOPLEFT", parent, "TOPLEFT", singleGridWidth + CENTER_GAP, 0)
     gameData.data.ui.enemyGrid = gridFrame
 
     -- Header
     local header = gridFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     header:SetPoint("TOP", gridFrame, "TOP", 0, 0)
     header:SetText("ENEMY WATERS")
-    header:SetTextColor(0.8, 0.8, 0.8)
+    header:SetTextColor(0.9, 0.5, 0.5)  -- Target red (hostile)
 
     -- Column labels (A-J)
     for col = 1, Board.GRID_SIZE do
@@ -829,12 +924,387 @@ function BattleshipGame:ClearPlacementPreview(gameId)
 end
 
 --============================================================
+-- SIDE PANELS (Ship Status Tracking)
+--============================================================
+
+--[[
+    Create both left and right side panels for ship status tracking
+    @param gameId string
+    @param content Frame - Main content area
+    @param gridsContainer Frame - The grids container to position relative to
+]]
+function BattleshipGame:CreateSidePanels(gameId, content, gridsContainer)
+    local gameData = self.games[gameId]
+    if not gameData then return end
+
+    local Board = HopeAddon.BattleshipBoard
+    local panelHeight = #Board.SHIPS * SHIP_ROW_HEIGHT + STATS_SECTION_HEIGHT + 30  -- Ships + stats + header
+
+    -- Left Panel: YOUR FLEET STATUS
+    local leftPanel = CreateBackdropFrame("Frame", nil, content)
+    leftPanel:SetSize(SIDE_PANEL_WIDTH, panelHeight)
+    leftPanel:SetPoint("RIGHT", gridsContainer, "LEFT", -SIDE_PANEL_GAP, 0)
+    leftPanel:SetBackdrop({
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 8, edgeSize = 10,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 }
+    })
+    leftPanel:SetBackdropColor(0.05, 0.08, 0.12, 0.95)
+    leftPanel:SetBackdropBorderColor(0.2, 0.4, 0.6, 0.8)
+    gameData.data.ui.leftPanel.frame = leftPanel
+
+    -- Left panel header
+    local leftHeader = leftPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    leftHeader:SetPoint("TOP", leftPanel, "TOP", 0, -6)
+    leftHeader:SetText("YOUR FLEET")
+    leftHeader:SetTextColor(0.5, 0.75, 0.9)
+
+    -- Create ship rows for left panel (player's ships)
+    local yOffset = -22
+    for _, shipDef in ipairs(Board.SHIPS) do
+        local shipRow = self:CreateShipRow(leftPanel, shipDef, true, gameId)
+        shipRow:SetPoint("TOPLEFT", leftPanel, "TOPLEFT", 5, yOffset)
+        gameData.data.ui.leftPanel.ships[shipDef.id] = shipRow
+        yOffset = yOffset - SHIP_ROW_HEIGHT
+    end
+
+    -- Left panel stats section
+    local leftStats = CreateFrame("Frame", nil, leftPanel)
+    leftStats:SetSize(SIDE_PANEL_WIDTH - 10, STATS_SECTION_HEIGHT)
+    leftStats:SetPoint("BOTTOM", leftPanel, "BOTTOM", 0, 5)
+    gameData.data.ui.leftPanel.statsFrame = leftStats
+
+    -- Divider line
+    local leftDivider = leftStats:CreateTexture(nil, "ARTWORK")
+    leftDivider:SetSize(SIDE_PANEL_WIDTH - 20, 1)
+    leftDivider:SetPoint("TOP", leftStats, "TOP", 0, 0)
+    leftDivider:SetColorTexture(0.3, 0.5, 0.7, 0.5)
+
+    -- Stats label
+    local leftStatsLabel = leftStats:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    leftStatsLabel:SetPoint("TOP", leftDivider, "BOTTOM", 0, -4)
+    leftStatsLabel:SetText("STATS")
+    leftStatsLabel:SetTextColor(0.6, 0.6, 0.6)
+
+    -- Ships remaining
+    local shipsRemaining = leftStats:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    shipsRemaining:SetPoint("TOP", leftStatsLabel, "BOTTOM", 0, -4)
+    shipsRemaining:SetText("Ships: 5/5")
+    shipsRemaining:SetTextColor(0.7, 0.9, 0.7)
+    gameData.data.ui.leftPanel.shipsRemainingText = shipsRemaining
+
+    -- Hits taken
+    local hitsTaken = leftStats:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    hitsTaken:SetPoint("TOP", shipsRemaining, "BOTTOM", 0, -2)
+    hitsTaken:SetText("Hits: 0")
+    hitsTaken:SetTextColor(0.9, 0.7, 0.7)
+    gameData.data.ui.leftPanel.hitsTakenText = hitsTaken
+
+    -- Right Panel: ENEMY FLEET STATUS
+    local rightPanel = CreateBackdropFrame("Frame", nil, content)
+    rightPanel:SetSize(SIDE_PANEL_WIDTH, panelHeight)
+    rightPanel:SetPoint("LEFT", gridsContainer, "RIGHT", SIDE_PANEL_GAP, 0)
+    rightPanel:SetBackdrop({
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 8, edgeSize = 10,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 }
+    })
+    rightPanel:SetBackdropColor(0.05, 0.08, 0.12, 0.95)
+    rightPanel:SetBackdropBorderColor(0.6, 0.3, 0.3, 0.8)
+    gameData.data.ui.rightPanel.frame = rightPanel
+
+    -- Right panel header
+    local rightHeader = rightPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    rightHeader:SetPoint("TOP", rightPanel, "TOP", 0, -6)
+    rightHeader:SetText("ENEMY FLEET")
+    rightHeader:SetTextColor(0.9, 0.5, 0.5)
+
+    -- Create ship rows for right panel (enemy's ships - initially hidden)
+    yOffset = -22
+    for _, shipDef in ipairs(Board.SHIPS) do
+        local shipRow = self:CreateShipRow(rightPanel, shipDef, false, gameId)
+        shipRow:SetPoint("TOPLEFT", rightPanel, "TOPLEFT", 5, yOffset)
+        gameData.data.ui.rightPanel.ships[shipDef.id] = shipRow
+        yOffset = yOffset - SHIP_ROW_HEIGHT
+    end
+
+    -- Right panel stats section
+    local rightStats = CreateFrame("Frame", nil, rightPanel)
+    rightStats:SetSize(SIDE_PANEL_WIDTH - 10, STATS_SECTION_HEIGHT)
+    rightStats:SetPoint("BOTTOM", rightPanel, "BOTTOM", 0, 5)
+    gameData.data.ui.rightPanel.statsFrame = rightStats
+
+    -- Divider line
+    local rightDivider = rightStats:CreateTexture(nil, "ARTWORK")
+    rightDivider:SetSize(SIDE_PANEL_WIDTH - 20, 1)
+    rightDivider:SetPoint("TOP", rightStats, "TOP", 0, 0)
+    rightDivider:SetColorTexture(0.7, 0.4, 0.4, 0.5)
+
+    -- Stats label
+    local rightStatsLabel = rightStats:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    rightStatsLabel:SetPoint("TOP", rightDivider, "BOTTOM", 0, -4)
+    rightStatsLabel:SetText("YOUR ATTACKS")
+    rightStatsLabel:SetTextColor(0.6, 0.6, 0.6)
+
+    -- Hits
+    local hitsText = rightStats:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    hitsText:SetPoint("TOPLEFT", rightStatsLabel, "BOTTOMLEFT", -10, -4)
+    hitsText:SetText("Hits: 0")
+    hitsText:SetTextColor(0.7, 0.9, 0.7)
+    gameData.data.ui.rightPanel.hitsText = hitsText
+
+    -- Misses
+    local missesText = rightStats:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    missesText:SetPoint("TOPLEFT", hitsText, "BOTTOMLEFT", 0, -2)
+    missesText:SetText("Misses: 0")
+    missesText:SetTextColor(0.9, 0.7, 0.7)
+    gameData.data.ui.rightPanel.missesText = missesText
+
+    -- Accuracy
+    local accuracyText = rightStats:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    accuracyText:SetPoint("TOPLEFT", missesText, "BOTTOMLEFT", 0, -2)
+    accuracyText:SetText("Accuracy: --%")
+    accuracyText:SetTextColor(0.8, 0.8, 0.8)
+    gameData.data.ui.rightPanel.accuracyText = accuracyText
+
+    -- Ships sunk counter
+    local sunkCountText = rightStats:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    sunkCountText:SetPoint("TOPRIGHT", rightStatsLabel, "BOTTOMRIGHT", 10, -4)
+    sunkCountText:SetText("Sunk: 0/5")
+    sunkCountText:SetTextColor(1, 0.4, 0.4)
+    gameData.data.ui.rightPanel.sunkCountText = sunkCountText
+end
+
+--[[
+    Create a single ship row with name and health/status bar
+    @param parent Frame - Panel to attach to
+    @param shipData table - Ship definition {id, name, size}
+    @param isPlayerShip boolean - True for player's ships, false for enemy
+    @param gameId string
+    @return Frame - The ship row frame
+]]
+function BattleshipGame:CreateShipRow(parent, shipData, isPlayerShip, gameId)
+    local shipRow = CreateFrame("Frame", nil, parent)
+    shipRow:SetSize(SIDE_PANEL_WIDTH - 10, SHIP_ROW_HEIGHT)
+
+    local shipColor = SHIP_COLORS[shipData.id] or COLORS.SHIP
+
+    -- Ship name text
+    local nameText = shipRow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    nameText:SetPoint("TOPLEFT", shipRow, "TOPLEFT", 2, -2)
+
+    if isPlayerShip then
+        -- Player ship: show colored name
+        nameText:SetText("■ " .. shipData.name)
+        nameText:SetTextColor(shipColor.r, shipColor.g, shipColor.b)
+    else
+        -- Enemy ship: show mystery state
+        nameText:SetText("? " .. shipData.name)
+        nameText:SetTextColor(0.5, 0.5, 0.5)
+    end
+    shipRow.nameText = nameText
+
+    -- Health/status bar or text
+    if isPlayerShip then
+        -- Create health bar background
+        local barBg = shipRow:CreateTexture(nil, "BACKGROUND")
+        barBg:SetSize(HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT)
+        barBg:SetPoint("TOPLEFT", nameText, "BOTTOMLEFT", 0, -2)
+        barBg:SetColorTexture(0.1, 0.1, 0.1, 0.8)
+        shipRow.barBg = barBg
+
+        -- Create health bar fill
+        local healthBar = shipRow:CreateTexture(nil, "ARTWORK")
+        healthBar:SetSize(HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT)
+        healthBar:SetPoint("TOPLEFT", barBg, "TOPLEFT", 0, 0)
+        healthBar:SetColorTexture(shipColor.r, shipColor.g, shipColor.b, 1)
+        shipRow.healthBar = healthBar
+
+        -- Store ship size for damage calculation
+        shipRow.maxHealth = shipData.size
+        shipRow.currentHealth = shipData.size
+    else
+        -- Enemy ship: show mystery bar or status text
+        local statusText = shipRow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        statusText:SetPoint("TOPLEFT", nameText, "BOTTOMLEFT", 0, -2)
+        statusText:SetText(string.rep("?", math.min(shipData.size, 8)))
+        statusText:SetTextColor(0.4, 0.4, 0.4)
+        shipRow.statusText = statusText
+    end
+
+    -- Store ship ID for reference
+    shipRow.shipId = shipData.id
+    shipRow.shipName = shipData.name
+    shipRow.isPlayerShip = isPlayerShip
+
+    return shipRow
+end
+
+--[[
+    Update a player ship's health bar after taking damage
+    @param gameId string
+    @param shipId string
+]]
+function BattleshipGame:UpdatePlayerShipStatus(gameId, shipId)
+    local gameData = self.games[gameId]
+    if not gameData then return end
+
+    local shipRow = gameData.data.ui.leftPanel.ships[shipId]
+    if not shipRow or not shipRow.healthBar then return end
+
+    local Board = HopeAddon.BattleshipBoard
+    local shipStatus = Board:GetShipStatus(gameData.data.state.playerBoard, shipId)
+    if not shipStatus then return end
+
+    local healthPercent = (shipStatus.size - shipStatus.hits) / shipStatus.size
+    local newWidth = HEALTH_BAR_WIDTH * healthPercent
+
+    if shipStatus.sunk then
+        -- Ship is sunk
+        shipRow.healthBar:SetSize(0.1, HEALTH_BAR_HEIGHT)
+        shipRow.healthBar:SetColorTexture(HEALTH_COLORS.SUNK.r, HEALTH_COLORS.SUNK.g, HEALTH_COLORS.SUNK.b, 1)
+        shipRow.nameText:SetText("☒ " .. shipRow.shipName)
+        shipRow.nameText:SetTextColor(0.6, 0.2, 0.2)
+
+        -- Add SUNK! text
+        if not shipRow.sunkText then
+            local sunkText = shipRow:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            sunkText:SetPoint("LEFT", shipRow.barBg, "RIGHT", 2, 0)
+            sunkText:SetText("SUNK!")
+            sunkText:SetTextColor(1, 0.3, 0.3)
+            shipRow.sunkText = sunkText
+        end
+    else
+        -- Update health bar width and color
+        shipRow.healthBar:SetSize(math.max(newWidth, 0.1), HEALTH_BAR_HEIGHT)
+
+        -- Color based on health
+        local color
+        if healthPercent >= 1 then
+            color = HEALTH_COLORS.FULL
+        elseif healthPercent >= 0.5 then
+            color = HEALTH_COLORS.DAMAGED
+        else
+            color = HEALTH_COLORS.CRITICAL
+        end
+        shipRow.healthBar:SetColorTexture(color.r, color.g, color.b, 1)
+    end
+end
+
+--[[
+    Reveal an enemy ship when sunk (with animation)
+    @param gameId string
+    @param shipId string
+    @param shipName string
+]]
+function BattleshipGame:RevealEnemyShip(gameId, shipId, shipName)
+    local gameData = self.games[gameId]
+    if not gameData then return end
+
+    local shipRow = gameData.data.ui.rightPanel.ships[shipId]
+    if not shipRow then return end
+
+    -- Flash effect
+    if HopeAddon.Effects then
+        HopeAddon.Effects:Flash(shipRow, 0.3, { r = 1, g = 0.3, b = 0.3 })
+    end
+
+    -- Update ship name to revealed state
+    shipRow.nameText:SetText("☒ " .. shipName)
+    shipRow.nameText:SetTextColor(0.9, 0.3, 0.3)
+
+    -- Update status text
+    if shipRow.statusText then
+        shipRow.statusText:SetText("DESTROYED!")
+        shipRow.statusText:SetTextColor(1, 0.4, 0.4)
+    end
+
+    -- Sparkle effect
+    if HopeAddon.Effects then
+        HopeAddon.Effects:CreateSparkles(shipRow, 5, "FEL_GREEN")
+    end
+end
+
+--[[
+    Update stats sections on both panels
+    @param gameId string
+]]
+function BattleshipGame:UpdatePanelStats(gameId)
+    local gameData = self.games[gameId]
+    if not gameData then return end
+
+    local state = gameData.data.state
+    local Board = HopeAddon.BattleshipBoard
+    local leftUI = gameData.data.ui.leftPanel
+    local rightUI = gameData.data.ui.rightPanel
+
+    -- Left panel stats (player fleet)
+    local shipsRemaining = Board:GetShipsRemaining(state.playerBoard)
+    local totalHitsOnPlayer = #state.playerBoard.hits
+
+    if leftUI.shipsRemainingText then
+        leftUI.shipsRemainingText:SetText("Ships: " .. shipsRemaining .. "/5")
+        if shipsRemaining <= 2 then
+            leftUI.shipsRemainingText:SetTextColor(1, 0.4, 0.4)
+        elseif shipsRemaining <= 3 then
+            leftUI.shipsRemainingText:SetTextColor(0.9, 0.9, 0.4)
+        else
+            leftUI.shipsRemainingText:SetTextColor(0.7, 0.9, 0.7)
+        end
+    end
+
+    if leftUI.hitsTakenText then
+        leftUI.hitsTakenText:SetText("Hits: " .. totalHitsOnPlayer)
+    end
+
+    -- Right panel stats (player's attacks on enemy)
+    local playerHits = #state.enemyBoard.hits
+    local playerMisses = #state.enemyBoard.misses
+    local totalShots = playerHits + playerMisses
+    local accuracy = totalShots > 0 and math.floor((playerHits / totalShots) * 100) or 0
+    local sunkCount = state.sunkEnemyShips or 0
+
+    if rightUI.hitsText then
+        rightUI.hitsText:SetText("Hits: " .. playerHits)
+    end
+
+    if rightUI.missesText then
+        rightUI.missesText:SetText("Misses: " .. playerMisses)
+    end
+
+    if rightUI.accuracyText then
+        rightUI.accuracyText:SetText("Accuracy: " .. accuracy .. "%")
+        if accuracy >= 60 then
+            rightUI.accuracyText:SetTextColor(0.4, 1, 0.4)
+        elseif accuracy >= 40 then
+            rightUI.accuracyText:SetTextColor(0.9, 0.9, 0.4)
+        else
+            rightUI.accuracyText:SetTextColor(0.9, 0.6, 0.6)
+        end
+    end
+
+    if rightUI.sunkCountText then
+        rightUI.sunkCountText:SetText("Sunk: " .. sunkCount .. "/5")
+        if sunkCount >= 4 then
+            rightUI.sunkCountText:SetTextColor(0.4, 1, 0.4)
+        elseif sunkCount >= 2 then
+            rightUI.sunkCountText:SetTextColor(1, 0.7, 0.3)
+        else
+            rightUI.sunkCountText:SetTextColor(1, 0.4, 0.4)
+        end
+    end
+end
+
+--============================================================
 -- UI UPDATES
 --============================================================
 
 function BattleshipGame:UpdateUI(gameId)
     self:UpdatePlayerGrid(gameId)
     self:UpdateEnemyGrid(gameId)
+    self:UpdatePanelStats(gameId)
 end
 
 function BattleshipGame:UpdatePlayerGrid(gameId)
@@ -886,7 +1356,9 @@ function BattleshipGame:UpdateCellAppearance(cell)
         cell.marker:SetText("")
     elseif cellState == Board.CELL.SHIP then
         if cell.isPlayerGrid then
-            cell.bg:SetColorTexture(COLORS.SHIP.r, COLORS.SHIP.g, COLORS.SHIP.b, 1)
+            local shipId = board.shipGrid and board.shipGrid[cell.row][cell.col]
+            local shipColor = shipId and SHIP_COLORS[shipId] or COLORS.SHIP
+            cell.bg:SetColorTexture(shipColor.r, shipColor.g, shipColor.b, 1)
         else
             -- Don't show enemy ships
             cell.bg:SetColorTexture(COLORS.WATER.r, COLORS.WATER.g, COLORS.WATER.b, 1)
@@ -949,7 +1421,7 @@ function BattleshipGame:UpdateStatus(gameId)
 
             local isHorizontal = state.placementOrientation == Board.ORIENTATION.HORIZONTAL
             local orientArrow = isHorizontal and "→ HORIZONTAL" or "↓ VERTICAL"
-            ui.hintText:SetText("Click YOUR FLEET grid  |  " .. orientArrow .. "  |  Press R to rotate")
+            ui.hintText:SetText("Click YOUR FLEET grid  |  " .. orientArrow .. "  |  |cFFFFD700Press R|r to rotate")
         end
         if ui.rotateBtn then ui.rotateBtn:Show() end
         ui.bottomStatus:SetBackdropBorderColor(0.4, 0.7, 1.0, 1) -- Blue for placement
@@ -1180,6 +1652,12 @@ function BattleshipGame:ProcessOpponentShot(gameId, row, col, sender)
         end
     end
 
+    -- Update side panels: update player ship status if hit
+    if result.hit and result.shipId then
+        self:UpdatePlayerShipStatus(gameId, result.shipId)
+    end
+    self:UpdatePanelStats(gameId)
+
     -- Send result back
     self:SendShotResult(gameId, row, col, result)
 
@@ -1268,6 +1746,22 @@ function BattleshipGame:ProcessShotResult(gameId, row, col, hit, sunk, shipName)
             end
         end
     end
+
+    -- Update side panels: reveal enemy ship if sunk, update stats
+    if sunk and shipName then
+        -- Find ship ID from name for network mode
+        local shipId = nil
+        for _, shipDef in ipairs(Board.SHIPS) do
+            if shipDef.name == shipName then
+                shipId = shipDef.id
+                break
+            end
+        end
+        if shipId then
+            self:RevealEnemyShip(gameId, shipId, shipName)
+        end
+    end
+    self:UpdatePanelStats(gameId)
 
     -- Check win (5 ships total)
     if (state.sunkEnemyShips or 0) >= 5 then

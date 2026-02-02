@@ -173,6 +173,7 @@ function Minigames:OnDisable()
 
     -- Unregister event frame
     if self.eventFrame then
+        self.eventFrame:SetScript("OnEvent", nil)  -- Clear closure before destroying frame
         self.eventFrame:UnregisterAllEvents()
         self.eventFrame = nil
     end
@@ -1268,6 +1269,15 @@ end
     Clear local RPS game state
 ]]
 function Minigames:ClearLocalRPSGame()
+    self.localRPSGame = nil
+end
+
+--[[
+    Clean up state when Games tab is hidden
+    Called by Journal:HideGamesTab() on tab switch to prevent stale game state
+]]
+function Minigames:OnTabHide()
+    -- Clear local RPS game state when leaving games tab
     self.localRPSGame = nil
 end
 

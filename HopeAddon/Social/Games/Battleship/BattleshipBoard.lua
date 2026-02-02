@@ -47,16 +47,19 @@ BattleshipBoard.ORIENTATION = {
 function BattleshipBoard:Create()
     local board = {
         grid = {},          -- 10x10 cell states
+        shipGrid = {},      -- 10x10 ship IDs (which ship at each cell)
         ships = {},         -- Placed ships with positions
         hits = {},          -- Coordinates that have been hit
         misses = {},        -- Coordinates that have been missed
     }
 
-    -- Initialize empty grid
+    -- Initialize empty grids
     for row = 1, self.GRID_SIZE do
         board.grid[row] = {}
+        board.shipGrid[row] = {}
         for col = 1, self.GRID_SIZE do
             board.grid[row][col] = self.CELL.EMPTY
+            board.shipGrid[row][col] = nil
         end
     end
 
@@ -129,6 +132,7 @@ function BattleshipBoard:PlaceShip(board, shipId, row, col, orientation)
         local cellRow = row + (i * dRow)
         local cellCol = col + (i * dCol)
         board.grid[cellRow][cellCol] = self.CELL.SHIP
+        board.shipGrid[cellRow][cellCol] = shipId
         table.insert(cells, { row = cellRow, col = cellCol })
     end
 

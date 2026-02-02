@@ -355,10 +355,16 @@ end
 function Pages:CreateAttunementPage(parent, data)
     local Components = HopeAddon.Components
     local arcaneColor = HopeAddon.colors.ARCANE_PURPLE
+    -- Get raid-specific theme for colored background
+    local raidKey = data.raidKey or "karazhan"
+    local themeKey = raidKey == "cipher" and "tk" or raidKey
+    local theme = HopeAddon.Constants:GetRaidTheme(themeKey)
+    local bgTint = theme and HopeAddon:GetSafeColor(theme.bgTint) or { r = 0.1, g = 0.1, b = 0.1, a = 0.95 }
+    local accentColor = theme and HopeAddon:GetSafeColor(theme.accentColor) or arcaneColor
 
     local page = CreateBackdropFrame("Frame", nil, parent)
     page:SetSize(parent:GetWidth() - 40, 450)
-    Components:ApplyBackdropRaw(page, "PARCHMENT_GOLD_SMALL", 1, 1, 1, 0.95, arcaneColor.r, arcaneColor.g, arcaneColor.b, 1)
+    Components:ApplyBackdropRaw(page, "PARCHMENT_GOLD_SMALL", bgTint.r, bgTint.g, bgTint.b, bgTint.a or 0.95, accentColor.r, accentColor.g, accentColor.b, 1)
 
     -- Large raid icon at top (64x64)
     local raidIconPath = data.headerIcon and ("Interface\\Icons\\" .. data.headerIcon) or
@@ -374,7 +380,7 @@ function Pages:CreateAttunementPage(parent, data)
 
         -- Add glow for in-progress attunements
         if data.progress and data.progress > 0 and data.progress < 100 then
-            HopeAddon.Effects:CreatePulsingGlow(raidIcon, "ARCANE_PURPLE", 0.8)
+            HopeAddon.Effects:CreatePulsingGlow(raidIcon, theme and theme.accentColor or "ARCANE_PURPLE", 0.8)
         elseif data.progress and data.progress >= 100 then
             HopeAddon.Effects:CreatePulsingGlow(raidIcon, "GOLD_BRIGHT", 0.5)
         end
@@ -388,7 +394,7 @@ function Pages:CreateAttunementPage(parent, data)
     local header = page:CreateFontString(nil, "OVERLAY")
     header:SetFont(HopeAddon.assets.fonts.TITLE, 18, "")
     header:SetPoint("TOP", iconAnchor, iconAnchorPoint, 0, raidIconPath and -10 or -20)
-    header:SetText(HopeAddon:ColorText("THE PATH TO " .. (data.raidName or "UNKNOWN"), "ARCANE_PURPLE"))
+    header:SetText(HopeAddon:ColorText("THE PATH TO " .. (data.raidName or "UNKNOWN"):upper(), theme and theme.accentColor or "ARCANE_PURPLE"))
 
     -- Divider line under header
     local divider = page:CreateTexture(nil, "ARTWORK")
@@ -396,10 +402,10 @@ function Pages:CreateAttunementPage(parent, data)
     divider:SetHeight(2)
     divider:SetPoint("TOPLEFT", header, "BOTTOMLEFT", -40, -8)
     divider:SetPoint("TOPRIGHT", header, "BOTTOMRIGHT", 40, -8)
-    divider:SetVertexColor(HopeAddon:GetColor("ARCANE_PURPLE"))
+    divider:SetVertexColor(accentColor.r, accentColor.g, accentColor.b, 1)
 
     -- Progress bar
-    local progressBar = Components:CreateProgressBar(page, page:GetWidth() - 60, 25, "ARCANE_PURPLE")
+    local progressBar = Components:CreateProgressBar(page, page:GetWidth() - 60, 25, theme and theme.accentColor or "ARCANE_PURPLE")
     progressBar:SetPoint("TOP", divider, "BOTTOM", 0, -15)
     progressBar:SetProgress(data.progress or 0)
 
@@ -427,7 +433,7 @@ function Pages:CreateAttunementPage(parent, data)
             chapterFrame:SetBackdropBorderColor(0.2, 0.8, 0.2, 1)
         else
             chapterFrame:SetBackdropColor(HopeAddon.Constants.BACKDROP_COLORS.DARK_FAINT[1], HopeAddon.Constants.BACKDROP_COLORS.DARK_FAINT[2], HopeAddon.Constants.BACKDROP_COLORS.DARK_FAINT[3], HopeAddon.Constants.BACKDROP_COLORS.DARK_FAINT[4])
-            chapterFrame:SetBackdropBorderColor(0.4, 0.4, 0.4, 0.8)
+            chapterFrame:SetBackdropBorderColor(accentColor.r * 0.6, accentColor.g * 0.6, accentColor.b * 0.6, 0.8)
         end
 
         -- Location/dungeon icon (24x24) on the left
@@ -498,10 +504,16 @@ end
 ]]
 function Pages:CreateAttunementMilestonePage(parent, data)
     local Components = HopeAddon.Components
+    -- Get raid-specific theme for colored background
+    local raidKey = data.raidKey or "karazhan"
+    local themeKey = raidKey == "cipher" and "tk" or raidKey
+    local theme = HopeAddon.Constants:GetRaidTheme(themeKey)
+    local bgTint = theme and HopeAddon:GetSafeColor(theme.bgTint) or { r = 0.1, g = 0.1, b = 0.1, a = 0.95 }
+    local accentColor = theme and HopeAddon:GetSafeColor(theme.accentColor) or HopeAddon.colors.GOLD_BRIGHT
 
     local page = CreateBackdropFrame("Frame", nil, parent)
     page:SetSize(parent:GetWidth() - 40, 400)
-    Components:ApplyBackdrop(page, "PARCHMENT_GOLD_SMALL", "PARCHMENT", "GOLD")
+    Components:ApplyBackdropRaw(page, "PARCHMENT_GOLD_SMALL", bgTint.r, bgTint.g, bgTint.b, bgTint.a or 0.95, accentColor.r, accentColor.g, accentColor.b, 1)
 
     -- Header
     local header = page:CreateFontString(nil, "OVERLAY")
@@ -517,7 +529,7 @@ function Pages:CreateAttunementMilestonePage(parent, data)
     divider:SetHeight(2)
     divider:SetPoint("TOPLEFT", header, "BOTTOMLEFT", -50, -10)
     divider:SetPoint("TOPRIGHT", header, "BOTTOMRIGHT", 50, -10)
-    divider:SetVertexColor(HopeAddon:GetColor("GOLD_BRIGHT"))
+    divider:SetVertexColor(accentColor.r, accentColor.g, accentColor.b, 1)
 
     -- Large Icon (64x64) with glow
     local iconPath = data.icon

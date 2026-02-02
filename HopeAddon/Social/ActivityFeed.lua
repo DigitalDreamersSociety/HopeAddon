@@ -48,7 +48,7 @@ local ACTIVITY_ICONS = {
     [ACTIVITY.RUMOR] = "INV_Scroll_03",               -- Legacy (treat as IC)
     [ACTIVITY.MUG] = "INV_Drink_10",
     [ACTIVITY.LOOT] = "INV_Misc_Bag_10",             -- Loot bag
-    [ACTIVITY.ROMANCE] = "INV_ValentinesCard02",     -- Romance heart
+    [ACTIVITY.ROMANCE] = "Spell_Holy_SealOfRighteousness",  -- Holy oath
     -- New post types (Phase 50)
     [ACTIVITY.IC_POST] = "Spell_Holy_MindVision",    -- Speech/RP icon
     [ACTIVITY.ANON] = "INV_Scroll_01",               -- Anonymous scroll
@@ -87,6 +87,11 @@ local MAX_PENDING_ACTIVITIES = 200  -- Prevent unbounded queue growth
 local MAX_LASTSEEN_ENTRIES = 1000   -- Limit lastSeen deduplication cache
 local FEED_RETENTION_HOURS = 48
 local FEED_RETENTION_SECONDS = FEED_RETENTION_HOURS * 3600
+
+-- Loot Log limits (dedicated storage for guild loot visibility)
+local MAX_LOOT_LOG_ENTRIES = 100
+local LOOT_LOG_RETENTION_DAYS = 7
+local LOOT_LOG_RETENTION_SECONDS = LOOT_LOG_RETENTION_DAYS * 24 * 3600
 
 -- Broadcast settings
 local BROADCAST_BATCH_SIZE = 3  -- Max activities per broadcast
@@ -235,7 +240,14 @@ local function GetSocialData()
             -- Phase 2
             myRumors = {},
             mugsGiven = {},
+            -- Guild Loot Log (Phase 62): dedicated storage for raid loot visibility
+            lootLog = {},
         }
+    end
+
+    -- Ensure lootLog exists for existing saved data
+    if not HopeAddon.charDb.social.lootLog then
+        HopeAddon.charDb.social.lootLog = {}
     end
 
     return HopeAddon.charDb.social
@@ -343,6 +355,19 @@ local function CleanupOldActivities()
                 social.mugsGiven[activityId] = nil
             end
         end
+    end
+
+    -- Phase 62: Clean up old loot log entries (7-day retention)
+    if social.lootLog then
+        local lootCutoff = now - LOOT_LOG_RETENTION_SECONDS
+        local newLootLog = {}
+        for _, entry in ipairs(social.lootLog) do
+            if entry.timestamp and entry.timestamp > lootCutoff then
+                table.insert(newLootLog, entry)
+            end
+        end
+        social.lootLog = newLootLog
+        HopeAddon:Debug("ActivityFeed cleanup: ", #social.lootLog, "loot log entries retained")
     end
 
     HopeAddon:Debug("ActivityFeed cleanup: ", #social.feed, "activities retained")
@@ -539,6 +564,11 @@ function ActivityFeed:HandleNetworkActivity(sender, data)
     if activity.type == ACTIVITY.MUG then
         self:HandleIncomingMug(activity)
         return  -- Don't add MUG activities to the feed directly
+    end
+
+    -- Phase 62: Add LOOT activities to dedicated loot log for guild visibility
+    if activity.type == ACTIVITY.LOOT then
+        self:ProcessIncomingLoot(activity)
     end
 
     -- Check if activity type should be shown
@@ -1117,17 +1147,17 @@ function ActivityFeed:FormatActivity(activity)
         -- ROMANCE data format: eventType|partnerName|reason
         local eventType, partnerName, reason = strsplit("|", data, 3)
         if eventType == "PROPOSED" then
-            return string.format("|cFFFF69B4%s|r proposed to |cFFFFD700%s|r! <3", player, partnerName or "someone")
+            return string.format("|cFFFFD700%s|r offered an oath to |cFFFFD700%s|r! ✦", player, partnerName or "someone")
         elseif eventType == "DATING" then
-            return string.format("|cFFFF1493%s|r and |cFFFFD700%s|r are now dating! <3", player, partnerName or "someone")
+            return string.format("|cFFFFA500%s|r and |cFFFFD700%s|r are now oath-bound! ✦", player, partnerName or "someone")
         elseif eventType == "BREAKUP" then
             local reasonText = ""
             if reason and HopeAddon.Constants and HopeAddon.Constants.BREAKUP_REASON_TEXT then
                 reasonText = " " .. (HopeAddon.Constants.BREAKUP_REASON_TEXT[reason] or "")
             end
-            return string.format("|cFF808080%s|r and |cFFFFD700%s|r broke up. </3%s", player, partnerName or "someone", reasonText)
+            return string.format("|cFF808080%s|r and |cFFFFD700%s|r broke their oath.%s", player, partnerName or "someone", reasonText)
         else
-            return string.format("|cFFFF69B4%s|r: Romance update", player)
+            return string.format("|cFFFFD700%s|r: Romance update", player)
         end
 
     else
@@ -1471,6 +1501,11 @@ function ActivityFeed:QueueLootSharePrompt(itemLink)
         },
     }
 
+    -- Issue #TBD: Limit queue size to prevent memory growth during long raid sessions
+    local MAX_PENDING_LOOT_PROMPTS = 50
+    if #self.pendingLootPrompts >= MAX_PENDING_LOOT_PROMPTS then
+        table.remove(self.pendingLootPrompts, 1)
+    end
     table.insert(self.pendingLootPrompts, prompt)
     HopeAddon:Debug("ActivityFeed: Queued loot prompt for:", itemLink)
 
@@ -1727,6 +1762,20 @@ function ActivityFeed:ShareLoot(prompt, comment)
 
     self:QueueForBroadcast(activity)
 
+    -- Also add to loot log for persistent guild visibility
+    local itemName = GetItemInfo(prompt.data.itemLink)
+    self:AddToLootLog({
+        player = UnitName("player"),
+        class = class,
+        itemLink = prompt.data.itemLink,
+        itemName = itemName or "Unknown Item",
+        quality = prompt.data.itemQuality or 4,
+        source = prompt.data.source,
+        location = prompt.data.location,
+        timestamp = time(),
+        isFirstKill = prompt.data.isFirstKill,
+    })
+
     -- Play celebration sound
     if HopeAddon.Sounds then
         HopeAddon.Sounds:PlayAchievement()
@@ -1812,8 +1861,204 @@ function ActivityFeed:OnLootReceived(message)
 
     HopeAddon:Debug("ActivityFeed: Loot received:", itemLink)
 
-    -- Queue for prompt
-    self:QueueLootSharePrompt(itemLink)
+    -- Get item info (may return nil if item cache not loaded yet)
+    local _, _, quality = GetItemInfo(itemLink)
+
+    -- Guard against nil returns from GetItemInfo (item not cached)
+    if not quality then
+        HopeAddon:Debug("ActivityFeed: Item not in cache yet:", itemLink)
+        return
+    end
+
+    -- Only process epic+ items
+    if quality < LOOT_MIN_QUALITY then
+        HopeAddon:Debug("ActivityFeed: Item quality too low:", quality)
+        return
+    end
+
+    -- Check if in raid instance - auto-broadcast without prompt
+    local inInstance, instanceType = IsInInstance()
+    local isInRaid = inInstance and instanceType == "raid" and IsInRaid()
+
+    if isInRaid then
+        -- Auto-broadcast raid loot immediately (no prompt needed)
+        HopeAddon:Debug("ActivityFeed: In raid instance, auto-broadcasting loot")
+        self:AutoBroadcastRaidLoot(itemLink)
+    else
+        -- Non-raid: queue for opt-in prompt
+        self:QueueLootSharePrompt(itemLink)
+    end
+end
+
+--[[
+    Auto-broadcast loot when in a raid instance (no prompt)
+    @param itemLink string - Item link
+]]
+function ActivityFeed:AutoBroadcastRaidLoot(itemLink)
+    if not itemLink then return end
+
+    -- Get item info
+    local _, _, quality, _, _, itemType, itemSubType, _, equipLoc, icon = GetItemInfo(itemLink)
+    if not quality or quality < LOOT_MIN_QUALITY then return end
+
+    local context = self:GetLootContext()
+
+    -- Create activity
+    local _, class = UnitClass("player")
+
+    -- Encode data for wire: itemLink|source|location|comment|isFirstKill
+    -- Escape pipes in itemLink with ~
+    local escapedLink = itemLink:gsub("|", "~")
+    local encodedData = string.format("%s|%s|%s|%s|%s",
+        escapedLink,
+        context.source or "",
+        context.location or "",
+        "",  -- No comment for auto-broadcast
+        context.isFirstKill and "1" or "0"
+    )
+
+    local activity = self:CreateActivity(
+        ACTIVITY.LOOT,
+        UnitName("player"),
+        class,
+        encodedData
+    )
+
+    self:QueueForBroadcast(activity)
+
+    -- Also add to loot log for persistent guild visibility
+    self:AddToLootLog({
+        player = UnitName("player"),
+        class = class,
+        itemLink = itemLink,
+        itemName = GetItemInfo(itemLink) or "Unknown Item",
+        quality = quality,
+        source = context.source,
+        location = context.location,
+        timestamp = time(),
+        isFirstKill = context.isFirstKill,
+    })
+
+    HopeAddon:Debug("ActivityFeed: Auto-broadcast raid loot:", itemLink)
+end
+
+--============================================================
+-- GUILD LOOT LOG (Phase 62)
+-- Dedicated storage for raid loot with 7-day retention
+--============================================================
+
+--[[
+    Add a loot entry to the dedicated loot log
+    Called when:
+    - Player auto-broadcasts raid loot
+    - Receiving LOOT activity from guild via network
+
+    @param entry table - Loot entry with fields:
+        - player string - Player name
+        - class string - Player class
+        - itemLink string - Full item link
+        - itemName string - Item name (for display)
+        - quality number - Item quality (4=epic, 5=legendary)
+        - source string - Boss name or "Unknown"
+        - location string - Raid/zone name
+        - timestamp number - Unix timestamp
+        - isFirstKill boolean - First kill flag (optional)
+]]
+function ActivityFeed:AddToLootLog(entry)
+    if not entry or not entry.player or not entry.itemLink then
+        HopeAddon:Debug("ActivityFeed: Invalid loot log entry")
+        return false
+    end
+
+    local social = GetSocialData()
+    if not social then return false end
+
+    -- Ensure lootLog exists
+    if not social.lootLog then
+        social.lootLog = {}
+    end
+
+    -- Add timestamp if missing
+    if not entry.timestamp then
+        entry.timestamp = time()
+    end
+
+    -- Add to beginning (newest first)
+    table.insert(social.lootLog, 1, entry)
+
+    -- Trim to max size
+    while #social.lootLog > MAX_LOOT_LOG_ENTRIES do
+        table.remove(social.lootLog)
+    end
+
+    HopeAddon:Debug("ActivityFeed: Added to loot log:", entry.itemName or entry.itemLink, "from", entry.player)
+
+    -- Notify listeners (for UI refresh)
+    self:NotifyListeners(1)
+
+    return true
+end
+
+--[[
+    Get all loot log entries
+    @return table - Array of loot entries (newest first)
+]]
+function ActivityFeed:GetLootLog()
+    local social = GetSocialData()
+    if not social or not social.lootLog then return {} end
+    return social.lootLog
+end
+
+--[[
+    Get recent loot log entries
+    @param maxCount number - Maximum entries to return (default 10)
+    @return table - Array of loot entries
+]]
+function ActivityFeed:GetRecentLootLog(maxCount)
+    maxCount = maxCount or 10
+    local log = self:GetLootLog()
+    local result = {}
+
+    for i = 1, math.min(#log, maxCount) do
+        table.insert(result, log[i])
+    end
+
+    return result
+end
+
+--[[
+    Parse incoming LOOT activity and add to loot log
+    Called from HandleNetworkActivity when activity type is LOOT
+
+    @param activity table - The parsed activity
+]]
+function ActivityFeed:ProcessIncomingLoot(activity)
+    if not activity or activity.type ~= ACTIVITY.LOOT then return end
+
+    -- Parse LOOT data format: itemLink|source|location|comment|isFirstKill
+    local data = activity.data or ""
+    local escapedLink, source, location, comment, isFirstKill = strsplit("|", data, 5)
+
+    -- Unescape item link (pipes were replaced with ~ for wire protocol)
+    local itemLink = escapedLink and escapedLink:gsub("~", "|") or nil
+    if not itemLink then return end
+
+    -- Get item name from link
+    local itemName = GetItemInfo(itemLink)
+    local _, _, quality = GetItemInfo(itemLink)
+
+    -- Add to loot log
+    self:AddToLootLog({
+        player = activity.player,
+        class = activity.class,
+        itemLink = itemLink,
+        itemName = itemName or "Unknown Item",
+        quality = quality or 4,  -- Default to epic
+        source = source or "Unknown",
+        location = location or "",
+        timestamp = activity.time or time(),
+        isFirstKill = (isFirstKill == "1"),
+    })
 end
 
 --============================================================

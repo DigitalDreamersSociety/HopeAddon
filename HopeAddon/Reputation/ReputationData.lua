@@ -118,9 +118,12 @@ Data.TBC_FACTIONS = {
                 "Heroic Hellfire dungeons (continues beyond Honored)",
             },
             rewards = {
-                [6] = { { itemId = 28286, name = "Flamewrought Key", icon = "INV_Misc_Key_13" } },
-                [7] = { { itemId = 29169, name = "Nethercobra Leg Armor", icon = "INV_Misc_ArmorKit_25" } },
-                [8] = { { itemId = 23999, name = "Honor Hold Tabard", icon = "INV_Misc_Tabard_HonorHold" } },
+                [6] = { { itemId = 30622, name = "Flamewrought Key", icon = "INV_Misc_Key_13" } },
+                [7] = { { itemId = 31362, name = "Pattern: Nethercobra Leg Armor", icon = "INV_Misc_ArmorKit_25" } },
+                [8] = {
+                    { itemId = 23999, name = "Honor Hold Tabard", icon = "INV_Misc_Tabard_HonorHold" },
+                    { itemId = 29169, name = "Ring of Convalescence", icon = "INV_Jewelry_Ring_54" },
+                },
             },
             tips = {
                 "Complete all Hellfire Peninsula quests first for easy early rep",
@@ -163,9 +166,12 @@ Data.TBC_FACTIONS = {
                 "Heroic Hellfire dungeons (continues beyond Honored)",
             },
             rewards = {
-                [6] = { { itemId = 28286, name = "Flamewrought Key", icon = "INV_Misc_Key_13" } },
-                [7] = { { itemId = 29165, name = "Cobrahide Leg Armor", icon = "INV_Misc_ArmorKit_25" } },
-                [8] = { { itemId = 24000, name = "Thrallmar Tabard", icon = "INV_Misc_Tabard_Thrallmar" } },
+                [6] = { { itemId = 30622, name = "Flamewrought Key", icon = "INV_Misc_Key_13" } },
+                [7] = { { itemId = 29719, name = "Pattern: Cobrahide Leg Armor", icon = "INV_Misc_ArmorKit_25" } },
+                [8] = {
+                    { itemId = 24004, name = "Thrallmar Tabard", icon = "INV_Misc_Tabard_Thrallmar" },
+                    { itemId = 29168, name = "Ancestral Band", icon = "INV_Jewelry_Ring_54" },
+                },
             },
             tips = {
                 "Complete all Hellfire Peninsula quests first for easy early rep",
@@ -212,9 +218,20 @@ Data.TBC_FACTIONS = {
                 "Heroic Coilfang dungeons for fastest rep at 70",
             },
             rewards = {
-                [6] = { { itemId = 28287, name = "Reservoir Key", icon = "INV_Misc_Key_13" } },
-                [7] = { { itemId = 33999, name = "Cenarion War Hippogryph", icon = "Ability_Mount_CenarianHippogryph" } },
-                [8] = { { itemId = 31804, name = "Cenarion Expedition Tabard", icon = "INV_Misc_Tabard_CenarionExpedition" } },
+                [6] = { { itemId = 30623, name = "Reservoir Key", icon = "INV_Misc_Key_13" } },
+                [7] = {
+                    { itemId = 33999, name = "Cenarion War Hippogryph", icon = "Ability_Mount_CenarianHippogryph" },
+                    { itemId = 25838, name = "Warden's Hauberk", icon = "INV_Chest_Chain_15" },
+                    { itemId = 29458, name = "Aegis of the Vindicator", icon = "INV_Shield_35" },
+                    { itemId = 29173, name = "Strength of the Untamed", icon = "INV_Jewelry_Necklace_24" },
+                },
+                [8] = {
+                    { itemId = 31804, name = "Cenarion Expedition Tabard", icon = "INV_Misc_Tabard_CenarionExpedition" },
+                    { itemId = 29171, name = "Earthwarden", icon = "INV_Mace_52" },
+                    { itemId = 29170, name = "Windcaller's Orb", icon = "INV_Misc_Orb_05" },
+                    { itemId = 29172, name = "Ashyen's Gift", icon = "INV_Jewelry_Ring_41" },
+                    { itemId = 29174, name = "Necklace of the Deep", icon = "INV_Jewelry_Necklace_24" },
+                },
             },
             tips = {
                 "Farm Unidentified Plant Parts in Zangarmarsh for easy early rep",
@@ -254,9 +271,15 @@ Data.TBC_FACTIONS = {
                 "Underbog dungeon (Sanguine Hibiscus drops)",
             },
             rewards = {
-                [5] = { { itemId = 32689, name = "Recipe: Sporeling Snack", icon = "INV_Misc_Food_62" } },
-                [7] = { { itemId = 30156, name = "Hardened Stone Shard", icon = "INV_Weapon_ShortBlade_39" } },
-                [8] = { { itemId = 34478, name = "Tiny Sporebat", icon = "INV_Pet_Sporebat" } },
+                [5] = { { itemId = 27689, name = "Recipe: Sporeling Snack", icon = "INV_Misc_Food_62" } },
+                [7] = {
+                    { itemId = 29150, name = "Hardened Stone Shard", icon = "INV_Weapon_ShortBlade_39" },
+                    { itemId = 29149, name = "Petrified Lichen Guard", icon = "INV_Shield_32" },
+                },
+                [8] = {
+                    { itemId = 34478, name = "Tiny Sporebat", icon = "INV_Pet_Sporebat" },
+                    { itemId = 30150, name = "Muck-Covered Drape", icon = "INV_Misc_Cape_20" },
+                },
             },
             tips = {
                 "Farm Sanguine Hibiscus in Underbog - it stacks!",
@@ -298,8 +321,7 @@ Data.TBC_FACTIONS = {
                 "Killing Kil'sorrow enemies in Nagrand",
             },
             rewards = {
-                [7] = { { itemId = 29227, name = "Talbuk Riding Crop", icon = "INV_Misc_Crop_01" } },
-                [8] = { { itemId = 31830, name = "Cobalt Riding Talbuk", icon = "Ability_Mount_Warhippogryph" } },
+                [8] = { { itemId = 31830, name = "Reins of the Cobalt Riding Talbuk", icon = "Ability_Mount_Warhippogryph" } },
             },
             tips = {
                 "Farm Obsidian Warbeads from Nagrand ogres",
@@ -342,8 +364,11 @@ Data.TBC_FACTIONS = {
                 "Killing Kil'sorrow enemies in Nagrand",
             },
             rewards = {
-                [7] = { { itemId = 29227, name = "Talbuk Riding Crop", icon = "INV_Misc_Crop_01" } },
-                [8] = { { itemId = 31836, name = "Cobalt War Talbuk", icon = "Ability_Mount_Warhippogryph" } },
+                [8] = {
+                    { itemId = 31829, name = "Mag'har Tabard", icon = "INV_Misc_Tabard_Maghar" },
+                    { itemId = 29102, name = "Reins of the Cobalt War Talbuk", icon = "Ability_Mount_Warhippogryph" },
+                    { itemId = 31836, name = "Reins of the Cobalt Riding Talbuk", icon = "Ability_Mount_Warhippogryph" },
+                },
             },
             tips = {
                 "Farm Obsidian Warbeads from Nagrand ogres",
@@ -388,9 +413,18 @@ Data.TBC_FACTIONS = {
                 "Heroic Auchindoun dungeons at 70",
             },
             rewards = {
-                [6] = { { itemId = 28395, name = "Auchenai Key", icon = "INV_Misc_Key_11" } },
-                [7] = { { itemId = 30832, name = "Glyph of Shadow Warding", icon = "INV_Misc_Rune_04" } },
-                [8] = { { itemId = 31778, name = "Lower City Tabard", icon = "INV_Misc_Tabard_LowerCity" } },
+                [6] = { { itemId = 30633, name = "Auchenai Key", icon = "INV_Misc_Key_11" } },
+                [7] = {
+                    { itemId = 30841, name = "Lower City Prayerbook", icon = "INV_Misc_Book_06" },
+                    { itemId = 30832, name = "Glyph of Shadow Warding", icon = "INV_Misc_Rune_04" },
+                    { itemId = 30836, name = "Leggings of the Skettis Exile", icon = "INV_Pants_Leather_19" },
+                },
+                [8] = {
+                    { itemId = 31778, name = "Lower City Tabard", icon = "INV_Misc_Tabard_LowerCity" },
+                    { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_68" },
+                    { itemId = 29126, name = "Seer's Signet", icon = "INV_Jewelry_Ring_54" },
+                    { itemId = 30833, name = "Trident of the Outcast Tribe", icon = "INV_Spear_05" },
+                },
             },
             tips = {
                 "Farm Arakkoa Feathers in Terokkar for early rep",
@@ -430,9 +464,18 @@ Data.TBC_FACTIONS = {
                 "Heroic Tempest Keep dungeons at 70",
             },
             rewards = {
-                [6] = { { itemId = 28396, name = "Warpforged Key", icon = "INV_Misc_Key_09" } },
-                [7] = { { itemId = 30634, name = "Glyph of Arcane Warding", icon = "INV_Misc_Rune_08" } },
-                [8] = { { itemId = 31781, name = "Sha'tar Tabard", icon = "INV_Misc_Tabard_Shatar" } },
+                [6] = { { itemId = 30634, name = "Warpforged Key", icon = "INV_Misc_Key_09" } },
+                [7] = {
+                    { itemId = 29195, name = "Glyph of Arcane Warding", icon = "INV_Misc_Rune_08" },
+                    { itemId = 29179, name = "Xi'ri's Gift", icon = "INV_Jewelry_Necklace_26" },
+                    { itemId = 29177, name = "A'dal's Command", icon = "INV_Jewelry_Necklace_26" },
+                },
+                [8] = {
+                    { itemId = 31781, name = "Sha'tar Tabard", icon = "INV_Misc_Tabard_Shatar" },
+                    { itemId = 29175, name = "Gavel of Pure Light", icon = "INV_Mace_53" },
+                    { itemId = 29463, name = "Sha'tari Wrought Armguards", icon = "INV_Bracer_16" },
+                    { itemId = 29180, name = "Crest of the Sha'tar", icon = "INV_Shield_30" },
+                },
             },
             tips = {
                 "Gains 50% spillover from Aldor or Scryers rep",
@@ -475,9 +518,23 @@ Data.TBC_FACTIONS = {
                 "Shadowmoon Valley quests",
             },
             rewards = {
-                [6] = { { itemId = 29129, name = "Medallion of the Aldor", icon = "INV_Jewelry_Necklace_24" } },
-                [7] = { { itemId = 31780, name = "Greater Inscription of Vengeance", icon = "INV_Misc_Note_02" } },
-                [8] = { { itemId = 31779, name = "Greater Inscription of Warding", icon = "INV_Misc_Note_02" } },
+                [6] = {
+                    { itemId = 29129, name = "Medallion of the Aldor", icon = "INV_Jewelry_Necklace_24" },
+                    { itemId = 28878, name = "Inscription of Discipline", icon = "INV_Misc_Note_02" },
+                    { itemId = 28879, name = "Inscription of Faith", icon = "INV_Misc_Note_02" },
+                    { itemId = 28880, name = "Inscription of Vengeance", icon = "INV_Misc_Note_02" },
+                    { itemId = 28881, name = "Inscription of Warding", icon = "INV_Misc_Note_02" },
+                },
+                [7] = {
+                    { itemId = 28886, name = "Greater Inscription of Discipline", icon = "INV_Misc_Note_02" },
+                    { itemId = 28887, name = "Greater Inscription of Faith", icon = "INV_Misc_Note_02" },
+                    { itemId = 28888, name = "Greater Inscription of Vengeance", icon = "INV_Misc_Note_02" },
+                    { itemId = 28889, name = "Greater Inscription of Warding", icon = "INV_Misc_Note_02" },
+                },
+                [8] = {
+                    { itemId = 29175, name = "Gavel of Pure Light", icon = "INV_Mace_53" },
+                    { itemId = 31779, name = "Aldor Tabard", icon = "INV_Misc_Tabard_Aldor" },
+                },
             },
             tips = {
                 "Farm Marks of Kil'jaeden from demons in Nagrand/Terokkar",
@@ -524,9 +581,22 @@ Data.TBC_FACTIONS = {
                 "Netherstorm quests",
             },
             rewards = {
-                [6] = { { itemId = 31775, name = "Scryer's Bloodgem", icon = "INV_Misc_Gem_BloodGem_01" } },
-                [7] = { { itemId = 31773, name = "Greater Inscription of the Blade", icon = "INV_Misc_Note_02" } },
-                [8] = { { itemId = 31774, name = "Greater Inscription of the Knight", icon = "INV_Misc_Note_02" } },
+                [6] = {
+                    { itemId = 31775, name = "Scryer's Bloodgem", icon = "INV_Misc_Gem_BloodGem_01" },
+                    { itemId = 28903, name = "Inscription of the Blade", icon = "INV_Misc_Note_02" },
+                    { itemId = 28904, name = "Inscription of the Knight", icon = "INV_Misc_Note_02" },
+                    { itemId = 28905, name = "Inscription of the Oracle", icon = "INV_Misc_Note_02" },
+                    { itemId = 28906, name = "Inscription of the Orb", icon = "INV_Misc_Note_02" },
+                },
+                [7] = {
+                    { itemId = 28908, name = "Greater Inscription of the Blade", icon = "INV_Misc_Note_02" },
+                    { itemId = 28909, name = "Greater Inscription of the Knight", icon = "INV_Misc_Note_02" },
+                    { itemId = 28910, name = "Greater Inscription of the Oracle", icon = "INV_Misc_Note_02" },
+                    { itemId = 28911, name = "Greater Inscription of the Orb", icon = "INV_Misc_Note_02" },
+                },
+                [8] = {
+                    { itemId = 31780, name = "Scryers Tabard", icon = "INV_Misc_Tabard_Scryer" },
+                },
             },
             tips = {
                 "Farm Firewing Signets from blood elves in Terokkar",
@@ -571,9 +641,18 @@ Data.TBC_FACTIONS = {
                 "Heroic Caverns of Time at 70",
             },
             rewards = {
-                [6] = { { itemId = 28756, name = "Key of Time", icon = "INV_Misc_Key_04" } },
-                [7] = { { itemId = 30635, name = "Glyph of Nature Warding", icon = "INV_Misc_Rune_12" } },
-                [8] = { { itemId = 31777, name = "Keepers of Time Tabard", icon = "INV_Misc_Tabard_KeepersOfTime" } },
+                [6] = { { itemId = 30635, name = "Key of Time", icon = "INV_Misc_Key_04" } },
+                [7] = {
+                    { itemId = 29194, name = "Glyph of Nature Warding", icon = "INV_Misc_Rune_12" },
+                    { itemId = 29185, name = "Continuum Blade", icon = "INV_Sword_66" },
+                    { itemId = 29186, name = "Rift Stalker Rings", icon = "INV_Jewelry_Ring_54" },
+                },
+                [8] = {
+                    { itemId = 31777, name = "Keepers of Time Tabard", icon = "INV_Misc_Tabard_KeepersOfTime" },
+                    { itemId = 29183, name = "Bindings of the Timewalker", icon = "INV_Bracer_07" },
+                    { itemId = 29527, name = "Timewarden's Leggings", icon = "INV_Pants_Plate_17" },
+                    { itemId = 29182, name = "Band of the Guardian", icon = "INV_Jewelry_Ring_41" },
+                },
             },
             tips = {
                 "Black Morass is faster for rep at 70",
@@ -616,9 +695,17 @@ Data.TBC_FACTIONS = {
                 "Monthly gem bag from Gezhe (Friendly+)",
             },
             rewards = {
-                [5] = { { itemId = 29115, name = "Consortium Tabard", icon = "INV_Misc_Tabard_Consortium" } },
-                [7] = { { itemId = 31776, name = "Design: Pendant of Sunfire", icon = "INV_Misc_Note_06" } },
-                [8] = { { itemId = 31357, name = "Bag of Premium Gems", icon = "INV_Misc_Bag_17" } },
+                [5] = { { itemId = 31776, name = "Consortium Tabard", icon = "INV_Misc_Tabard_Consortium" } },
+                [7] = {
+                    { itemId = 29456, name = "Consortium Plated Legguards", icon = "INV_Pants_Plate_07" },
+                    { itemId = 29457, name = "Nethershard", icon = "INV_Weapon_ShortBlade_39" },
+                },
+                [8] = {
+                    { itemId = 31357, name = "Bag of Premium Gems", icon = "INV_Misc_Bag_17" },
+                    { itemId = 29119, name = "Haramad's Bargain", icon = "INV_Jewelry_Necklace_27" },
+                    { itemId = 29503, name = "Consortium Warhelm", icon = "INV_Helmet_70" },
+                    { itemId = 29115, name = "Consortium Blaster", icon = "INV_Weapon_Rifle_03" },
+                },
             },
             tips = {
                 "Visit Nagrand monthly for your free gem bag",
@@ -659,13 +746,18 @@ Data.TBC_FACTIONS = {
                 "Weekly lockout - grind takes several weeks",
             },
             rewards = {
-                [6] = { { itemId = 29287, name = "Violet Signet", icon = "INV_Jewelry_Ring_62" } },
-                [7] = { { itemId = 29291, name = "Violet Signet (Upgraded)", icon = "INV_Jewelry_Ring_62" } },
-                [8] = { { itemId = 29290, name = "Violet Signet of the Great Protector", icon = "INV_Jewelry_Ring_62" } },
+                [6] = { { itemId = 29280, name = "Violet Signet (Honored)", icon = "INV_Jewelry_Ring_62" } },
+                [7] = { { itemId = 29282, name = "Violet Signet (Revered)", icon = "INV_Jewelry_Ring_62" } },
+                [8] = {
+                    { itemId = 29279, name = "Violet Signet of the Great Protector", icon = "INV_Jewelry_Ring_62" },
+                    { itemId = 29283, name = "Violet Signet of the Master Assassin", icon = "INV_Jewelry_Ring_62" },
+                    { itemId = 29287, name = "Violet Signet of the Archmage", icon = "INV_Jewelry_Ring_62" },
+                    { itemId = 29290, name = "Violet Signet of the Grand Restorer", icon = "INV_Jewelry_Ring_62" },
+                },
             },
             tips = {
                 "Clear Karazhan weekly for rep",
-                "Ring upgrades are role-specific (tank/healer/caster/melee)",
+                "Ring upgrades are role-specific - choose Tank/Melee/Caster/Healer",
                 "Exalted ring is very powerful for its slot",
                 "Trash mobs give rep throughout the raid",
             },
@@ -705,7 +797,7 @@ Data.TBC_FACTIONS = {
             },
             rewards = {
                 [7] = { { itemId = 32757, name = "Blessed Medallion of Karabor", icon = "INV_Jewelry_Necklace_24" } },
-                [8] = { { itemId = 32485, name = "Ashtongue Talisman", icon = "INV_Jewelry_Talisman_04" } },
+                [8] = { { itemId = 32485, name = "Ashtongue Talisman of Valor", icon = "INV_Jewelry_Talisman_04" } },
             },
             tips = {
                 "Progress through Black Temple weekly",
@@ -751,8 +843,18 @@ Data.TBC_FACTIONS = {
                 "Infiltrating the Dragonmaw quest chain",
             },
             rewards = {
-                [7] = { { itemId = 32694, name = "Skybreaker Whip", icon = "INV_Misc_Crop_02" } },
-                [8] = { { itemId = 32857, name = "Onyx Netherwing Drake", icon = "Ability_Mount_NetherdrakePurple" } },
+                [6] = { { itemId = 32694, name = "Skybreaker Whip", icon = "INV_Misc_Crop_02" } },
+                [7] = {
+                    { itemId = 32863, name = "Netherwing Drake Guide", icon = "INV_Misc_Crop_02" },
+                },
+                [8] = {
+                    { itemId = 32857, name = "Reins of the Onyx Netherwing Drake", icon = "Ability_Mount_NetherdrakePurple" },
+                    { itemId = 32858, name = "Reins of the Azure Netherwing Drake", icon = "Ability_Mount_NetherDrakeElite" },
+                    { itemId = 32859, name = "Reins of the Cobalt Netherwing Drake", icon = "Ability_Mount_NetherDrakeElite" },
+                    { itemId = 32860, name = "Reins of the Purple Netherwing Drake", icon = "Ability_Mount_NetherDrakeElite" },
+                    { itemId = 32861, name = "Reins of the Veridian Netherwing Drake", icon = "Ability_Mount_NetherDrakeElite" },
+                    { itemId = 32862, name = "Reins of the Violet Netherwing Drake", icon = "Ability_Mount_NetherDrakeElite" },
+                },
             },
             tips = {
                 "Farm Netherwing Eggs for bonus rep",
@@ -796,9 +898,18 @@ Data.TBC_FACTIONS = {
                 "Apexis Shard turn-ins",
             },
             rewards = {
-                [6] = { { itemId = 32572, name = "Apexis Shard Necklace", icon = "INV_Misc_Gem_FlameSPessarite_01" } },
-                [7] = { { itemId = 32652, name = "Crystalforged Darkrune", icon = "INV_Misc_Gem_Diamond_02" } },
-                [8] = { { itemId = 32828, name = "Ogri'la Tabard", icon = "INV_Misc_Tabard_Ogrila" } },
+                [6] = {
+                    { itemId = 32572, name = "Apexis Cloak", icon = "INV_Misc_Cape_18" },
+                    { itemId = 32573, name = "Apexis Cleaver", icon = "INV_Sword_65" },
+                },
+                [7] = {
+                    { itemId = 32652, name = "Crystalforged Darkrune", icon = "INV_Misc_Gem_Diamond_02" },
+                    { itemId = 32653, name = "Crystalforged War Axe", icon = "INV_Axe_61" },
+                },
+                [8] = {
+                    { itemId = 32828, name = "Ogri'la Tabard", icon = "INV_Misc_Tabard_Ogrila" },
+                    { itemId = 32830, name = "Shard-Bound Bracers", icon = "INV_Bracer_15" },
+                },
             },
             tips = {
                 "Simon Says game can be tricky - practice!",
@@ -842,9 +953,21 @@ Data.TBC_FACTIONS = {
                 "Bombing runs in Blade's Edge",
             },
             rewards = {
-                [6] = { { itemId = 32770, name = "Skyguard Silver Cross", icon = "INV_Jewelry_Amulet_01" } },
-                [7] = { { itemId = 32771, name = "Skyguard's Drape", icon = "INV_Misc_Cape_06" } },
-                [8] = { { itemId = 32319, name = "Purple Riding Nether Ray", icon = "Ability_Mount_Netherray" } },
+                [6] = {
+                    { itemId = 32770, name = "Skyguard Silver Cross", icon = "INV_Jewelry_Amulet_01" },
+                    { itemId = 32773, name = "Skyguard Rations", icon = "INV_Misc_Food_65" },
+                },
+                [7] = {
+                    { itemId = 32539, name = "Skyguard's Drape", icon = "INV_Misc_Cape_06" },
+                    { itemId = 32771, name = "Airman's Ribbon of Gallantry", icon = "INV_Jewelry_Necklace_24" },
+                },
+                [8] = {
+                    { itemId = 32319, name = "Purple Riding Nether Ray", icon = "Ability_Mount_Netherray" },
+                    { itemId = 32314, name = "Green Riding Nether Ray", icon = "Ability_Mount_Netherray" },
+                    { itemId = 32316, name = "Red Riding Nether Ray", icon = "Ability_Mount_Netherray" },
+                    { itemId = 32317, name = "Blue Riding Nether Ray", icon = "Ability_Mount_Netherray" },
+                    { itemId = 32318, name = "Silver Riding Nether Ray", icon = "Ability_Mount_Netherray" },
+                },
             },
             tips = {
                 "Farm Skettis with a group for Shadow Dust",
@@ -888,9 +1011,22 @@ Data.TBC_FACTIONS = {
                 "Daily quests unlocked as server progresses",
             },
             rewards = {
-                [5] = { { itemId = 34872, name = "Shattered Sun Pendant", icon = "INV_Jewelry_Necklace_36" } },
-                [7] = { { itemId = 35221, name = "Tabard of the Shattered Sun", icon = "INV_Misc_Tabard_ShatteredSun" } },
-                [8] = { { itemId = 35223, name = "Title: of the Shattered Sun", icon = "INV_Misc_QuestionMark" } },
+                [5] = {
+                    { itemId = 34872, name = "Shattered Sun Pendant of Acumen", icon = "INV_Jewelry_Necklace_36" },
+                    { itemId = 34873, name = "Shattered Sun Pendant of Might", icon = "INV_Jewelry_Necklace_36" },
+                    { itemId = 34874, name = "Shattered Sun Pendant of Resolve", icon = "INV_Jewelry_Necklace_36" },
+                    { itemId = 34875, name = "Shattered Sun Pendant of Restoration", icon = "INV_Jewelry_Necklace_36" },
+                },
+                [6] = {
+                    { itemId = 35247, name = "Archmage's Guile", icon = "INV_Pants_Cloth_06" },
+                    { itemId = 35248, name = "Sunwell Hauberk", icon = "INV_Chest_Chain_15" },
+                },
+                [7] = {
+                    { itemId = 35221, name = "Tabard of the Shattered Sun", icon = "INV_Misc_Tabard_ShatteredSun" },
+                },
+                [8] = {
+                    { itemId = 35223, name = "Title: of the Shattered Sun", icon = "INV_Misc_Tabard_ShatteredSun" },
+                },
             },
             tips = {
                 "Daily quests are the fastest path to Exalted",
