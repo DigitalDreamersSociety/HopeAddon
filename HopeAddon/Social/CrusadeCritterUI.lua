@@ -37,6 +37,16 @@ local SLIDE_DURATION = 0.3
 local HOUSING_OFFSET_X = 130 -- Distance from screen edge when open (clears minimap)
 local HOUSING_Y_OFFSET = -150 -- Y position (below minimap)
 
+-- Combined stats window constants
+local COMBINED_STATS_WIDTH = 320
+local COMBINED_STATS_HEIGHT = 220
+local COMBINED_STATS_DURATION = 10 -- Seconds before auto-hide
+
+-- Boss tips panel constants
+local TIPS_PANEL_WIDTH = 320
+local TIPS_PANEL_HEIGHT = 200
+local TYPEWRITER_SPEED = 0.03 -- Seconds per character
+
 -- Glow texture for soft circular effect
 local GLOW_TEXTURE = "Interface\\GLUES\\Models\\UI_Draenei\\GenericGlow64"
 
@@ -62,6 +72,22 @@ CritterUI.isHousingOpen = false
 CritterUI.wasOpenBeforeCombat = false
 CritterUI.slideAnimation = nil
 
+-- Combined stats + tips system
+CritterUI.combinedStatsWindow = nil
+CritterUI.combinedStatsTimer = nil
+CritterUI.bossTipsPanel = nil
+CritterUI.bossTipsState = nil -- { tips, currentIndex, state, bossKey }
+CritterUI.tipsTypewriterTicker = nil
+CritterUI.prePullButton = nil
+CritterUI.bossDropdown = nil
+
+-- Floating bubble system (independent of housing)
+CritterUI.floatingBubble = nil
+CritterUI.floatingBubbleQueue = {} -- Queue of messages to display
+CritterUI.isShowingQueue = false
+CritterUI.floatingBubbleTimer = nil
+CritterUI.floatingBubbleTypewriter = nil
+
 --============================================================
 -- TAB BUTTON
 --============================================================
@@ -75,7 +101,7 @@ function CritterUI:CreateTabButton()
         return self.tabButton
     end
 
-    local tab = CreateFrame("Button", "HopeCrusadeCritterTab", UIParent)
+    local tab = CreateFrame("Button", "HopeCrusadeCritterTab", UIParent, "BackdropTemplate")
     tab:SetSize(TAB_WIDTH, TAB_HEIGHT)
     tab:SetFrameStrata("MEDIUM")
     tab:SetFrameLevel(99)
@@ -144,15 +170,15 @@ end
 function CritterUI:UpdateTabIcon()
     if not self.tabButton or not self.tabButton.icon then return end
 
-    -- Map critter IDs to appropriate icons
+    -- Map critter IDs to appropriate icons (TBC-compatible icons)
     local iconMap = {
-        flux = "Interface\\Icons\\INV_Pet_ManaWyrm",
+        flux = "Interface\\Icons\\Inv_Pet_ManaWyrm",
         snookimp = "Interface\\Icons\\Spell_Shadow_SummonImp",
-        shred = "Interface\\Icons\\INV_Mushroom_10",
+        shred = "Interface\\Icons\\Ability_Creature_Poison_04",
         emo = "Interface\\Icons\\Ability_Hunter_Pet_Bat",
-        cosmo = "Interface\\Icons\\INV_Moth",
-        boomer = "Interface\\Icons\\Ability_Hunter_Pet_Owl",
-        diva = "Interface\\Icons\\INV_Pet_PhoenixPet",
+        cosmo = "Interface\\Icons\\Spell_Arcane_Starfire",
+        boomer = "Interface\\Icons\\Ability_EyeOfTheOwl",
+        diva = "Interface\\Icons\\Ability_Hunter_Pet_DragonHawk",
     }
 
     local critterId = "flux"
@@ -194,7 +220,7 @@ function CritterUI:CreateHousingContainer()
         return self.housingContainer
     end
 
-    local housing = CreateFrame("Frame", "HopeCrusadeCritterHousing", UIParent)
+    local housing = CreateFrame("Frame", "HopeCrusadeCritterHousing", UIParent, "BackdropTemplate")
     housing:SetSize(HOUSING_WIDTH, HOUSING_HEIGHT)
     housing:SetFrameStrata("MEDIUM")
     housing:SetFrameLevel(100) -- Above tab (99) for proper layering
@@ -275,6 +301,9 @@ function CritterUI:CreateHousingContainer()
 
     -- Also store reference in mascotFrame for backward compatibility
     self.mascotFrame = housing
+
+    -- Create pre-pull tips button
+    self:CreatePrePullButton()
 
     return housing
 end
@@ -459,8 +488,8 @@ function CritterUI:CreateCritterSelector()
         self:CreateHousingContainer()
     end
 
-    local popup = CreateFrame("Frame", "HopeCrusadeCritterSelector", self.housingContainer)
-    popup:SetSize(200, 180)
+    local popup = CreateFrame("Frame", "HopeCrusadeCritterSelector", self.housingContainer, "BackdropTemplate")
+    popup:SetSize(220, 180)
     popup:SetFrameStrata("DIALOG")
     popup:SetFrameLevel(200)
 
@@ -489,7 +518,7 @@ function CritterUI:CreateCritterSelector()
 
     -- Critter grid container
     local grid = CreateFrame("Frame", nil, popup)
-    grid:SetSize(180, 130)
+    grid:SetSize(200, 130)
     grid:SetPoint("TOP", title, "BOTTOM", 0, -8)
     popup.grid = grid
 
@@ -525,22 +554,22 @@ function CritterUI:PopulateCritterSelector()
     end
     grid.icons = {}
 
-    -- Icon map for critters
+    -- Icon map for critters (TBC-compatible icons)
     local iconMap = {
-        flux = "Interface\\Icons\\INV_Pet_ManaWyrm",
+        flux = "Interface\\Icons\\Inv_Pet_ManaWyrm",
         snookimp = "Interface\\Icons\\Spell_Shadow_SummonImp",
-        shred = "Interface\\Icons\\INV_Mushroom_10",
+        shred = "Interface\\Icons\\Ability_Creature_Poison_04",
         emo = "Interface\\Icons\\Ability_Hunter_Pet_Bat",
-        cosmo = "Interface\\Icons\\INV_Moth",
-        boomer = "Interface\\Icons\\Ability_Hunter_Pet_Owl",
-        diva = "Interface\\Icons\\INV_Pet_PhoenixPet",
+        cosmo = "Interface\\Icons\\Spell_Arcane_Starfire",
+        boomer = "Interface\\Icons\\Ability_EyeOfTheOwl",
+        diva = "Interface\\Icons\\Ability_Hunter_Pet_DragonHawk",
     }
 
     local critterOrder = { "flux", "snookimp", "shred", "emo", "cosmo", "boomer", "diva" }
     local iconSize = 40
     local spacing = 8
     local cols = 4
-    local startX = 10
+    local startX = 8
     local startY = -5
 
     for i, critterId in ipairs(critterOrder) do
@@ -741,9 +770,15 @@ function CritterUI:SetCritter(critterId)
 
     -- Set 3D model using displayID (TBC compatible)
     if critterData.displayID then
+        model:ClearModel()              -- Reset model state first
+        model:Show()                    -- CRITICAL: Show BEFORE setting display!
         model:SetDisplayInfo(critterData.displayID)
-        model:SetPosition(0, 0, 0)
+        model:SetCamera(1)              -- Full body camera (not portrait/face zoom)
+        model:SetPosition(0, 0, 0)      -- Reset position
         model:SetFacing(0)
+        -- Enable lighting so model isn't black/invisible
+        -- TBC SetLight: enabled, omni, dirX, dirY, dirZ, ambInt, ambR, ambG, ambB, dirInt, dirR, dirG, dirB
+        model:SetLight(true, false, 0, -0.707, -0.707, 0.8, 1.0, 1.0, 1.0, 0.8, 1.0, 1.0, 1.0)
     end
 
     -- Set glow color
@@ -888,7 +923,7 @@ function CritterUI:CreateSpeechBubble()
         self:CreateHousingContainer()
     end
 
-    local bubble = CreateFrame("Frame", nil, self.housingContainer)
+    local bubble = CreateFrame("Frame", nil, self.housingContainer, "BackdropTemplate")
     bubble:SetSize(BUBBLE_WIDTH, 60) -- Height will adjust to text
 
     -- Classic comic book style: white background, black border
@@ -1028,7 +1063,7 @@ function CritterUI:CreateBossPopup()
         return self.bossPopup
     end
 
-    local popup = CreateFrame("Frame", nil, UIParent)
+    local popup = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
     popup:SetSize(300, 140)
     popup:SetBackdrop(HopeAddon.Constants.BACKDROPS.DARK_GOLD)
     popup:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
@@ -1147,7 +1182,7 @@ function CritterUI:CreateStatsWindow()
         return self.statsWindow
     end
 
-    local window = CreateFrame("Frame", "HopeCrusadeCritterStats", UIParent)
+    local window = CreateFrame("Frame", "HopeCrusadeCritterStats", UIParent, "BackdropTemplate")
     window:SetSize(450, 280)
     window:SetBackdrop(HopeAddon.Constants.BACKDROPS.DARK_GOLD)
     window:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
@@ -1324,6 +1359,1292 @@ function CritterUI:HideStatsWindow()
 end
 
 --============================================================
+-- COMBINED STATS + COMMENTARY WINDOW (New unified post-combat UI)
+--============================================================
+
+--[[
+    Create the combined stats window showing boss kill info + critter commentary
+    @return Frame - The combined stats window
+]]
+function CritterUI:CreateCombinedStatsWindow()
+    if self.combinedStatsWindow then
+        return self.combinedStatsWindow
+    end
+
+    local C = HopeAddon.Constants
+
+    local window = CreateFrame("Frame", "HopeCrusadeCritterCombinedStats", UIParent, "BackdropTemplate")
+    window:SetSize(COMBINED_STATS_WIDTH, COMBINED_STATS_HEIGHT)
+    window:SetBackdrop(C.BACKDROPS and C.BACKDROPS.DARK_GOLD or {
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 14,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 }
+    })
+    window:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
+    window:SetBackdropBorderColor(1, 0.84, 0, 1)
+    window:SetFrameStrata("HIGH")
+    window:SetPoint("CENTER", UIParent, "CENTER", 0, 100)
+    window:SetClampedToScreen(true)
+
+    -- Boss icon (left side)
+    local bossIcon = window:CreateTexture(nil, "ARTWORK")
+    bossIcon:SetSize(40, 40)
+    bossIcon:SetPoint("TOPLEFT", window, "TOPLEFT", 15, -15)
+    bossIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    window.bossIcon = bossIcon
+
+    -- Boss name header
+    local bossName = window:CreateFontString(nil, "OVERLAY")
+    bossName:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
+    bossName:SetPoint("LEFT", bossIcon, "RIGHT", 10, 0)
+    bossName:SetPoint("RIGHT", window, "RIGHT", -15, 0)
+    bossName:SetJustifyH("LEFT")
+    bossName:SetTextColor(1, 0.84, 0)
+    window.bossName = bossName
+
+    -- "DEFEATED" subtitle
+    local defeatedText = window:CreateFontString(nil, "OVERLAY")
+    defeatedText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
+    defeatedText:SetPoint("TOPLEFT", bossName, "BOTTOMLEFT", 0, -2)
+    defeatedText:SetText("DEFEATED")
+    defeatedText:SetTextColor(0.7, 0.7, 0.7)
+    window.defeatedText = defeatedText
+
+    -- Decorative line
+    local line = window:CreateTexture(nil, "ARTWORK")
+    line:SetTexture(HopeAddon.assets.textures.SOLID or "Interface\\Buttons\\WHITE8x8")
+    line:SetSize(COMBINED_STATS_WIDTH - 30, 1)
+    line:SetPoint("TOP", window, "TOP", 0, -65)
+    line:SetVertexColor(1, 0.84, 0, 0.5)
+
+    -- Time stats section
+    local statsY = -75
+
+    -- This Kill time
+    local thisLabel = window:CreateFontString(nil, "OVERLAY")
+    thisLabel:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
+    thisLabel:SetPoint("TOPLEFT", window, "TOPLEFT", 20, statsY)
+    thisLabel:SetText("This Kill:")
+    thisLabel:SetTextColor(0.7, 0.7, 0.7)
+
+    local thisTime = window:CreateFontString(nil, "OVERLAY")
+    thisTime:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
+    thisTime:SetPoint("LEFT", thisLabel, "RIGHT", 5, 0)
+    thisTime:SetTextColor(1, 1, 1)
+    window.thisTime = thisTime
+
+    -- Best time
+    local bestLabel = window:CreateFontString(nil, "OVERLAY")
+    bestLabel:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
+    bestLabel:SetPoint("TOPLEFT", window, "TOPLEFT", 160, statsY)
+    bestLabel:SetText("Best:")
+    bestLabel:SetTextColor(0.7, 0.7, 0.7)
+
+    local bestTime = window:CreateFontString(nil, "OVERLAY")
+    bestTime:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
+    bestTime:SetPoint("LEFT", bestLabel, "RIGHT", 5, 0)
+    bestTime:SetTextColor(0.2, 0.8, 0.2)
+    window.bestTime = bestTime
+
+    -- Time comparison bar
+    local barContainer = CreateFrame("Frame", nil, window)
+    barContainer:SetSize(280, 16)
+    barContainer:SetPoint("TOP", window, "TOP", 0, statsY - 20)
+    window.barContainer = barContainer
+
+    -- Bar background
+    local barBg = barContainer:CreateTexture(nil, "BACKGROUND")
+    barBg:SetAllPoints(barContainer)
+    barBg:SetTexture("Interface\\Buttons\\WHITE8x8")
+    barBg:SetVertexColor(0.2, 0.2, 0.2, 0.8)
+    barContainer.bg = barBg
+
+    -- This kill bar (purple)
+    local thisBar = barContainer:CreateTexture(nil, "ARTWORK")
+    thisBar:SetHeight(16)
+    thisBar:SetPoint("LEFT", barContainer, "LEFT", 0, 0)
+    thisBar:SetTexture("Interface\\Buttons\\WHITE8x8")
+    thisBar:SetVertexColor(0.61, 0.19, 1.00, 1)
+    window.thisBar = thisBar
+
+    -- Best time marker
+    local bestMarker = barContainer:CreateTexture(nil, "OVERLAY")
+    bestMarker:SetSize(2, 20)
+    bestMarker:SetTexture("Interface\\Buttons\\WHITE8x8")
+    bestMarker:SetVertexColor(0.2, 0.8, 0.2, 1)
+    window.bestMarker = bestMarker
+
+    -- Critter commentary box
+    local quoteBox = CreateFrame("Frame", nil, window, "BackdropTemplate")
+    quoteBox:SetSize(280, 50)
+    quoteBox:SetPoint("TOP", barContainer, "BOTTOM", 0, -15)
+    quoteBox:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 8, edgeSize = 10,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 }
+    })
+    quoteBox:SetBackdropColor(0.15, 0.15, 0.15, 0.9)
+    quoteBox:SetBackdropBorderColor(0.5, 0.5, 0.5, 0.8)
+    window.quoteBox = quoteBox
+
+    -- Quote text
+    local quoteText = quoteBox:CreateFontString(nil, "OVERLAY")
+    quoteText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+    quoteText:SetPoint("TOPLEFT", quoteBox, "TOPLEFT", 8, -6)
+    quoteText:SetPoint("BOTTOMRIGHT", quoteBox, "BOTTOMRIGHT", -8, 6)
+    quoteText:SetJustifyH("CENTER")
+    quoteText:SetJustifyV("TOP")
+    quoteText:SetWordWrap(true)
+    quoteText:SetTextColor(0.9, 0.9, 0.9)
+    window.quoteText = quoteText
+
+    -- Critter attribution
+    local attribution = quoteBox:CreateFontString(nil, "OVERLAY")
+    attribution:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
+    attribution:SetPoint("BOTTOMRIGHT", quoteBox, "BOTTOMRIGHT", -8, 4)
+    attribution:SetTextColor(0.6, 0.6, 0.6)
+    window.attribution = attribution
+
+    -- "Learn Next Boss" button
+    local learnBtn = CreateFrame("Button", nil, window, "UIPanelButtonTemplate")
+    learnBtn:SetSize(140, 24)
+    learnBtn:SetPoint("BOTTOM", window, "BOTTOM", 0, 15)
+    learnBtn:SetText("\226\150\182 Learn Next Boss") -- Unicode play symbol
+    learnBtn:SetScript("OnClick", function()
+        self:HideCombinedStats()
+        if HopeAddon.CrusadeCritter then
+            local nextBoss = HopeAddon.CrusadeCritter:GetNextBossForTips()
+            if nextBoss then
+                self:ShowBossTips(nextBoss.key, nextBoss.name)
+            end
+        end
+    end)
+    learnBtn:Hide() -- Shown after delay
+    window.learnBtn = learnBtn
+
+    -- Close button
+    local closeBtn = CreateFrame("Button", nil, window, "UIPanelCloseButton")
+    closeBtn:SetPoint("TOPRIGHT", window, "TOPRIGHT", -2, -2)
+    closeBtn:SetScript("OnClick", function()
+        CritterUI:HideCombinedStats()
+    end)
+
+    window:Hide()
+    self.combinedStatsWindow = window
+    return window
+end
+
+--[[
+    Show the combined stats window after boss kill
+    @param bossData table - { name, key, npcId, isFinal }
+    @param killTime number - Time to kill this boss
+    @param bestTime number|nil - Best time for this boss
+    @param quip string - Critter quip text
+    @param nextBossKey string|nil - Key of next boss (for Learn button)
+]]
+function CritterUI:ShowCombinedStats(bossData, killTime, bestTime, quip, nextBossKey)
+    if not self.combinedStatsWindow then
+        self:CreateCombinedStatsWindow()
+    end
+
+    local window = self.combinedStatsWindow
+    local C = HopeAddon.Constants
+
+    -- Cancel existing timer
+    if self.combinedStatsTimer then
+        self.combinedStatsTimer:Cancel()
+        self.combinedStatsTimer = nil
+    end
+
+    -- Set boss icon
+    local iconKey = bossData.key or string.lower(string.gsub(bossData.name, "[%s%-']", "_"))
+    local iconPath = C.BOSS_ICONS and C.BOSS_ICONS[iconKey]
+    if iconPath then
+        window.bossIcon:SetTexture("Interface\\Icons\\" .. iconPath)
+    else
+        window.bossIcon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+    end
+
+    -- Set boss name
+    window.bossName:SetText(bossData.name)
+
+    -- Format times
+    local function formatTime(seconds)
+        if not seconds or seconds == 0 then return "N/A" end
+        local mins = math.floor(seconds / 60)
+        local secs = math.floor(seconds % 60)
+        return string.format("%d:%02d", mins, secs)
+    end
+
+    window.thisTime:SetText(formatTime(killTime))
+    window.bestTime:SetText(formatTime(bestTime or killTime))
+
+    -- Update time bar
+    local maxTime = math.max(killTime or 1, bestTime or 1)
+    local barWidth = 280
+    local thisWidth = math.min((killTime or 0) / maxTime * barWidth, barWidth)
+    window.thisBar:SetWidth(math.max(thisWidth, 1))
+
+    -- Position best time marker
+    if bestTime and bestTime > 0 then
+        local markerPos = (bestTime / maxTime) * barWidth
+        window.bestMarker:SetPoint("LEFT", window.barContainer, "LEFT", markerPos - 1, 0)
+        window.bestMarker:Show()
+    else
+        window.bestMarker:Hide()
+    end
+
+    -- Set quip text
+    if quip then
+        window.quoteText:SetText("\"" .. quip .. "\"")
+
+        -- Set attribution
+        local critterId = "flux"
+        if HopeAddon.db and HopeAddon.db.crusadeCritter then
+            critterId = HopeAddon.db.crusadeCritter.selectedCritter or "flux"
+        end
+        local critterData = HopeAddon.CritterContent and HopeAddon.CritterContent:GetCritter(critterId)
+        if critterData then
+            window.attribution:SetText("- " .. critterData.name)
+        else
+            window.attribution:SetText("")
+        end
+    else
+        window.quoteText:SetText("")
+        window.attribution:SetText("")
+    end
+
+    -- Hide learn button initially
+    window.learnBtn:Hide()
+
+    -- Store next boss for learn button
+    window.nextBossKey = nextBossKey
+
+    -- Position near housing if open
+    if self.housingContainer and self.isHousingOpen then
+        window:ClearAllPoints()
+        window:SetPoint("RIGHT", self.housingContainer, "LEFT", -20, 50)
+    else
+        window:ClearAllPoints()
+        window:SetPoint("CENTER", UIParent, "CENTER", 0, 100)
+    end
+
+    window:Show()
+    if HopeAddon.Effects then
+        HopeAddon.Effects:FadeIn(window, 0.3)
+    end
+
+    -- Show learn button after 3 seconds
+    if HopeAddon.Timer and nextBossKey then
+        HopeAddon.Timer:After(3, function()
+            if window:IsShown() then
+                window.learnBtn:Show()
+                if HopeAddon.Effects then
+                    HopeAddon.Effects:FadeIn(window.learnBtn, 0.3)
+                end
+            end
+        end)
+    end
+
+    -- Auto-hide after duration
+    if HopeAddon.Timer then
+        self.combinedStatsTimer = HopeAddon.Timer:After(COMBINED_STATS_DURATION, function()
+            self.combinedStatsTimer = nil
+            self:HideCombinedStats()
+        end)
+    end
+end
+
+--[[
+    Hide the combined stats window
+]]
+function CritterUI:HideCombinedStats()
+    if self.combinedStatsTimer then
+        self.combinedStatsTimer:Cancel()
+        self.combinedStatsTimer = nil
+    end
+
+    if not self.combinedStatsWindow then return end
+
+    if HopeAddon.Effects then
+        HopeAddon.Effects:FadeOut(self.combinedStatsWindow, 0.3)
+    else
+        self.combinedStatsWindow:Hide()
+    end
+end
+
+--============================================================
+-- BOSS TIPS PLAYABLE TEXT PANEL
+--============================================================
+
+--[[
+    Create the boss tips panel with playable text system
+    @return Frame - The tips panel
+]]
+function CritterUI:CreateBossTipsPanel()
+    if self.bossTipsPanel then
+        return self.bossTipsPanel
+    end
+
+    local C = HopeAddon.Constants
+
+    local panel = CreateFrame("Frame", "HopeCrusadeCritterBossTips", UIParent, "BackdropTemplate")
+    panel:SetSize(TIPS_PANEL_WIDTH, TIPS_PANEL_HEIGHT)
+    panel:SetBackdrop(C.BACKDROPS and C.BACKDROPS.DARK_GOLD or {
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 14,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 }
+    })
+    panel:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
+    panel:SetBackdropBorderColor(1, 0.84, 0, 1)
+    panel:SetFrameStrata("DIALOG")
+    panel:SetPoint("CENTER", UIParent, "CENTER", 0, 50)
+    panel:SetClampedToScreen(true)
+
+    -- Boss icon (small)
+    local bossIcon = panel:CreateTexture(nil, "ARTWORK")
+    bossIcon:SetSize(32, 32)
+    bossIcon:SetPoint("TOPLEFT", panel, "TOPLEFT", 12, -12)
+    bossIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    panel.bossIcon = bossIcon
+
+    -- Boss name
+    local bossName = panel:CreateFontString(nil, "OVERLAY")
+    bossName:SetFont(HopeAddon.assets.fonts.HEADER, 13, "")
+    bossName:SetPoint("LEFT", bossIcon, "RIGHT", 8, 4)
+    bossName:SetTextColor(1, 0.84, 0)
+    panel.bossName = bossName
+
+    -- Boss subtitle (e.g., dungeon name)
+    local bossSubtitle = panel:CreateFontString(nil, "OVERLAY")
+    bossSubtitle:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
+    bossSubtitle:SetPoint("TOPLEFT", bossName, "BOTTOMLEFT", 0, -2)
+    bossSubtitle:SetTextColor(0.6, 0.6, 0.6)
+    panel.bossSubtitle = bossSubtitle
+
+    -- Close button
+    local closeBtn = CreateFrame("Button", nil, panel, "UIPanelCloseButton")
+    closeBtn:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -2, -2)
+    closeBtn:SetScript("OnClick", function()
+        CritterUI:HideBossTips()
+    end)
+
+    -- Progress indicator
+    local progress = panel:CreateFontString(nil, "OVERLAY")
+    progress:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
+    progress:SetPoint("TOPRIGHT", closeBtn, "TOPLEFT", -5, -8)
+    progress:SetTextColor(0.7, 0.7, 0.7)
+    panel.progress = progress
+
+    -- Tip text container
+    local tipContainer = CreateFrame("Frame", nil, panel, "BackdropTemplate")
+    tipContainer:SetSize(290, 80)
+    tipContainer:SetPoint("TOP", panel, "TOP", 0, -55)
+    tipContainer:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 8, edgeSize = 10,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 }
+    })
+    tipContainer:SetBackdropColor(0.08, 0.08, 0.08, 0.9)
+    tipContainer:SetBackdropBorderColor(0.4, 0.4, 0.4, 0.8)
+    panel.tipContainer = tipContainer
+
+    -- Tip text
+    local tipText = tipContainer:CreateFontString(nil, "OVERLAY")
+    tipText:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
+    tipText:SetPoint("TOPLEFT", tipContainer, "TOPLEFT", 10, -10)
+    tipText:SetPoint("BOTTOMRIGHT", tipContainer, "BOTTOMRIGHT", -10, 10)
+    tipText:SetJustifyH("LEFT")
+    tipText:SetJustifyV("TOP")
+    tipText:SetWordWrap(true)
+    tipText:SetTextColor(1, 1, 1)
+    panel.tipText = tipText
+
+    -- Progress bar
+    local progressBarBg = panel:CreateTexture(nil, "BACKGROUND")
+    progressBarBg:SetSize(290, 6)
+    progressBarBg:SetPoint("TOP", tipContainer, "BOTTOM", 0, -10)
+    progressBarBg:SetTexture("Interface\\Buttons\\WHITE8x8")
+    progressBarBg:SetVertexColor(0.2, 0.2, 0.2, 0.8)
+    panel.progressBarBg = progressBarBg
+
+    local progressBar = panel:CreateTexture(nil, "ARTWORK")
+    progressBar:SetHeight(6)
+    progressBar:SetPoint("LEFT", progressBarBg, "LEFT", 0, 0)
+    progressBar:SetTexture("Interface\\Buttons\\WHITE8x8")
+    progressBar:SetVertexColor(0.61, 0.19, 1.00, 1)
+    panel.progressBar = progressBar
+
+    -- Control buttons
+    local btnY = -170
+    local btnSpacing = 80
+
+    -- Play/Pause button
+    local playBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+    playBtn:SetSize(70, 22)
+    playBtn:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", 30, 15)
+    playBtn:SetText("\226\150\182 Play")
+    playBtn:SetScript("OnClick", function()
+        self:ToggleTipsPlayback()
+    end)
+    panel.playBtn = playBtn
+
+    -- Skip button
+    local skipBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+    skipBtn:SetSize(70, 22)
+    skipBtn:SetPoint("LEFT", playBtn, "RIGHT", 10, 0)
+    skipBtn:SetText("\226\143\173 Skip")
+    skipBtn:SetScript("OnClick", function()
+        self:SkipToNextTip()
+    end)
+    panel.skipBtn = skipBtn
+
+    -- Close/Done button
+    local doneBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+    doneBtn:SetSize(70, 22)
+    doneBtn:SetPoint("LEFT", skipBtn, "RIGHT", 10, 0)
+    doneBtn:SetText("\226\156\149 Close")
+    doneBtn:SetScript("OnClick", function()
+        self:HideBossTips()
+    end)
+    panel.doneBtn = doneBtn
+
+    panel:Hide()
+    self.bossTipsPanel = panel
+    return panel
+end
+
+--[[
+    Show boss tips for a specific boss
+    @param bossKey string - Boss key (e.g., "watchkeeper_gargolmar")
+    @param bossName string - Display name of boss
+]]
+function CritterUI:ShowBossTips(bossKey, bossName)
+    if not self.bossTipsPanel then
+        self:CreateBossTipsPanel()
+    end
+
+    local panel = self.bossTipsPanel
+    local Content = HopeAddon.CritterContent
+    local C = HopeAddon.Constants
+
+    if not Content then return end
+
+    -- Get critter ID
+    local critterId = "flux"
+    if HopeAddon.db and HopeAddon.db.crusadeCritter then
+        critterId = HopeAddon.db.crusadeCritter.selectedCritter or "flux"
+    end
+
+    -- Check if heroic (check instance difficulty)
+    local isHeroic = false
+    local _, instanceType, difficulty = GetInstanceInfo()
+    if difficulty == 2 or difficulty == 174 then -- Heroic dungeon
+        isHeroic = true
+    end
+
+    -- Get tips
+    local tips = Content:GetBossTips(critterId, bossKey, isHeroic)
+    if not tips or #tips == 0 then
+        -- No tips available
+        print("|cffff9900No tips available for " .. (bossName or bossKey) .. "|r")
+        return
+    end
+
+    -- Initialize state
+    self.bossTipsState = {
+        tips = tips,
+        currentIndex = 1,
+        state = "idle", -- idle, playing, paused, complete, finished
+        bossKey = bossKey,
+        bossName = bossName,
+    }
+
+    -- Set boss icon
+    local iconPath = C.BOSS_ICONS and C.BOSS_ICONS[bossKey]
+    if iconPath then
+        panel.bossIcon:SetTexture("Interface\\Icons\\" .. iconPath)
+    else
+        panel.bossIcon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+    end
+
+    -- Set boss name
+    panel.bossName:SetText(bossName or bossKey)
+    panel.bossSubtitle:SetText(isHeroic and "Heroic Tips" or "Normal Tips")
+
+    -- Update progress
+    self:UpdateTipsProgress()
+
+    -- Set initial tip text (empty, will typewriter in)
+    panel.tipText:SetText("")
+
+    -- Update buttons
+    panel.playBtn:SetText("\226\150\182 Play")
+    panel.playBtn:Enable()
+    panel.skipBtn:Enable()
+
+    -- Position near housing if open
+    if self.housingContainer and self.isHousingOpen then
+        panel:ClearAllPoints()
+        panel:SetPoint("RIGHT", self.housingContainer, "LEFT", -20, 30)
+    else
+        panel:ClearAllPoints()
+        panel:SetPoint("CENTER", UIParent, "CENTER", 0, 50)
+    end
+
+    panel:Show()
+    if HopeAddon.Effects then
+        HopeAddon.Effects:FadeIn(panel, 0.3)
+    end
+
+    -- Auto-start playback
+    if HopeAddon.Timer then
+        HopeAddon.Timer:After(0.5, function()
+            if panel:IsShown() then
+                self:PlayCurrentTip()
+            end
+        end)
+    end
+end
+
+--[[
+    Update the tips progress indicator
+]]
+function CritterUI:UpdateTipsProgress()
+    if not self.bossTipsPanel or not self.bossTipsState then return end
+
+    local state = self.bossTipsState
+    local panel = self.bossTipsPanel
+
+    panel.progress:SetText(string.format("Tip %d of %d", state.currentIndex, #state.tips))
+
+    -- Update progress bar
+    local progress = state.currentIndex / #state.tips
+    panel.progressBar:SetWidth(math.max(290 * progress, 1))
+end
+
+--[[
+    Play the current tip with typewriter effect
+]]
+function CritterUI:PlayCurrentTip()
+    if not self.bossTipsPanel or not self.bossTipsState then return end
+
+    local state = self.bossTipsState
+    local panel = self.bossTipsPanel
+
+    if state.currentIndex > #state.tips then
+        -- All tips finished
+        state.state = "finished"
+        panel.playBtn:SetText("\226\156\147 Done")
+        panel.playBtn:Disable()
+        panel.skipBtn:Disable()
+        return
+    end
+
+    state.state = "playing"
+    panel.playBtn:SetText("\226\143\184 Pause")
+
+    local tip = state.tips[state.currentIndex]
+    local tipText = tip.text
+
+    -- Mark heroic tips
+    if tip.heroic then
+        tipText = "|cffff6600[HEROIC]|r " .. tipText
+    end
+
+    -- Typewriter effect
+    if HopeAddon.Effects then
+        HopeAddon.Effects:TypewriterText(panel.tipText, tipText, TYPEWRITER_SPEED, function()
+            -- Tip complete
+            state.state = "complete"
+            panel.playBtn:SetText("\226\150\182 Next")
+
+            -- Auto-advance after delay if setting enabled
+            local db = HopeAddon.db and HopeAddon.db.crusadeCritter
+            if db and db.autoAdvanceTips then
+                local delay = db.tipDisplayTime or 3
+                if HopeAddon.Timer then
+                    HopeAddon.Timer:After(delay, function()
+                        if state.state == "complete" and panel:IsShown() then
+                            self:AdvanceToNextTip()
+                        end
+                    end)
+                end
+            end
+        end)
+    else
+        -- No effects - just set text
+        panel.tipText:SetText(tipText)
+        state.state = "complete"
+        panel.playBtn:SetText("\226\150\182 Next")
+    end
+end
+
+--[[
+    Toggle playback (play/pause/next)
+]]
+function CritterUI:ToggleTipsPlayback()
+    if not self.bossTipsState then return end
+
+    local state = self.bossTipsState
+
+    if state.state == "idle" or state.state == "complete" then
+        -- Start playing or advance
+        if state.state == "complete" then
+            self:AdvanceToNextTip()
+        else
+            self:PlayCurrentTip()
+        end
+    elseif state.state == "playing" then
+        -- Pause
+        state.state = "paused"
+        self.bossTipsPanel.playBtn:SetText("\226\150\182 Play")
+        -- Stop typewriter effect
+        if self.tipsTypewriterTicker then
+            self.tipsTypewriterTicker:Cancel()
+            self.tipsTypewriterTicker = nil
+        end
+    elseif state.state == "paused" then
+        -- Resume
+        self:PlayCurrentTip()
+    end
+end
+
+--[[
+    Skip to the next tip immediately
+]]
+function CritterUI:SkipToNextTip()
+    if not self.bossTipsState then return end
+
+    -- Stop any current typewriter
+    if self.tipsTypewriterTicker then
+        self.tipsTypewriterTicker:Cancel()
+        self.tipsTypewriterTicker = nil
+    end
+
+    -- Show full current tip text
+    local state = self.bossTipsState
+    if state.currentIndex <= #state.tips then
+        local tip = state.tips[state.currentIndex]
+        local tipText = tip.text
+        if tip.heroic then
+            tipText = "|cffff6600[HEROIC]|r " .. tipText
+        end
+        self.bossTipsPanel.tipText:SetText(tipText)
+    end
+
+    -- Advance to next
+    self:AdvanceToNextTip()
+end
+
+--[[
+    Advance to the next tip
+]]
+function CritterUI:AdvanceToNextTip()
+    if not self.bossTipsState then return end
+
+    local state = self.bossTipsState
+    state.currentIndex = state.currentIndex + 1
+
+    if state.currentIndex > #state.tips then
+        -- Finished all tips
+        state.state = "finished"
+        self.bossTipsPanel.playBtn:SetText("\226\156\147 Done")
+        self.bossTipsPanel.playBtn:Disable()
+        self.bossTipsPanel.skipBtn:Disable()
+        self.bossTipsPanel.progress:SetText("Complete!")
+        self.bossTipsPanel.progressBar:SetWidth(290)
+    else
+        self:UpdateTipsProgress()
+        self:PlayCurrentTip()
+    end
+end
+
+--[[
+    Hide the boss tips panel
+]]
+function CritterUI:HideBossTips()
+    -- Stop typewriter
+    if self.tipsTypewriterTicker then
+        self.tipsTypewriterTicker:Cancel()
+        self.tipsTypewriterTicker = nil
+    end
+
+    self.bossTipsState = nil
+
+    if not self.bossTipsPanel then return end
+
+    if HopeAddon.Effects then
+        HopeAddon.Effects:FadeOut(self.bossTipsPanel, 0.3)
+    else
+        self.bossTipsPanel:Hide()
+    end
+end
+
+--============================================================
+-- PRE-PULL TIPS BUTTON (Housing "?" button)
+--============================================================
+
+--[[
+    Create the pre-pull tips "?" button on housing panel
+]]
+function CritterUI:CreatePrePullButton()
+    if self.prePullButton then
+        return self.prePullButton
+    end
+
+    if not self.housingContainer then
+        self:CreateHousingContainer()
+    end
+
+    local btn = CreateFrame("Button", nil, self.housingContainer, "BackdropTemplate")
+    btn:SetSize(20, 20)
+    btn:SetPoint("TOPRIGHT", self.housingContainer, "TOPRIGHT", -5, -5)
+    btn:SetFrameLevel(self.housingContainer:GetFrameLevel() + 10)
+
+    -- Background
+    btn:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = false, edgeSize = 8,
+        insets = { left = 1, right = 1, top = 1, bottom = 1 }
+    })
+    btn:SetBackdropColor(0.2, 0.2, 0.2, 0.9)
+    btn:SetBackdropBorderColor(1, 0.84, 0, 0.8)
+
+    -- "?" text
+    local text = btn:CreateFontString(nil, "OVERLAY")
+    text:SetFont(HopeAddon.assets.fonts.HEADER, 12, "")
+    text:SetPoint("CENTER", btn, "CENTER", 0, 0)
+    text:SetText("?")
+    text:SetTextColor(1, 0.84, 0)
+    btn.text = text
+
+    -- Hover highlight
+    local highlight = btn:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetAllPoints(btn)
+    highlight:SetTexture("Interface\\Buttons\\WHITE8x8")
+    highlight:SetBlendMode("ADD")
+    highlight:SetVertexColor(1, 0.84, 0, 0.3)
+
+    -- Click handler
+    btn:SetScript("OnClick", function()
+        self:ToggleBossDropdown()
+    end)
+
+    -- Tooltip
+    btn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:AddLine("Boss Tips", 1, 0.84, 0)
+        GameTooltip:AddLine("View tips for upcoming bosses", 0.7, 0.7, 0.7)
+        GameTooltip:Show()
+    end)
+    btn:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
+    -- Only show when in dungeon
+    btn:Hide()
+    self.prePullButton = btn
+    return btn
+end
+
+--[[
+    Update pre-pull button visibility (called when zone changes)
+]]
+function CritterUI:UpdatePrePullButton()
+    if not self.prePullButton then return end
+
+    -- Check if in a dungeon
+    local _, instanceType = GetInstanceInfo()
+    if instanceType == "party" then
+        self.prePullButton:Show()
+    else
+        self.prePullButton:Hide()
+        self:HideBossDropdown()
+    end
+end
+
+--[[
+    Create the boss selector dropdown for pre-pull tips
+]]
+function CritterUI:CreateBossDropdown()
+    if self.bossDropdown then
+        return self.bossDropdown
+    end
+
+    if not self.housingContainer then
+        self:CreateHousingContainer()
+    end
+
+    local dropdown = CreateFrame("Frame", "HopeCrusadeCritterBossDropdown", self.housingContainer, "BackdropTemplate")
+    dropdown:SetSize(180, 150)
+    dropdown:SetPoint("TOPRIGHT", self.prePullButton, "TOPLEFT", -5, 5)
+    dropdown:SetFrameStrata("DIALOG")
+    dropdown:SetFrameLevel(250)
+
+    dropdown:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 12,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 }
+    })
+    dropdown:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
+    dropdown:SetBackdropBorderColor(1, 0.84, 0, 1)
+
+    -- Title
+    local title = dropdown:CreateFontString(nil, "OVERLAY")
+    title:SetFont(HopeAddon.assets.fonts.HEADER, 11, "")
+    title:SetPoint("TOP", dropdown, "TOP", 0, -8)
+    title:SetText("Select Boss:")
+    title:SetTextColor(1, 0.84, 0)
+    dropdown.title = title
+
+    -- Scroll frame for boss list
+    local scrollFrame = CreateFrame("ScrollFrame", nil, dropdown)
+    scrollFrame:SetSize(160, 110)
+    scrollFrame:SetPoint("TOP", title, "BOTTOM", 0, -8)
+
+    local scrollChild = CreateFrame("Frame", nil, scrollFrame)
+    scrollChild:SetSize(160, 1) -- Height will adjust
+    scrollFrame:SetScrollChild(scrollChild)
+    dropdown.scrollChild = scrollChild
+
+    dropdown:Hide()
+    self.bossDropdown = dropdown
+    return dropdown
+end
+
+--[[
+    Toggle the boss dropdown visibility
+]]
+function CritterUI:ToggleBossDropdown()
+    if not self.bossDropdown then
+        self:CreateBossDropdown()
+    end
+
+    if self.bossDropdown:IsShown() then
+        self:HideBossDropdown()
+    else
+        self:ShowBossDropdown()
+    end
+end
+
+--[[
+    Show the boss dropdown with current dungeon bosses
+]]
+function CritterUI:ShowBossDropdown()
+    if not self.bossDropdown then
+        self:CreateBossDropdown()
+    end
+
+    local dropdown = self.bossDropdown
+    local scrollChild = dropdown.scrollChild
+    local C = HopeAddon.Constants
+    local Critter = HopeAddon.CrusadeCritter
+
+    -- Clear existing buttons
+    if scrollChild.buttons then
+        for _, btn in ipairs(scrollChild.buttons) do
+            btn:Hide()
+            btn:SetParent(nil)
+        end
+    end
+    scrollChild.buttons = {}
+
+    -- Get current dungeon
+    local dungeonKey = nil
+    if Critter and Critter.currentRun then
+        dungeonKey = Critter.currentRun.dungeonKey
+    end
+
+    if not dungeonKey then
+        -- Try to detect from zone
+        local zoneName = GetRealZoneText()
+        local dungeonData = C.TBC_DUNGEONS and C.TBC_DUNGEONS[zoneName]
+        if dungeonData then
+            dungeonKey = dungeonData.key
+        end
+    end
+
+    if not dungeonKey or not C.DUNGEON_BOSS_ORDER or not C.DUNGEON_BOSS_ORDER[dungeonKey] then
+        -- No dungeon data
+        dropdown.title:SetText("No dungeon detected")
+        dropdown:Show()
+        return
+    end
+
+    dropdown.title:SetText("Select Boss:")
+
+    -- Get killed bosses
+    local killedBosses = {}
+    if Critter and Critter.currentRun and Critter.currentRun.bossKills then
+        for _, kill in ipairs(Critter.currentRun.bossKills) do
+            killedBosses[kill.npcID] = true
+        end
+    end
+
+    -- Create boss buttons
+    local bosses = C.DUNGEON_BOSS_ORDER[dungeonKey]
+    local yOffset = 0
+    local nextBossFound = false
+
+    for i, bossData in ipairs(bosses) do
+        local isKilled = killedBosses[bossData.npcId]
+        local isNext = not isKilled and not nextBossFound
+
+        if isNext then
+            nextBossFound = true
+        end
+
+        local btn = CreateFrame("Button", nil, scrollChild)
+        btn:SetSize(155, 22)
+        btn:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, -yOffset)
+
+        -- Button text
+        local text = btn:CreateFontString(nil, "OVERLAY")
+        text:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+        text:SetPoint("LEFT", btn, "LEFT", 20, 0)
+        text:SetText(bossData.name)
+
+        if isKilled then
+            text:SetTextColor(0.5, 0.5, 0.5)
+            -- Checkmark
+            local check = btn:CreateFontString(nil, "OVERLAY")
+            check:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+            check:SetPoint("LEFT", btn, "LEFT", 5, 0)
+            check:SetText("\226\156\147")
+            check:SetTextColor(0.3, 0.8, 0.3)
+        else
+            if isNext then
+                text:SetTextColor(1, 0.84, 0)
+                -- Arrow
+                local arrow = btn:CreateFontString(nil, "OVERLAY")
+                arrow:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+                arrow:SetPoint("LEFT", btn, "LEFT", 5, 0)
+                arrow:SetText("\226\150\182")
+                arrow:SetTextColor(1, 0.84, 0)
+            else
+                text:SetTextColor(0.8, 0.8, 0.8)
+            end
+        end
+
+        -- Highlight
+        local highlight = btn:CreateTexture(nil, "HIGHLIGHT")
+        highlight:SetAllPoints(btn)
+        highlight:SetTexture("Interface\\Buttons\\WHITE8x8")
+        highlight:SetBlendMode("ADD")
+        highlight:SetVertexColor(1, 0.84, 0, 0.2)
+
+        -- Click handler
+        btn:SetScript("OnClick", function()
+            self:HideBossDropdown()
+            self:ShowBossTips(bossData.key, bossData.name)
+        end)
+
+        table.insert(scrollChild.buttons, btn)
+        yOffset = yOffset + 24
+    end
+
+    scrollChild:SetHeight(math.max(yOffset, 1))
+
+    dropdown:Show()
+    if HopeAddon.Effects then
+        HopeAddon.Effects:FadeIn(dropdown, 0.2)
+    end
+end
+
+--[[
+    Hide the boss dropdown
+]]
+function CritterUI:HideBossDropdown()
+    if not self.bossDropdown then return end
+
+    if HopeAddon.Effects then
+        HopeAddon.Effects:FadeOut(self.bossDropdown, 0.2)
+    else
+        self.bossDropdown:Hide()
+    end
+end
+
+--============================================================
+-- FLOATING SPEECH BUBBLE (Independent of housing panel)
+-- Shows boss guides on dungeon entry
+--============================================================
+
+local FLOATING_BUBBLE_WIDTH = 320
+local FLOATING_BUBBLE_HEIGHT = 140
+local FLOATING_BUBBLE_AUTO_ADVANCE = 8 -- Seconds before auto-advancing
+
+--[[
+    Create the floating speech bubble frame (independent of housing)
+    @return Frame - The floating bubble
+]]
+function CritterUI:CreateFloatingBubble()
+    if self.floatingBubble then
+        return self.floatingBubble
+    end
+
+    local bubble = CreateFrame("Frame", "HopeCrusadeCritterFloatingBubble", UIParent, "BackdropTemplate")
+    bubble:SetSize(FLOATING_BUBBLE_WIDTH, FLOATING_BUBBLE_HEIGHT)
+    bubble:SetFrameStrata("HIGH")
+    bubble:SetFrameLevel(200)
+
+    -- Position in lower-right area of screen
+    bubble:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -100, 180)
+    bubble:SetClampedToScreen(true)
+
+    -- Comic-style: white background, black border
+    bubble:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true,
+        tileSize = 16,
+        edgeSize = 14,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 }
+    })
+    bubble:SetBackdropColor(1, 1, 1, 0.95)
+    bubble:SetBackdropBorderColor(0, 0, 0, 1)
+
+    -- Close button
+    local closeBtn = CreateFrame("Button", nil, bubble)
+    closeBtn:SetSize(18, 18)
+    closeBtn:SetPoint("TOPRIGHT", bubble, "TOPRIGHT", -5, -5)
+    closeBtn:SetNormalTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Up")
+    closeBtn:SetHighlightTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight")
+    closeBtn:SetScript("OnClick", function()
+        self:HideFloatingBubble()
+    end)
+    bubble.closeBtn = closeBtn
+
+    -- Boss name header
+    local bossName = bubble:CreateFontString(nil, "OVERLAY")
+    bossName:SetFont(HopeAddon.assets.fonts.HEADER, 12, "")
+    bossName:SetPoint("TOP", bubble, "TOP", 0, -12)
+    bossName:SetTextColor(0.1, 0.1, 0.1)
+    bubble.bossName = bossName
+
+    -- Separator line
+    local line = bubble:CreateTexture(nil, "ARTWORK")
+    line:SetTexture("Interface\\Buttons\\WHITE8x8")
+    line:SetSize(FLOATING_BUBBLE_WIDTH - 30, 1)
+    line:SetPoint("TOP", bossName, "BOTTOM", 0, -4)
+    line:SetVertexColor(0.3, 0.3, 0.3, 0.5)
+    bubble.line = line
+
+    -- Tip text
+    local tipText = bubble:CreateFontString(nil, "OVERLAY")
+    tipText:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
+    tipText:SetPoint("TOPLEFT", bubble, "TOPLEFT", 15, -38)
+    tipText:SetPoint("TOPRIGHT", bubble, "TOPRIGHT", -15, -38)
+    tipText:SetJustifyH("CENTER")
+    tipText:SetJustifyV("TOP")
+    tipText:SetWordWrap(true)
+    tipText:SetTextColor(0.15, 0.15, 0.15)
+    bubble.tipText = tipText
+
+    -- Page indicator (e.g., "1/3")
+    local pageIndicator = bubble:CreateFontString(nil, "OVERLAY")
+    pageIndicator:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
+    pageIndicator:SetPoint("BOTTOMLEFT", bubble, "BOTTOMLEFT", 15, 12)
+    pageIndicator:SetTextColor(0.4, 0.4, 0.4)
+    bubble.pageIndicator = pageIndicator
+
+    -- Next button
+    local nextBtn = CreateFrame("Button", nil, bubble, "UIPanelButtonTemplate")
+    nextBtn:SetSize(70, 22)
+    nextBtn:SetPoint("BOTTOMRIGHT", bubble, "BOTTOMRIGHT", -12, 10)
+    nextBtn:SetText("Next >")
+    nextBtn:SetScript("OnClick", function()
+        self:AdvanceFloatingBubble()
+    end)
+    bubble.nextBtn = nextBtn
+
+    -- Speech bubble tail (pointing to bottom-right corner where critter icon might be)
+    local tail = bubble:CreateTexture(nil, "ARTWORK")
+    tail:SetTexture("Interface\\Buttons\\WHITE8x8")
+    tail:SetVertexColor(1, 1, 1, 0.95)
+    tail:SetSize(16, 12)
+    tail:SetPoint("TOPLEFT", bubble, "BOTTOMRIGHT", -40, 2)
+    bubble.tail = tail
+
+    -- Critter icon (small, in corner)
+    local critterIcon = bubble:CreateTexture(nil, "ARTWORK")
+    critterIcon:SetSize(28, 28)
+    critterIcon:SetPoint("BOTTOMRIGHT", bubble, "BOTTOMRIGHT", 5, -30)
+    critterIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    bubble.critterIcon = critterIcon
+
+    bubble:Hide()
+    self.floatingBubble = bubble
+    return bubble
+end
+
+--[[
+    Show boss guide queue in floating bubble (called on dungeon entry)
+    @param guides table - Array of { boss, tip } from CritterContent:GetBossGuides
+    @param critterName string - Name of current critter for attribution
+]]
+function CritterUI:ShowBossGuideQueue(guides, critterName)
+    if not guides or #guides == 0 then return end
+
+    if not self.floatingBubble then
+        self:CreateFloatingBubble()
+    end
+
+    -- Store queue
+    self.floatingBubbleQueue = guides
+    self.floatingBubbleQueueIndex = 1
+    self.floatingBubbleCritterName = critterName or "Critter"
+    self.isShowingQueue = true
+
+    -- Update critter icon
+    local iconMap = {
+        Flux = "Interface\\Icons\\Inv_Pet_ManaWyrm",
+        Snookimp = "Interface\\Icons\\Spell_Shadow_SummonImp",
+        Shred = "Interface\\Icons\\Ability_Creature_Poison_04",
+        Emo = "Interface\\Icons\\Ability_Hunter_Pet_Bat",
+        Cosmo = "Interface\\Icons\\Spell_Arcane_Starfire",
+        Boomer = "Interface\\Icons\\Ability_EyeOfTheOwl",
+        Diva = "Interface\\Icons\\Ability_Hunter_Pet_DragonHawk",
+    }
+    local icon = iconMap[critterName] or iconMap.Flux
+    self.floatingBubble.critterIcon:SetTexture(icon)
+
+    -- Show first guide
+    self:ShowCurrentFloatingBubbleGuide()
+end
+
+--[[
+    Show the current guide in the floating bubble
+]]
+function CritterUI:ShowCurrentFloatingBubbleGuide()
+    if not self.floatingBubble or not self.floatingBubbleQueue then return end
+
+    local idx = self.floatingBubbleQueueIndex or 1
+    local guide = self.floatingBubbleQueue[idx]
+
+    if not guide then
+        self:HideFloatingBubble()
+        return
+    end
+
+    local bubble = self.floatingBubble
+
+    -- Cancel any existing timer
+    if self.floatingBubbleTimer then
+        self.floatingBubbleTimer:Cancel()
+        self.floatingBubbleTimer = nil
+    end
+
+    -- Cancel any existing typewriter
+    if self.floatingBubbleTypewriter then
+        self.floatingBubbleTypewriter:Cancel()
+        self.floatingBubbleTypewriter = nil
+    end
+
+    -- Update boss name
+    bubble.bossName:SetText(string.upper(guide.boss))
+
+    -- Update page indicator
+    bubble.pageIndicator:SetText(string.format("%d/%d", idx, #self.floatingBubbleQueue))
+
+    -- Update next button text
+    if idx >= #self.floatingBubbleQueue then
+        bubble.nextBtn:SetText("Close")
+    else
+        bubble.nextBtn:SetText("Next >")
+    end
+
+    -- Clear tip text and show with typewriter effect
+    bubble.tipText:SetText("")
+
+    -- Show the bubble
+    bubble:Show()
+    if HopeAddon.Effects then
+        HopeAddon.Effects:FadeIn(bubble, 0.3)
+    end
+
+    -- Typewriter effect for tip
+    local tipText = '"' .. guide.tip .. '"'
+    if HopeAddon.Effects then
+        HopeAddon.Effects:TypewriterText(bubble.tipText, tipText, 0.025, function()
+            -- Set auto-advance timer after typewriter completes
+            if HopeAddon.Timer then
+                self.floatingBubbleTimer = HopeAddon.Timer:After(FLOATING_BUBBLE_AUTO_ADVANCE, function()
+                    self.floatingBubbleTimer = nil
+                    self:AdvanceFloatingBubble()
+                end)
+            end
+        end)
+    else
+        bubble.tipText:SetText(tipText)
+        -- Set auto-advance timer
+        if HopeAddon.Timer then
+            self.floatingBubbleTimer = HopeAddon.Timer:After(FLOATING_BUBBLE_AUTO_ADVANCE, function()
+                self.floatingBubbleTimer = nil
+                self:AdvanceFloatingBubble()
+            end)
+        end
+    end
+end
+
+--[[
+    Advance to the next guide in the queue
+]]
+function CritterUI:AdvanceFloatingBubble()
+    if not self.floatingBubbleQueue then return end
+
+    -- Cancel timer if manually advancing
+    if self.floatingBubbleTimer then
+        self.floatingBubbleTimer:Cancel()
+        self.floatingBubbleTimer = nil
+    end
+
+    self.floatingBubbleQueueIndex = (self.floatingBubbleQueueIndex or 1) + 1
+
+    if self.floatingBubbleQueueIndex > #self.floatingBubbleQueue then
+        -- Queue complete
+        self:HideFloatingBubble()
+    else
+        -- Show next guide
+        self:ShowCurrentFloatingBubbleGuide()
+    end
+end
+
+--[[
+    Hide the floating bubble and clear the queue
+]]
+function CritterUI:HideFloatingBubble()
+    -- Cancel timers
+    if self.floatingBubbleTimer then
+        self.floatingBubbleTimer:Cancel()
+        self.floatingBubbleTimer = nil
+    end
+    if self.floatingBubbleTypewriter then
+        self.floatingBubbleTypewriter:Cancel()
+        self.floatingBubbleTypewriter = nil
+    end
+
+    -- Clear queue
+    self.floatingBubbleQueue = {}
+    self.floatingBubbleQueueIndex = 1
+    self.isShowingQueue = false
+
+    if not self.floatingBubble then return end
+
+    if HopeAddon.Effects then
+        HopeAddon.Effects:FadeOut(self.floatingBubble, 0.3)
+    else
+        self.floatingBubble:Hide()
+    end
+end
+
+--============================================================
 -- UNLOCK CELEBRATION
 --============================================================
 
@@ -1341,7 +2662,7 @@ function CritterUI:ShowUnlockCelebration(critterId)
         or ("NEW CRITTER UNLOCKED! " .. critterData.name .. " wants to join you!")
 
     -- Create celebration popup
-    local popup = CreateFrame("Frame", nil, UIParent)
+    local popup = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
     popup:SetSize(350, 100)
     popup:SetBackdrop(HopeAddon.Constants.BACKDROPS.DARK_GOLD)
     popup:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
@@ -1405,7 +2726,7 @@ function CritterUI:CreateTestPanel()
         return self.testPanel
     end
 
-    local panel = CreateFrame("Frame", "HopeCritterTestPanel", UIParent)
+    local panel = CreateFrame("Frame", "HopeCritterTestPanel", UIParent, "BackdropTemplate")
     panel:SetSize(140, 180)
     panel:SetBackdrop(HopeAddon.Constants.BACKDROPS.DARK_GOLD)
     panel:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
@@ -1503,11 +2824,139 @@ function CritterUI:HideTestPanel()
 end
 
 --============================================================
+-- DEBUG PANEL (Model Rendering Diagnostics)
+--============================================================
+
+--[[
+    Create debug panel with buttons to test various model rendering approaches
+    @return Frame - The debug panel
+]]
+function CritterUI:CreateDebugPanel()
+    if self.debugPanel then return end
+
+    local panel = CreateFrame("Frame", "HopeCritterDebugPanel", UIParent, "BackdropTemplate")
+    panel:SetSize(200, 210)
+    panel:SetPoint("RIGHT", UIParent, "RIGHT", -10, -50)
+    panel:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 12,
+    })
+    panel:SetBackdropColor(0.1, 0.1, 0.1, 0.9)
+    panel:SetFrameStrata("HIGH")
+
+    local title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    title:SetPoint("TOP", 0, -8)
+    title:SetText("Model Debug")
+
+    local yOffset = -28
+    local function addButton(text, onClick)
+        local btn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+        btn:SetSize(180, 22)
+        btn:SetPoint("TOP", panel, "TOP", 0, yOffset)
+        btn:SetText(text)
+        btn:SetScript("OnClick", onClick)
+        yOffset = yOffset - 26
+        return btn
+    end
+
+    local model = self.housingContainer and self.housingContainer.model
+
+    -- Test buttons
+    addButton("SetUnit(player)", function()
+        if model then
+            model:ClearModel()
+            model:SetUnit("player")
+            print("Set model to player unit")
+        end
+    end)
+
+    addButton("DisplayID 5839 (Wyrm)", function()
+        if model then
+            model:ClearModel()
+            model:SetDisplayInfo(5839)
+            print("Set displayID 5839")
+        end
+    end)
+
+    addButton("DisplayID 4449 (Imp)", function()
+        if model then
+            model:ClearModel()
+            model:SetDisplayInfo(4449)
+            print("Set displayID 4449")
+        end
+    end)
+
+    addButton("Toggle Light", function()
+        if model then
+            self.debugLightOn = not self.debugLightOn
+            -- TBC SetLight: enabled, omni, dirX, dirY, dirZ, ambInt, ambR, ambG, ambB, dirInt, dirR, dirG, dirB
+            model:SetLight(self.debugLightOn, true, 0, 0, 1, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0)
+            print("Light: " .. (self.debugLightOn and "ON" or "OFF"))
+        end
+    end)
+
+    addButton("Cycle Camera (0-3)", function()
+        if model then
+            self.debugCamera = ((self.debugCamera or 0) + 1) % 4
+            model:SetCamera(self.debugCamera)
+            print("Camera: " .. self.debugCamera)
+        end
+    end)
+
+    addButton("Print Model State", function()
+        if model then
+            print("Model visible:", model:IsVisible())
+            print("Model shown:", model:IsShown())
+            print("Model alpha:", model:GetAlpha())
+            local w, h = model:GetSize()
+            print("Model size:", w, "x", h)
+        end
+    end)
+
+    -- Cycle through all mascots
+    addButton("Next Mascot", function()
+        if HopeAddon.CritterContent then
+            local critters = HopeAddon.CritterContent:GetAllCritters()
+            local ids = {}
+            for id in pairs(critters) do
+                table.insert(ids, id)
+            end
+            table.sort(ids)
+
+            self.debugMascotIdx = ((self.debugMascotIdx or 0) % #ids) + 1
+            local critterId = ids[self.debugMascotIdx]
+            local data = critters[critterId]
+
+            print("Testing mascot:", critterId, "-", data.name, "displayID:", data.displayID)
+            self:SetCritter(critterId)
+        end
+    end)
+
+    self.debugPanel = panel
+    panel:Show()
+end
+
+--============================================================
 -- MODULE LIFECYCLE
 --============================================================
 
 function CritterUI:OnInitialize()
     -- Create frames on demand
+
+    -- Debug panel slash command
+    SLASH_CRITTERDEBUG1 = "/critterdebug"
+    SlashCmdList["CRITTERDEBUG"] = function()
+        if not CritterUI.debugPanel then
+            CritterUI:CreateDebugPanel()
+        else
+            if CritterUI.debugPanel:IsShown() then
+                CritterUI.debugPanel:Hide()
+            else
+                CritterUI.debugPanel:Show()
+            end
+        end
+    end
 end
 
 function CritterUI:OnEnable()
@@ -1581,6 +3030,47 @@ function CritterUI:OnDisable()
     if self.selectorPopup then
         self.selectorPopup:Hide()
     end
+    if self.debugPanel then
+        self.debugPanel:Hide()
+    end
+
+    -- Clean up new combined stats and tips panels
+    if self.combinedStatsTimer then
+        self.combinedStatsTimer:Cancel()
+        self.combinedStatsTimer = nil
+    end
+    if self.combinedStatsWindow then
+        self.combinedStatsWindow:Hide()
+    end
+    if self.tipsTypewriterTicker then
+        self.tipsTypewriterTicker:Cancel()
+        self.tipsTypewriterTicker = nil
+    end
+    if self.bossTipsPanel then
+        self.bossTipsPanel:Hide()
+    end
+    if self.bossDropdown then
+        self.bossDropdown:Hide()
+    end
+    if self.prePullButton then
+        self.prePullButton:Hide()
+    end
+    self.bossTipsState = nil
+
+    -- Clean up floating bubble
+    if self.floatingBubbleTimer then
+        self.floatingBubbleTimer:Cancel()
+        self.floatingBubbleTimer = nil
+    end
+    if self.floatingBubbleTypewriter then
+        self.floatingBubbleTypewriter:Cancel()
+        self.floatingBubbleTypewriter = nil
+    end
+    if self.floatingBubble then
+        self.floatingBubble:Hide()
+    end
+    self.floatingBubbleQueue = {}
+    self.isShowingQueue = false
 
     self.isHousingOpen = false
 

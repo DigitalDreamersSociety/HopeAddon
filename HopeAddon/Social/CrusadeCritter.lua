@@ -153,38 +153,51 @@ local DB_DEFAULTS = {
 
     -- New unlock flag for tab badge
     hasNewUnlock = false,
+
+    -- Boss tips settings
+    showBossTips = true,           -- Enable tip system
+    autoAdvanceTips = true,        -- Auto-progress tips
+    tipDisplayTime = 3,            -- Seconds per tip
+    statsDisplayTime = 10,         -- Post-combat stats duration
+    showPrePullTips = true,        -- Show "?" button for pre-pull
+
+    -- Boss guides on dungeon entry
+    showBossGuides = true,         -- Show floating bubble with boss guides on dungeon entry
 }
 
 --============================================================
 -- INITIALIZATION
 --============================================================
 
-function CrusadeCritter:OnInitialize()
-    -- Initialize database
-    if not HopeAddon.db.crusadeCritter then
+-- Helper to ensure database exists and has defaults applied
+-- Called on-demand since HopeAddon.db may not exist at registration time
+local function EnsureDB()
+    if not HopeAddon.db then return nil end
+    if not HopeAddon.db.crusadeCritter or type(HopeAddon.db.crusadeCritter) ~= "table" then
         HopeAddon.db.crusadeCritter = {}
-    end
-
-    -- Apply defaults
-    for key, value in pairs(DB_DEFAULTS) do
-        if HopeAddon.db.crusadeCritter[key] == nil then
-            if type(value) == "table" then
-                HopeAddon.db.crusadeCritter[key] = {}
-                for k, v in pairs(value) do
-                    HopeAddon.db.crusadeCritter[key][k] = v
+        -- Apply defaults
+        for key, value in pairs(DB_DEFAULTS) do
+            if HopeAddon.db.crusadeCritter[key] == nil then
+                if type(value) == "table" then
+                    HopeAddon.db.crusadeCritter[key] = {}
+                    for k, v in pairs(value) do
+                        HopeAddon.db.crusadeCritter[key][k] = v
+                    end
+                else
+                    HopeAddon.db.crusadeCritter[key] = value
                 end
-            else
-                HopeAddon.db.crusadeCritter[key] = value
             end
         end
     end
+    return HopeAddon.db.crusadeCritter
+end
 
-    -- Clear stale current run
-    HopeAddon.db.crusadeCritter.currentRun = nil
+function CrusadeCritter:OnInitialize()
+    -- db not ready yet at registration time - will init in EnsureDB
 end
 
 function CrusadeCritter:OnEnable()
-    local db = HopeAddon.db and HopeAddon.db.crusadeCritter
+    local db = EnsureDB()
     if not db or not db.enabled then
         return
     end
@@ -263,13 +276,23 @@ end
 function CrusadeCritter:CheckZone()
     local zoneName = GetRealZoneText()
     local subZone = GetSubZoneText()
-    local db = HopeAddon.db.crusadeCritter
+    local db = EnsureDB()
+    if not db then return end
 
     -- Check if in a TBC dungeon
     local dungeonData = HopeAddon.Constants.TBC_DUNGEONS[zoneName]
     if dungeonData then
         self:OnDungeonEnter(zoneName, dungeonData)
         return
+    end
+
+    -- Not in a dungeon - clear current run if we left
+    if self.currentRun then
+        self.currentRun = nil
+        -- Hide pre-pull tips button since we left dungeon
+        if HopeAddon.CritterUI then
+            HopeAddon.CritterUI:UpdatePrePullButton()
+        end
     end
 
     -- Check if in a TBC zone
@@ -289,7 +312,8 @@ function CrusadeCritter:CheckZone()
 end
 
 function CrusadeCritter:OnDungeonEnter(dungeonName, dungeonData)
-    local db = HopeAddon.db.crusadeCritter
+    local db = EnsureDB()
+    if not db then return end
 
     -- Start tracking run
     self.currentRun = {
@@ -308,6 +332,20 @@ function CrusadeCritter:OnDungeonEnter(dungeonName, dungeonData)
 
     -- Trigger dungeon entry quip
     self:TriggerDungeonQuip(dungeonName, isFirstVisit)
+
+    -- Update pre-pull tips button visibility
+    if HopeAddon.CritterUI and db.showPrePullTips then
+        HopeAddon.CritterUI:UpdatePrePullButton()
+    end
+
+    -- Show boss guides if enabled (floating bubble system)
+    if db.showBossGuides and HopeAddon.CritterContent and HopeAddon.CritterUI then
+        local guides = HopeAddon.CritterContent:GetBossGuides(dungeonData.key)
+        if guides and #guides > 0 then
+            local critterName = self:GetCurrentCritterName()
+            HopeAddon.CritterUI:ShowBossGuideQueue(guides, critterName)
+        end
+    end
 end
 
 --============================================================
@@ -323,8 +361,8 @@ function CrusadeCritter:OnCombatStart()
     end
 
     -- Hide mascot during combat if setting enabled
-    local db = HopeAddon.db.crusadeCritter
-    if db.hideInCombat and HopeAddon.CritterUI then
+    local db = EnsureDB()
+    if db and db.hideInCombat and HopeAddon.CritterUI then
         HopeAddon.CritterUI:OnCombatStart()
     end
 end
@@ -333,8 +371,8 @@ function CrusadeCritter:OnCombatEnd()
     self.inCombat = false
 
     -- Resume mascot after combat
-    local db = HopeAddon.db.crusadeCritter
-    if db.hideInCombat and HopeAddon.CritterUI then
+    local db = EnsureDB()
+    if db and db.hideInCombat and HopeAddon.CritterUI then
         HopeAddon.CritterUI:OnCombatEnd()
     end
 end
@@ -398,7 +436,8 @@ function CrusadeCritter:OnBossKill(npcID, bossData)
 end
 
 function CrusadeCritter:ShowBossKillPopup(bossData, killTime)
-    local db = HopeAddon.db.crusadeCritter
+    local db = EnsureDB()
+    if not db then return end
     local critterId = db.selectedCritter or "flux"
 
     -- Get best time for this boss
@@ -410,17 +449,135 @@ function CrusadeCritter:ShowBossKillPopup(bossData, killTime)
         quip = HopeAddon.CritterContent:GetQuip(critterId, "boss_kill")
     end
 
-    -- Show popup (only if UI module is loaded)
+    -- Get next boss key for "Learn Next Boss" button
+    local nextBossKey = nil
+    if db.showBossTips and self.currentRun then
+        local nextBoss = self:GetNextBoss(self.currentRun.dungeonKey)
+        if nextBoss then
+            nextBossKey = nextBoss.key
+        end
+    end
+
+    -- Get boss key for combined stats
+    local bossKey = self:GetBossKeyFromNPC(bossData.name)
+
+    -- Show combined stats window (new unified UI)
     if HopeAddon.CritterUI then
-        HopeAddon.CritterUI:ShowBossPopup(bossData.name, killTime, bestTime, quip)
+        local bossDataForUI = {
+            name = bossData.name,
+            key = bossKey,
+            npcId = bossData.npcId,
+            isFinal = bossData.isFinal,
+        }
+        HopeAddon.CritterUI:ShowCombinedStats(bossDataForUI, killTime, bestTime, quip, nextBossKey)
     end
 
     -- Save best time
     self:SaveBossTime(bossData.name, killTime)
 end
 
+--[[
+    Get the boss key from boss name (for icon lookup)
+    @param bossName string - Boss display name
+    @return string - Boss key
+]]
+function CrusadeCritter:GetBossKeyFromNPC(bossName)
+    -- Convert name to key format: lowercase, spaces/special chars to underscores
+    local key = string.lower(bossName)
+    key = string.gsub(key, "[%s%-'']", "_")
+    key = string.gsub(key, "__+", "_")
+    return key
+end
+
+--[[
+    Get the next boss in the current dungeon
+    @param dungeonKey string - Current dungeon key
+    @return table|nil - Next boss data { key, npcId, name } or nil
+]]
+function CrusadeCritter:GetNextBoss(dungeonKey)
+    local C = HopeAddon.Constants
+    if not C.DUNGEON_BOSS_ORDER or not C.DUNGEON_BOSS_ORDER[dungeonKey] then
+        return nil
+    end
+
+    local bosses = C.DUNGEON_BOSS_ORDER[dungeonKey]
+
+    -- Get killed boss NPCs from current run
+    local killedNPCs = {}
+    if self.currentRun and self.currentRun.bossKills then
+        for _, kill in ipairs(self.currentRun.bossKills) do
+            killedNPCs[kill.npcID] = true
+        end
+    end
+
+    -- Find first non-killed boss
+    for _, bossData in ipairs(bosses) do
+        if not killedNPCs[bossData.npcId] then
+            return bossData
+        end
+    end
+
+    return nil -- All bosses killed
+end
+
+--[[
+    Get next boss data for tips display (used by UI)
+    @return table|nil - { key, name } for the next boss
+]]
+function CrusadeCritter:GetNextBossForTips()
+    if not self.currentRun then return nil end
+
+    local nextBoss = self:GetNextBoss(self.currentRun.dungeonKey)
+    if nextBoss then
+        return {
+            key = nextBoss.key,
+            name = nextBoss.name,
+        }
+    end
+
+    return nil
+end
+
+--[[
+    Get all bosses for the current dungeon with killed status
+    @return table - Array of { key, name, npcId, isKilled }
+]]
+function CrusadeCritter:GetDungeonBossesWithStatus()
+    local result = {}
+    local C = HopeAddon.Constants
+
+    if not self.currentRun then return result end
+
+    local dungeonKey = self.currentRun.dungeonKey
+    if not C.DUNGEON_BOSS_ORDER or not C.DUNGEON_BOSS_ORDER[dungeonKey] then
+        return result
+    end
+
+    -- Get killed boss NPCs
+    local killedNPCs = {}
+    if self.currentRun.bossKills then
+        for _, kill in ipairs(self.currentRun.bossKills) do
+            killedNPCs[kill.npcID] = true
+        end
+    end
+
+    -- Build result
+    for _, bossData in ipairs(C.DUNGEON_BOSS_ORDER[dungeonKey]) do
+        table.insert(result, {
+            key = bossData.key,
+            name = bossData.name,
+            npcId = bossData.npcId,
+            isKilled = killedNPCs[bossData.npcId] or false,
+            isFinal = bossData.isFinal or false,
+        })
+    end
+
+    return result
+end
+
 function CrusadeCritter:OnDungeonComplete(bossData)
-    local db = HopeAddon.db.crusadeCritter
+    local db = EnsureDB()
+    if not db then return end
 
     if not self.currentRun then return end
 
@@ -478,7 +635,8 @@ end
 --============================================================
 
 function CrusadeCritter:CheckUnlock(completedDungeonKey)
-    local db = HopeAddon.db.crusadeCritter
+    local db = EnsureDB()
+    if not db then return end
     local Content = HopeAddon.CritterContent
 
     if not Content then return end
@@ -498,21 +656,12 @@ function CrusadeCritter:CheckUnlock(completedDungeonKey)
 end
 
 function CrusadeCritter:IsCritterUnlocked(critterId)
-    local db = HopeAddon.db and HopeAddon.db.crusadeCritter
-    if not db or not db.unlockedCritters then
-        -- Default: only flux is unlocked if db not initialized
-        return critterId == "flux"
-    end
-    for _, id in ipairs(db.unlockedCritters) do
-        if id == critterId then
-            return true
-        end
-    end
-    return false
+    return true  -- TEMP: unlock all for debugging
 end
 
 function CrusadeCritter:UnlockCritter(critterId)
-    local db = HopeAddon.db.crusadeCritter
+    local db = EnsureDB()
+    if not db then return end
     table.insert(db.unlockedCritters, critterId)
 
     -- Set new unlock flag for tab badge
@@ -529,7 +678,8 @@ end
 --============================================================
 
 function CrusadeCritter:OnPlayerDeath()
-    local db = HopeAddon.db.crusadeCritter
+    local db = EnsureDB()
+    if not db then return end
     local critterId = db.selectedCritter or "flux"
 
     if not HopeAddon.CritterContent or not HopeAddon.CritterUI then return end
@@ -545,7 +695,8 @@ end
 --============================================================
 
 function CrusadeCritter:TriggerZoneQuip(zoneName, isFirstVisit)
-    local db = HopeAddon.db.crusadeCritter
+    local db = EnsureDB()
+    if not db then return end
     local critterId = db.selectedCritter or "flux"
 
     if not HopeAddon.CritterContent or not HopeAddon.CritterUI then return end
@@ -558,7 +709,8 @@ function CrusadeCritter:TriggerZoneQuip(zoneName, isFirstVisit)
 end
 
 function CrusadeCritter:TriggerDungeonQuip(dungeonName, isFirstVisit)
-    local db = HopeAddon.db.crusadeCritter
+    local db = EnsureDB()
+    if not db then return end
     local critterId = db.selectedCritter or "flux"
 
     if not HopeAddon.CritterContent or not HopeAddon.CritterUI then return end
@@ -576,7 +728,8 @@ end
 function CrusadeCritter:ShowMascot()
     if not HopeAddon.CritterUI then return end
 
-    local db = HopeAddon.db.crusadeCritter
+    local db = EnsureDB()
+    if not db then return end
     local critterId = db.selectedCritter or "flux"
 
     HopeAddon.CritterUI:SetCritter(critterId)
@@ -584,7 +737,8 @@ function CrusadeCritter:ShowMascot()
 end
 
 function CrusadeCritter:SetSelectedCritter(critterId)
-    local db = HopeAddon.db.crusadeCritter
+    local db = EnsureDB()
+    if not db then return false end
 
     if not self:IsCritterUnlocked(critterId) then
         HopeAddon:Debug("Critter not unlocked: " .. critterId)
@@ -603,14 +757,16 @@ end
 --============================================================
 
 function CrusadeCritter:GetBestBossTime(bossName)
-    local db = HopeAddon.db.crusadeCritter
+    local db = EnsureDB()
+    if not db then return nil end
     local bossStats = db.bossStats or {}
     local data = bossStats[bossName]
     return data and data.bestTime
 end
 
 function CrusadeCritter:SaveBossTime(bossName, time)
-    local db = HopeAddon.db.crusadeCritter
+    local db = EnsureDB()
+    if not db then return end
     if not db.bossStats then
         db.bossStats = {}
     end
@@ -638,11 +794,13 @@ end
 --============================================================
 
 function CrusadeCritter:IsEnabled()
-    return HopeAddon.db.crusadeCritter and HopeAddon.db.crusadeCritter.enabled
+    return HopeAddon.db and HopeAddon.db.crusadeCritter and HopeAddon.db.crusadeCritter.enabled
 end
 
 function CrusadeCritter:SetEnabled(enabled)
-    HopeAddon.db.crusadeCritter.enabled = enabled
+    local db = EnsureDB()
+    if not db then return end
+    db.enabled = enabled
     if enabled then
         self:OnEnable()
     else
@@ -651,15 +809,54 @@ function CrusadeCritter:SetEnabled(enabled)
 end
 
 function CrusadeCritter:GetUnlockedCritters()
-    local db = HopeAddon.db.crusadeCritter
+    local db = HopeAddon.db and HopeAddon.db.crusadeCritter
     if not HopeAddon.CritterContent then return {} end
-    return HopeAddon.CritterContent:GetUnlockedCritters(db.unlockedCritters or { "flux" })
+    return HopeAddon.CritterContent:GetUnlockedCritters(db and db.unlockedCritters or { "flux" })
 end
 
 function CrusadeCritter:GetHubProgress(hubKey)
-    local db = HopeAddon.db.crusadeCritter
+    local db = HopeAddon.db and HopeAddon.db.crusadeCritter
     if not HopeAddon.CritterContent then return 0, 0 end
-    return HopeAddon.CritterContent:GetHubProgress(hubKey, db.completedDungeons or {})
+    return HopeAddon.CritterContent:GetHubProgress(hubKey, db and db.completedDungeons or {})
+end
+
+--[[
+    Get the display name of the currently selected critter
+    @return string - Critter name (e.g., "Flux")
+]]
+function CrusadeCritter:GetCurrentCritterName()
+    local db = HopeAddon.db and HopeAddon.db.crusadeCritter
+    local critterId = db and db.selectedCritter or "flux"
+
+    if HopeAddon.CritterContent then
+        local critterData = HopeAddon.CritterContent:GetCritter(critterId)
+        if critterData then
+            return critterData.name
+        end
+    end
+
+    -- Fallback: capitalize first letter
+    return critterId:sub(1, 1):upper() .. critterId:sub(2)
+end
+
+--[[
+    Set whether boss guides are shown on dungeon entry
+    @param enabled boolean - True to enable, false to disable
+]]
+function CrusadeCritter:SetBossGuidesEnabled(enabled)
+    local db = HopeAddon.db and HopeAddon.db.crusadeCritter
+    if db then
+        db.showBossGuides = enabled
+    end
+end
+
+--[[
+    Check if boss guides are enabled
+    @return boolean - True if enabled
+]]
+function CrusadeCritter:IsBossGuidesEnabled()
+    local db = HopeAddon.db and HopeAddon.db.crusadeCritter
+    return db and db.showBossGuides ~= false
 end
 
 --============================================================
@@ -736,7 +933,8 @@ end
     Reset all run statistics (preserves unlocks)
 ]]
 function CrusadeCritter:ResetStatistics()
-    local db = HopeAddon.db.crusadeCritter
+    local db = HopeAddon.db and HopeAddon.db.crusadeCritter
+    if not db then return end
     db.dungeonRuns = {}
     db.bossStats = {}
     print("|cff00ff00Crusade Critter statistics reset.|r")
@@ -767,7 +965,7 @@ end
     @return table - { totalRuns, dungeonsCleared, fastestRun, fastestDungeon, mostRuns, mostRunsDungeon }
 ]]
 function CrusadeCritter:GetStatsSummary()
-    local db = HopeAddon.db.crusadeCritter
+    local db = HopeAddon.db and HopeAddon.db.crusadeCritter
     local summary = {
         totalRuns = 0,
         dungeonsCleared = 0,
@@ -777,7 +975,7 @@ function CrusadeCritter:GetStatsSummary()
         mostRunsDungeon = nil,
     }
 
-    for key, data in pairs(db.dungeonRuns or {}) do
+    for key, data in pairs(db and db.dungeonRuns or {}) do
         summary.dungeonsCleared = summary.dungeonsCleared + 1
         summary.totalRuns = summary.totalRuns + (data.totalRuns or 0)
 
@@ -803,17 +1001,22 @@ local function PrintHelp()
     print("|cff9B30FF=== Crusade Critter Commands ===|r")
     print("|cffffff00/critter on|r|cffffffff/|r|cffffff00off|r  - Enable or disable")
     print("|cffffff00/critter select <name>|r - Select critter (flux, snookimp, shred, emo, cosmo, boomer, diva)")
-    -- Reset command removed - housing uses fixed tab-out positioning
+    print("|cffffff00/critter guides on|r|cffffffff/|r|cffffff00off|r - Toggle boss guides on dungeon entry")
     print("|cffffff00/critter list|r - Show unlocked critters and progress")
     print("|cffffff00/critter test|r - Enter test mode (simulates Stockades)")
     print("|cffffff00/critter test boss|r - Simulate mid-boss kill")
     print("|cffffff00/critter test final|r - Simulate final boss kill")
     print("|cffffff00/critter test unlock|r - Show unlock celebration")
+    print("|cffffff00/critter test guides|r - Test boss guides display")
     print("|cffffff00/critter test reset|r - Clear test run data")
 end
 
 local function PrintStatus()
-    local db = HopeAddon.db.crusadeCritter
+    local db = EnsureDB()
+    if not db then
+        print("|cff9B30FFCrusade Critter:|r |cffff0000NOT INITIALIZED|r")
+        return
+    end
     local status = db.enabled and "|cff00ff00ENABLED|r" or "|cffff0000DISABLED|r"
     local selected = db.selectedCritter or "flux"
     print("|cff9B30FFCrusade Critter:|r " .. status)
@@ -821,7 +1024,11 @@ local function PrintStatus()
 end
 
 local function PrintCritterList()
-    local db = HopeAddon.db.crusadeCritter
+    local db = EnsureDB()
+    if not db then
+        print("|cffff0000Crusade Critter database not initialized.|r")
+        return
+    end
     local Content = HopeAddon.CritterContent
 
     print("|cff9B30FF=== Crusade Critter Collection ===|r")
@@ -926,6 +1133,19 @@ SlashCmdList["CRITTER"] = function(msg)
     elseif cmd == "status" then
         PrintStatus()
 
+    elseif cmd == "guides" then
+        if arg == "on" then
+            CrusadeCritter:SetBossGuidesEnabled(true)
+            print("|cff00ff00Boss guides enabled.|r Guides will show on dungeon entry.")
+        elseif arg == "off" then
+            CrusadeCritter:SetBossGuidesEnabled(false)
+            print("|cffff0000Boss guides disabled.|r")
+        else
+            local enabled = CrusadeCritter:IsBossGuidesEnabled()
+            print("|cff9B30FFBoss guides:|r " .. (enabled and "|cff00ff00ON|r" or "|cffff0000OFF|r"))
+            print("  Use |cffffff00/critter guides on|r or |cffffff00/critter guides off|r to toggle")
+        end
+
     elseif cmd == "test" then
         if arg == "boss" then
             -- Simulate mid-boss kill
@@ -937,6 +1157,18 @@ SlashCmdList["CRITTER"] = function(msg)
             -- Show unlock celebration
             if HopeAddon.CritterUI then
                 HopeAddon.CritterUI:ShowUnlockCelebration("snookimp")
+            end
+        elseif arg == "guides" then
+            -- Test boss guides display
+            if HopeAddon.CritterContent and HopeAddon.CritterUI then
+                local guides = HopeAddon.CritterContent:GetBossGuides("ramparts")
+                if guides and #guides > 0 then
+                    local critterName = CrusadeCritter:GetCurrentCritterName()
+                    HopeAddon.CritterUI:ShowBossGuideQueue(guides, critterName)
+                    print("|cff9B30FF[Test Mode]|r Showing Hellfire Ramparts boss guides")
+                else
+                    print("|cffff0000No guides found for ramparts|r")
+                end
             end
         elseif arg == "reset" then
             -- Reset test run

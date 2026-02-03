@@ -177,6 +177,189 @@ for dungeonName, data in pairs(C.TBC_DUNGEONS) do
 end
 
 --============================================================
+-- DUNGEON BOSS ORDER (for Crusade Critter boss teaching system)
+--============================================================
+C.DUNGEON_BOSS_ORDER = {
+    -- Hellfire Citadel
+    ramparts = {
+        { key = "watchkeeper_gargolmar", npcId = 17306, name = "Watchkeeper Gargolmar" },
+        { key = "omor_the_unscarred", npcId = 17308, name = "Omor the Unscarred" },
+        { key = "nazan", npcId = 17536, name = "Nazan", isFinal = true },
+    },
+    blood_furnace = {
+        { key = "the_maker", npcId = 17381, name = "The Maker" },
+        { key = "broggok", npcId = 17380, name = "Broggok" },
+        { key = "kelidan_the_breaker", npcId = 17377, name = "Keli'dan the Breaker", isFinal = true },
+    },
+    shattered_halls = {
+        { key = "grand_warlock_nethekurse", npcId = 16807, name = "Grand Warlock Nethekurse" },
+        { key = "blood_guard_porung", npcId = 20923, name = "Blood Guard Porung" },
+        { key = "warbringer_omrogg", npcId = 16809, name = "Warbringer O'mrogg" },
+        { key = "warchief_kargath_bladefist", npcId = 16808, name = "Warchief Kargath Bladefist", isFinal = true },
+    },
+    -- Coilfang Reservoir
+    slave_pens = {
+        { key = "mennu_the_betrayer", npcId = 17941, name = "Mennu the Betrayer" },
+        { key = "rokmar_the_crackler", npcId = 17991, name = "Rokmar the Crackler" },
+        { key = "quagmirran", npcId = 17942, name = "Quagmirran", isFinal = true },
+    },
+    underbog = {
+        { key = "hungarfen", npcId = 17770, name = "Hungarfen" },
+        { key = "ghazan", npcId = 18105, name = "Ghaz'an" },
+        { key = "swamplord_muselek", npcId = 17826, name = "Swamplord Musel'ek" },
+        { key = "the_black_stalker", npcId = 17882, name = "The Black Stalker", isFinal = true },
+    },
+    steamvault = {
+        { key = "hydromancer_thespia", npcId = 17797, name = "Hydromancer Thespia" },
+        { key = "mekgineer_steamrigger", npcId = 17796, name = "Mekgineer Steamrigger" },
+        { key = "warlord_kalithresh", npcId = 17798, name = "Warlord Kalithresh", isFinal = true },
+    },
+    -- Auchindoun
+    mana_tombs = {
+        { key = "pandemonius", npcId = 18341, name = "Pandemonius" },
+        { key = "tavarok", npcId = 18343, name = "Tavarok" },
+        { key = "nexus_prince_shaffar", npcId = 18344, name = "Nexus-Prince Shaffar", isFinal = true },
+    },
+    auchenai_crypts = {
+        { key = "shirrak_the_dead_watcher", npcId = 18371, name = "Shirrak the Dead Watcher" },
+        { key = "exarch_maladaar", npcId = 18373, name = "Exarch Maladaar", isFinal = true },
+    },
+    sethekk_halls = {
+        { key = "darkweaver_syth", npcId = 18472, name = "Darkweaver Syth" },
+        { key = "talon_king_ikiss", npcId = 18473, name = "Talon King Ikiss", isFinal = true },
+    },
+    shadow_lab = {
+        { key = "ambassador_hellmaw", npcId = 18731, name = "Ambassador Hellmaw" },
+        { key = "blackheart_the_inciter", npcId = 18667, name = "Blackheart the Inciter" },
+        { key = "grandmaster_vorpil", npcId = 18732, name = "Grandmaster Vorpil" },
+        { key = "murmur", npcId = 18708, name = "Murmur", isFinal = true },
+    },
+    -- Tempest Keep
+    mechanar = {
+        { key = "mechano_lord_capacitus", npcId = 19218, name = "Mechano-Lord Capacitus" },
+        { key = "nethermancer_sepethrea", npcId = 19219, name = "Nethermancer Sepethrea" },
+        { key = "pathaleon_the_calculator", npcId = 19220, name = "Pathaleon the Calculator", isFinal = true },
+    },
+    botanica = {
+        { key = "commander_sarannis", npcId = 17976, name = "Commander Sarannis" },
+        { key = "high_botanist_freywinn", npcId = 17975, name = "High Botanist Freywinn" },
+        { key = "thorngrin_the_tender", npcId = 17978, name = "Thorngrin the Tender" },
+        { key = "laj", npcId = 17980, name = "Laj" },
+        { key = "warp_splinter", npcId = 17977, name = "Warp Splinter", isFinal = true },
+    },
+    arcatraz = {
+        { key = "zereketh_the_unbound", npcId = 20870, name = "Zereketh the Unbound" },
+        { key = "dalliah_the_doomsayer", npcId = 20885, name = "Dalliah the Doomsayer" },
+        { key = "wrath_scryer_soccothrates", npcId = 20886, name = "Wrath-Scryer Soccothrates" },
+        { key = "harbinger_skyriss", npcId = 20912, name = "Harbinger Skyriss", isFinal = true },
+    },
+    -- Caverns of Time
+    old_hillsbrad = {
+        { key = "lieutenant_drake", npcId = 17848, name = "Lieutenant Drake" },
+        { key = "captain_skarloc", npcId = 17862, name = "Captain Skarloc" },
+        { key = "epoch_hunter", npcId = 18096, name = "Epoch Hunter", isFinal = true },
+    },
+    black_morass = {
+        { key = "chrono_lord_deja", npcId = 17879, name = "Chrono Lord Deja" },
+        { key = "temporus", npcId = 17880, name = "Temporus" },
+        { key = "aeonus", npcId = 17881, name = "Aeonus", isFinal = true },
+    },
+    -- Isle of Quel'Danas
+    magisters_terrace = {
+        { key = "selin_fireheart", npcId = 24723, name = "Selin Fireheart" },
+        { key = "vexallus", npcId = 24744, name = "Vexallus" },
+        { key = "priestess_delrissa", npcId = 24560, name = "Priestess Delrissa" },
+        { key = "kaelthas_sunstrider", npcId = 24664, name = "Kael'thas Sunstrider", isFinal = true },
+    },
+    -- Test Dungeon
+    stockades = {
+        { key = "kam_deepfury", npcId = 1666, name = "Kam Deepfury" },
+        { key = "targorr_the_dread", npcId = 1696, name = "Targorr the Dread" },
+        { key = "hamhock", npcId = 1717, name = "Hamhock" },
+        { key = "dextren_ward", npcId = 1663, name = "Dextren Ward" },
+        { key = "bazil_thredd", npcId = 1716, name = "Bazil Thredd", isFinal = true },
+    },
+}
+
+-- Boss icons for display in stats/tips windows
+C.BOSS_ICONS = {
+    -- Hellfire Ramparts
+    watchkeeper_gargolmar = "Ability_Warrior_Sunder",
+    omor_the_unscarred = "Spell_Shadow_SummonFelHunter",
+    nazan = "Ability_Mount_Drake_Red",
+    -- Blood Furnace
+    the_maker = "Spell_Shadow_RaiseDead",
+    broggok = "Spell_Nature_AcidBreath",
+    kelidan_the_breaker = "Spell_Fire_BurnoutGreen",
+    -- Shattered Halls
+    grand_warlock_nethekurse = "Spell_Shadow_CurseOfAchimonde",
+    blood_guard_porung = "Ability_Warrior_Cleave",
+    warbringer_omrogg = "Ability_DualWield",
+    warchief_kargath_bladefist = "Ability_Warrior_Bladestorm",
+    -- Slave Pens
+    mennu_the_betrayer = "Spell_Nature_HealingTouch",
+    rokmar_the_crackler = "Spell_Nature_CorrosiveBreath",
+    quagmirran = "Ability_Hunter_Pet_Crab",
+    -- Underbog
+    hungarfen = "Spell_Nature_SummonTreant",
+    ghazan = "Spell_Nature_AcidBreath",
+    swamplord_muselek = "Ability_Hunter_BeastCall",
+    the_black_stalker = "Ability_Hunter_Pet_Spider",
+    -- Steamvault
+    hydromancer_thespia = "Spell_Frost_SummonWaterElemental",
+    mekgineer_steamrigger = "INV_Gizmo_02",
+    warlord_kalithresh = "Spell_Frost_FrostBolt02",
+    -- Mana-Tombs
+    pandemonius = "Spell_Shadow_VoidBolt",
+    tavarok = "Ability_GolemThunderClap",
+    nexus_prince_shaffar = "Spell_Arcane_PortalShattrath",
+    -- Auchenai Crypts
+    shirrak_the_dead_watcher = "Spell_Shadow_DeathPact",
+    exarch_maladaar = "Spell_Holy_Resurrect",
+    -- Sethekk Halls
+    darkweaver_syth = "Spell_Shadow_SummonFelHunter",
+    talon_king_ikiss = "Ability_Hunter_Pet_Owl",
+    -- Shadow Labyrinth
+    ambassador_hellmaw = "Spell_Shadow_RitualOfSacrifice",
+    blackheart_the_inciter = "Spell_Shadow_MindControl",
+    grandmaster_vorpil = "Spell_Shadow_Teleport",
+    murmur = "Spell_Shadow_ShadeTrueSight",
+    -- Mechanar
+    mechano_lord_capacitus = "INV_Misc_Gear_08",
+    nethermancer_sepethrea = "Spell_Fire_FelFlamering",
+    pathaleon_the_calculator = "INV_Misc_Gear_06",
+    -- Botanica
+    commander_sarannis = "Ability_Warrior_BattleShout",
+    high_botanist_freywinn = "Spell_Nature_SummonTreant",
+    thorngrin_the_tender = "Ability_Druid_FrenziedRegeneration",
+    laj = "Spell_Nature_NatureBlessing",
+    warp_splinter = "Spell_Nature_ProtectionformNature",
+    -- Arcatraz
+    zereketh_the_unbound = "Spell_Shadow_VoidBolt",
+    dalliah_the_doomsayer = "Spell_Shadow_DeathPact",
+    wrath_scryer_soccothrates = "Spell_Fire_Fireball02",
+    harbinger_skyriss = "Spell_Arcane_MindBlast",
+    -- Caverns of Time
+    lieutenant_drake = "Ability_Warrior_Charge",
+    captain_skarloc = "Ability_Warrior_Revenge",
+    epoch_hunter = "Spell_Arcane_PortalOrgrimmar",
+    chrono_lord_deja = "Spell_Arcane_PortalOrgrimmar",
+    temporus = "Ability_Creature_Disease_03",
+    aeonus = "Spell_Arcane_PortalOrgrimmar",
+    -- Magisters' Terrace
+    selin_fireheart = "Spell_Shadow_ManaBurn",
+    vexallus = "Spell_Arcane_Arcane04",
+    priestess_delrissa = "Spell_Holy_Resurrection",
+    kaelthas_sunstrider = "Spell_Fire_BurnoutGreen",
+    -- Test Dungeon (Stockades)
+    kam_deepfury = "Ability_Warrior_Sunder",
+    targorr_the_dread = "Ability_Gouge",
+    hamhock = "Ability_BullRush",
+    dextren_ward = "Ability_Rogue_Rupture",
+    bazil_thredd = "Ability_BackStab",
+}
+
+--============================================================
 -- ATTUNEMENT DIFFICULTY LEVELS
 --============================================================
 C.ATTUNEMENT_DIFFICULTY = {
@@ -9033,7 +9216,7 @@ C.SERVER_EVENTS = {
         title = "The Dark Portal Opens",
         eventType = "SERVER",
         date = "2026-02-05",
-        startTime = "00:01",
+        startTime = "17:00",
         description = "The Dark Portal has reopened! Journey through to Outland awaits all heroes of Azeroth. Speak with your faction's representative in the Blasted Lands to begin your adventure.",
         icon = "Interface\\Icons\\Spell_Arcane_PortalUndercity",
         permanent = false,
@@ -9052,6 +9235,19 @@ C.SERVER_EVENTS = {
         permanent = false,
         backgroundTexture = "Interface\\Icons\\Spell_Holy_Resurrection",
         themeColor = { r = 1, g = 0.84, b = 0 },  -- Gold
+    },
+    -- Karazhan raid release
+    {
+        id = "karazhan_release",
+        title = "Karazhan Opens",
+        eventType = "SERVER",
+        date = "2026-02-19",
+        startTime = "17:00",
+        description = "The gates of Karazhan have opened! Gather your 10-player raid team and venture into Medivh's haunted tower. Face legendary bosses including Attumen the Huntsman, Moroes, the Opera Event, and the Prince of Darkness himself.",
+        icon = "Interface\\Icons\\INV_Misc_Key_07",
+        permanent = false,
+        backgroundTexture = "Interface\\Icons\\INV_Misc_Key_07",
+        themeColor = { r = 0.6, g = 0.2, b = 0.8 },  -- Purple (arcane/shadow theme)
     },
     -- Add future server events here as needed
     -- Example format for a future event:

@@ -12981,6 +12981,17 @@ function Journal:PopulateSocialCritter()
     local iconsPerRow = 7
     local critterOrder = { "flux", "snookimp", "shred", "emo", "cosmo", "boomer", "diva" }
 
+    -- Critter icons matching their personalities (TBC-compatible icons)
+    local iconMap = {
+        flux = "Interface\\Icons\\Spell_Arcane_Arcane01",
+        snookimp = "Interface\\Icons\\Spell_Shadow_SummonImp",
+        shred = "Interface\\Icons\\Ability_Creature_Poison_04",
+        emo = "Interface\\Icons\\Ability_Hunter_Pet_Bat",
+        cosmo = "Interface\\Icons\\Spell_Arcane_Starfire",
+        boomer = "Interface\\Icons\\Ability_EyeOfTheOwl",
+        diva = "Interface\\Icons\\Ability_Hunter_Pet_DragonHawk",
+    }
+
     local gridContainer = CreateFrame("Frame", nil, content)
     gridContainer:SetSize(content:GetWidth() - 2 * MARGIN, ICON_SIZE + 10)
     gridContainer:SetPoint("TOPLEFT", content, "TOPLEFT", MARGIN, -yOffset)
@@ -13013,14 +13024,11 @@ function Journal:PopulateSocialCritter()
             end
             btn.border = border
 
-            -- Critter icon (use class icon as placeholder since we don't have critter icons)
+            -- Critter icon
             local icon = btn:CreateTexture(nil, "ARTWORK")
             icon:SetPoint("TOPLEFT", 2, -2)
             icon:SetPoint("BOTTOMRIGHT", -2, 2)
-            -- Use a generic creature icon based on critter glow color
-            local glowColor = critterData.glowColor or { r = 1, g = 1, b = 1 }
-            icon:SetTexture("Interface\\Icons\\INV_Misc_MonsterHead_03")
-            icon:SetVertexColor(glowColor.r, glowColor.g, glowColor.b)
+            icon:SetTexture(iconMap[critterId] or iconMap.flux)
 
             if not isUnlocked then
                 icon:SetDesaturated(true)
