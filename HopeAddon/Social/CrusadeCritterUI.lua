@@ -47,6 +47,14 @@ local TIPS_PANEL_WIDTH = 320
 local TIPS_PANEL_HEIGHT = 200
 local TYPEWRITER_SPEED = 0.03 -- Seconds per character
 
+-- Guide panel constants (Combined dungeon guide + progress)
+local GUIDE_PANEL_WIDTH = 340
+local GUIDE_PANEL_HEIGHT = 400
+local GUIDE_DROPDOWN_HEIGHT = 28
+local GUIDE_BOSS_ROW_HEIGHT = 22
+local GUIDE_SCROLL_AREA_MAX = 200
+local GUIDE_TOOLTIP_WIDTH = 280
+
 -- Glow texture for soft circular effect
 local GLOW_TEXTURE = "Interface\\GLUES\\Models\\UI_Draenei\\GenericGlow64"
 
@@ -85,12 +93,51 @@ CritterUI.bossDropdown = nil
 CritterUI.idleQuipTimer = nil
 CritterUI.bubbleBounceAnim = nil
 
--- Floating bubble system (independent of housing)
+-- Floating bubble system (DEPRECATED - replaced by combined guide panel)
 CritterUI.floatingBubble = nil
 CritterUI.floatingBubbleQueue = {} -- Queue of messages to display
 CritterUI.isShowingQueue = false
 CritterUI.floatingBubbleTimer = nil
 CritterUI.floatingBubbleTypewriter = nil
+
+-- Combined Guide panel system
+CritterUI.guidePanel = nil
+CritterUI.guideTierDropdown = nil
+CritterUI.guideInstanceDropdown = nil
+CritterUI.guideSmartDropdown = nil       -- In-dungeon mode dropdown
+CritterUI.guideTipTooltip = nil          -- Hover tooltip frame
+CritterUI.selectedTier = nil
+CritterUI.selectedInstance = nil
+CritterUI.isInDungeonMode = false        -- Mode flag
+CritterUI.currentDungeonKey = nil        -- Current dungeon for auto-detect
+
+-- Raid Guide panel system
+CritterUI.raidGuidePanel = nil
+CritterUI.raidGuideRaidDropdown = nil
+CritterUI.raidGuideBossDropdown = nil
+CritterUI.raidGuidePlayButton = nil
+CritterUI.raidGuideIsExpanded = true
+CritterUI.raidGuideIsPlaying = false
+CritterUI.raidGuideTicker = nil
+CritterUI.raidGuideTipsQueue = {}
+CritterUI.raidGuideCurrentTipIndex = 0
+CritterUI.selectedRaid = nil
+CritterUI.selectedBoss = nil
+
+-- Raid Guide constants
+local RAID_GUIDE_WIDTH = 180
+local RAID_GUIDE_HEADER_HEIGHT = 24
+local RAID_GUIDE_CONTENT_HEIGHT = 90
+local RAID_GUIDE_TIP_DURATION = 8
+
+-- Raid definitions for the guide
+local RAID_OPTIONS = {
+    { key = "karazhan", name = "Karazhan" },
+    { key = "gruul", name = "Gruul's Lair" },
+    { key = "magtheridon", name = "Magtheridon's Lair" },
+    { key = "ssc", name = "Serpentshrine Cavern" },
+    { key = "tk", name = "Tempest Keep" },
+}
 
 --============================================================
 -- TAB BUTTON
@@ -347,6 +394,9 @@ function CritterUI:CreateHousingContainer()
     -- Create pre-pull tips button
     self:CreatePrePullButton()
 
+    -- Create stats button
+    self:CreateStatsButton()
+
     return housing
 end
 
@@ -413,6 +463,8 @@ function CritterUI:SlideHousingIn()
             self:StartBobbing()
             -- Start idle quip timer
             self:StartIdleQuipTimer()
+            -- Show raid guide panel
+            self:ShowRaidGuidePanel()
         end
     )
 end
@@ -444,6 +496,9 @@ function CritterUI:SlideHousingOut()
 
     -- Hide critter selector if open
     self:HideCritterSelector()
+
+    -- Hide raid guide panel
+    self:HideRaidGuidePanel()
 
     -- Animate to off-screen position
     local targetX = HOUSING_WIDTH + TAB_WIDTH
@@ -939,6 +994,9 @@ function CritterUI:HideMascot()
     -- Hide selector
     self:HideCritterSelector()
 
+    -- Hide raid guide panel
+    self:HideRaidGuidePanel()
+
     self.isHousingOpen = false
 end
 
@@ -1176,7 +1234,9 @@ function CritterUI:StartIdleQuipTimer()
     -- Cancel existing timer if any
     self:StopIdleQuipTimer()
 
-    if not HopeAddon.Timer then return end
+    if not HopeAddon.Timer then
+        return
+    end
 
     self.idleQuipTimer = HopeAddon.Timer:NewTicker(IDLE_QUIP_INTERVAL, function()
         -- Only trigger if housing is still open and not in combat
@@ -2019,7 +2079,7 @@ function CritterUI:ShowBossTips(bossKey, bossName)
     -- Check if heroic (check instance difficulty)
     local isHeroic = false
     local _, instanceType, difficulty = GetInstanceInfo()
-    if difficulty == 2 or difficulty == 174 then -- Heroic dungeon
+    if difficulty and difficulty == 2 then -- Heroic dungeon
         isHeroic = true
     end
 
@@ -2027,7 +2087,6 @@ function CritterUI:ShowBossTips(bossKey, bossName)
     local tips = Content:GetBossTips(critterId, bossKey, isHeroic)
     if not tips or #tips == 0 then
         -- No tips available
-        print("|cffff9900No tips available for " .. (bossName or bossKey) .. "|r")
         return
     end
 
@@ -2307,16 +2366,16 @@ function CritterUI:CreatePrePullButton()
     highlight:SetBlendMode("ADD")
     highlight:SetVertexColor(1, 0.84, 0, 0.3)
 
-    -- Click handler
+    -- Click handler - opens combined guide panel
     btn:SetScript("OnClick", function()
-        self:ToggleBossDropdown()
+        CritterUI:ToggleGuidePanel()
     end)
 
     -- Tooltip
     btn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        GameTooltip:AddLine("Boss Tips", 1, 0.84, 0)
-        GameTooltip:AddLine("View tips for upcoming bosses", 0.7, 0.7, 0.7)
+        GameTooltip:AddLine("Dungeon Guide", 1, 0.84, 0)
+        GameTooltip:AddLine("View boss tips and progress", 0.7, 0.7, 0.7)
         GameTooltip:Show()
     end)
     btn:SetScript("OnLeave", function()
@@ -2343,6 +2402,72 @@ function CritterUI:UpdatePrePullButton()
         self.prePullButton:Hide()
         self:HideBossDropdown()
     end
+end
+
+--============================================================
+-- STATS BUTTON (Housing chart icon)
+--============================================================
+
+--[[
+    Create the stats button on housing panel (chart icon)
+]]
+function CritterUI:CreateStatsButton()
+    if self.statsButton then
+        return self.statsButton
+    end
+
+    if not self.housingContainer then
+        self:CreateHousingContainer()
+    end
+
+    local btn = CreateFrame("Button", nil, self.housingContainer, "BackdropTemplate")
+    btn:SetSize(20, 20)
+    btn:SetPoint("BOTTOMRIGHT", self.housingContainer, "BOTTOMRIGHT", -5, 5)
+    btn:SetFrameLevel(self.housingContainer:GetFrameLevel() + 10)
+
+    -- Background
+    btn:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = false, edgeSize = 8,
+        insets = { left = 1, right = 1, top = 1, bottom = 1 }
+    })
+    btn:SetBackdropColor(0.2, 0.2, 0.2, 0.9)
+    btn:SetBackdropBorderColor(1, 0.84, 0, 0.8)
+
+    -- Chart icon (using bars symbol)
+    local text = btn:CreateFontString(nil, "OVERLAY")
+    text:SetFont(HopeAddon.assets.fonts.HEADER, 10, "")
+    text:SetPoint("CENTER", btn, "CENTER", 0, 0)
+    text:SetText("\226\150\136") -- Unicode block element (like bars)
+    text:SetTextColor(1, 0.84, 0)
+    btn.text = text
+
+    -- Hover highlight
+    local highlight = btn:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetAllPoints(btn)
+    highlight:SetTexture("Interface\\Buttons\\WHITE8x8")
+    highlight:SetBlendMode("ADD")
+    highlight:SetVertexColor(1, 0.84, 0, 0.3)
+
+    -- Click handler
+    btn:SetScript("OnClick", function()
+        self:ToggleStatsPanel()
+    end)
+
+    -- Tooltip
+    btn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:AddLine("Dungeon Progress", 1, 0.84, 0)
+        GameTooltip:AddLine("View dungeon stats and critter unlocks", 0.7, 0.7, 0.7)
+        GameTooltip:Show()
+    end)
+    btn:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
+    self.statsButton = btn
+    return btn
 end
 
 --[[
@@ -2548,13 +2673,17 @@ function CritterUI:HideBossDropdown()
 end
 
 --============================================================
--- FLOATING SPEECH BUBBLE (Independent of housing panel)
--- Shows boss guides on dungeon entry
+-- FLOATING SPEECH BUBBLE (DEPRECATED)
+-- Replaced by combined guide panel - kept for backwards compatibility
 --============================================================
 
 local FLOATING_BUBBLE_WIDTH = 320
 local FLOATING_BUBBLE_HEIGHT = 140
 local FLOATING_BUBBLE_AUTO_ADVANCE = 8 -- Seconds before auto-advancing
+
+-- NOTE: Floating bubble functions below are DEPRECATED
+-- The combined guide panel now handles boss tips via hover tooltips
+-- These functions remain for backwards compatibility but are not called
 
 --[[
     Create the floating speech bubble frame (independent of housing)
@@ -2680,7 +2809,7 @@ function CritterUI:ShowBossGuideQueue(guides, critterName)
 
     -- Update critter icon
     local iconMap = {
-        Flux = "Interface\\Icons\\Inv_Pet_ManaWyrm",
+        Chomp = "Interface\\Icons\\Ability_Hunter_Pet_Ravager",
         Snookimp = "Interface\\Icons\\Spell_Shadow_SummonImp",
         Shred = "Interface\\Icons\\Ability_Creature_Poison_04",
         Emo = "Interface\\Icons\\Ability_Hunter_Pet_Bat",
@@ -2688,7 +2817,7 @@ function CritterUI:ShowBossGuideQueue(guides, critterName)
         Boomer = "Interface\\Icons\\Ability_EyeOfTheOwl",
         Diva = "Interface\\Icons\\Ability_Hunter_Pet_DragonHawk",
     }
-    local icon = iconMap[critterName] or iconMap.Flux
+    local icon = iconMap[critterName] or iconMap.Chomp
     self.floatingBubble.critterIcon:SetTexture(icon)
 
     -- Show first guide
@@ -2819,6 +2948,8 @@ function CritterUI:HideFloatingBubble()
         self.floatingBubble:Hide()
     end
 end
+
+-- End of DEPRECATED floating bubble functions
 
 --============================================================
 -- UNLOCK CELEBRATION
@@ -2972,7 +3103,6 @@ function CritterUI:CreateTestPanel()
             HopeAddon.CrusadeCritter.currentRun = nil
         end
         CritterUI:HideTestPanel()
-        print("|cff9B30FF[Test Mode]|r Exited test mode")
     end)
 
     panel:Hide()
@@ -3042,7 +3172,6 @@ function CritterUI:CreateDebugPanel()
         if model and type(model) == "table" then
             model:ClearModel()
             model:SetUnit("player")
-            print("Set model to player unit")
         end
     end)
 
@@ -3051,7 +3180,6 @@ function CritterUI:CreateDebugPanel()
         if model and type(model) == "table" then
             model:ClearModel()
             model:SetDisplayInfo(5839)
-            print("Set displayID 5839")
         end
     end)
 
@@ -3060,7 +3188,6 @@ function CritterUI:CreateDebugPanel()
         if model and type(model) == "table" then
             model:ClearModel()
             model:SetDisplayInfo(4449)
-            print("Set displayID 4449")
         end
     end)
 
@@ -3072,7 +3199,6 @@ function CritterUI:CreateDebugPanel()
             if type(model.SetLight) == "function" then
                 pcall(model.SetLight, model, self.debugLightOn, true, 0, 0, 1, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0)
             end
-            print("Light: " .. (self.debugLightOn and "ON" or "OFF"))
         end
     end)
 
@@ -3081,18 +3207,17 @@ function CritterUI:CreateDebugPanel()
         if model and type(model) == "table" then
             self.debugCamera = ((self.debugCamera or 0) + 1) % 4
             model:SetCamera(self.debugCamera)
-            print("Camera: " .. self.debugCamera)
         end
     end)
 
     addButton("Print Model State", function()
         local model = self.housingContainer and self.housingContainer.model
         if model and type(model) == "table" then
-            print("Model visible:", model:IsVisible())
-            print("Model shown:", model:IsShown())
-            print("Model alpha:", model:GetAlpha())
+            HopeAddon:Debug("Model visible: " .. tostring(model:IsVisible()))
+            HopeAddon:Debug("Model shown: " .. tostring(model:IsShown()))
+            HopeAddon:Debug("Model alpha: " .. tostring(model:GetAlpha()))
             local w, h = model:GetSize()
-            print("Model size:", w, "x", h)
+            HopeAddon:Debug("Model size: " .. w .. "x" .. h)
         end
     end)
 
@@ -3108,15 +3233,1620 @@ function CritterUI:CreateDebugPanel()
 
             self.debugMascotIdx = ((self.debugMascotIdx or 0) % #ids) + 1
             local critterId = ids[self.debugMascotIdx]
-            local data = critters[critterId]
-
-            print("Testing mascot:", critterId, "-", data.name, "displayID:", data.displayID)
             self:SetCritter(critterId)
         end
     end)
 
     self.debugPanel = panel
     panel:Show()
+end
+
+--============================================================
+-- DUNGEON PROGRESS STATS PANEL
+--============================================================
+
+-- Tier definitions for the stats panel
+local STATS_TIERS = {
+    { key = "t1_dungeon", name = "Tier 1 - Hellfire Citadel", hub = "hellfire" },
+    { key = "t2_dungeon", name = "Tier 2 - Coilfang Reservoir", hub = "coilfang" },
+    { key = "t3_dungeon", name = "Tier 3 - Auchindoun", hub = "auchindoun" },
+    { key = "t4_dungeon", name = "Tier 4 - Tempest Keep", hub = "tempest_keep" },
+    { key = "t5_dungeon", name = "Tier 5 - Caverns of Time", hub = "caverns" },
+    { key = "t6_dungeon", name = "Tier 6 - Quel'Danas", hub = "queldanas" },
+    { key = "p1_raid", name = "Phase 1 Raids", phase = 1 },
+    { key = "p2_raid", name = "Phase 2 Raids", phase = 2 },
+    { key = "p3_raid", name = "Phase 3 Raids", phase = 3 },
+    { key = "p4_raid", name = "Phase 4 Raids", phase = 4 },
+    { key = "p5_raid", name = "Phase 5 Raids", phase = 5 },
+}
+
+-- Raids by phase for stats panel
+local RAIDS_BY_PHASE = {
+    [1] = { { key = "karazhan", name = "Karazhan" }, { key = "gruul", name = "Gruul's Lair" }, { key = "magtheridon", name = "Magtheridon's Lair" } },
+    [2] = { { key = "ssc", name = "Serpentshrine Cavern" }, { key = "tk", name = "The Eye" } },
+    [3] = { { key = "hyjal", name = "Battle for Mount Hyjal" }, { key = "bt", name = "Black Temple" } },
+    [4] = { { key = "za", name = "Zul'Aman" } },
+    [5] = { { key = "sunwell", name = "Sunwell Plateau" } },
+}
+
+--[[
+    Get the list of tiers for the stats panel
+    @return table - Array of tier definitions
+]]
+function CritterUI:GetStatsTiers()
+    return STATS_TIERS
+end
+
+--[[
+    Get instances for a specific tier
+    @param tierKey string - Tier key (e.g., "t1_dungeon")
+    @return table - Array of { key, name } instances
+]]
+function CritterUI:GetTierInstances(tierKey)
+    local Content = HopeAddon.CritterContent
+    if not Content then return {} end
+
+    -- Find the tier definition
+    local tierDef = nil
+    for _, tier in ipairs(STATS_TIERS) do
+        if tier.key == tierKey then
+            tierDef = tier
+            break
+        end
+    end
+
+    if not tierDef then return {} end
+
+    -- Dungeon tiers use hub data
+    if tierDef.hub then
+        local hub = Content.DUNGEON_HUBS[tierDef.hub]
+        if not hub then return {} end
+
+        local instances = {}
+        local C = HopeAddon.Constants
+        for _, dungeonKey in ipairs(hub.dungeons) do
+            -- Get dungeon display name from Constants if available
+            local displayName = dungeonKey
+            if C and C.TBC_DUNGEONS then
+                for zoneName, data in pairs(C.TBC_DUNGEONS) do
+                    if data.key == dungeonKey then
+                        displayName = zoneName
+                        break
+                    end
+                end
+            end
+            table.insert(instances, { key = dungeonKey, name = displayName })
+        end
+        return instances
+    end
+
+    -- Raid tiers use phase data
+    if tierDef.phase then
+        return RAIDS_BY_PHASE[tierDef.phase] or {}
+    end
+
+    return {}
+end
+
+--[[
+    Create a simple dropdown for the stats panel
+    @param parent Frame - Parent frame
+    @param width number - Width of dropdown
+    @param onChange function - Callback when selection changes
+    @return Frame - The dropdown frame
+]]
+function CritterUI:CreateStatsDropdown(parent, width, onChange)
+    local dropdown = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    dropdown:SetSize(width, GUIDE_DROPDOWN_HEIGHT)
+
+    dropdown:SetBackdrop({
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 10,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    })
+    dropdown:SetBackdropColor(0.1, 0.1, 0.1, 1)
+    dropdown:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+
+    dropdown.text = dropdown:CreateFontString(nil, "OVERLAY")
+    dropdown.text:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+    dropdown.text:SetPoint("LEFT", dropdown, "LEFT", 8, 0)
+    dropdown.text:SetPoint("RIGHT", dropdown, "RIGHT", -20, 0)
+    dropdown.text:SetJustifyH("LEFT")
+    dropdown.text:SetTextColor(0.9, 0.9, 0.9)
+
+    local arrow = dropdown:CreateFontString(nil, "OVERLAY")
+    arrow:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+    arrow:SetPoint("RIGHT", dropdown, "RIGHT", -6, 0)
+    arrow:SetText("\226\150\188") -- Downward triangle
+    arrow:SetTextColor(0.6, 0.6, 0.6)
+
+    dropdown.options = {}
+    dropdown.selectedIndex = 1
+    dropdown.onChange = onChange
+    dropdown.text:SetText("Select...")
+
+    dropdown:SetScript("OnClick", function(self)
+        self:ShowMenu()
+    end)
+    dropdown:SetScript("OnEnter", function(self)
+        self:SetBackdropBorderColor(1, 0.84, 0, 1)
+    end)
+    dropdown:SetScript("OnLeave", function(self)
+        self:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+    end)
+
+    function dropdown:SetOptions(options)
+        self.options = options or {}
+        if #self.options > 0 then
+            self.selectedIndex = 1
+            local firstOpt = self.options[1]
+            if type(firstOpt) == "table" then
+                self.text:SetText(firstOpt.name or tostring(firstOpt.key) or "Option 1")
+            else
+                self.text:SetText(tostring(firstOpt))
+            end
+        else
+            self.selectedIndex = 0
+            self.text:SetText("No options")
+        end
+    end
+
+    function dropdown:GetSelectedKey()
+        if self.selectedIndex > 0 and self.options[self.selectedIndex] then
+            return self.options[self.selectedIndex].key
+        end
+        return nil
+    end
+
+    function dropdown:SetSelectedByKey(key)
+        for i, opt in ipairs(self.options) do
+            if opt.key == key then
+                self.selectedIndex = i
+                self.text:SetText(opt.name or opt.key)
+                return
+            end
+        end
+    end
+
+    function dropdown:ShowMenu()
+        if self.menuFrame and self.menuFrame:IsShown() then
+            self.menuFrame:Hide()
+            return
+        end
+
+        local MAX_VISIBLE_HEIGHT = 200
+        local ITEM_HEIGHT = 20
+        local PADDING = 6
+
+        if not self.menuFrame then
+            self.menuFrame = CreateFrame("Frame", nil, self, "BackdropTemplate")
+            self.menuFrame:SetBackdrop({
+                bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+                edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+                edgeSize = 10,
+                insets = { left = 2, right = 2, top = 2, bottom = 2 },
+            })
+            self.menuFrame:SetBackdropColor(0.1, 0.1, 0.1, 1)
+            self.menuFrame:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+            self.menuFrame:SetFrameStrata("TOOLTIP")
+        end
+
+        local menuHeight = math.min(#self.options * ITEM_HEIGHT + PADDING * 2, MAX_VISIBLE_HEIGHT)
+        self.menuFrame:SetSize(self:GetWidth(), menuHeight)
+        self.menuFrame:SetPoint("TOP", self, "BOTTOM", 0, -2)
+
+        -- Hide existing buttons (reuse pattern - don't orphan frames)
+        if not self.menuFrame.buttons then
+            self.menuFrame.buttons = {}
+        end
+        for _, btn in ipairs(self.menuFrame.buttons) do
+            btn:Hide()
+        end
+
+        for i, opt in ipairs(self.options) do
+            local btn = self.menuFrame.buttons[i]
+
+            -- Create new button only if needed
+            if not btn then
+                btn = CreateFrame("Button", nil, self.menuFrame)
+                btn:SetSize(self:GetWidth() - PADDING * 2, ITEM_HEIGHT)
+
+                local text = btn:CreateFontString(nil, "OVERLAY")
+                text:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+                text:SetPoint("LEFT", btn, "LEFT", 4, 0)
+                btn.text = text
+
+                local highlight = btn:CreateTexture(nil, "HIGHLIGHT")
+                highlight:SetAllPoints(btn)
+                highlight:SetTexture("Interface\\Buttons\\WHITE8x8")
+                highlight:SetBlendMode("ADD")
+                highlight:SetVertexColor(1, 0.84, 0, 0.2)
+
+                self.menuFrame.buttons[i] = btn
+            end
+
+            -- Update button position and text
+            btn:SetPoint("TOPLEFT", self.menuFrame, "TOPLEFT", PADDING, -PADDING - (i - 1) * ITEM_HEIGHT)
+            btn.text:SetText(opt.name or opt)
+            btn.text:SetTextColor(0.9, 0.9, 0.9)
+
+            -- Store option data for click handler
+            btn.optIndex = i
+            btn.optData = opt
+            btn:SetScript("OnClick", function()
+                self.selectedIndex = btn.optIndex
+                self.text:SetText(btn.optData.name or btn.optData)
+                self.menuFrame:Hide()
+                if self.onChange then
+                    self.onChange(btn.optData.key, btn.optData)
+                end
+            end)
+
+            btn:Show()
+        end
+
+        self.menuFrame:Show()
+    end
+
+    return dropdown
+end
+
+--============================================================
+-- TIP TOOLTIP SYSTEM (Hover tooltips for boss tips)
+--============================================================
+
+--[[
+    Create the tip tooltip frame
+    @return Frame - The tooltip frame
+]]
+function CritterUI:CreateTipTooltip()
+    if self.guideTipTooltip then return self.guideTipTooltip end
+
+    local tooltip = CreateFrame("Frame", "CritterGuideTipTooltip", UIParent, "BackdropTemplate")
+    tooltip:SetSize(GUIDE_TOOLTIP_WIDTH, 100)  -- height adjusts dynamically
+    tooltip:SetFrameStrata("TOOLTIP")
+    tooltip:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 12,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    })
+    tooltip:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
+    tooltip:SetBackdropBorderColor(0.8, 0.6, 0, 1)  -- gold border
+    tooltip:Hide()
+
+    -- Boss name header
+    tooltip.header = tooltip:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    tooltip.header:SetPoint("TOPLEFT", 10, -10)
+    tooltip.header:SetTextColor(1, 0.82, 0)  -- gold
+
+    -- Tips text (multi-line)
+    tooltip.tips = tooltip:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    tooltip.tips:SetPoint("TOPLEFT", 10, -30)
+    tooltip.tips:SetPoint("RIGHT", -10, 0)
+    tooltip.tips:SetJustifyH("LEFT")
+    tooltip.tips:SetSpacing(2)
+
+    self.guideTipTooltip = tooltip
+    return tooltip
+end
+
+--[[
+    Show the boss tip tooltip
+    @param bossKey string - Boss key for tip lookup
+    @param bossName string - Display name for header
+    @param anchorFrame Frame - Frame to anchor tooltip to
+]]
+function CritterUI:ShowBossTipTooltip(bossKey, bossName, anchorFrame)
+    local Content = HopeAddon.CritterContent
+    if not Content then return end
+
+    -- Get critter ID (use current selection or default to chomp)
+    local critterId
+    if self.currentCritter and self.currentCritter.id then
+        critterId = self.currentCritter.id
+    else
+        local db = HopeAddon.db and HopeAddon.db.crusadeCritter
+        critterId = db and db.selectedCritter or "chomp"
+    end
+
+    -- Check if heroic (via instance info)
+    local isHeroic = false
+    local _, _, difficulty = GetInstanceInfo()
+    if difficulty and difficulty == 2 then  -- Heroic dungeon
+        isHeroic = true
+    end
+
+    -- Get tips for this boss
+    local tips = Content:GetBossTips(critterId, bossKey, isHeroic)
+    if not tips or #tips == 0 then return end
+
+    local tooltip = self:CreateTipTooltip()
+    tooltip.header:SetText(bossName)
+
+    -- Build tip text with bullets
+    local tipLines = {}
+    for i, tip in ipairs(tips) do
+        if i > 4 then break end  -- max 4 tips
+        local prefix = tip.heroic and "|cffff6600[HEROIC]|r " or ""
+        table.insert(tipLines, "• " .. prefix .. tip.text)
+    end
+    tooltip.tips:SetText(table.concat(tipLines, "\n"))
+
+    -- Adjust height based on content
+    local textHeight = tooltip.tips:GetStringHeight()
+    tooltip:SetHeight(50 + textHeight)
+
+    -- Position to LEFT of anchor (avoid screen edge)
+    tooltip:ClearAllPoints()
+    tooltip:SetPoint("RIGHT", anchorFrame, "LEFT", -10, 0)
+    tooltip:Show()
+end
+
+--[[
+    Hide the boss tip tooltip
+]]
+function CritterUI:HideBossTipTooltip()
+    if self.guideTipTooltip then
+        self.guideTipTooltip:Hide()
+    end
+end
+
+--============================================================
+-- SMART DROPDOWN SYSTEM (In-dungeon mode)
+--============================================================
+
+--[[
+    Set the guide panel mode (in-dungeon vs browse)
+    @param inDungeon boolean - Whether in dungeon mode
+    @param dungeonKey string - Current dungeon key (if in dungeon)
+]]
+function CritterUI:SetInDungeonMode(inDungeon, dungeonKey)
+    self.isInDungeonMode = inDungeon
+    self.currentDungeonKey = dungeonKey
+
+    if not self.guidePanel then return end
+
+    if inDungeon and dungeonKey then
+        -- Show smart dropdown, hide tier/instance dropdowns
+        if self.guideSmartDropdown then self.guideSmartDropdown:Show() end
+        if self.guideTierDropdown then self.guideTierDropdown:Hide() end
+        if self.guideInstanceDropdown then self.guideInstanceDropdown:Hide() end
+        if self.guidePanel.instanceLabel then self.guidePanel.instanceLabel:Hide() end
+        if self.guidePanel.tierLabel then self.guidePanel.tierLabel:Hide() end
+        self:PopulateSmartDropdown(dungeonKey)
+    else
+        -- Show tier/instance dropdowns, hide smart dropdown
+        if self.guideSmartDropdown then self.guideSmartDropdown:Hide() end
+        if self.guideTierDropdown then self.guideTierDropdown:Show() end
+        if self.guideInstanceDropdown then self.guideInstanceDropdown:Show() end
+        if self.guidePanel.instanceLabel then self.guidePanel.instanceLabel:Show() end
+        if self.guidePanel.tierLabel then self.guidePanel.tierLabel:Show() end
+    end
+end
+
+--[[
+    Create the smart dropdown for in-dungeon mode
+    @param parent Frame - Parent frame
+    @return Frame - The smart dropdown frame
+]]
+function CritterUI:CreateSmartDropdown(parent)
+    local dropdown = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    dropdown:SetSize(GUIDE_PANEL_WIDTH - 20, GUIDE_DROPDOWN_HEIGHT)
+    dropdown:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 8,
+    })
+    dropdown:SetBackdropColor(0.15, 0.15, 0.15, 1)
+    dropdown:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+
+    dropdown.text = dropdown:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    dropdown.text:SetPoint("LEFT", 10, 0)
+    dropdown.text:SetTextColor(1, 1, 1)
+
+    dropdown.arrow = dropdown:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    dropdown.arrow:SetPoint("RIGHT", -10, 0)
+    dropdown.arrow:SetText("▼")
+
+    -- Dropdown menu (hidden by default)
+    dropdown.menu = CreateFrame("Frame", nil, dropdown, "BackdropTemplate")
+    dropdown.menu:SetPoint("TOPLEFT", dropdown, "BOTTOMLEFT", 0, -2)
+    dropdown.menu:SetSize(GUIDE_PANEL_WIDTH - 20, 150)
+    dropdown.menu:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 8,
+    })
+    dropdown.menu:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
+    dropdown.menu:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+    dropdown.menu:SetFrameStrata("DIALOG")
+    dropdown.menu:Hide()
+
+    dropdown.items = {}  -- menu item buttons
+
+    dropdown:EnableMouse(true)
+    dropdown:SetScript("OnMouseDown", function()
+        if not dropdown.menu then return end
+        if dropdown.menu:IsShown() then
+            dropdown.menu:Hide()
+        else
+            dropdown.menu:Show()
+        end
+    end)
+
+    -- Hover highlight
+    dropdown:SetScript("OnEnter", function(self)
+        self:SetBackdropBorderColor(1, 0.84, 0, 1)
+    end)
+    dropdown:SetScript("OnLeave", function(self)
+        self:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+    end)
+
+    self.guideSmartDropdown = dropdown
+    return dropdown
+end
+
+-- Helper to get dungeon display name
+local function GetDungeonDisplayName(dungeonKey)
+    local C = HopeAddon.Constants
+    if C and C.TBC_DUNGEONS then
+        for zoneName, data in pairs(C.TBC_DUNGEONS) do
+            if data.key == dungeonKey then
+                return zoneName
+            end
+        end
+    end
+    -- Fallback: format the key nicely
+    return dungeonKey:gsub("_", " "):gsub("(%a)([%w]*)", function(a, b) return string.upper(a)..b end)
+end
+
+--[[
+    Populate the smart dropdown with hub dungeons
+    @param currentDungeonKey string - The current dungeon key
+]]
+function CritterUI:PopulateSmartDropdown(currentDungeonKey)
+    local dropdown = self.guideSmartDropdown
+    if not dropdown then return end
+
+    local Content = HopeAddon.CritterContent
+    if not Content then return end
+
+    -- Find hub for current dungeon
+    local hubKey = Content.DUNGEON_TO_HUB[currentDungeonKey]
+    local hub = hubKey and Content.DUNGEON_HUBS[hubKey]
+
+    -- Set display text
+    local displayName = GetDungeonDisplayName(currentDungeonKey)
+    dropdown.text:SetText("Current: " .. displayName)
+
+    -- Clear existing items
+    for _, item in ipairs(dropdown.items) do
+        if item.Hide then item:Hide() end
+    end
+
+    -- Populate menu with hub dungeons + "Browse All"
+    local yOffset = -5
+    local itemHeight = 22
+    local itemIndex = 0
+
+    if hub then
+        for _, dungeonKey in ipairs(hub.dungeons) do
+            itemIndex = itemIndex + 1
+            local item = dropdown.items[itemIndex]
+            if not item then
+                item = CreateFrame("Button", nil, dropdown.menu)
+                item:SetSize(GUIDE_PANEL_WIDTH - 30, itemHeight)
+                item.text = item:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+                item.text:SetPoint("LEFT", 10, 0)
+                item:SetScript("OnEnter", function(self) self.text:SetTextColor(1, 0.82, 0) end)
+                item:SetScript("OnLeave", function(self)
+                    if self.isCurrent then
+                        self.text:SetTextColor(0.5, 1, 0.5)
+                    else
+                        self.text:SetTextColor(1, 1, 1)
+                    end
+                end)
+                dropdown.items[itemIndex] = item
+            end
+
+            local name = GetDungeonDisplayName(dungeonKey)
+            if dungeonKey == currentDungeonKey then
+                name = name .. " ← current"
+                item.text:SetTextColor(0.5, 1, 0.5)
+                item.isCurrent = true
+            else
+                item.text:SetTextColor(1, 1, 1)
+                item.isCurrent = false
+            end
+            item.text:SetText(name)
+            item:SetPoint("TOPLEFT", dropdown.menu, "TOPLEFT", 5, yOffset)
+            item:Show()
+
+            local dk = dungeonKey  -- capture for closure
+            item:SetScript("OnClick", function()
+                self:SelectInstance(dk)
+                dropdown.menu:Hide()
+            end)
+
+            yOffset = yOffset - itemHeight
+        end
+    end
+
+    -- Separator
+    itemIndex = itemIndex + 1
+    local sep = dropdown.items[itemIndex]
+    if not sep or not sep.SetScript then
+        sep = dropdown.menu:CreateTexture(nil, "OVERLAY")
+        sep:SetColorTexture(0.4, 0.4, 0.4, 1)
+        sep:SetSize(GUIDE_PANEL_WIDTH - 40, 1)
+        dropdown.items[itemIndex] = sep
+    end
+    sep:SetPoint("TOPLEFT", dropdown.menu, "TOPLEFT", 10, yOffset - 5)
+    sep:Show()
+    yOffset = yOffset - 12
+
+    -- "Browse All Dungeons..." option
+    itemIndex = itemIndex + 1
+    local browseItem = dropdown.items[itemIndex]
+    if not browseItem or not browseItem.SetScript then
+        browseItem = CreateFrame("Button", nil, dropdown.menu)
+        browseItem:SetSize(GUIDE_PANEL_WIDTH - 30, itemHeight)
+        browseItem.text = browseItem:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        browseItem.text:SetPoint("LEFT", 10, 0)
+        browseItem.text:SetTextColor(0.7, 0.7, 1)
+        browseItem.text:SetText("Browse All Dungeons...")
+        browseItem:SetScript("OnEnter", function(self) self.text:SetTextColor(1, 0.82, 0) end)
+        browseItem:SetScript("OnLeave", function(self) self.text:SetTextColor(0.7, 0.7, 1) end)
+        dropdown.items[itemIndex] = browseItem
+    end
+    browseItem:SetPoint("TOPLEFT", dropdown.menu, "TOPLEFT", 5, yOffset)
+    browseItem:Show()
+    browseItem:SetScript("OnClick", function()
+        self:SetInDungeonMode(false, nil)
+        dropdown.menu:Hide()
+    end)
+    yOffset = yOffset - itemHeight
+
+    -- Adjust menu height
+    dropdown.menu:SetHeight(math.abs(yOffset) + 10)
+end
+
+--[[
+    Select an instance by key (for smart dropdown)
+    @param instanceKey string - Instance key to select
+]]
+function CritterUI:SelectInstance(instanceKey)
+    -- Find the tier for this instance
+    local Content = HopeAddon.CritterContent
+    if Content and Content.DUNGEON_TO_HUB then
+        local hubKey = Content.DUNGEON_TO_HUB[instanceKey]
+        if hubKey then
+            -- Map hub to tier
+            local tierMap = {
+                hellfire = "t4",
+                coilfang = "t4",
+                auchindoun = "t4",
+                tempest_keep = "t5",
+                caverns = "t4",
+                queldanas = "t6",
+            }
+            local tierKey = tierMap[hubKey] or "t4"
+            self.selectedTier = tierKey
+        end
+    end
+
+    self.selectedInstance = instanceKey
+    local displayName = GetDungeonDisplayName(instanceKey)
+    self:DisplayInstanceStats(instanceKey, { key = instanceKey, name = displayName })
+end
+
+--[[
+    Create the combined guide panel (dungeon progress + boss tips)
+    @return Frame - The guide panel
+]]
+function CritterUI:CreateStatsPanel()
+    if self.guidePanel then
+        return self.guidePanel
+    end
+
+    local C = HopeAddon.Constants
+
+    local panel = CreateFrame("Frame", "HopeCrusadeCritterGuidePanel", UIParent, "BackdropTemplate")
+    panel:SetSize(GUIDE_PANEL_WIDTH, GUIDE_PANEL_HEIGHT)
+    panel:SetBackdrop(C.BACKDROPS and C.BACKDROPS.DARK_GOLD or {
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 14,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 }
+    })
+    panel:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
+    panel:SetBackdropBorderColor(1, 0.84, 0, 1)
+    panel:SetFrameStrata("HIGH")
+    panel:SetClampedToScreen(true)
+
+    -- Position: bottom-right of screen
+    panel:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -100, 180)
+
+    -- Title
+    local title = panel:CreateFontString(nil, "OVERLAY")
+    title:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
+    title:SetPoint("TOP", panel, "TOP", 0, -12)
+    title:SetText("DUNGEON GUIDE")
+    title:SetTextColor(1, 0.84, 0)
+    panel.title = title
+
+    -- Close button
+    local closeBtn = CreateFrame("Button", nil, panel, "UIPanelCloseButton")
+    closeBtn:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -2, -2)
+    closeBtn:SetScript("OnClick", function()
+        CritterUI:HideStatsPanel()
+    end)
+
+    -- Decorative line under title
+    local titleLine = panel:CreateTexture(nil, "ARTWORK")
+    titleLine:SetTexture(HopeAddon.assets.textures.SOLID or "Interface\\Buttons\\WHITE8x8")
+    titleLine:SetSize(GUIDE_PANEL_WIDTH - 30, 1)
+    titleLine:SetPoint("TOP", title, "BOTTOM", 0, -6)
+    titleLine:SetVertexColor(1, 0.84, 0, 0.5)
+
+    local yOffset = -45
+
+    -- Smart dropdown (for in-dungeon mode) - initially hidden
+    self:CreateSmartDropdown(panel)
+    self.guideSmartDropdown:SetPoint("TOPLEFT", panel, "TOPLEFT", 10, yOffset)
+    self.guideSmartDropdown:Hide()  -- Hidden until in-dungeon mode
+
+    -- Tier label
+    local tierLabel = panel:CreateFontString(nil, "OVERLAY")
+    tierLabel:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+    tierLabel:SetPoint("TOPLEFT", panel, "TOPLEFT", 15, yOffset)
+    tierLabel:SetText("Tier:")
+    tierLabel:SetTextColor(0.7, 0.7, 0.7)
+    panel.tierLabel = tierLabel
+
+    -- Tier dropdown
+    self.guideTierDropdown = self:CreateStatsDropdown(panel, GUIDE_PANEL_WIDTH - 80, function(key, data)
+        self:OnTierSelect(key, data)
+    end)
+    self.guideTierDropdown:SetPoint("TOPLEFT", tierLabel, "TOPRIGHT", 8, 3)
+    self.guideTierDropdown:SetOptions(STATS_TIERS)
+
+    yOffset = yOffset - 35
+
+    -- Instance label
+    local instanceLabel = panel:CreateFontString(nil, "OVERLAY")
+    instanceLabel:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+    instanceLabel:SetPoint("TOPLEFT", panel, "TOPLEFT", 15, yOffset)
+    instanceLabel:SetText("Dungeon:")
+    instanceLabel:SetTextColor(0.7, 0.7, 0.7)
+    panel.instanceLabel = instanceLabel
+
+    -- Instance dropdown
+    self.guideInstanceDropdown = self:CreateStatsDropdown(panel, GUIDE_PANEL_WIDTH - 80, function(key, data)
+        self:OnInstanceSelect(key, data)
+    end)
+    self.guideInstanceDropdown:SetPoint("TOPLEFT", instanceLabel, "TOPRIGHT", 8, 3)
+
+    yOffset = yOffset - 40
+
+    -- Stats content area (scroll frame)
+    local contentFrame = CreateFrame("Frame", nil, panel, "BackdropTemplate")
+    contentFrame:SetSize(GUIDE_PANEL_WIDTH - 20, GUIDE_SCROLL_AREA_MAX + 40)
+    contentFrame:SetPoint("TOPLEFT", panel, "TOPLEFT", 10, yOffset)
+    contentFrame:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 8, edgeSize = 10,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 }
+    })
+    contentFrame:SetBackdropColor(0.08, 0.08, 0.08, 0.9)
+    contentFrame:SetBackdropBorderColor(0.4, 0.4, 0.4, 0.8)
+    panel.contentFrame = contentFrame
+
+    -- Instance name header inside content
+    local instanceHeader = contentFrame:CreateFontString(nil, "OVERLAY")
+    instanceHeader:SetFont(HopeAddon.assets.fonts.HEADER, 12, "")
+    instanceHeader:SetPoint("TOP", contentFrame, "TOP", 0, -8)
+    instanceHeader:SetTextColor(1, 0.84, 0)
+    panel.instanceHeader = instanceHeader
+
+    -- Stats line (Runs: X | Best: X:XX | Hub: X)
+    local statsLine = contentFrame:CreateFontString(nil, "OVERLAY")
+    statsLine:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+    statsLine:SetPoint("TOP", instanceHeader, "BOTTOM", 0, -4)
+    statsLine:SetTextColor(0.7, 0.7, 0.7)
+    panel.statsLine = statsLine
+
+    -- Separator
+    local contentSep = contentFrame:CreateTexture(nil, "ARTWORK")
+    contentSep:SetTexture("Interface\\Buttons\\WHITE8x8")
+    contentSep:SetSize(GUIDE_PANEL_WIDTH - 40, 1)
+    contentSep:SetPoint("TOP", statsLine, "BOTTOM", 0, -6)
+    contentSep:SetVertexColor(0.4, 0.4, 0.4, 0.6)
+    panel.contentSep = contentSep
+
+    -- Column headers
+    local colBoss = contentFrame:CreateFontString(nil, "OVERLAY")
+    colBoss:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
+    colBoss:SetPoint("TOPLEFT", contentSep, "BOTTOMLEFT", 5, -4)
+    colBoss:SetText("Boss")
+    colBoss:SetTextColor(0.6, 0.6, 0.6)
+    panel.colBoss = colBoss
+
+    local colBest = contentFrame:CreateFontString(nil, "OVERLAY")
+    colBest:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
+    colBest:SetPoint("TOPRIGHT", contentSep, "BOTTOMRIGHT", -50, -4)
+    colBest:SetText("Best")
+    colBest:SetTextColor(0.6, 0.6, 0.6)
+
+    local colKills = contentFrame:CreateFontString(nil, "OVERLAY")
+    colKills:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
+    colKills:SetPoint("TOPRIGHT", contentSep, "BOTTOMRIGHT", -15, -4)
+    colKills:SetText("Kills")
+    colKills:SetTextColor(0.6, 0.6, 0.6)
+
+    -- Boss list scroll area (use two-corner anchoring to avoid conflicts)
+    local bossListFrame = CreateFrame("Frame", nil, contentFrame)
+    bossListFrame:SetPoint("TOPLEFT", colBoss, "BOTTOMLEFT", 0, -8)
+    bossListFrame:SetPoint("BOTTOMRIGHT", contentFrame, "BOTTOMRIGHT", -5, 5)
+    panel.bossListFrame = bossListFrame
+
+    -- Footer section
+    local footer = CreateFrame("Frame", nil, panel)
+    footer:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", 5, 5)
+    footer:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -5, 5)
+    footer:SetHeight(30)
+
+    -- Critter unlock status (left side)
+    local footerStatus = footer:CreateFontString(nil, "OVERLAY")
+    footerStatus:SetFont(HopeAddon.assets.fonts.BODY, 9, "")
+    footerStatus:SetPoint("LEFT", footer, "LEFT", 5, 0)
+    footerStatus:SetTextColor(0.5, 1, 0.5)
+    panel.hubStatus = footerStatus
+
+    -- "Don't show on entry" checkbox (right side)
+    local checkbox = CreateFrame("CheckButton", nil, footer, "UICheckButtonTemplate")
+    checkbox:SetSize(20, 20)
+    checkbox:SetPoint("RIGHT", footer, "RIGHT", -110, 0)
+    checkbox:SetScript("OnClick", function(self)
+        local db = HopeAddon.db and HopeAddon.db.crusadeCritter
+        if db then
+            db.hideGuideOnEntry = self:GetChecked()
+        end
+    end)
+
+    local cbLabel = footer:CreateFontString(nil, "OVERLAY")
+    cbLabel:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
+    cbLabel:SetPoint("LEFT", checkbox, "RIGHT", 2, 0)
+    cbLabel:SetText("Don't show on entry")
+    cbLabel:SetTextColor(0.7, 0.7, 0.7)
+    panel.hideCheckbox = checkbox
+
+    panel:Hide()
+    self.guidePanel = panel
+    -- Keep backwards compatibility reference
+    self.statsPanel = panel
+
+    -- Initialize checkbox state from DB
+    local db = HopeAddon.db and HopeAddon.db.crusadeCritter
+    if db then
+        checkbox:SetChecked(db.hideGuideOnEntry or false)
+    end
+
+    -- Initialize with first tier
+    self:OnTierSelect(STATS_TIERS[1].key, STATS_TIERS[1])
+
+    return panel
+end
+
+--[[
+    Handle tier selection in stats panel
+    @param tierKey string - Selected tier key
+    @param tierData table - Tier data
+]]
+function CritterUI:OnTierSelect(tierKey, tierData)
+    self.selectedTier = tierKey
+
+    -- Update instance dropdown with instances from this tier
+    local instances = self:GetTierInstances(tierKey)
+    if self.guideInstanceDropdown then
+        self.guideInstanceDropdown:SetOptions(instances)
+    end
+
+    -- Update label based on tier type
+    if self.guidePanel and self.guidePanel.instanceLabel then
+        if tierData and tierData.phase then
+            self.guidePanel.instanceLabel:SetText("Raid:")
+        else
+            self.guidePanel.instanceLabel:SetText("Dungeon:")
+        end
+    end
+
+    -- Select first instance
+    if #instances > 0 then
+        self:OnInstanceSelect(instances[1].key, instances[1])
+    else
+        self:ClearStatsDisplay()
+    end
+end
+
+--[[
+    Handle instance selection in stats panel
+    @param instanceKey string - Selected instance key
+    @param instanceData table - Instance data
+]]
+function CritterUI:OnInstanceSelect(instanceKey, instanceData)
+    self.selectedInstance = instanceKey
+    self:DisplayInstanceStats(instanceKey, instanceData)
+end
+
+--[[
+    Display stats for a specific instance
+    @param instanceKey string - Instance key
+    @param instanceData table - Instance data
+]]
+function CritterUI:DisplayInstanceStats(instanceKey, instanceData)
+    if not self.guidePanel then return end
+
+    local panel = self.guidePanel
+    local db = HopeAddon.db and HopeAddon.db.crusadeCritter
+    local C = HopeAddon.Constants
+    local Content = HopeAddon.CritterContent
+
+    -- Update header
+    local displayName = instanceData and instanceData.name or instanceKey
+    panel.instanceHeader:SetText(string.upper(displayName))
+
+    -- Get run stats
+    local runData = db and db.dungeonRuns and db.dungeonRuns[instanceKey]
+    local totalRuns = runData and runData.totalRuns or 0
+    local bestTime = runData and runData.bestTime
+
+    local bestTimeStr = "--:--"
+    if bestTime then
+        local mins = math.floor(bestTime / 60)
+        local secs = math.floor(bestTime % 60)
+        bestTimeStr = string.format("%d:%02d", mins, secs)
+    end
+
+    -- Get hub name for stats line
+    local hubName = ""
+    if Content and Content.DUNGEON_TO_HUB then
+        local hubKey = Content.DUNGEON_TO_HUB[instanceKey]
+        if hubKey and Content.DUNGEON_HUBS[hubKey] then
+            hubName = " | Hub: " .. Content.DUNGEON_HUBS[hubKey].name
+        end
+    end
+
+    panel.statsLine:SetText(string.format("Runs: %d | Best: %s%s", totalRuns, bestTimeStr, hubName))
+
+    -- Hide existing boss rows (reuse pattern - don't orphan frames)
+    if not panel.bossRows then
+        panel.bossRows = {}
+    end
+    for _, row in ipairs(panel.bossRows) do
+        row:Hide()
+    end
+
+    -- Get boss order for this instance
+    local bosses = {}
+    if C and C.DUNGEON_BOSS_ORDER and C.DUNGEON_BOSS_ORDER[instanceKey] then
+        bosses = C.DUNGEON_BOSS_ORDER[instanceKey]
+    else
+        -- Try raid bosses if not a dungeon
+        local raidBosses = self:GetRaidBosses(instanceKey)
+        if raidBosses and #raidBosses > 0 then
+            for _, boss in ipairs(raidBosses) do
+                table.insert(bosses, { key = boss.key, name = boss.name })
+            end
+        end
+    end
+
+    -- Create or reuse boss rows
+    local yOffset = 0
+    for i, bossData in ipairs(bosses) do
+        local row = panel.bossRows[i]
+
+        -- Create new row only if needed
+        if not row then
+            row = CreateFrame("Frame", nil, panel.bossListFrame)
+            row:SetSize(GUIDE_PANEL_WIDTH - 40, GUIDE_BOSS_ROW_HEIGHT)
+
+            -- Boss name
+            local bossNameText = row:CreateFontString(nil, "OVERLAY")
+            bossNameText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+            bossNameText:SetPoint("LEFT", row, "LEFT", 0, 0)
+            bossNameText:SetWidth(160)
+            bossNameText:SetJustifyH("LEFT")
+            row.nameText = bossNameText
+
+            -- Best time
+            local timeText = row:CreateFontString(nil, "OVERLAY")
+            timeText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+            timeText:SetPoint("RIGHT", row, "RIGHT", -50, 0)
+            row.timeText = timeText
+
+            -- Kill count
+            local killsText = row:CreateFontString(nil, "OVERLAY")
+            killsText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+            killsText:SetPoint("RIGHT", row, "RIGHT", -20, 0)
+            row.killsText = killsText
+
+            -- [?] tip icon
+            local tipIcon = row:CreateFontString(nil, "OVERLAY")
+            tipIcon:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+            tipIcon:SetPoint("RIGHT", row, "RIGHT", 0, 0)
+            tipIcon:SetText("?")
+            row.tipIcon = tipIcon
+
+            -- Enable mouse interaction for hover tooltip
+            row:EnableMouse(true)
+            row:SetScript("OnEnter", function(self)
+                self.nameText:SetTextColor(1, 0.84, 0)  -- gold highlight
+                self.tipIcon:SetTextColor(1, 0.82, 0)   -- gold
+                CritterUI:ShowBossTipTooltip(self.bossKey, self.bossName, CritterUI.guidePanel)
+            end)
+            row:SetScript("OnLeave", function(self)
+                self.nameText:SetTextColor(0.9, 0.9, 0.9)
+                self.tipIcon:SetTextColor(0.5, 0.5, 0.5)
+                CritterUI:HideBossTipTooltip()
+            end)
+
+            panel.bossRows[i] = row
+        end
+
+        -- Update row position
+        row:SetPoint("TOPLEFT", panel.bossListFrame, "TOPLEFT", 0, -yOffset)
+
+        -- Update boss name
+        row.nameText:SetText(bossData.name)
+        row.nameText:SetTextColor(0.9, 0.9, 0.9)
+
+        -- Get boss stats
+        local bossStats = db and db.bossStats and db.bossStats[bossData.name]
+        local bossBestTime = bossStats and bossStats.bestTime
+        local bossKills = bossStats and bossStats.totalKills or 0
+
+        local bossTimeStr = "--:--"
+        if bossBestTime then
+            local mins = math.floor(bossBestTime / 60)
+            local secs = math.floor(bossBestTime % 60)
+            bossTimeStr = string.format("%d:%02d", mins, secs)
+        end
+
+        -- Update best time
+        row.timeText:SetText(bossTimeStr)
+        if bossBestTime then
+            row.timeText:SetTextColor(0.2, 0.8, 0.2)
+        else
+            row.timeText:SetTextColor(0.5, 0.5, 0.5)
+        end
+
+        -- Update kill count
+        row.killsText:SetText(tostring(bossKills))
+        if bossKills > 0 then
+            row.killsText:SetTextColor(0.9, 0.9, 0.9)
+        else
+            row.killsText:SetTextColor(0.5, 0.5, 0.5)
+        end
+
+        -- Update tip icon color
+        row.tipIcon:SetTextColor(0.5, 0.5, 0.5)
+
+        -- Store boss info on row for tooltip
+        row.bossKey = bossData.key or bossData.name:lower():gsub(" ", "_")
+        row.bossName = bossData.name
+
+        row:Show()
+        yOffset = yOffset + GUIDE_BOSS_ROW_HEIGHT
+    end
+
+    -- Show "No data" if no bosses defined
+    if #bosses == 0 then
+        if not panel.noDataRow then
+            panel.noDataRow = CreateFrame("Frame", nil, panel.bossListFrame)
+            panel.noDataRow:SetSize(GUIDE_PANEL_WIDTH - 40, GUIDE_BOSS_ROW_HEIGHT)
+            panel.noDataRow:SetPoint("TOPLEFT", panel.bossListFrame, "TOPLEFT", 0, 0)
+
+            local text = panel.noDataRow:CreateFontString(nil, "OVERLAY")
+            text:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+            text:SetPoint("CENTER", panel.noDataRow, "CENTER", 0, 0)
+            text:SetText("No boss data available")
+            text:SetTextColor(0.5, 0.5, 0.5)
+        end
+        panel.noDataRow:Show()
+    elseif panel.noDataRow then
+        panel.noDataRow:Hide()
+    end
+
+    -- Update hub status
+    self:UpdateHubStatus(instanceKey)
+end
+
+--[[
+    Update the hub status footer
+    @param instanceKey string - Current instance key
+]]
+function CritterUI:UpdateHubStatus(instanceKey)
+    if not self.guidePanel or not self.guidePanel.hubStatus then return end
+
+    local Content = HopeAddon.CritterContent
+    local db = HopeAddon.db and HopeAddon.db.crusadeCritter
+
+    if not Content then
+        self.guidePanel.hubStatus:SetText("")
+        return
+    end
+
+    -- Find hub for this instance
+    local hubKey = Content.DUNGEON_TO_HUB and Content.DUNGEON_TO_HUB[instanceKey]
+    if not hubKey then
+        self.guidePanel.hubStatus:SetText("")
+        return
+    end
+
+    local hub = Content.DUNGEON_HUBS[hubKey]
+    if not hub then
+        self.guidePanel.hubStatus:SetText("")
+        return
+    end
+
+    -- Check if hub has any progress (any boss killed)
+    local hasProgress = Content:HasHubProgress(hubKey, db and db.completedDungeons or {})
+    local critterId = hub.critter
+    local critterData = Content:GetCritter(critterId)
+    local critterName = critterData and critterData.name or critterId
+
+    if hasProgress then
+        self.guidePanel.hubStatus:SetText(string.format("\226\156\147 %s Unlocked!", critterName))
+        self.guidePanel.hubStatus:SetTextColor(0.3, 0.8, 0.3)
+    else
+        self.guidePanel.hubStatus:SetText(string.format("Unlock %s", critterName))
+        self.guidePanel.hubStatus:SetTextColor(0.7, 0.7, 0.7)
+    end
+end
+
+--[[
+    Clear stats display when no instances available
+]]
+function CritterUI:ClearStatsDisplay()
+    if not self.guidePanel then return end
+
+    self.guidePanel.instanceHeader:SetText("No Instance Selected")
+    self.guidePanel.statsLine:SetText("Runs: 0 | Best: --:--")
+
+    if self.guidePanel.bossRows then
+        for _, row in ipairs(self.guidePanel.bossRows) do
+            row:Hide()
+            row:SetParent(nil)
+        end
+    end
+    self.guidePanel.bossRows = {}
+
+    self.guidePanel.hubStatus:SetText("")
+end
+
+--[[
+    Show the guide panel (combined dungeon progress + tips)
+]]
+function CritterUI:ShowStatsPanel()
+    if not self.guidePanel then
+        self:CreateStatsPanel()
+    end
+
+    -- Update checkbox state from DB
+    local db = HopeAddon.db and HopeAddon.db.crusadeCritter
+    if db and self.guidePanel.hideCheckbox then
+        self.guidePanel.hideCheckbox:SetChecked(db.hideGuideOnEntry or false)
+    end
+
+    self.guidePanel:Show()
+    if HopeAddon.Effects then
+        HopeAddon.Effects:FadeIn(self.guidePanel, 0.3)
+    end
+end
+
+--[[
+    Show the guide panel (alias for ShowStatsPanel)
+]]
+function CritterUI:ShowGuidePanel()
+    self:ShowStatsPanel()
+end
+
+--[[
+    Hide the guide panel
+]]
+function CritterUI:HideStatsPanel()
+    if not self.guidePanel then return end
+
+    -- Also hide the tip tooltip
+    self:HideBossTipTooltip()
+
+    if HopeAddon.Effects then
+        HopeAddon.Effects:FadeOut(self.guidePanel, 0.3)
+    else
+        self.guidePanel:Hide()
+    end
+end
+
+--[[
+    Hide the guide panel (alias for HideStatsPanel)
+]]
+function CritterUI:HideGuidePanel()
+    self:HideStatsPanel()
+end
+
+--[[
+    Toggle the guide panel visibility
+]]
+function CritterUI:ToggleStatsPanel()
+    if self.guidePanel and self.guidePanel:IsShown() then
+        self:HideStatsPanel()
+    else
+        self:ShowStatsPanel()
+    end
+end
+
+--[[
+    Toggle the guide panel visibility (alias)
+]]
+function CritterUI:ToggleGuidePanel()
+    self:ToggleStatsPanel()
+end
+
+--============================================================
+-- RAID GUIDE PANEL
+--============================================================
+
+--[[
+    Get bosses for a raid from Constants
+    @param raidKey string - Raid key (e.g., "karazhan")
+    @return table - Array of boss options { key, name }
+]]
+function CritterUI:GetRaidBosses(raidKey)
+    local C = HopeAddon.Constants
+    if not C then return {} end
+
+    local bossTable = nil
+    if raidKey == "karazhan" then
+        bossTable = C.KARAZHAN_BOSSES
+    elseif raidKey == "gruul" then
+        bossTable = C.GRUUL_BOSSES
+    elseif raidKey == "magtheridon" then
+        bossTable = C.MAGTHERIDON_BOSSES
+    elseif raidKey == "ssc" then
+        bossTable = C.SSC_BOSSES
+    elseif raidKey == "tk" then
+        bossTable = C.TK_BOSSES
+    elseif raidKey == "hyjal" then
+        bossTable = C.HYJAL_BOSSES
+    elseif raidKey == "bt" then
+        bossTable = C.BT_BOSSES
+    elseif raidKey == "za" then
+        bossTable = C.ZA_BOSSES
+    elseif raidKey == "sunwell" then
+        bossTable = C.SUNWELL_BOSSES
+    end
+
+    if not bossTable then return {} end
+
+    local options = {}
+    for _, boss in ipairs(bossTable) do
+        -- Validate boss data before inserting
+        if boss and boss.id and boss.name then
+            table.insert(options, {
+                key = boss.id,
+                name = boss.name,
+            })
+        end
+    end
+    return options
+end
+
+--[[
+    Create the collapsible raid guide panel
+    @return Frame - The raid guide panel
+]]
+function CritterUI:CreateRaidGuidePanel()
+    if self.raidGuidePanel then
+        return self.raidGuidePanel
+    end
+
+    if not self.housingContainer then
+        self:CreateHousingContainer()
+    end
+
+    local panel = CreateFrame("Frame", "HopeCrusadeCritterRaidGuide", self.housingContainer, "BackdropTemplate")
+    panel:SetSize(RAID_GUIDE_WIDTH, RAID_GUIDE_HEADER_HEIGHT)
+    panel:SetFrameStrata("MEDIUM")
+    panel:SetFrameLevel(101)
+
+    -- Position below housing
+    panel:SetPoint("TOP", self.housingContainer, "BOTTOM", 0, -5)
+
+    -- Dark background with border
+    panel:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true,
+        tileSize = 16,
+        edgeSize = 12,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 }
+    })
+    panel:SetBackdropColor(0.08, 0.08, 0.08, 0.95)
+    panel:SetBackdropBorderColor(0.6, 0.5, 0.3, 0.8)
+
+    -- Collapsible header button
+    local header = CreateFrame("Button", nil, panel)
+    header:SetSize(RAID_GUIDE_WIDTH - 8, RAID_GUIDE_HEADER_HEIGHT - 4)
+    header:SetPoint("TOP", panel, "TOP", 0, -2)
+
+    -- Header text
+    local headerText = header:CreateFontString(nil, "OVERLAY")
+    headerText:SetFont(HopeAddon.assets.fonts.HEADER or "Fonts\\FRIZQT__.TTF", 11, "")
+    headerText:SetPoint("LEFT", header, "LEFT", 8, 0)
+    headerText:SetText("Boss Guide")
+    headerText:SetTextColor(1, 0.84, 0)
+    panel.headerText = headerText
+
+    -- Expand/Collapse indicator
+    local indicator = header:CreateFontString(nil, "OVERLAY")
+    indicator:SetFont(HopeAddon.assets.fonts.BODY or "Fonts\\FRIZQT__.TTF", 12, "")
+    indicator:SetPoint("RIGHT", header, "RIGHT", -8, 0)
+    indicator:SetText(self.raidGuideIsExpanded and "▼" or "▶")
+    indicator:SetTextColor(0.7, 0.7, 0.7)
+    panel.indicator = indicator
+
+    -- Hover highlight
+    local highlight = header:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetAllPoints(header)
+    highlight:SetTexture("Interface\\Buttons\\WHITE8x8")
+    highlight:SetBlendMode("ADD")
+    highlight:SetVertexColor(1, 0.84, 0, 0.1)
+
+    -- Click to toggle
+    header:SetScript("OnClick", function()
+        self:ToggleRaidGuideExpanded()
+    end)
+
+    panel.header = header
+
+    -- Content area (initially sized based on expanded state)
+    local content = CreateFrame("Frame", nil, panel)
+    content:SetSize(RAID_GUIDE_WIDTH - 10, RAID_GUIDE_CONTENT_HEIGHT)
+    content:SetPoint("TOP", header, "BOTTOM", 0, -2)
+    panel.content = content
+
+    local yOffset = 0
+
+    -- Raid dropdown label
+    local raidLabel = content:CreateFontString(nil, "OVERLAY")
+    raidLabel:SetFont(HopeAddon.assets.fonts.BODY or "Fonts\\FRIZQT__.TTF", 9, "")
+    raidLabel:SetPoint("TOPLEFT", content, "TOPLEFT", 5, yOffset)
+    raidLabel:SetText("Raid:")
+    raidLabel:SetTextColor(0.7, 0.7, 0.7)
+
+    -- Raid dropdown
+    self.raidGuideRaidDropdown = self:CreateStatsDropdown(content, RAID_GUIDE_WIDTH - 50, function(key, data)
+        self:OnRaidGuideRaidSelect(key, data)
+    end)
+    self.raidGuideRaidDropdown:SetPoint("TOPLEFT", raidLabel, "TOPRIGHT", 5, 3)
+    self.raidGuideRaidDropdown:SetOptions(RAID_OPTIONS)
+
+    yOffset = yOffset - 28
+
+    -- Boss dropdown label
+    local bossLabel = content:CreateFontString(nil, "OVERLAY")
+    bossLabel:SetFont(HopeAddon.assets.fonts.BODY or "Fonts\\FRIZQT__.TTF", 9, "")
+    bossLabel:SetPoint("TOPLEFT", content, "TOPLEFT", 5, yOffset)
+    bossLabel:SetText("Boss:")
+    bossLabel:SetTextColor(0.7, 0.7, 0.7)
+
+    -- Boss dropdown
+    self.raidGuideBossDropdown = self:CreateStatsDropdown(content, RAID_GUIDE_WIDTH - 50, function(key, data)
+        self:OnRaidGuideBossSelect(key, data)
+    end)
+    self.raidGuideBossDropdown:SetPoint("TOPLEFT", bossLabel, "TOPRIGHT", 5, 3)
+    -- Initially empty, populated when raid is selected
+    self.raidGuideBossDropdown:SetOptions({})
+
+    yOffset = yOffset - 32
+
+    -- Play button
+    local playBtn = CreateFrame("Button", nil, content, "BackdropTemplate")
+    playBtn:SetSize(60, 22)
+    playBtn:SetPoint("TOP", content, "TOP", 0, yOffset)
+
+    playBtn:SetBackdrop({
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 10,
+        insets = { left = 2, right = 2, top = 2, bottom = 2 },
+    })
+    playBtn:SetBackdropColor(0.2, 0.5, 0.2, 1)
+    playBtn:SetBackdropBorderColor(0.4, 0.8, 0.4, 1)
+
+    local playText = playBtn:CreateFontString(nil, "OVERLAY")
+    playText:SetFont(HopeAddon.assets.fonts.BODY or "Fonts\\FRIZQT__.TTF", 10, "")
+    playText:SetPoint("CENTER", playBtn, "CENTER", 0, 0)
+    playText:SetText("▶ Play")
+    playText:SetTextColor(0.9, 0.9, 0.9)
+    playBtn.text = playText
+
+    -- Hover effect
+    playBtn:SetScript("OnEnter", function(self)
+        self:SetBackdropBorderColor(0.5, 1, 0.5, 1)
+    end)
+    playBtn:SetScript("OnLeave", function(self)
+        if CritterUI.raidGuideIsPlaying then
+            self:SetBackdropBorderColor(0.8, 0.4, 0.4, 1)
+        else
+            self:SetBackdropBorderColor(0.4, 0.8, 0.4, 1)
+        end
+    end)
+
+    -- Click to play/stop
+    playBtn:SetScript("OnClick", function()
+        if self.raidGuideIsPlaying then
+            self:StopRaidGuideTips()
+        else
+            self:PlayRaidGuideTips()
+        end
+    end)
+
+    self.raidGuidePlayButton = playBtn
+    panel.playButton = playBtn
+
+    -- Set initial size based on expanded state
+    if self.raidGuideIsExpanded then
+        panel:SetHeight(RAID_GUIDE_HEADER_HEIGHT + RAID_GUIDE_CONTENT_HEIGHT)
+        content:Show()
+    else
+        panel:SetHeight(RAID_GUIDE_HEADER_HEIGHT)
+        content:Hide()
+    end
+
+    panel:Hide()
+    self.raidGuidePanel = panel
+    return panel
+end
+
+--[[
+    Toggle the raid guide panel expanded/collapsed state
+]]
+function CritterUI:ToggleRaidGuideExpanded()
+    self.raidGuideIsExpanded = not self.raidGuideIsExpanded
+
+    if not self.raidGuidePanel then return end
+
+    local panel = self.raidGuidePanel
+    local content = panel.content
+    local indicator = panel.indicator
+
+    if self.raidGuideIsExpanded then
+        panel:SetHeight(RAID_GUIDE_HEADER_HEIGHT + RAID_GUIDE_CONTENT_HEIGHT)
+        content:Show()
+        indicator:SetText("▼")
+    else
+        panel:SetHeight(RAID_GUIDE_HEADER_HEIGHT)
+        content:Hide()
+        indicator:SetText("▶")
+    end
+
+    -- Save state
+    self:SaveRaidGuideState()
+end
+
+--[[
+    Save raid guide expanded state to database
+]]
+function CritterUI:SaveRaidGuideState()
+    if HopeAddon.db and HopeAddon.db.crusadeCritter then
+        HopeAddon.db.crusadeCritter.raidGuideExpanded = self.raidGuideIsExpanded
+    end
+end
+
+--[[
+    Load raid guide expanded state from database
+]]
+function CritterUI:LoadRaidGuideState()
+    if HopeAddon.db and HopeAddon.db.crusadeCritter then
+        if HopeAddon.db.crusadeCritter.raidGuideExpanded ~= nil then
+            self.raidGuideIsExpanded = HopeAddon.db.crusadeCritter.raidGuideExpanded
+        end
+    end
+end
+
+--[[
+    Handle raid selection in the guide
+    @param key string - Raid key
+    @param data table - Raid data
+]]
+function CritterUI:OnRaidGuideRaidSelect(key, data)
+    self.selectedRaid = key
+
+    -- Populate boss dropdown with this raid's bosses
+    local bosses = self:GetRaidBosses(key)
+    if self.raidGuideBossDropdown then
+        self.raidGuideBossDropdown:SetOptions(bosses)
+
+        -- Auto-select first boss if available
+        if #bosses > 0 then
+            self.raidGuideBossDropdown:SetSelectedByKey(bosses[1].key)
+            self.selectedBoss = bosses[1].key
+        else
+            self.selectedBoss = nil
+        end
+    end
+end
+
+--[[
+    Handle boss selection in the guide
+    @param key string - Boss key
+    @param data table - Boss data
+]]
+function CritterUI:OnRaidGuideBossSelect(key, data)
+    self.selectedBoss = key
+end
+
+--[[
+    Play boss tips in sequence in the speech bubble
+]]
+function CritterUI:PlayRaidGuideTips()
+    if not self.selectedBoss then
+        -- Show error message
+        self:ShowSpeechBubble("Select a boss first!", 3)
+        return
+    end
+
+    if not self.selectedRaid then
+        self:ShowSpeechBubble("Select a raid first!", 3)
+        return
+    end
+
+    -- Get critter ID
+    local critterId = "chomp"
+    if self.currentCritter and self.currentCritter.id then
+        critterId = self.currentCritter.id
+    elseif HopeAddon.db and HopeAddon.db.crusadeCritter then
+        critterId = HopeAddon.db.crusadeCritter.selectedCritter or "chomp"
+    end
+
+    -- Get tips for this boss using the raid-aware function
+    local Content = HopeAddon.CritterContent
+    if not Content then return end
+
+    local tips = Content:GetRaidBossTips(critterId, self.selectedRaid, self.selectedBoss)
+    if not tips or #tips == 0 then
+        self:ShowSpeechBubble("No tips available for this boss!", 3)
+        return
+    end
+
+    -- Setup playback state
+    self.raidGuideTipsQueue = tips
+    self.raidGuideCurrentTipIndex = 0
+    self.raidGuideIsPlaying = true
+
+    -- Update button appearance
+    self:UpdateRaidGuidePlayButton()
+
+    -- Show first tip
+    self:ShowNextRaidGuideTip()
+end
+
+--[[
+    Show the next tip in the queue
+]]
+function CritterUI:ShowNextRaidGuideTip()
+    if not self.raidGuideIsPlaying then return end
+
+    self.raidGuideCurrentTipIndex = self.raidGuideCurrentTipIndex + 1
+
+    if self.raidGuideCurrentTipIndex > #self.raidGuideTipsQueue then
+        -- All tips shown, stop
+        self:StopRaidGuideTips()
+        return
+    end
+
+    local tip = self.raidGuideTipsQueue[self.raidGuideCurrentTipIndex]
+    if tip and tip.text then
+        -- Show tip in speech bubble
+        self:ShowSpeechBubble(tip.text, RAID_GUIDE_TIP_DURATION, function()
+            -- Schedule next tip after bubble hides
+            if self.raidGuideIsPlaying and HopeAddon.Timer then
+                self.raidGuideTicker = HopeAddon.Timer:After(0.5, function()
+                    self:ShowNextRaidGuideTip()
+                end)
+            end
+        end)
+    else
+        -- Skip to next tip if this one is invalid
+        self:ShowNextRaidGuideTip()
+    end
+end
+
+--[[
+    Stop playing raid guide tips
+]]
+function CritterUI:StopRaidGuideTips()
+    self.raidGuideIsPlaying = false
+    self.raidGuideTipsQueue = {}
+    self.raidGuideCurrentTipIndex = 0
+
+    -- Cancel any pending ticker
+    if self.raidGuideTicker then
+        self.raidGuideTicker:Cancel()
+        self.raidGuideTicker = nil
+    end
+
+    -- Hide speech bubble
+    self:HideSpeechBubble()
+
+    -- Update button appearance
+    self:UpdateRaidGuidePlayButton()
+end
+
+--[[
+    Update the play button appearance based on playing state
+]]
+function CritterUI:UpdateRaidGuidePlayButton()
+    if not self.raidGuidePlayButton then return end
+
+    local btn = self.raidGuidePlayButton
+    if self.raidGuideIsPlaying then
+        btn.text:SetText("■ Stop")
+        btn:SetBackdropColor(0.5, 0.2, 0.2, 1)
+        btn:SetBackdropBorderColor(0.8, 0.4, 0.4, 1)
+    else
+        btn.text:SetText("▶ Play")
+        btn:SetBackdropColor(0.2, 0.5, 0.2, 1)
+        btn:SetBackdropBorderColor(0.4, 0.8, 0.4, 1)
+    end
+end
+
+--[[
+    Show the raid guide panel
+]]
+function CritterUI:ShowRaidGuidePanel()
+    if not self.raidGuidePanel then
+        self:CreateRaidGuidePanel()
+    end
+
+    -- Load saved state
+    self:LoadRaidGuideState()
+
+    -- Update expanded state
+    if self.raidGuidePanel then
+        local panel = self.raidGuidePanel
+        local content = panel.content
+        local indicator = panel.indicator
+
+        if self.raidGuideIsExpanded then
+            panel:SetHeight(RAID_GUIDE_HEADER_HEIGHT + RAID_GUIDE_CONTENT_HEIGHT)
+            if content then content:Show() end
+            if indicator then indicator:SetText("▼") end
+        else
+            panel:SetHeight(RAID_GUIDE_HEADER_HEIGHT)
+            if content then content:Hide() end
+            if indicator then indicator:SetText("▶") end
+        end
+
+        panel:Show()
+    end
+end
+
+--[[
+    Hide the raid guide panel
+]]
+function CritterUI:HideRaidGuidePanel()
+    if self.raidGuidePanel then
+        self.raidGuidePanel:Hide()
+    end
+
+    -- Stop any playing tips
+    self:StopRaidGuideTips()
 end
 
 --============================================================
@@ -3248,6 +4978,23 @@ function CritterUI:OnDisable()
     end
     self.bossTipsState = nil
 
+    -- Clean up raid guide panel
+    self:StopRaidGuideTips()
+    if self.raidGuidePanel then
+        self.raidGuidePanel:Hide()
+    end
+    if self.raidGuideRaidDropdown then
+        self.raidGuideRaidDropdown:Hide()
+    end
+    if self.raidGuideBossDropdown then
+        self.raidGuideBossDropdown:Hide()
+    end
+    if self.raidGuidePlayButton then
+        self.raidGuidePlayButton:Hide()
+    end
+    self.selectedRaid = nil
+    self.selectedBoss = nil
+
     -- Clean up floating bubble
     if self.floatingBubbleTimer then
         self.floatingBubbleTimer:Cancel()
@@ -3262,6 +5009,16 @@ function CritterUI:OnDisable()
     end
     self.floatingBubbleQueue = {}
     self.isShowingQueue = false
+
+    -- Clean up stats panel
+    if self.statsPanel then
+        self.statsPanel:Hide()
+    end
+    if self.statsButton then
+        self.statsButton:Hide()
+    end
+    self.selectedTier = nil
+    self.selectedInstance = nil
 
     self.isHousingOpen = false
 

@@ -163,6 +163,7 @@ local DB_DEFAULTS = {
 
     -- Boss guides on dungeon entry
     showBossGuides = true,         -- Show floating bubble with boss guides on dungeon entry
+    hideGuideOnEntry = false,      -- "Don't show on entry" checkbox for combined guide panel
 }
 
 --============================================================
@@ -338,13 +339,12 @@ function CrusadeCritter:OnDungeonEnter(dungeonName, dungeonData)
         HopeAddon.CritterUI:UpdatePrePullButton()
     end
 
-    -- Show boss guides if enabled (floating bubble system)
-    if db.showBossGuides and HopeAddon.CritterContent and HopeAddon.CritterUI then
-        local guides = HopeAddon.CritterContent:GetBossGuides(dungeonData.key)
-        if guides and #guides > 0 then
-            local critterName = self:GetCurrentCritterName()
-            HopeAddon.CritterUI:ShowBossGuideQueue(guides, critterName)
-        end
+    -- Show combined guide panel on dungeon entry (replaces old floating bubble)
+    if db.showBossGuides and not db.hideGuideOnEntry and HopeAddon.CritterUI then
+        -- Set to in-dungeon mode and show guide panel
+        HopeAddon.CritterUI:SetInDungeonMode(true, dungeonData.key)
+        HopeAddon.CritterUI:ShowGuidePanel()
+        HopeAddon.CritterUI:SelectInstance(dungeonData.key)
     end
 end
 
@@ -432,6 +432,11 @@ function CrusadeCritter:OnBossKill(npcID, bossData)
     else
         -- Mid-boss - show quick popup
         self:ShowBossKillPopup(bossData, bossKillTime)
+
+        -- Check for critter unlock on any boss kill (not just final)
+        if self.currentRun then
+            self:CheckUnlock(self.currentRun.dungeonKey)
+        end
     end
 end
 
@@ -641,16 +646,16 @@ function CrusadeCritter:CheckUnlock(completedDungeonKey)
 
     if not Content then return end
 
-    -- Mark dungeon complete
+    -- Mark dungeon as visited (any boss kill counts)
     db.completedDungeons[completedDungeonKey] = true
 
-    -- Check each hub for completion
-    for hubKey, hubData in pairs(Content.DUNGEON_HUBS) do
-        if Content:IsHubComplete(hubKey, db.completedDungeons) then
-            local critterId = Content:GetHubCritter(hubKey)
-            if critterId and not self:IsCritterUnlocked(critterId) then
-                self:UnlockCritter(critterId)
-            end
+    -- Find which hub this dungeon belongs to
+    local hubKey = Content.DUNGEON_TO_HUB[completedDungeonKey]
+    if hubKey then
+        -- ANY boss kill in hub = unlock critter immediately
+        local critterId = Content:GetHubCritter(hubKey)
+        if critterId and not self:IsCritterUnlocked(critterId) then
+            self:UnlockCritter(critterId)
         end
     end
 end
@@ -822,7 +827,7 @@ end
 
 --[[
     Get the display name of the currently selected critter
-    @return string - Critter name (e.g., "Flux")
+    @return string - Critter name (e.g., "Chomp")
 ]]
 function CrusadeCritter:GetCurrentCritterName()
     local db = HopeAddon.db and HopeAddon.db.crusadeCritter
@@ -1159,16 +1164,12 @@ SlashCmdList["CRITTER"] = function(msg)
                 HopeAddon.CritterUI:ShowUnlockCelebration("snookimp")
             end
         elseif arg == "guides" then
-            -- Test boss guides display
-            if HopeAddon.CritterContent and HopeAddon.CritterUI then
-                local guides = HopeAddon.CritterContent:GetBossGuides("ramparts")
-                if guides and #guides > 0 then
-                    local critterName = CrusadeCritter:GetCurrentCritterName()
-                    HopeAddon.CritterUI:ShowBossGuideQueue(guides, critterName)
-                    print("|cff9B30FF[Test Mode]|r Showing Hellfire Ramparts boss guides")
-                else
-                    print("|cffff0000No guides found for ramparts|r")
-                end
+            -- Test boss guides display (combined guide panel)
+            if HopeAddon.CritterUI then
+                HopeAddon.CritterUI:SetInDungeonMode(true, "ramparts")
+                HopeAddon.CritterUI:ShowGuidePanel()
+                HopeAddon.CritterUI:SelectInstance("ramparts")
+                print("|cff9B30FF[Test Mode]|r Showing Hellfire Ramparts guide panel")
             end
         elseif arg == "reset" then
             -- Reset test run

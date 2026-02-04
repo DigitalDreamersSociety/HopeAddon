@@ -1250,6 +1250,26 @@ function CritterContent:GetHubProgress(hubKey, completedDungeons)
 end
 
 --[[
+    Check if hub has any progress (any dungeon has been started/visited)
+    Used for the new simplified unlock system where ANY boss kill unlocks the critter
+    @param hubKey string - Hub key (e.g., "hellfire")
+    @param completedDungeons table - Table of completed dungeon keys
+    @return boolean - True if any dungeon in hub has been started
+]]
+function CritterContent:HasHubProgress(hubKey, completedDungeons)
+    local hub = self.DUNGEON_HUBS[hubKey]
+    if not hub then return false end
+
+    -- Return true if ANY dungeon in hub has been started
+    for _, dungeonKey in ipairs(hub.dungeons) do
+        if completedDungeons[dungeonKey] then
+            return true
+        end
+    end
+    return false
+end
+
+--[[
     Get boss tips for the given critter and boss
     @param critterId string - Critter identifier
     @param bossKey string - Boss key (e.g., "watchkeeper_gargolmar")
@@ -1467,6 +1487,101 @@ CritterContent.BOSS_GUIDES = {
     },
 }
 
+--============================================================
+-- RAID BOSS TIPS (Universal tips for all critters)
+-- Used by the Raid Guide Panel for boss strategy tips
+--============================================================
+
+CritterContent.RAID_BOSS_TIPS = {
+    -- Gruul's Lair
+    gruul = {
+        high_king_maulgar = {
+            { text = "Kill order: Blindeye (healer) -> Olm (warlock) -> Kiggler (shaman) -> Krosh (mage) -> Maulgar. Spellsteal Krosh's shield. Hunter pets tank Kiggler.", heroic = false },
+        },
+        gruul = {
+            { text = "Growth stacks +15% damage every 30s - DPS race. Spread out for Ground Slam -> Shatter. Two tanks for Hurtful Strike. Move from Cave In circles.", heroic = false },
+        },
+    },
+    -- Magtheridon's Lair
+    magtheridon = {
+        magtheridon = {
+            { text = "Phase 1: Kill 5 Channelers in 2 min, interrupt Dark Mending. Phase 2: 5 players click Cubes together to stop Blast Nova. At 30% ceiling falls - avoid debris.", heroic = false },
+        },
+    },
+    -- Karazhan
+    karazhan = {
+        attumen = {
+            { text = "Phase 1: Tank Midnight, stack behind horse. Attumen spawns at 95%. Phase 2: They merge at 25% - increased damage. Tank faces away, avoid Charge.", heroic = false },
+        },
+        moroes = {
+            { text = "AoE or CC adds - if not AoE then use kill order. Garrote DOT on random players - can't be dispelled, just heal through.", heroic = false },
+        },
+        maiden = {
+            { text = "Repentance stuns entire raid every 30s - spread for Holy Fire that follows. Holy Ground aura damages melee. Dispel Holy Fire fast.", heroic = false },
+        },
+        opera = {
+            { text = "Random event: Oz (kill adds then Crone), Red Riding Hood (kite Big Bad Wolf, don't get eaten), Romulo & Julianne (kill both within 10s).", heroic = false },
+        },
+        curator = {
+            { text = "Kill Astral Flares as they spawn - they chain lightning. At 15% Curator Evocates (takes double damage) - save cooldowns for this burn phase.", heroic = false },
+        },
+        shade = {
+            { text = "Don't move during Flame Wreath. Run from Blizzard. Run OUT during Arcane Explosion. Adds at 40%. Interrupt Pyroblast if you can.", heroic = false },
+        },
+        illhoof = {
+            { text = "Demon Chains = swap immediately to free player. Imp adds need AoE. Kil'rek imp buffs boss - kill it when it spawns.", heroic = false },
+        },
+        netherspite = {
+            { text = "Three beams from portals - must be soaked by players or boss gets buffed. Red=tank, Green=healer, Blue=DPS. Rotate soakers, stacks hurt. Banish phase = run out.", heroic = false },
+        },
+        chess = {
+            { text = "Control chess pieces, not your character. King must survive. Move pieces to attack Medivh's side. Use abilities on cooldown. Protect your King, kill their King.", heroic = false },
+        },
+        prince = {
+            { text = "Three phases with increasing damage. Infernals fall throughout - spread and avoid. Enfeeble = you have 1 HP, stay safe. Tank near wall.", heroic = false },
+        },
+        nightbane = {
+            { text = "Dragon with air phases. Ground: tank away from raid. Air: AoE skeletons and move from fire. Returns to ground at HP breakpoints.", heroic = false },
+        },
+    },
+    -- Serpentshrine Cavern
+    ssc = {
+        hydross = {
+            { text = "Nature/Frost resist tanks swap at transitions. Kill adds during transitions. Don't cross the threshold accidentally.", heroic = false },
+        },
+        lurker = {
+            { text = "Jump in water during Spout. Kill adds on platforms. Avoid Whirl knockback.", heroic = false },
+        },
+        leotheras = {
+            { text = "Demon form = high tank damage. Inner Demons at 15% - kill your own demon. Whirlwind = run away.", heroic = false },
+        },
+        karathress = {
+            { text = "Kill order: Caribdis -> Tidalvess -> Sharkkis -> Karathress. Boss gains abilities from dead adds.", heroic = false },
+        },
+        morogrim = {
+            { text = "Murloc waves from graves - AoE them. Earthquake = spread. Watery Grave = heal the tombed.", heroic = false },
+        },
+        vashj = {
+            { text = "Phase 2: Loot cores from Tainted Elementals, throw to players near generators. Phase 3: Burst DPS.", heroic = false },
+        },
+    },
+    -- Tempest Keep
+    tk = {
+        alar = {
+            { text = "Phase 1: Moves between platforms, tank swaps. Phase 2: Meteor = move away. Kill adds.", heroic = false },
+        },
+        void_reaver = {
+            { text = "Simple fight. Spread for Arcane Orbs. Melee watch Pounding. Tank and spank.", heroic = false },
+        },
+        solarian = {
+            { text = "Spread for Arcane Missiles. Bomb debuff = run to edge. Kill adds during split phase.", heroic = false },
+        },
+        kaelthas = {
+            { text = "5 phases. Learn weapon abilities. Kill advisors in order. Phoenix eggs must die. Gravity Lapse = float and DPS.", heroic = false },
+        },
+    },
+}
+
 --[[
     Get boss guides for a dungeon (used by floating bubble on dungeon entry)
     @param dungeonKey string - Dungeon key (e.g., "ramparts")
@@ -1482,4 +1597,98 @@ end
 ]]
 function CritterContent:GetAllCritters()
     return self.CRITTERS
+end
+
+--[[
+    Get raid boss tips by looking up boss mechanics from Constants
+    First checks RAID_BOSS_TIPS (universal tips), then falls back to BOSS_TIPS,
+    then falls back to generating tips from boss mechanics data
+    @param critterId string - Critter identifier
+    @param raidKey string - Raid key (e.g., "karazhan")
+    @param bossId string - Boss ID (e.g., "attumen")
+    @return table - Array of tip objects { text, heroic }
+]]
+function CritterContent:GetRaidBossTips(critterId, raidKey, bossId)
+    -- First check RAID_BOSS_TIPS (universal tips for all critters)
+    if self.RAID_BOSS_TIPS and self.RAID_BOSS_TIPS[raidKey] then
+        local raidTips = self.RAID_BOSS_TIPS[raidKey][bossId]
+        if raidTips and #raidTips > 0 then
+            return raidTips
+        end
+    end
+
+    -- Then try to get from BOSS_TIPS if they exist
+    local tips = self:GetBossTips(critterId, bossId, false)
+    if tips and #tips > 0 then
+        return tips
+    end
+
+    -- Fall back to generating tips from Constants mechanics
+    local C = HopeAddon.Constants
+    if not C then return {} end
+
+    local bossTable = nil
+    if raidKey == "karazhan" then
+        bossTable = C.KARAZHAN_BOSSES
+    elseif raidKey == "gruul" then
+        bossTable = C.GRUUL_BOSSES
+    elseif raidKey == "magtheridon" then
+        bossTable = C.MAGTHERIDON_BOSSES
+    elseif raidKey == "ssc" then
+        bossTable = C.SSC_BOSSES
+    elseif raidKey == "tk" then
+        bossTable = C.TK_BOSSES
+    end
+
+    if not bossTable then return {} end
+
+    -- Find the boss
+    local bossData = nil
+    for _, boss in ipairs(bossTable) do
+        if boss.id == bossId then
+            bossData = boss
+            break
+        end
+    end
+
+    if not bossData then return {} end
+
+    -- Generate tips from mechanics
+    local generatedTips = {}
+
+    if bossData.mechanics then
+        for _, mechanic in ipairs(bossData.mechanics) do
+            table.insert(generatedTips, { text = mechanic, heroic = false })
+        end
+    end
+
+    -- Add phase info if available
+    if bossData.phases then
+        for _, phase in ipairs(bossData.phases) do
+            if phase.strategy then
+                table.insert(generatedTips, { text = phase.name .. ": " .. phase.strategy, heroic = false })
+            end
+        end
+    end
+
+    -- Add council info if available
+    if bossData.council then
+        for _, member in ipairs(bossData.council) do
+            if member.role then
+                table.insert(generatedTips, { text = member.name .. " - " .. member.role, heroic = false })
+            end
+        end
+    end
+
+    -- Add strategy if available
+    if bossData.strategy then
+        table.insert(generatedTips, { text = bossData.strategy, heroic = false })
+    end
+
+    -- If still no tips, add a quote or lore as flavor
+    if #generatedTips == 0 and bossData.lore then
+        table.insert(generatedTips, { text = bossData.lore, heroic = false })
+    end
+
+    return generatedTips
 end
