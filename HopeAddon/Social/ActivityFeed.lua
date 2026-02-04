@@ -1010,7 +1010,7 @@ end
     @return string - Full icon path
 ]]
 function ActivityFeed:GetActivityIcon(actType)
-    local icon = ACTIVITY_ICONS[actType] or "INV_Misc_QuestionMark"
+    local icon = ACTIVITY_ICONS[actType] or HopeAddon.DEFAULT_ICON
     return "Interface\\Icons\\" .. icon
 end
 
@@ -1615,7 +1615,7 @@ function ActivityFeed:ShowLootSharePrompt(prompt)
     if prompt.data.itemIcon then
         icon:SetTexture(prompt.data.itemIcon)
     else
-        icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+        icon:SetTexture(HopeAddon.DEFAULT_ICON_PATH)
     end
 
     -- Item link text

@@ -12,11 +12,11 @@ local math_floor = math.floor
 local math_max = math.max
 local math_min = math.min
 
--- TBC-themed colors for charts
+-- TBC-themed colors for charts (reference centralized colors)
 local CHART_COLORS = {
-    PRIMARY = { r = 0.61, g = 0.19, b = 1.00 },   -- TBC purple
-    SECONDARY = { r = 0.20, g = 0.80, b = 0.20 }, -- TBC green
-    TERTIARY = { r = 1.00, g = 0.84, b = 0.00 },  -- Gold
+    PRIMARY = HopeAddon.colors.ARCANE_PURPLE,
+    SECONDARY = HopeAddon.colors.FEL_GREEN,
+    TERTIARY = HopeAddon.colors.GOLD_BRIGHT,
     BACKGROUND = { r = 0.1, g = 0.1, b = 0.1 },
 }
 

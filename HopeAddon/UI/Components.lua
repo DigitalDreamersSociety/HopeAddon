@@ -1726,18 +1726,6 @@ local STANDING_VISUALS = {
     },
 }
 
--- Standing names for badge display
-local STANDING_NAMES = {
-    [1] = "Hated",
-    [2] = "Hostile",
-    [3] = "Unfriendly",
-    [4] = "Neutral",
-    [5] = "Friendly",
-    [6] = "Honored",
-    [7] = "Revered",
-    [8] = "Exalted",
-}
-
 --[[
     REPUTATION BAR HELPERS
     Extracted from CreateReputationBar to reduce function size
@@ -2112,7 +2100,8 @@ function Components:CreateReputationBar(parent, width, height, options)
 
         -- Update badge with item quality colors and loot glow
         if self.badgeText then
-            local standingName = STANDING_NAMES[standingId] or "Unknown"
+            local standingData = HopeAddon.ReputationData and HopeAddon.ReputationData.STANDINGS[standingId]
+            local standingName = standingData and standingData.name or "Unknown"
             self.badgeText:SetText(standingName)
 
             -- Get item quality color
@@ -2519,7 +2508,8 @@ function Components:CreateReputationBar(parent, width, height, options)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
         GameTooltip:SetText(self.factionName, 1, 0.84, 0)
 
-        local standingName = STANDING_NAMES[self.currentStanding] or "Unknown"
+        local standingData = HopeAddon.ReputationData and HopeAddon.ReputationData.STANDINGS[self.currentStanding]
+        local standingName = standingData and standingData.name or "Unknown"
         local progress = string.format("%d / %d", self.currentValue, self.maxValue)
         local percent = math.floor((self.currentValue / self.maxValue) * 100)
 
@@ -2562,12 +2552,14 @@ function Components:CreateSegmentedReputationBar(parent, width, height, options)
 
     -- Segment data (proportional widths based on rep required)
     -- Total rep: Neutral(3k) + Friendly(6k) + Honored(12k) + Revered(21k) = 42k
+    -- Colors sourced from HopeAddon.ReputationData.STANDINGS
+    local RepStandings = HopeAddon.ReputationData and HopeAddon.ReputationData.STANDINGS or {}
     local SEGMENT_DATA = {
-        { standingId = 4, name = "Neutral",  rep = 3000,  color = { r = 1.0, g = 1.0, b = 0.0 } },   -- Yellow
-        { standingId = 5, name = "Friendly", rep = 6000,  color = { r = 0.0, g = 0.8, b = 0.0 } },   -- Green
-        { standingId = 6, name = "Honored",  rep = 12000, color = { r = 0.0, g = 0.6, b = 0.8 } },   -- Cyan
-        { standingId = 7, name = "Revered",  rep = 21000, color = { r = 0.0, g = 0.4, b = 0.8 } },   -- Blue
-        { standingId = 8, name = "Exalted",  rep = 0,     color = { r = 0.6, g = 0.2, b = 1.0 } },   -- Purple
+        { standingId = 4, name = "Neutral",  rep = 3000,  color = RepStandings[4] and RepStandings[4].color or { r = 1.0, g = 1.0, b = 0.0 } },
+        { standingId = 5, name = "Friendly", rep = 6000,  color = RepStandings[5] and RepStandings[5].color or { r = 0.0, g = 0.8, b = 0.0 } },
+        { standingId = 6, name = "Honored",  rep = 12000, color = RepStandings[6] and RepStandings[6].color or { r = 0.0, g = 0.6, b = 0.8 } },
+        { standingId = 7, name = "Revered",  rep = 21000, color = RepStandings[7] and RepStandings[7].color or { r = 0.0, g = 0.4, b = 0.8 } },
+        { standingId = 8, name = "Exalted",  rep = 0,     color = RepStandings[8] and RepStandings[8].color or { r = 0.6, g = 0.2, b = 1.0 } },
     }
     local TOTAL_REP = 42000
     local ICON_SIZE = 20
@@ -2824,7 +2816,7 @@ function Components:CreateSegmentedReputationBar(parent, width, height, options)
             -- Fallback: use old single-icon behavior for first item only
             if items and #items > 0 then
                 local item = items[1]
-                local fullPath = item.icon or "INV_Misc_QuestionMark"
+                local fullPath = item.icon or HopeAddon.DEFAULT_ICON
                 if fullPath and not string.find(fullPath, "Interface") then
                     fullPath = "Interface\\Icons\\" .. fullPath
                 end
@@ -2937,7 +2929,7 @@ function Components:CreateSegmentedReputationBar(parent, width, height, options)
             iconBtn:SetPoint("LEFT", iconContainer, "LEFT", xOffset, 0)
 
             -- Set texture (handle path formats)
-            local texturePath = item.icon or "INV_Misc_QuestionMark"
+            local texturePath = item.icon or HopeAddon.DEFAULT_ICON
             if texturePath and not string.find(texturePath, "Interface") then
                 texturePath = "Interface\\Icons\\" .. texturePath
             end
@@ -3239,7 +3231,7 @@ function Components:CreateUpgradeItemCard(parent, itemData, factionProgress)
     local icon = card:CreateTexture(nil, "ARTWORK")
     icon:SetSize(ICON_SIZE, ICON_SIZE)
     icon:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -10)
-    icon:SetTexture("Interface\\Icons\\" .. (itemData.icon or "INV_Misc_QuestionMark"))
+    icon:SetTexture("Interface\\Icons\\" .. (itemData.icon or HopeAddon.DEFAULT_ICON))
     icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
     -- Icon border glow
@@ -3355,7 +3347,7 @@ function Components:CreateTravelerIconDisplay(parent, iconData, size)
 
     -- Icon texture
     local icon = frame:CreateTexture(nil, "ARTWORK")
-    icon:SetTexture("Interface\\Icons\\" .. (iconData.icon or "INV_Misc_QuestionMark"))
+    icon:SetTexture("Interface\\Icons\\" .. (iconData.icon or HopeAddon.DEFAULT_ICON))
     icon:SetAllPoints(frame)
     icon:SetTexCoord(0.08, 0.92, 0.08, 0.92) -- Trim the icon edges
     frame.icon = icon
@@ -4314,7 +4306,7 @@ function Components:CreatePhaseHeader(parent, phase)
     -- Phase icon (24x24)
     local icon = container:CreateTexture(nil, "ARTWORK")
     icon:SetSize(24, 24)
-    icon:SetTexture("Interface\\Icons\\" .. (C.ICONS[phase] or "INV_Misc_QuestionMark"))
+    icon:SetTexture("Interface\\Icons\\" .. (C.ICONS[phase] or HopeAddon.DEFAULT_ICON))
     icon:SetPoint("CENTER", container, "CENTER", -80, 0)
     container.icon = icon
 
@@ -4410,7 +4402,7 @@ function Components:CreateAttunementHeaderCard(parent, data, width)
 
     -- The actual icon
     local raidKey = data.raidKey or "karazhan"
-    local iconPath = C.RAID_ICONS[raidKey] or "INV_Misc_QuestionMark"
+    local iconPath = C.RAID_ICONS[raidKey] or HopeAddon.DEFAULT_ICON
     local icon = iconContainer:CreateTexture(nil, "ARTWORK")
     icon:SetSize(C.ICON_SIZE, C.ICON_SIZE)
     icon:SetPoint("CENTER", iconContainer, "CENTER", 0, 0)

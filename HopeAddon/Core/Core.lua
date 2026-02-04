@@ -96,7 +96,19 @@ HopeAddon.colors = {
     RARE            = { r = 0.00, g = 0.44, b = 0.87, a = 1.0, hex = "0070DD" },
     EPIC            = { r = 0.64, g = 0.21, b = 0.93, a = 1.0, hex = "A335EE" },
     LEGENDARY       = { r = 1.00, g = 0.50, b = 0.00, a = 1.0, hex = "FF8000" },
+
+    -- Aliases for backward compatibility
+    TBC_PURPLE = nil, -- Set after table creation
+    TBC_GREEN = nil,  -- Set after table creation
 }
+
+-- Create aliases (must be done after table is defined)
+HopeAddon.colors.TBC_PURPLE = HopeAddon.colors.ARCANE_PURPLE
+HopeAddon.colors.TBC_GREEN = HopeAddon.colors.FEL_GREEN
+
+-- Default icon constants (used throughout UI for missing/unknown icons)
+HopeAddon.DEFAULT_ICON = "INV_Misc_QuestionMark"
+HopeAddon.DEFAULT_ICON_PATH = "Interface\\Icons\\INV_Misc_QuestionMark"
 
 --[[
     Background Colors
@@ -1408,6 +1420,7 @@ function HopeAddon:GetDefaultDB()
             notificationsEnabled = true,
             hideUIDuringCombat = true,  -- Auto-hide UI when entering combat
             backgroundOpacity = 0.95,   -- Background opacity (0% = transparent, 100% = solid)
+            critterTabPosition = nil,   -- Saved position for critter tab button {point, x, y}
         },
 
         -- Minimap button settings

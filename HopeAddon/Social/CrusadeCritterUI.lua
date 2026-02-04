@@ -58,6 +58,29 @@ local GUIDE_TOOLTIP_WIDTH = 280
 -- Glow texture for soft circular effect
 local GLOW_TEXTURE = "Interface\\GLUES\\Models\\UI_Draenei\\GenericGlow64"
 
+-- Color Constants
+local COLOR_GOLD = {1, 0.84, 0}
+local COLOR_GOLD_BORDER_80 = {1, 0.84, 0, 0.8}
+local COLOR_GOLD_BORDER = {1, 0.84, 0, 1}
+local COLOR_LABEL_GRAY = {0.7, 0.7, 0.7}
+local COLOR_DARK_BG = {0.1, 0.1, 0.1, 0.95}
+local COLOR_DARK_BG_90 = {0.1, 0.1, 0.1, 0.9}
+local COLOR_DARK_BG_FULL = {0.1, 0.1, 0.1, 1}
+
+-- Common Textures
+local TEX_WHITE8X8 = "Interface\\Buttons\\WHITE8x8"
+
+-- Critter icon mappings (TBC-compatible icons)
+local CRITTER_ICONS = {
+    chomp = "Interface\\Icons\\Ability_Hunter_Pet_Ravager",
+    snookimp = "Interface\\Icons\\Spell_Shadow_SummonImp",
+    shred = "Interface\\Icons\\Ability_Creature_Poison_04",
+    emo = "Interface\\Icons\\Ability_Hunter_Pet_Bat",
+    cosmo = "Interface\\Icons\\Spell_Arcane_Starfire",
+    boomer = "Interface\\Icons\\Ability_EyeOfTheOwl",
+    diva = "Interface\\Icons\\Ability_Hunter_Pet_DragonHawk",
+}
+
 --============================================================
 -- MODULE STATE
 --============================================================
@@ -156,20 +179,32 @@ function CritterUI:CreateTabButton()
     tab:SetFrameStrata("MEDIUM")
     tab:SetFrameLevel(99)
 
-    -- Position on right edge, below minimap
-    tab:SetPoint("RIGHT", UIParent, "RIGHT", -50, HOUSING_Y_OFFSET)
+    -- Make moveable
+    tab:SetMovable(true)
+    tab:EnableMouse(true)
+    tab:SetClampedToScreen(true)
+    tab:RegisterForDrag("LeftButton")
+
+    -- Load saved position or use default
+    local savedPos = HopeAddon.db and HopeAddon.db.settings and HopeAddon.db.settings.critterTabPosition
+    if savedPos then
+        tab:SetPoint(savedPos.point, UIParent, savedPos.point, savedPos.x, savedPos.y)
+    else
+        -- Default position on right edge, below minimap
+        tab:SetPoint("RIGHT", UIParent, "RIGHT", -50, HOUSING_Y_OFFSET)
+    end
 
     -- Dark background with gold border (matches addon style)
     tab:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8x8",
+        bgFile = TEX_WHITE8X8,
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         tile = true,
         tileSize = 16,
         edgeSize = 12,
         insets = { left = 2, right = 2, top = 2, bottom = 2 }
     })
-    tab:SetBackdropColor(0.1, 0.1, 0.1, 0.9)
-    tab:SetBackdropBorderColor(1, 0.84, 0, 0.8)
+    tab:SetBackdropColor(unpack(COLOR_DARK_BG_90))
+    tab:SetBackdropBorderColor(unpack(COLOR_GOLD_BORDER_80))
 
     -- Critter silhouette icon (using a simple texture for now)
     local icon = tab:CreateTexture(nil, "ARTWORK")
@@ -190,20 +225,41 @@ function CritterUI:CreateTabButton()
     -- Hover highlight
     local highlight = tab:CreateTexture(nil, "HIGHLIGHT")
     highlight:SetAllPoints(tab)
-    highlight:SetTexture("Interface\\Buttons\\WHITE8x8")
+    highlight:SetTexture(TEX_WHITE8X8)
     highlight:SetBlendMode("ADD")
     highlight:SetVertexColor(1, 0.84, 0, 0.2)
 
-    -- Click handler
-    tab:SetScript("OnClick", function()
-        self:ToggleHousing()
+    -- Drag handlers for moving
+    tab:SetScript("OnDragStart", function(self)
+        self:StartMoving()
     end)
+    tab:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing()
+        -- Save position
+        local point, _, _, x, y = self:GetPoint()
+        if HopeAddon.db and HopeAddon.db.settings then
+            HopeAddon.db.settings.critterTabPosition = { point = point, x = x, y = y }
+        end
+    end)
+
+    -- Click handler (only fires if not dragging)
+    tab:SetScript("OnClick", function(self, button)
+        if button == "RightButton" then
+            -- Right-click to reset position
+            CritterUI:ResetTabPosition()
+        else
+            CritterUI:ToggleHousing()
+        end
+    end)
+    tab:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 
     -- Tooltip
     tab:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        GameTooltip:AddLine("Crusade Critter", 1, 0.84, 0)
-        GameTooltip:AddLine("Click to toggle mascot", 0.7, 0.7, 0.7)
+        GameTooltip:AddLine("Crusade Critter", unpack(COLOR_GOLD))
+        GameTooltip:AddLine("Left-click to toggle mascot", 0.7, 0.7, 0.7)
+        GameTooltip:AddLine("Drag to move", 0.7, 0.7, 0.7)
+        GameTooltip:AddLine("Right-click to reset position", 0.5, 0.5, 0.5)
         GameTooltip:Show()
     end)
     tab:SetScript("OnLeave", function()
@@ -215,21 +271,25 @@ function CritterUI:CreateTabButton()
 end
 
 --[[
+    Reset the tab button to its default position
+]]
+function CritterUI:ResetTabPosition()
+    if not self.tabButton then return end
+
+    self.tabButton:ClearAllPoints()
+    self.tabButton:SetPoint("RIGHT", UIParent, "RIGHT", -50, HOUSING_Y_OFFSET)
+
+    -- Clear saved position
+    if HopeAddon.db and HopeAddon.db.settings then
+        HopeAddon.db.settings.critterTabPosition = nil
+    end
+end
+
+--[[
     Update the tab icon based on current critter
 ]]
 function CritterUI:UpdateTabIcon()
     if not self.tabButton or not self.tabButton.icon then return end
-
-    -- Map critter IDs to appropriate icons (TBC-compatible icons)
-    local iconMap = {
-        chomp = "Interface\\Icons\\Ability_Hunter_Pet_Ravager",
-        snookimp = "Interface\\Icons\\Spell_Shadow_SummonImp",
-        shred = "Interface\\Icons\\Ability_Creature_Poison_04",
-        emo = "Interface\\Icons\\Ability_Hunter_Pet_Bat",
-        cosmo = "Interface\\Icons\\Spell_Arcane_Starfire",
-        boomer = "Interface\\Icons\\Ability_EyeOfTheOwl",
-        diva = "Interface\\Icons\\Ability_Hunter_Pet_DragonHawk",
-    }
 
     local critterId = "chomp"
     if self.currentCritter and self.currentCritter.id then
@@ -238,7 +298,7 @@ function CritterUI:UpdateTabIcon()
         critterId = HopeAddon.db.crusadeCritter.selectedCritter or "chomp"
     end
 
-    local icon = iconMap[critterId] or iconMap.chomp
+    local icon = CRITTER_ICONS[critterId] or CRITTER_ICONS.chomp
     self.tabButton.icon:SetTexture(icon)
 end
 
@@ -280,7 +340,7 @@ function CritterUI:CreateHousingContainer()
 
     -- Dark background with subtle border
     housing:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8x8",
+        bgFile = TEX_WHITE8X8,
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         tile = true,
         tileSize = 16,
@@ -335,7 +395,7 @@ function CritterUI:CreateHousingContainer()
         local critterData = self.currentCritter
         if critterData then
             GameTooltip:SetOwner(housing, "ANCHOR_LEFT")
-            GameTooltip:AddLine(critterData.name, 1, 0.84, 0)
+            GameTooltip:AddLine(critterData.name, unpack(COLOR_GOLD))
             GameTooltip:AddLine(critterData.description, 1, 1, 1, true)
             GameTooltip:AddLine(" ")
             GameTooltip:AddLine("Click critter to select mascot", 0.5, 0.5, 0.5)
@@ -360,7 +420,7 @@ function CritterUI:CreateHousingContainer()
 
     -- Visual indicator (subtle bar)
     local handleTex = dragHandle:CreateTexture(nil, "ARTWORK")
-    handleTex:SetTexture("Interface\\Buttons\\WHITE8x8")
+    handleTex:SetTexture(TEX_WHITE8X8)
     handleTex:SetVertexColor(0.4, 0.35, 0.25, 0.6)
     handleTex:SetHeight(4)
     handleTex:SetPoint("LEFT", 4, 0)
@@ -661,22 +721,22 @@ function CritterUI:CreateCritterSelector()
 
     -- Dark background with gold border
     popup:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8x8",
+        bgFile = TEX_WHITE8X8,
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         tile = true,
         tileSize = 16,
         edgeSize = 14,
         insets = { left = 3, right = 3, top = 3, bottom = 3 }
     })
-    popup:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
-    popup:SetBackdropBorderColor(1, 0.84, 0, 1)
+    popup:SetBackdropColor(unpack(COLOR_DARK_BG))
+    popup:SetBackdropBorderColor(unpack(COLOR_GOLD_BORDER))
 
     -- Title
     local title = popup:CreateFontString(nil, "OVERLAY")
     title:SetFont(HopeAddon.assets.fonts.HEADER, 12, "")
     title:SetPoint("TOP", popup, "TOP", 0, -10)
     title:SetText("Select Mascot")
-    title:SetTextColor(1, 0.84, 0)
+    title:SetTextColor(unpack(COLOR_GOLD))
     popup.title = title
 
     -- Critter grid container
@@ -717,17 +777,6 @@ function CritterUI:PopulateCritterSelector()
     end
     grid.icons = {}
 
-    -- Icon map for critters (TBC-compatible icons)
-    local iconMap = {
-        chomp = "Interface\\Icons\\Ability_Hunter_Pet_Ravager",
-        snookimp = "Interface\\Icons\\Spell_Shadow_SummonImp",
-        shred = "Interface\\Icons\\Ability_Creature_Poison_04",
-        emo = "Interface\\Icons\\Ability_Hunter_Pet_Bat",
-        cosmo = "Interface\\Icons\\Spell_Arcane_Starfire",
-        boomer = "Interface\\Icons\\Ability_EyeOfTheOwl",
-        diva = "Interface\\Icons\\Ability_Hunter_Pet_DragonHawk",
-    }
-
     local critterOrder = { "chomp", "snookimp", "shred", "emo", "cosmo", "boomer", "diva" }
     local iconSize = 40
     local spacing = 8
@@ -745,22 +794,20 @@ function CritterUI:PopulateCritterSelector()
             btn:SetSize(iconSize, iconSize)
             btn:SetPoint("TOPLEFT", grid, "TOPLEFT", startX + col * (iconSize + spacing), startY - row * (iconSize + spacing))
 
-            -- Icon texture
-            local tex = btn:CreateTexture(nil, "ARTWORK")
-            tex:SetAllPoints(btn)
-            tex:SetTexture(iconMap[critterId] or iconMap.chomp)
-            tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-            btn.icon = tex
-
             -- Check if unlocked
             local isUnlocked = Critter and Critter:IsCritterUnlocked(critterId)
             local isSelected = HopeAddon.db and HopeAddon.db.crusadeCritter and
                                HopeAddon.db.crusadeCritter.selectedCritter == critterId
 
             if isUnlocked then
-                -- Unlocked - full color
+                -- Icon texture (shown for unlocked critters)
+                local tex = btn:CreateTexture(nil, "ARTWORK")
+                tex:SetAllPoints(btn)
+                tex:SetTexture(CRITTER_ICONS[critterId] or CRITTER_ICONS.chomp)
+                tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
                 tex:SetDesaturated(false)
                 tex:SetVertexColor(1, 1, 1, 1)
+                btn.icon = tex
 
                 -- Selection highlight
                 if isSelected then
@@ -783,14 +830,22 @@ function CritterUI:PopulateCritterSelector()
                 hover:SetTexture("Interface\\Buttons\\ButtonHilight-Square")
                 hover:SetBlendMode("ADD")
             else
-                -- Locked - grayed out
-                tex:SetDesaturated(true)
-                tex:SetVertexColor(0.5, 0.5, 0.5, 1)
+                -- Mystery display for locked critters - show "?" instead of icon
+                local bg = btn:CreateTexture(nil, "BACKGROUND")
+                bg:SetAllPoints(btn)
+                bg:SetColorTexture(0.15, 0.15, 0.15, 0.9)
+
+                local mystery = btn:CreateFontString(nil, "ARTWORK")
+                mystery:SetFont("Fonts\\FRIZQT__.TTF", 24, "OUTLINE")
+                mystery:SetPoint("CENTER", btn, "CENTER", 0, 0)
+                mystery:SetText("?")
+                mystery:SetTextColor(0.6, 0.6, 0.6)
+                btn.mystery = mystery
 
                 -- Lock overlay
                 local lock = btn:CreateTexture(nil, "OVERLAY")
-                lock:SetSize(16, 16)
-                lock:SetPoint("CENTER", btn, "CENTER", 0, 0)
+                lock:SetSize(14, 14)
+                lock:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", -2, 2)
                 lock:SetTexture("Interface\\LFGFRAME\\LFG-Eye")
                 lock:SetVertexColor(0.8, 0.2, 0.2, 1)
                 btn.lock = lock
@@ -799,17 +854,20 @@ function CritterUI:PopulateCritterSelector()
             -- Tooltip
             btn:SetScript("OnEnter", function()
                 GameTooltip:SetOwner(btn, "ANCHOR_RIGHT")
-                GameTooltip:AddLine(critterData.name, 1, 0.84, 0)
-                GameTooltip:AddLine(critterData.description, 1, 1, 1, true)
-                if not isUnlocked then
+                if isUnlocked then
+                    GameTooltip:AddLine(critterData.name, unpack(COLOR_GOLD))
+                    GameTooltip:AddLine(critterData.description, 1, 1, 1, true)
+                    if isSelected then
+                        GameTooltip:AddLine(" ")
+                        GameTooltip:AddLine("Currently selected", 0.3, 1, 0.3)
+                    end
+                else
+                    -- Mystery tooltip for locked critters
+                    GameTooltip:AddLine("???", unpack(COLOR_GOLD))
+                    GameTooltip:AddLine("Mystery Critter", 0.7, 0.7, 0.7)
                     GameTooltip:AddLine(" ")
                     local unlockLevel = critterData.unlockLevel or 1
-                    local playerLevel = UnitLevel("player")
-                    GameTooltip:AddLine(string.format("Requires level %d (you are %d)",
-                        unlockLevel, playerLevel), 1, 0.3, 0.3)
-                elseif isSelected then
-                    GameTooltip:AddLine(" ")
-                    GameTooltip:AddLine("Currently selected", 0.3, 1, 0.3)
+                    GameTooltip:AddLine(string.format("Unlocks at Level %d", unlockLevel), 1, 0.5, 0)
                 end
                 GameTooltip:Show()
             end)
@@ -881,6 +939,16 @@ function CritterUI:SelectCritter(critterId)
             -- Update display
             self:SetCritter(critterId)
             self:UpdateTabIcon()
+
+            -- Refresh boss tips panel if showing
+            if self.bossTipsPanel and self.bossTipsPanel:IsShown() and self.bossTipsState then
+                self:ShowBossTips(self.bossTipsState.bossKey, self.bossTipsState.bossName)
+            end
+
+            -- Refresh guide panel tooltip if visible
+            if self.tipTooltip and self.tipTooltip:IsShown() then
+                self:HideBossTipTooltip()
+            end
 
             -- Hide selector
             self:HideCritterSelector()
@@ -1098,7 +1166,7 @@ function CritterUI:CreateSpeechBubble()
 
     -- Classic comic book style: white background, black border
     bubble:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8x8",
+        bgFile = TEX_WHITE8X8,
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         tile = true,
         tileSize = 16,
@@ -1126,7 +1194,7 @@ function CritterUI:CreateSpeechBubble()
 
     -- Tail pointing toward housing (simple triangle using textures)
     local tail = bubble:CreateTexture(nil, "ARTWORK")
-    tail:SetTexture("Interface\\Buttons\\WHITE8x8")
+    tail:SetTexture(TEX_WHITE8X8)
     tail:SetVertexColor(1, 1, 1, 0.95)
     tail:SetSize(16, 10)
     tail:SetPoint("TOPLEFT", bubble, "BOTTOMRIGHT", -30, 2)
@@ -1321,8 +1389,8 @@ function CritterUI:CreateBossPopup()
     local popup = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
     popup:SetSize(300, 140)
     popup:SetBackdrop(HopeAddon.Constants.BACKDROPS.DARK_GOLD)
-    popup:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
-    popup:SetBackdropBorderColor(1, 0.84, 0, 1)
+    popup:SetBackdropColor(unpack(COLOR_DARK_BG))
+    popup:SetBackdropBorderColor(unpack(COLOR_GOLD_BORDER))
     popup:SetFrameStrata("HIGH")
     popup:SetClampedToScreen(true)
 
@@ -1330,7 +1398,7 @@ function CritterUI:CreateBossPopup()
     local title = popup:CreateFontString(nil, "OVERLAY")
     title:SetFont(HopeAddon.assets.fonts.HEADER, 13, "")
     title:SetPoint("TOP", popup, "TOP", 0, -10)
-    title:SetTextColor(1, 0.84, 0)
+    title:SetTextColor(unpack(COLOR_GOLD))
     popup.title = title
 
     -- Chart container
@@ -1371,8 +1439,8 @@ function CritterUI:ShowBossPopup(bossName, thisTime, bestTime, quip)
     -- Create time comparison chart
     if HopeAddon.Charts then
         local chartData = {
-            { label = "This", timeSeconds = thisTime, color = HopeAddon.colors.TBC_PURPLE or { r = 0.61, g = 0.19, b = 1.00 } },
-            { label = "Best", timeSeconds = bestTime or thisTime, color = HopeAddon.colors.TBC_GREEN or { r = 0.20, g = 0.80, b = 0.20 } },
+            { label = "This", timeSeconds = thisTime, color = HopeAddon.colors.TBC_PURPLE },
+            { label = "Best", timeSeconds = bestTime or thisTime, color = HopeAddon.colors.TBC_GREEN },
         }
 
         local chart = HopeAddon.Charts:CreateTimeComparisonChart(popup.chartContainer, 260, chartData)
@@ -1440,8 +1508,8 @@ function CritterUI:CreateStatsWindow()
     local window = CreateFrame("Frame", "HopeCrusadeCritterStats", UIParent, "BackdropTemplate")
     window:SetSize(450, 280)
     window:SetBackdrop(HopeAddon.Constants.BACKDROPS.DARK_GOLD)
-    window:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
-    window:SetBackdropBorderColor(1, 0.84, 0, 1)
+    window:SetBackdropColor(unpack(COLOR_DARK_BG))
+    window:SetBackdropBorderColor(unpack(COLOR_GOLD_BORDER))
     window:SetFrameStrata("DIALOG")
     window:SetPoint("CENTER", UIParent, "CENTER", 0, 50)
     window:SetClampedToScreen(true)
@@ -1451,7 +1519,7 @@ function CritterUI:CreateStatsWindow()
     title:SetFont(HopeAddon.assets.fonts.HEADER, 16, "")
     title:SetPoint("TOP", window, "TOP", 0, -15)
     title:SetText("DUNGEON COMPLETE!")
-    title:SetTextColor(1, 0.84, 0)
+    title:SetTextColor(unpack(COLOR_GOLD))
     window.title = title
 
     -- Decorative line
@@ -1474,7 +1542,7 @@ function CritterUI:CreateStatsWindow()
         labelText:SetFont(HopeAddon.assets.fonts.BODY, 12, "")
         labelText:SetPoint("TOPLEFT", statsContainer, "TOPLEFT", 0, statsY)
         labelText:SetText(label)
-        labelText:SetTextColor(0.7, 0.7, 0.7)
+        labelText:SetTextColor(unpack(COLOR_LABEL_GRAY))
 
         local valueText = statsContainer:CreateFontString(nil, "OVERLAY")
         valueText:SetFont(HopeAddon.assets.fonts.BODY, 12, "")
@@ -1577,9 +1645,9 @@ function CritterUI:ShowStatsWindow(stats, quip)
     -- Create 3-bar comparison chart
     if HopeAddon.Charts then
         local chartData = {
-            { label = "This", timeSeconds = stats.thisTime or 0, color = HopeAddon.colors.TBC_PURPLE or { r = 0.61, g = 0.19, b = 1.00 } },
+            { label = "This", timeSeconds = stats.thisTime or 0, color = HopeAddon.colors.TBC_PURPLE },
             { label = "Last", timeSeconds = stats.lastTime or 0, color = { r = 0.5, g = 0.5, b = 0.5 } },
-            { label = "Best", timeSeconds = stats.bestTime or stats.thisTime or 0, color = HopeAddon.colors.TBC_GREEN or { r = 0.20, g = 0.80, b = 0.20 } },
+            { label = "Best", timeSeconds = stats.bestTime or stats.thisTime or 0, color = HopeAddon.colors.TBC_GREEN },
         }
 
         local chart = HopeAddon.Charts:CreateTimeComparisonChart(window.chartContainer, 200, chartData)
@@ -1631,13 +1699,13 @@ function CritterUI:CreateCombinedStatsWindow()
     local window = CreateFrame("Frame", "HopeCrusadeCritterCombinedStats", UIParent, "BackdropTemplate")
     window:SetSize(COMBINED_STATS_WIDTH, COMBINED_STATS_HEIGHT)
     window:SetBackdrop(C.BACKDROPS and C.BACKDROPS.DARK_GOLD or {
-        bgFile = "Interface\\Buttons\\WHITE8x8",
+        bgFile = TEX_WHITE8X8,
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         tile = true, tileSize = 16, edgeSize = 14,
         insets = { left = 3, right = 3, top = 3, bottom = 3 }
     })
-    window:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
-    window:SetBackdropBorderColor(1, 0.84, 0, 1)
+    window:SetBackdropColor(unpack(COLOR_DARK_BG))
+    window:SetBackdropBorderColor(unpack(COLOR_GOLD_BORDER))
     window:SetFrameStrata("HIGH")
     window:SetPoint("CENTER", UIParent, "CENTER", 0, 100)
     window:SetClampedToScreen(true)
@@ -1655,7 +1723,7 @@ function CritterUI:CreateCombinedStatsWindow()
     bossName:SetPoint("LEFT", bossIcon, "RIGHT", 10, 0)
     bossName:SetPoint("RIGHT", window, "RIGHT", -15, 0)
     bossName:SetJustifyH("LEFT")
-    bossName:SetTextColor(1, 0.84, 0)
+    bossName:SetTextColor(unpack(COLOR_GOLD))
     window.bossName = bossName
 
     -- "DEFEATED" subtitle
@@ -1663,12 +1731,12 @@ function CritterUI:CreateCombinedStatsWindow()
     defeatedText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
     defeatedText:SetPoint("TOPLEFT", bossName, "BOTTOMLEFT", 0, -2)
     defeatedText:SetText("DEFEATED")
-    defeatedText:SetTextColor(0.7, 0.7, 0.7)
+    defeatedText:SetTextColor(unpack(COLOR_LABEL_GRAY))
     window.defeatedText = defeatedText
 
     -- Decorative line
     local line = window:CreateTexture(nil, "ARTWORK")
-    line:SetTexture(HopeAddon.assets.textures.SOLID or "Interface\\Buttons\\WHITE8x8")
+    line:SetTexture(HopeAddon.assets.textures.SOLID or TEX_WHITE8X8)
     line:SetSize(COMBINED_STATS_WIDTH - 30, 1)
     line:SetPoint("TOP", window, "TOP", 0, -65)
     line:SetVertexColor(1, 0.84, 0, 0.5)
@@ -1681,7 +1749,7 @@ function CritterUI:CreateCombinedStatsWindow()
     thisLabel:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     thisLabel:SetPoint("TOPLEFT", window, "TOPLEFT", 20, statsY)
     thisLabel:SetText("This Kill:")
-    thisLabel:SetTextColor(0.7, 0.7, 0.7)
+    thisLabel:SetTextColor(unpack(COLOR_LABEL_GRAY))
 
     local thisTime = window:CreateFontString(nil, "OVERLAY")
     thisTime:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
@@ -1694,7 +1762,7 @@ function CritterUI:CreateCombinedStatsWindow()
     bestLabel:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
     bestLabel:SetPoint("TOPLEFT", window, "TOPLEFT", 160, statsY)
     bestLabel:SetText("Best:")
-    bestLabel:SetTextColor(0.7, 0.7, 0.7)
+    bestLabel:SetTextColor(unpack(COLOR_LABEL_GRAY))
 
     local bestTime = window:CreateFontString(nil, "OVERLAY")
     bestTime:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
@@ -1711,7 +1779,7 @@ function CritterUI:CreateCombinedStatsWindow()
     -- Bar background
     local barBg = barContainer:CreateTexture(nil, "BACKGROUND")
     barBg:SetAllPoints(barContainer)
-    barBg:SetTexture("Interface\\Buttons\\WHITE8x8")
+    barBg:SetTexture(TEX_WHITE8X8)
     barBg:SetVertexColor(0.2, 0.2, 0.2, 0.8)
     barContainer.bg = barBg
 
@@ -1719,14 +1787,14 @@ function CritterUI:CreateCombinedStatsWindow()
     local thisBar = barContainer:CreateTexture(nil, "ARTWORK")
     thisBar:SetHeight(16)
     thisBar:SetPoint("LEFT", barContainer, "LEFT", 0, 0)
-    thisBar:SetTexture("Interface\\Buttons\\WHITE8x8")
+    thisBar:SetTexture(TEX_WHITE8X8)
     thisBar:SetVertexColor(0.61, 0.19, 1.00, 1)
     window.thisBar = thisBar
 
     -- Best time marker
     local bestMarker = barContainer:CreateTexture(nil, "OVERLAY")
     bestMarker:SetSize(2, 20)
-    bestMarker:SetTexture("Interface\\Buttons\\WHITE8x8")
+    bestMarker:SetTexture(TEX_WHITE8X8)
     bestMarker:SetVertexColor(0.2, 0.8, 0.2, 1)
     window.bestMarker = bestMarker
 
@@ -1735,7 +1803,7 @@ function CritterUI:CreateCombinedStatsWindow()
     quoteBox:SetSize(280, 50)
     quoteBox:SetPoint("TOP", barContainer, "BOTTOM", 0, -15)
     quoteBox:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8x8",
+        bgFile = TEX_WHITE8X8,
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         tile = true, tileSize = 8, edgeSize = 10,
         insets = { left = 2, right = 2, top = 2, bottom = 2 }
@@ -1819,7 +1887,7 @@ function CritterUI:ShowCombinedStats(bossData, killTime, bestTime, quip, nextBos
     if iconPath then
         window.bossIcon:SetTexture("Interface\\Icons\\" .. iconPath)
     else
-        window.bossIcon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+        window.bossIcon:SetTexture(HopeAddon.DEFAULT_ICON_PATH)
     end
 
     -- Set boss name
@@ -1948,13 +2016,13 @@ function CritterUI:CreateBossTipsPanel()
     local panel = CreateFrame("Frame", "HopeCrusadeCritterBossTips", UIParent, "BackdropTemplate")
     panel:SetSize(TIPS_PANEL_WIDTH, TIPS_PANEL_HEIGHT)
     panel:SetBackdrop(C.BACKDROPS and C.BACKDROPS.DARK_GOLD or {
-        bgFile = "Interface\\Buttons\\WHITE8x8",
+        bgFile = TEX_WHITE8X8,
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         tile = true, tileSize = 16, edgeSize = 14,
         insets = { left = 3, right = 3, top = 3, bottom = 3 }
     })
-    panel:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
-    panel:SetBackdropBorderColor(1, 0.84, 0, 1)
+    panel:SetBackdropColor(unpack(COLOR_DARK_BG))
+    panel:SetBackdropBorderColor(unpack(COLOR_GOLD_BORDER))
     panel:SetFrameStrata("DIALOG")
     panel:SetPoint("CENTER", UIParent, "CENTER", 0, 50)
     panel:SetClampedToScreen(true)
@@ -1970,7 +2038,7 @@ function CritterUI:CreateBossTipsPanel()
     local bossName = panel:CreateFontString(nil, "OVERLAY")
     bossName:SetFont(HopeAddon.assets.fonts.HEADER, 13, "")
     bossName:SetPoint("LEFT", bossIcon, "RIGHT", 8, 4)
-    bossName:SetTextColor(1, 0.84, 0)
+    bossName:SetTextColor(unpack(COLOR_GOLD))
     panel.bossName = bossName
 
     -- Boss subtitle (e.g., dungeon name)
@@ -1991,7 +2059,7 @@ function CritterUI:CreateBossTipsPanel()
     local progress = panel:CreateFontString(nil, "OVERLAY")
     progress:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
     progress:SetPoint("TOPRIGHT", closeBtn, "TOPLEFT", -5, -8)
-    progress:SetTextColor(0.7, 0.7, 0.7)
+    progress:SetTextColor(unpack(COLOR_LABEL_GRAY))
     panel.progress = progress
 
     -- Tip text container
@@ -1999,7 +2067,7 @@ function CritterUI:CreateBossTipsPanel()
     tipContainer:SetSize(290, 80)
     tipContainer:SetPoint("TOP", panel, "TOP", 0, -55)
     tipContainer:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8x8",
+        bgFile = TEX_WHITE8X8,
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         tile = true, tileSize = 8, edgeSize = 10,
         insets = { left = 2, right = 2, top = 2, bottom = 2 }
@@ -2023,14 +2091,14 @@ function CritterUI:CreateBossTipsPanel()
     local progressBarBg = panel:CreateTexture(nil, "BACKGROUND")
     progressBarBg:SetSize(290, 6)
     progressBarBg:SetPoint("TOP", tipContainer, "BOTTOM", 0, -10)
-    progressBarBg:SetTexture("Interface\\Buttons\\WHITE8x8")
+    progressBarBg:SetTexture(TEX_WHITE8X8)
     progressBarBg:SetVertexColor(0.2, 0.2, 0.2, 0.8)
     panel.progressBarBg = progressBarBg
 
     local progressBar = panel:CreateTexture(nil, "ARTWORK")
     progressBar:SetHeight(6)
     progressBar:SetPoint("LEFT", progressBarBg, "LEFT", 0, 0)
-    progressBar:SetTexture("Interface\\Buttons\\WHITE8x8")
+    progressBar:SetTexture(TEX_WHITE8X8)
     progressBar:SetVertexColor(0.61, 0.19, 1.00, 1)
     panel.progressBar = progressBar
 
@@ -2123,7 +2191,7 @@ function CritterUI:ShowBossTips(bossKey, bossName)
     if iconPath then
         panel.bossIcon:SetTexture("Interface\\Icons\\" .. iconPath)
     else
-        panel.bossIcon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+        panel.bossIcon:SetTexture(HopeAddon.DEFAULT_ICON_PATH)
     end
 
     -- Set boss name
@@ -2362,26 +2430,26 @@ function CritterUI:CreatePrePullButton()
 
     -- Background
     btn:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8x8",
+        bgFile = TEX_WHITE8X8,
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         tile = false, edgeSize = 8,
         insets = { left = 1, right = 1, top = 1, bottom = 1 }
     })
     btn:SetBackdropColor(0.2, 0.2, 0.2, 0.9)
-    btn:SetBackdropBorderColor(1, 0.84, 0, 0.8)
+    btn:SetBackdropBorderColor(unpack(COLOR_GOLD_BORDER_80))
 
     -- "?" text
     local text = btn:CreateFontString(nil, "OVERLAY")
     text:SetFont(HopeAddon.assets.fonts.HEADER, 12, "")
     text:SetPoint("CENTER", btn, "CENTER", 0, 0)
     text:SetText("?")
-    text:SetTextColor(1, 0.84, 0)
+    text:SetTextColor(unpack(COLOR_GOLD))
     btn.text = text
 
     -- Hover highlight
     local highlight = btn:CreateTexture(nil, "HIGHLIGHT")
     highlight:SetAllPoints(btn)
-    highlight:SetTexture("Interface\\Buttons\\WHITE8x8")
+    highlight:SetTexture(TEX_WHITE8X8)
     highlight:SetBlendMode("ADD")
     highlight:SetVertexColor(1, 0.84, 0, 0.3)
 
@@ -2393,7 +2461,7 @@ function CritterUI:CreatePrePullButton()
     -- Tooltip
     btn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        GameTooltip:AddLine("Dungeon Guide", 1, 0.84, 0)
+        GameTooltip:AddLine("Dungeon Guide", unpack(COLOR_GOLD))
         GameTooltip:AddLine("View boss tips and progress", 0.7, 0.7, 0.7)
         GameTooltip:Show()
     end)
@@ -2446,26 +2514,26 @@ function CritterUI:CreateStatsButton()
 
     -- Background
     btn:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8x8",
+        bgFile = TEX_WHITE8X8,
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         tile = false, edgeSize = 8,
         insets = { left = 1, right = 1, top = 1, bottom = 1 }
     })
     btn:SetBackdropColor(0.2, 0.2, 0.2, 0.9)
-    btn:SetBackdropBorderColor(1, 0.84, 0, 0.8)
+    btn:SetBackdropBorderColor(unpack(COLOR_GOLD_BORDER_80))
 
     -- Chart icon (using bars symbol)
     local text = btn:CreateFontString(nil, "OVERLAY")
     text:SetFont(HopeAddon.assets.fonts.HEADER, 10, "")
     text:SetPoint("CENTER", btn, "CENTER", 0, 0)
     text:SetText("\226\150\136") -- Unicode block element (like bars)
-    text:SetTextColor(1, 0.84, 0)
+    text:SetTextColor(unpack(COLOR_GOLD))
     btn.text = text
 
     -- Hover highlight
     local highlight = btn:CreateTexture(nil, "HIGHLIGHT")
     highlight:SetAllPoints(btn)
-    highlight:SetTexture("Interface\\Buttons\\WHITE8x8")
+    highlight:SetTexture(TEX_WHITE8X8)
     highlight:SetBlendMode("ADD")
     highlight:SetVertexColor(1, 0.84, 0, 0.3)
 
@@ -2477,7 +2545,7 @@ function CritterUI:CreateStatsButton()
     -- Tooltip
     btn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        GameTooltip:AddLine("Dungeon Progress", 1, 0.84, 0)
+        GameTooltip:AddLine("Dungeon Progress", unpack(COLOR_GOLD))
         GameTooltip:AddLine("View dungeon stats and critter unlocks", 0.7, 0.7, 0.7)
         GameTooltip:Show()
     end)
@@ -2508,20 +2576,20 @@ function CritterUI:CreateBossDropdown()
     dropdown:SetFrameLevel(250)
 
     dropdown:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8x8",
+        bgFile = TEX_WHITE8X8,
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         tile = true, tileSize = 16, edgeSize = 12,
         insets = { left = 3, right = 3, top = 3, bottom = 3 }
     })
-    dropdown:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
-    dropdown:SetBackdropBorderColor(1, 0.84, 0, 1)
+    dropdown:SetBackdropColor(unpack(COLOR_DARK_BG))
+    dropdown:SetBackdropBorderColor(unpack(COLOR_GOLD_BORDER))
 
     -- Title
     local title = dropdown:CreateFontString(nil, "OVERLAY")
     title:SetFont(HopeAddon.assets.fonts.HEADER, 11, "")
     title:SetPoint("TOP", dropdown, "TOP", 0, -8)
     title:SetText("Select Boss:")
-    title:SetTextColor(1, 0.84, 0)
+    title:SetTextColor(unpack(COLOR_GOLD))
     dropdown.title = title
 
     -- Scroll frame for boss list
@@ -2641,13 +2709,13 @@ function CritterUI:ShowBossDropdown()
             check:SetTextColor(0.3, 0.8, 0.3)
         else
             if isNext then
-                text:SetTextColor(1, 0.84, 0)
+                text:SetTextColor(unpack(COLOR_GOLD))
                 -- Arrow
                 local arrow = btn:CreateFontString(nil, "OVERLAY")
                 arrow:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
                 arrow:SetPoint("LEFT", btn, "LEFT", 5, 0)
                 arrow:SetText("\226\150\182")
-                arrow:SetTextColor(1, 0.84, 0)
+                arrow:SetTextColor(unpack(COLOR_GOLD))
             else
                 text:SetTextColor(0.8, 0.8, 0.8)
             end
@@ -2656,7 +2724,7 @@ function CritterUI:ShowBossDropdown()
         -- Highlight
         local highlight = btn:CreateTexture(nil, "HIGHLIGHT")
         highlight:SetAllPoints(btn)
-        highlight:SetTexture("Interface\\Buttons\\WHITE8x8")
+        highlight:SetTexture(TEX_WHITE8X8)
         highlight:SetBlendMode("ADD")
         highlight:SetVertexColor(1, 0.84, 0, 0.2)
 
@@ -2724,7 +2792,7 @@ function CritterUI:CreateFloatingBubble()
 
     -- Comic-style: white background, black border
     bubble:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8x8",
+        bgFile = TEX_WHITE8X8,
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         tile = true,
         tileSize = 16,
@@ -2754,7 +2822,7 @@ function CritterUI:CreateFloatingBubble()
 
     -- Separator line
     local line = bubble:CreateTexture(nil, "ARTWORK")
-    line:SetTexture("Interface\\Buttons\\WHITE8x8")
+    line:SetTexture(TEX_WHITE8X8)
     line:SetSize(FLOATING_BUBBLE_WIDTH - 30, 1)
     line:SetPoint("TOP", bossName, "BOTTOM", 0, -4)
     line:SetVertexColor(0.3, 0.3, 0.3, 0.5)
@@ -2790,7 +2858,7 @@ function CritterUI:CreateFloatingBubble()
 
     -- Speech bubble tail (pointing to bottom-right corner where critter icon might be)
     local tail = bubble:CreateTexture(nil, "ARTWORK")
-    tail:SetTexture("Interface\\Buttons\\WHITE8x8")
+    tail:SetTexture(TEX_WHITE8X8)
     tail:SetVertexColor(1, 1, 1, 0.95)
     tail:SetSize(16, 12)
     tail:SetPoint("TOPLEFT", bubble, "BOTTOMRIGHT", -40, 2)
@@ -2826,17 +2894,8 @@ function CritterUI:ShowBossGuideQueue(guides, critterName)
     self.floatingBubbleCritterName = critterName or "Critter"
     self.isShowingQueue = true
 
-    -- Update critter icon
-    local iconMap = {
-        Chomp = "Interface\\Icons\\Ability_Hunter_Pet_Ravager",
-        Snookimp = "Interface\\Icons\\Spell_Shadow_SummonImp",
-        Shred = "Interface\\Icons\\Ability_Creature_Poison_04",
-        Emo = "Interface\\Icons\\Ability_Hunter_Pet_Bat",
-        Cosmo = "Interface\\Icons\\Spell_Arcane_Starfire",
-        Boomer = "Interface\\Icons\\Ability_EyeOfTheOwl",
-        Diva = "Interface\\Icons\\Ability_Hunter_Pet_DragonHawk",
-    }
-    local icon = iconMap[critterName] or iconMap.Chomp
+    -- Update critter icon (use lowercase key for case-insensitivity)
+    local icon = CRITTER_ICONS[critterName:lower()] or CRITTER_ICONS.chomp
     self.floatingBubble.critterIcon:SetTexture(icon)
 
     -- Show first guide
@@ -2991,8 +3050,8 @@ function CritterUI:ShowUnlockCelebration(critterId)
     local popup = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
     popup:SetSize(350, 100)
     popup:SetBackdrop(HopeAddon.Constants.BACKDROPS.DARK_GOLD)
-    popup:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
-    popup:SetBackdropBorderColor(1, 0.84, 0, 1)
+    popup:SetBackdropColor(unpack(COLOR_DARK_BG))
+    popup:SetBackdropBorderColor(unpack(COLOR_GOLD_BORDER))
     popup:SetFrameStrata("DIALOG")
     popup:SetPoint("CENTER", UIParent, "CENTER", 0, 100)
     popup:SetClampedToScreen(true)
@@ -3001,7 +3060,7 @@ function CritterUI:ShowUnlockCelebration(critterId)
     title:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
     title:SetPoint("TOP", popup, "TOP", 0, -15)
     title:SetText("NEW CRITTER UNLOCKED!")
-    title:SetTextColor(1, 0.84, 0)
+    title:SetTextColor(unpack(COLOR_GOLD))
 
     local text = popup:CreateFontString(nil, "OVERLAY")
     text:SetFont(HopeAddon.assets.fonts.BODY, 12, "")
@@ -3143,7 +3202,7 @@ function CritterUI:CreateStatsDropdown(parent, width, onChange)
         edgeSize = 10,
         insets = { left = 2, right = 2, top = 2, bottom = 2 },
     })
-    dropdown:SetBackdropColor(0.1, 0.1, 0.1, 1)
+    dropdown:SetBackdropColor(unpack(COLOR_DARK_BG_FULL))
     dropdown:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
 
     dropdown.text = dropdown:CreateFontString(nil, "OVERLAY")
@@ -3168,7 +3227,7 @@ function CritterUI:CreateStatsDropdown(parent, width, onChange)
         self:ShowMenu()
     end)
     dropdown:SetScript("OnEnter", function(self)
-        self:SetBackdropBorderColor(1, 0.84, 0, 1)
+        self:SetBackdropBorderColor(unpack(COLOR_GOLD_BORDER))
     end)
     dropdown:SetScript("OnLeave", function(self)
         self:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
@@ -3246,7 +3305,7 @@ function CritterUI:CreateStatsDropdown(parent, width, onChange)
                 edgeSize = 10,
                 insets = { left = 2, right = 2, top = 2, bottom = 2 },
             })
-            self.menuFrame:SetBackdropColor(0.1, 0.1, 0.1, 1)
+            self.menuFrame:SetBackdropColor(unpack(COLOR_DARK_BG_FULL))
             self.menuFrame:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
             self.menuFrame:SetFrameStrata("TOOLTIP")
         end
@@ -3278,7 +3337,7 @@ function CritterUI:CreateStatsDropdown(parent, width, onChange)
 
                 local highlight = btn:CreateTexture(nil, "HIGHLIGHT")
                 highlight:SetAllPoints(btn)
-                highlight:SetTexture("Interface\\Buttons\\WHITE8x8")
+                highlight:SetTexture(TEX_WHITE8X8)
                 highlight:SetBlendMode("ADD")
                 highlight:SetVertexColor(1, 0.84, 0, 0.2)
 
@@ -3331,7 +3390,7 @@ function CritterUI:CreateTipTooltip()
         edgeSize = 12,
         insets = { left = 2, right = 2, top = 2, bottom = 2 },
     })
-    tooltip:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
+    tooltip:SetBackdropColor(unpack(COLOR_DARK_BG))
     tooltip:SetBackdropBorderColor(0.8, 0.6, 0, 1)  -- gold border
     tooltip:Hide()
 
@@ -3478,7 +3537,7 @@ function CritterUI:CreateSmartDropdown(parent)
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         edgeSize = 8,
     })
-    dropdown.menu:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
+    dropdown.menu:SetBackdropColor(unpack(COLOR_DARK_BG))
     dropdown.menu:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
     dropdown.menu:SetFrameStrata("DIALOG")
     dropdown.menu:Hide()
@@ -3497,7 +3556,7 @@ function CritterUI:CreateSmartDropdown(parent)
 
     -- Hover highlight
     dropdown:SetScript("OnEnter", function(self)
-        self:SetBackdropBorderColor(1, 0.84, 0, 1)
+        self:SetBackdropBorderColor(unpack(COLOR_GOLD_BORDER))
     end)
     dropdown:SetScript("OnLeave", function(self)
         self:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
@@ -3675,13 +3734,13 @@ function CritterUI:CreateStatsPanel()
     local panel = CreateFrame("Frame", "HopeCrusadeCritterGuidePanel", UIParent, "BackdropTemplate")
     panel:SetSize(GUIDE_PANEL_WIDTH, GUIDE_PANEL_HEIGHT)
     panel:SetBackdrop(C.BACKDROPS and C.BACKDROPS.DARK_GOLD or {
-        bgFile = "Interface\\Buttons\\WHITE8x8",
+        bgFile = TEX_WHITE8X8,
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         tile = true, tileSize = 16, edgeSize = 14,
         insets = { left = 3, right = 3, top = 3, bottom = 3 }
     })
-    panel:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
-    panel:SetBackdropBorderColor(1, 0.84, 0, 1)
+    panel:SetBackdropColor(unpack(COLOR_DARK_BG))
+    panel:SetBackdropBorderColor(unpack(COLOR_GOLD_BORDER))
     panel:SetFrameStrata("HIGH")
     panel:SetClampedToScreen(true)
     panel:SetMovable(true)
@@ -3705,7 +3764,7 @@ function CritterUI:CreateStatsPanel()
 
     -- Visual indicator (subtle bar)
     local handleTex = dragHandle:CreateTexture(nil, "ARTWORK")
-    handleTex:SetTexture("Interface\\Buttons\\WHITE8x8")
+    handleTex:SetTexture(TEX_WHITE8X8)
     handleTex:SetVertexColor(0.4, 0.35, 0.25, 0.6)
     handleTex:SetHeight(4)
     handleTex:SetPoint("LEFT", 4, 0)
@@ -3734,7 +3793,7 @@ function CritterUI:CreateStatsPanel()
     title:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
     title:SetPoint("TOP", panel, "TOP", 0, -12)
     title:SetText("DUNGEON GUIDE")
-    title:SetTextColor(1, 0.84, 0)
+    title:SetTextColor(unpack(COLOR_GOLD))
     panel.title = title
 
     -- Close button
@@ -3746,7 +3805,7 @@ function CritterUI:CreateStatsPanel()
 
     -- Decorative line under title
     local titleLine = panel:CreateTexture(nil, "ARTWORK")
-    titleLine:SetTexture(HopeAddon.assets.textures.SOLID or "Interface\\Buttons\\WHITE8x8")
+    titleLine:SetTexture(HopeAddon.assets.textures.SOLID or TEX_WHITE8X8)
     titleLine:SetSize(GUIDE_PANEL_WIDTH - 30, 1)
     titleLine:SetPoint("TOP", title, "BOTTOM", 0, -6)
     titleLine:SetVertexColor(1, 0.84, 0, 0.5)
@@ -3763,7 +3822,7 @@ function CritterUI:CreateStatsPanel()
     tierLabel:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
     tierLabel:SetPoint("TOPLEFT", panel, "TOPLEFT", 15, yOffset)
     tierLabel:SetText("Tier:")
-    tierLabel:SetTextColor(0.7, 0.7, 0.7)
+    tierLabel:SetTextColor(unpack(COLOR_LABEL_GRAY))
     panel.tierLabel = tierLabel
 
     -- Tier dropdown
@@ -3780,7 +3839,7 @@ function CritterUI:CreateStatsPanel()
     instanceLabel:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
     instanceLabel:SetPoint("TOPLEFT", panel, "TOPLEFT", 15, yOffset)
     instanceLabel:SetText("Dungeon:")
-    instanceLabel:SetTextColor(0.7, 0.7, 0.7)
+    instanceLabel:SetTextColor(unpack(COLOR_LABEL_GRAY))
     panel.instanceLabel = instanceLabel
 
     -- Instance dropdown
@@ -3796,7 +3855,7 @@ function CritterUI:CreateStatsPanel()
     contentFrame:SetSize(GUIDE_PANEL_WIDTH - 20, GUIDE_SCROLL_AREA_MAX + 40)
     contentFrame:SetPoint("TOPLEFT", panel, "TOPLEFT", 10, yOffset)
     contentFrame:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8x8",
+        bgFile = TEX_WHITE8X8,
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         tile = true, tileSize = 8, edgeSize = 10,
         insets = { left = 2, right = 2, top = 2, bottom = 2 }
@@ -3809,19 +3868,19 @@ function CritterUI:CreateStatsPanel()
     local instanceHeader = contentFrame:CreateFontString(nil, "OVERLAY")
     instanceHeader:SetFont(HopeAddon.assets.fonts.HEADER, 12, "")
     instanceHeader:SetPoint("TOP", contentFrame, "TOP", 0, -8)
-    instanceHeader:SetTextColor(1, 0.84, 0)
+    instanceHeader:SetTextColor(unpack(COLOR_GOLD))
     panel.instanceHeader = instanceHeader
 
     -- Stats line (Runs: X | Best: X:XX | Hub: X)
     local statsLine = contentFrame:CreateFontString(nil, "OVERLAY")
     statsLine:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
     statsLine:SetPoint("TOP", instanceHeader, "BOTTOM", 0, -4)
-    statsLine:SetTextColor(0.7, 0.7, 0.7)
+    statsLine:SetTextColor(unpack(COLOR_LABEL_GRAY))
     panel.statsLine = statsLine
 
     -- Separator
     local contentSep = contentFrame:CreateTexture(nil, "ARTWORK")
-    contentSep:SetTexture("Interface\\Buttons\\WHITE8x8")
+    contentSep:SetTexture(TEX_WHITE8X8)
     contentSep:SetSize(GUIDE_PANEL_WIDTH - 40, 1)
     contentSep:SetPoint("TOP", statsLine, "BOTTOM", 0, -6)
     contentSep:SetVertexColor(0.4, 0.4, 0.4, 0.6)
@@ -3881,7 +3940,7 @@ function CritterUI:CreateStatsPanel()
     cbLabel:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
     cbLabel:SetPoint("LEFT", checkbox, "RIGHT", 2, 0)
     cbLabel:SetText("Don't show on entry")
-    cbLabel:SetTextColor(0.7, 0.7, 0.7)
+    cbLabel:SetTextColor(unpack(COLOR_LABEL_GRAY))
     panel.hideCheckbox = checkbox
 
     panel:Hide()
@@ -4044,7 +4103,7 @@ function CritterUI:DisplayInstanceStats(instanceKey, instanceData)
             -- Enable mouse interaction for hover tooltip
             row:EnableMouse(true)
             row:SetScript("OnEnter", function(self)
-                self.nameText:SetTextColor(1, 0.84, 0)  -- gold highlight
+                self.nameText:SetTextColor(unpack(COLOR_GOLD))  -- gold highlight
                 self.tipIcon:SetTextColor(1, 0.82, 0)   -- gold
                 CritterUI:ShowBossTipTooltip(self.bossKey, self.bossName, CritterUI.guidePanel)
             end)
@@ -4164,9 +4223,10 @@ function CritterUI:UpdateHubStatus(instanceKey)
         self.guidePanel.hubStatus:SetText(string.format("\226\156\147 %s Unlocked!", critterName))
         self.guidePanel.hubStatus:SetTextColor(0.3, 0.8, 0.3)
     else
+        -- Mystery display - hide critter name until unlocked
         local unlockLevel = critterData and critterData.unlockLevel or 1
-        self.guidePanel.hubStatus:SetText(string.format("Unlock %s at Lv %d", critterName, unlockLevel))
-        self.guidePanel.hubStatus:SetTextColor(0.7, 0.7, 0.7)
+        self.guidePanel.hubStatus:SetText(string.format("Unlock ??? at Lv %d", unlockLevel))
+        self.guidePanel.hubStatus:SetTextColor(unpack(COLOR_LABEL_GRAY))
     end
 end
 
@@ -4270,7 +4330,6 @@ end
 function CritterUI:GetRaidBosses(raidKey)
     local C = HopeAddon.Constants
     if not C then
-        print("|cffff0000[Critter]|r Constants not loaded - cannot get raid bosses")
         return {}
     end
 
@@ -4296,7 +4355,6 @@ function CritterUI:GetRaidBosses(raidKey)
     end
 
     if not bossTable then
-        print("|cffff6600[Critter]|r No boss data found for raid: " .. tostring(raidKey))
         return {}
     end
 
@@ -4309,10 +4367,6 @@ function CritterUI:GetRaidBosses(raidKey)
                 name = boss.name,
             })
         end
-    end
-
-    if #options == 0 then
-        print("|cffff6600[Critter]|r Boss table exists but no valid bosses for: " .. tostring(raidKey))
     end
 
     return options
@@ -4341,7 +4395,7 @@ function CritterUI:CreateRaidGuidePanel()
 
     -- Dark background with border
     panel:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8x8",
+        bgFile = TEX_WHITE8X8,
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         tile = true,
         tileSize = 16,
@@ -4361,7 +4415,7 @@ function CritterUI:CreateRaidGuidePanel()
     headerText:SetFont(HopeAddon.assets.fonts.HEADER or "Fonts\\FRIZQT__.TTF", 11, "")
     headerText:SetPoint("LEFT", header, "LEFT", 8, 0)
     headerText:SetText("Boss Guide")
-    headerText:SetTextColor(1, 0.84, 0)
+    headerText:SetTextColor(unpack(COLOR_GOLD))
     panel.headerText = headerText
 
     -- Expand/Collapse indicator
@@ -4369,13 +4423,13 @@ function CritterUI:CreateRaidGuidePanel()
     indicator:SetFont(HopeAddon.assets.fonts.BODY or "Fonts\\FRIZQT__.TTF", 12, "")
     indicator:SetPoint("RIGHT", header, "RIGHT", -8, 0)
     indicator:SetText(self.raidGuideIsExpanded and "▼" or "▶")
-    indicator:SetTextColor(0.7, 0.7, 0.7)
+    indicator:SetTextColor(unpack(COLOR_LABEL_GRAY))
     panel.indicator = indicator
 
     -- Hover highlight
     local highlight = header:CreateTexture(nil, "HIGHLIGHT")
     highlight:SetAllPoints(header)
-    highlight:SetTexture("Interface\\Buttons\\WHITE8x8")
+    highlight:SetTexture(TEX_WHITE8X8)
     highlight:SetBlendMode("ADD")
     highlight:SetVertexColor(1, 0.84, 0, 0.1)
 
@@ -4399,7 +4453,7 @@ function CritterUI:CreateRaidGuidePanel()
     raidLabel:SetFont(HopeAddon.assets.fonts.BODY or "Fonts\\FRIZQT__.TTF", 9, "")
     raidLabel:SetPoint("TOPLEFT", content, "TOPLEFT", 5, yOffset)
     raidLabel:SetText("Raid:")
-    raidLabel:SetTextColor(0.7, 0.7, 0.7)
+    raidLabel:SetTextColor(unpack(COLOR_LABEL_GRAY))
 
     -- Raid dropdown
     self.raidGuideRaidDropdown = self:CreateStatsDropdown(content, RAID_GUIDE_WIDTH - 50, function(key, data)
@@ -4415,7 +4469,7 @@ function CritterUI:CreateRaidGuidePanel()
     bossLabel:SetFont(HopeAddon.assets.fonts.BODY or "Fonts\\FRIZQT__.TTF", 9, "")
     bossLabel:SetPoint("TOPLEFT", content, "TOPLEFT", 5, yOffset)
     bossLabel:SetText("Boss:")
-    bossLabel:SetTextColor(0.7, 0.7, 0.7)
+    bossLabel:SetTextColor(unpack(COLOR_LABEL_GRAY))
 
     -- Boss dropdown
     self.raidGuideBossDropdown = self:CreateStatsDropdown(content, RAID_GUIDE_WIDTH - 50, function(key, data)
@@ -4479,6 +4533,11 @@ function CritterUI:CreateRaidGuidePanel()
     else
         panel:SetHeight(RAID_GUIDE_HEADER_HEIGHT)
         content:Hide()
+    end
+
+    -- Initialize with first raid
+    if #RAID_OPTIONS > 0 then
+        self:OnRaidGuideRaidSelect(RAID_OPTIONS[1].key, RAID_OPTIONS[1])
     end
 
     panel:Hide()

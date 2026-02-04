@@ -311,7 +311,6 @@ local CLASS_ICONS = {
     WARLOCK = "Interface\\Icons\\ClassIcon_Warlock",
     DRUID = "Interface\\Icons\\ClassIcon_Druid",
 }
-local DEFAULT_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
 
 --[[
     Get class icon for display
@@ -319,7 +318,7 @@ local DEFAULT_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
     @return string - Icon path
 ]]
 function Directory:GetClassIcon(class)
-    return CLASS_ICONS[class] or DEFAULT_ICON
+    return CLASS_ICONS[class] or HopeAddon.DEFAULT_ICON_PATH
 end
 
 --============================================================

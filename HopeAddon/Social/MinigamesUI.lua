@@ -1597,7 +1597,7 @@ function MinigamesUI:CreateLocalRPSContainer(frame, content)
     local yourIcon = yourSection:CreateTexture(nil, "ARTWORK")
     yourIcon:SetSize(RPS_UI.BUTTON_SIZE, RPS_UI.BUTTON_SIZE)
     yourIcon:SetPoint("CENTER", yourSection, "CENTER", 0, -10)
-    yourIcon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+    yourIcon:SetTexture(HopeAddon.DEFAULT_ICON_PATH)
     frame.localRPSYourIcon = yourIcon
 
     local yourChoice = yourSection:CreateFontString(nil, "OVERLAY")
@@ -1629,7 +1629,7 @@ function MinigamesUI:CreateLocalRPSContainer(frame, content)
     local aiIcon = aiSection:CreateTexture(nil, "ARTWORK")
     aiIcon:SetSize(RPS_UI.BUTTON_SIZE, RPS_UI.BUTTON_SIZE)
     aiIcon:SetPoint("CENTER", aiSection, "CENTER", 0, -10)
-    aiIcon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+    aiIcon:SetTexture(HopeAddon.DEFAULT_ICON_PATH)
     frame.localRPSAIIcon = aiIcon
 
     local aiChoice = aiSection:CreateFontString(nil, "OVERLAY")
@@ -1738,9 +1738,9 @@ function MinigamesUI:ShowLocalRPSGame(aiName)
     frame.localRPSTitle:SetText(aiName)
     frame.localRPSStatus:SetText("CHOOSE YOUR WEAPON!")
     frame.localRPSStatus:SetTextColor(1, 0.84, 0)  -- Gold
-    frame.localRPSYourIcon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+    frame.localRPSYourIcon:SetTexture(HopeAddon.DEFAULT_ICON_PATH)
     frame.localRPSYourChoice:SetText("?")
-    frame.localRPSAIIcon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+    frame.localRPSAIIcon:SetTexture(HopeAddon.DEFAULT_ICON_PATH)
     frame.localRPSAIChoice:SetText("?")
     frame.localRPSResult:SetText("")
 

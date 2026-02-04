@@ -14,15 +14,9 @@ local LOCATION_STALE_TIME = 300  -- 5 minutes - consider location stale
 local MAX_PINS = 50  -- Maximum pins to display at once
 local MAX_POOLED_PINS = 60  -- Issue #71.11: Maximum pins to keep in pool
 
--- RP Status colors - use centralized constants for consistency
--- Reference: HopeAddon.Constants.RP_STATUS_COLORS (defined in Constants.lua)
+-- RP Status colors - use centralized constants
 local function GetRPStatusColors()
-    return HopeAddon.Constants and HopeAddon.Constants.RP_STATUS_COLORS or {
-        IC = { r = 0.2, g = 1.0, b = 0.2 },
-        OOC = { r = 0.0, g = 0.75, b = 1.0 },
-        LF_RP = { r = 1.0, g = 0.2, b = 0.8 },
-        DEFAULT = { r = 0.0, g = 0.75, b = 1.0 },
-    }
+    return HopeAddon.Constants.RP_STATUS_COLORS
 end
 
 -- Star icon texture for Fellow Travelers

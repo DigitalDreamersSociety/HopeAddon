@@ -16,15 +16,9 @@ HopeAddon:RegisterModule("NameplateColors", NameplateColors)
 -- CONSTANTS
 --============================================================
 
--- RP Status colors - use centralized constants for consistency
--- Reference: HopeAddon.Constants.RP_STATUS_COLORS (defined in Constants.lua)
+-- RP Status colors - use centralized constants
 local function GetRPStatusColors()
-    return HopeAddon.Constants and HopeAddon.Constants.RP_STATUS_COLORS or {
-        IC = { r = 0.2, g = 1.0, b = 0.2 },
-        OOC = { r = 0.0, g = 0.75, b = 1.0 },
-        LF_RP = { r = 1.0, g = 0.2, b = 0.8 },
-        DEFAULT = { r = 0.0, g = 0.75, b = 1.0 },
-    }
+    return HopeAddon.Constants.RP_STATUS_COLORS
 end
 
 -- Update interval (100ms for responsiveness without perf hit)

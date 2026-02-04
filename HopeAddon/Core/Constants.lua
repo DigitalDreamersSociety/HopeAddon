@@ -218,6 +218,7 @@ C.DUNGEON_BOSS_ORDER = {
     mana_tombs = {
         { key = "pandemonius", npcId = 18341, name = "Pandemonius" },
         { key = "tavarok", npcId = 18343, name = "Tavarok" },
+        { key = "yor", npcId = 22930, name = "Yor" },
         { key = "nexus_prince_shaffar", npcId = 18344, name = "Nexus-Prince Shaffar", isFinal = true },
     },
     auchenai_crypts = {
@@ -226,6 +227,7 @@ C.DUNGEON_BOSS_ORDER = {
     },
     sethekk_halls = {
         { key = "darkweaver_syth", npcId = 18472, name = "Darkweaver Syth" },
+        { key = "anzu", npcId = 23035, name = "Anzu" },
         { key = "talon_king_ikiss", npcId = 18473, name = "Talon King Ikiss", isFinal = true },
     },
     shadow_lab = {
@@ -312,12 +314,14 @@ C.BOSS_ICONS = {
     -- Mana-Tombs
     pandemonius = "Spell_Shadow_VoidBolt",
     tavarok = "Ability_GolemThunderClap",
+    yor = "Spell_Shadow_ShadowWordPain",
     nexus_prince_shaffar = "Spell_Arcane_PortalShattrath",
     -- Auchenai Crypts
     shirrak_the_dead_watcher = "Spell_Shadow_DeathPact",
     exarch_maladaar = "Spell_Holy_Resurrect",
     -- Sethekk Halls
     darkweaver_syth = "Spell_Shadow_SummonFelHunter",
+    anzu = "Ability_Hunter_Pet_Owl",
     talon_king_ikiss = "Ability_Hunter_Pet_Owl",
     -- Shadow Labyrinth
     ambassador_hellmaw = "Spell_Shadow_RitualOfSacrifice",
@@ -9149,7 +9153,7 @@ C.CALENDAR_SIGNUP_STATUS = {
     ACCEPTED = { name = "Accepted", icon = "Interface\\RAIDFRAME\\ReadyCheck-Ready" },
     DECLINED = { name = "Declined", icon = "Interface\\RAIDFRAME\\ReadyCheck-NotReady" },
     TENTATIVE = { name = "Tentative", icon = "Interface\\RAIDFRAME\\ReadyCheck-Waiting" },
-    PENDING = { name = "Pending", icon = "Interface\\Icons\\INV_Misc_QuestionMark" },
+    PENDING = { name = "Pending", icon = HopeAddon.DEFAULT_ICON_PATH },
 }
 
 -- Custom event color presets for calendar events
@@ -9540,7 +9544,7 @@ function C:GetCalendarEventIcon(event)
     if eventTypeData and eventTypeData.icon then
         return eventTypeData.icon
     end
-    return "Interface\\Icons\\INV_Misc_QuestionMark"
+    return HopeAddon.DEFAULT_ICON_PATH
 end
 
 -- Get color theme for event card

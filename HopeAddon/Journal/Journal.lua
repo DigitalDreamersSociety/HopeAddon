@@ -125,11 +125,6 @@ local STANDING_THRESHOLDS = {
     [1] = 36000, [2] = 3000, [3] = 3000, [4] = 3000, [5] = 6000, [6] = 12000, [7] = 21000, [8] = 999,
 }
 
-local STANDING_NAMES = {
-    [1] = "Hated", [2] = "Hostile", [3] = "Unfriendly", [4] = "Neutral",
-    [5] = "Friendly", [6] = "Honored", [7] = "Revered", [8] = "Exalted",
-}
-
 -- Game stats display order and info (used by PopulateStats)
 local GAME_STATS_ORDER = { "rps", "deathroll", "pong", "tetris", "battleship" }
 local GAME_STATS_INFO = {
@@ -1322,7 +1317,7 @@ function Journal:AcquireUpgradeCard(parent, itemData, factionProgress)
     card:SetBackdropBorderColor(qualityColor.r, qualityColor.g, qualityColor.b, 1)
 
     -- Icon
-    card.icon:SetTexture("Interface\\Icons\\" .. (itemData.icon or "INV_Misc_QuestionMark"))
+    card.icon:SetTexture("Interface\\Icons\\" .. (itemData.icon or HopeAddon.DEFAULT_ICON))
     card.iconBorder:SetVertexColor(qualityColor.r, qualityColor.g, qualityColor.b, 0.8)
 
     -- Item name
@@ -3053,7 +3048,7 @@ function Journal:CreateLootCard(parent, item, cardKey)
     card.sourceText:Show()
 
     -- Item icon
-    local iconPath = "Interface\\Icons\\" .. (item.icon or "INV_Misc_QuestionMark")
+    local iconPath = "Interface\\Icons\\" .. (item.icon or HopeAddon.DEFAULT_ICON)
     card.itemIcon:SetTexture(iconPath)
     card.itemIcon:Show()
     card.iconBorder:Show()
@@ -3244,7 +3239,7 @@ function Journal:CreateNextStepBox()
     container:Show()
     local phaseBadge = container.phaseBadge or container:CreateFontString(nil, "OVERLAY") container.phaseBadge = phaseBadge phaseBadge:SetFont(HopeAddon.assets.fonts.SMALL, 9, "") phaseBadge:ClearAllPoints() phaseBadge:SetPoint("TOPRIGHT", container, "TOPRIGHT", -10, -8) phaseBadge:SetText(HopeAddon:ColorText(PHASE_NAMES[stepData.phase] or stepData.phase, phaseColor)) phaseBadge:Show()
     local header = container.stepHeader or container:CreateFontString(nil, "OVERLAY") container.stepHeader = header header:SetFont(HopeAddon.assets.fonts.HEADER, 11, "") header:ClearAllPoints() header:SetPoint("TOPLEFT", container, "TOPLEFT", 10, -5) header:SetText(HopeAddon:ColorText("YOUR NEXT STEP", phaseColor)) header:Show()
-    local icon = container.stepIcon or container:CreateTexture(nil, "ARTWORK") container.stepIcon = icon icon:SetSize(48, 48) icon:ClearAllPoints() icon:SetPoint("TOPLEFT", container, "TOPLEFT", 15, -25) icon:SetTexture(stepData.icon or "Interface\\Icons\\INV_Misc_QuestionMark") icon:Show()
+    local icon = container.stepIcon or container:CreateTexture(nil, "ARTWORK") container.stepIcon = icon icon:SetSize(48, 48) icon:ClearAllPoints() icon:SetPoint("TOPLEFT", container, "TOPLEFT", 15, -25) icon:SetTexture(stepData.icon or HopeAddon.DEFAULT_ICON_PATH) icon:Show()
     local title = container.stepTitle or container:CreateFontString(nil, "OVERLAY") container.stepTitle = title title:SetFont(HopeAddon.assets.fonts.HEADER, 14, "") title:ClearAllPoints() title:SetPoint("TOPLEFT", icon, "TOPRIGHT", 12, 2) title:SetText(HopeAddon:ColorText(stepData.title, "BRIGHT_WHITE")) title:Show()
     local subtitle = container.stepSubtitle or container:CreateFontString(nil, "OVERLAY") container.stepSubtitle = subtitle subtitle:SetFont(HopeAddon.assets.fonts.BODY, 11, "") subtitle:ClearAllPoints() subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -2) subtitle:SetText(HopeAddon:ColorText(stepData.subtitle, "SUBTLE")) subtitle:Show()
     local story = container.stepStory or container:CreateFontString(nil, "OVERLAY") container.stepStory = story story:SetFont(HopeAddon.assets.fonts.BODY, 10, "") story:ClearAllPoints() story:SetPoint("TOPLEFT", container, "TOPLEFT", 15, -80) story:SetPoint("RIGHT", container, "RIGHT", -15, 0) story:SetJustifyH("LEFT") story:SetText("|cFFCCCCCC\"" .. (stepData.story or "") .. "\"|r") story:Show()
@@ -3643,7 +3638,7 @@ function Journal:CreateNextEventCardContent(parent)
     container.eventIcon:SetSize(UI.ICON_SIZE, UI.ICON_SIZE)
     container.eventIcon:ClearAllPoints()
     container.eventIcon:SetPoint("TOPLEFT", container, "TOPLEFT", 12, -22)
-    container.eventIcon:SetTexture(event.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+    container.eventIcon:SetTexture(event.icon or HopeAddon.DEFAULT_ICON_PATH)
     container.eventIcon:SetDesaturated(isPast)
     container.eventIcon:SetAlpha(isPast and 0.7 or 1)
 
@@ -3804,7 +3799,7 @@ function Journal:CreateNextEventCard(scrollContainer)
     container.eventIcon:SetSize(UI.ICON_SIZE, UI.ICON_SIZE)
     container.eventIcon:ClearAllPoints()
     container.eventIcon:SetPoint("TOPLEFT", container, "TOPLEFT", 12, -22)
-    container.eventIcon:SetTexture(event.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+    container.eventIcon:SetTexture(event.icon or HopeAddon.DEFAULT_ICON_PATH)
     container.eventIcon:SetDesaturated(isPast)
     container.eventIcon:SetAlpha(isPast and 0.7 or 1)
 
@@ -4378,7 +4373,7 @@ function Journal:CreateLevelingGearCard(parent, item, cardKey, sourceType)
     end
 
     -- Set item icon
-    local iconPath = item.icon or "INV_Misc_QuestionMark"
+    local iconPath = item.icon or HopeAddon.DEFAULT_ICON
     if not string.find(iconPath, "Interface") then
         iconPath = "Interface\\Icons\\" .. iconPath
     end
@@ -5036,7 +5031,7 @@ function Journal:PopulateReputationItemIcons(segmentedBar, factionName, currentS
                 table.insert(trackedAtStanding[standingId], {
                     itemId = itemId,
                     name = itemName or trackData.itemName or "Unknown",
-                    icon = itemTexture or "Interface\\Icons\\INV_Misc_QuestionMark",
+                    icon = itemTexture or HopeAddon.DEFAULT_ICON_PATH,
                     isObtainable = currentStandingId >= standingId,
                     isTracked = true,
                     isBis = false,
@@ -5111,7 +5106,7 @@ function Journal:PopulateReputationItemIcons(segmentedBar, factionName, currentS
 
                             addItem(standingId, {
                                 itemId = item.itemId,
-                                icon = icon or "INV_Misc_QuestionMark",
+                                icon = icon or HopeAddon.DEFAULT_ICON,
                                 name = item.name,
                                 isObtainable = currentStandingId >= standingId,
                                 isBis = item.isBis or false,
@@ -5136,7 +5131,7 @@ function Journal:PopulateReputationItemIcons(segmentedBar, factionName, currentS
                 for _, reward in ipairs(rewards) do
                     addItem(standingId, {
                         itemId = reward.itemId or 0,
-                        icon = reward.icon or "INV_Misc_QuestionMark",
+                        icon = reward.icon or HopeAddon.DEFAULT_ICON,
                         name = reward.name,
                         isObtainable = currentStandingId >= standingId,
                         isBis = false,
@@ -6698,7 +6693,7 @@ function Journal:PopulateRaids()
                                     -LOOT_STRIP_TOP_MARGIN - (i - 1) * (LOOT_ICON_SIZE + LOOT_ICON_SPACING))
 
                                 -- Get actual item icon from WoW API
-                                local iconPath = "Interface\\Icons\\INV_Misc_QuestionMark"
+                                local iconPath = HopeAddon.DEFAULT_ICON_PATH
                                 if item.itemId then
                                     local itemIcon = GetItemIcon(item.itemId)
                                     if itemIcon then
@@ -6994,7 +6989,7 @@ function Journal:GetBossLootPopup()
     local bossIcon = header:CreateTexture(nil, "ARTWORK")
     bossIcon:SetSize(28, 28)
     bossIcon:SetPoint("LEFT", header, "LEFT", C.PADDING, 0)
-    bossIcon:SetTexture("Interface\\ICONS\\INV_Misc_QuestionMark")
+    bossIcon:SetTexture(HopeAddon.DEFAULT_ICON_PATH)
     popup.bossIcon = bossIcon
 
     -- Header title
@@ -7201,7 +7196,7 @@ function Journal:GetReputationLootPopup()
     local factionIcon = header:CreateTexture(nil, "ARTWORK")
     factionIcon:SetSize(32, 32)
     factionIcon:SetPoint("LEFT", header, "LEFT", C.PADDING, 0)
-    factionIcon:SetTexture("Interface\\ICONS\\INV_Misc_QuestionMark")
+    factionIcon:SetTexture(HopeAddon.DEFAULT_ICON_PATH)
     popup.factionIcon = factionIcon
 
     -- Header title (faction name)
@@ -7362,7 +7357,7 @@ function Journal:ShowReputationLootPopup(factionName, factionData)
     self.reputationLootState.popupVisible = true
 
     -- Set header
-    local iconPath = factionData.icon or "INV_Misc_QuestionMark"
+    local iconPath = factionData.icon or HopeAddon.DEFAULT_ICON
     if not iconPath:find("Interface") then
         iconPath = "Interface\\Icons\\" .. iconPath
     end
@@ -7473,7 +7468,7 @@ function Journal:ShowReputationLootPopup(factionName, factionData)
                         iconPath = "Interface\\Icons\\" .. iconPath
                     end
                 end
-                iconPath = iconPath or "Interface\\Icons\\INV_Misc_QuestionMark"
+                iconPath = iconPath or HopeAddon.DEFAULT_ICON_PATH
                 row.icon:SetTexture(iconPath)
 
                 qualityColor = qualityColor or C.QUALITY_COLORS[3]  -- Default rare
@@ -7662,7 +7657,7 @@ end
     @return string - Icon path
 ]]
 local function GetLootIconPath(itemType)
-    if not itemType then return "Interface\\Icons\\INV_Misc_QuestionMark" end
+    if not itemType then return HopeAddon.DEFAULT_ICON_PATH end
 
     local itemTypeLower = itemType:lower()
 
@@ -7740,7 +7735,7 @@ local function GetLootIconPath(itemType)
         return "Interface\\Icons\\INV_Misc_Token_ScarletCrusade"
     end
 
-    return "Interface\\Icons\\INV_Misc_QuestionMark"
+    return HopeAddon.DEFAULT_ICON_PATH
 end
 
 --[[
@@ -7978,7 +7973,7 @@ function Journal:ShowBossLootPopup(raidKey, boss, killData)
     self.bossLootState.popupVisible = true
 
     -- Set header
-    popup.bossIcon:SetTexture("Interface\\Icons\\" .. (boss.icon or "INV_Misc_QuestionMark"))
+    popup.bossIcon:SetTexture("Interface\\Icons\\" .. (boss.icon or HopeAddon.DEFAULT_ICON))
     popup.title:SetText(boss.name)
 
     -- Set info section
@@ -8319,7 +8314,7 @@ function Journal:CreateLFRPRow(parent, fellow, yOffset)
     local classIcon = row:CreateTexture(nil, "ARTWORK")
     classIcon:SetSize(28, 28)
     classIcon:SetPoint("LEFT", row, "LEFT", 0, 0)
-    local iconPath = Directory and Directory:GetClassIcon(fellow.class) or "Interface\\Icons\\INV_Misc_QuestionMark"
+    local iconPath = Directory and Directory:GetClassIcon(fellow.class) or HopeAddon.DEFAULT_ICON_PATH
     classIcon:SetTexture(iconPath)
 
     -- Name with title
@@ -8427,7 +8422,7 @@ function Journal:CreateActivityRow(parent, activity, yOffset)
     local typeIcon = row:CreateTexture(nil, "ARTWORK")
     typeIcon:SetSize(28, 28)
     typeIcon:SetPoint("LEFT", row, "LEFT", 0, 0)
-    local iconPath = ActivityFeed and ActivityFeed:GetActivityIcon(activity.type) or "Interface\\Icons\\INV_Misc_QuestionMark"
+    local iconPath = ActivityFeed and ActivityFeed:GetActivityIcon(activity.type) or HopeAddon.DEFAULT_ICON_PATH
     typeIcon:SetTexture(iconPath)
 
     -- Class-colored player name
@@ -8583,7 +8578,7 @@ function Journal:CreateMyProfileSection(parent)
     local classIcon = container:CreateTexture(nil, "ARTWORK")
     classIcon:SetSize(40, 40)
     classIcon:SetPoint("TOPLEFT", container, "TOPLEFT", 15, -40)
-    local iconPath = HopeAddon.Directory and HopeAddon.Directory:GetClassIcon(playerClass) or "Interface\\Icons\\INV_Misc_QuestionMark"
+    local iconPath = HopeAddon.Directory and HopeAddon.Directory:GetClassIcon(playerClass) or HopeAddon.DEFAULT_ICON_PATH
     classIcon:SetTexture(iconPath)
 
     -- Player name + title
@@ -10542,7 +10537,7 @@ function Journal:CreateGuildMemberRow(parent, member)
         classIcon:SetTexture("Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES")
         classIcon:SetTexCoord(unpack(classCoords))
     else
-        classIcon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+        classIcon:SetTexture(HopeAddon.DEFAULT_ICON_PATH)
     end
 
     -- Check if member is also a Fellow Traveler
@@ -10661,7 +10656,7 @@ function Journal:CreateGuildActivityRow(parent, activity)
     local icon = row:CreateTexture(nil, "ARTWORK")
     icon:SetSize(20, 20)
     icon:SetPoint("LEFT", row, "LEFT", 8, 0)
-    local iconPath = C.GUILD_ACTIVITY_ICONS and C.GUILD_ACTIVITY_ICONS[activity.type] or "Interface\\Icons\\INV_Misc_QuestionMark"
+    local iconPath = C.GUILD_ACTIVITY_ICONS and C.GUILD_ACTIVITY_ICONS[activity.type] or HopeAddon.DEFAULT_ICON_PATH
     icon:SetTexture(iconPath)
     self:TrackSocialRegion(icon)
 
@@ -11672,7 +11667,7 @@ function Journal:CreateFeedRow(parent, activity)
     typeIcon:SetPoint("LEFT", row, "LEFT", 8, 0)
 
     -- Get icon based on activity type - use new constants if available
-    local iconPath = "Interface\\Icons\\INV_Misc_QuestionMark"
+    local iconPath = HopeAddon.DEFAULT_ICON_PATH
     if C.FEED_ACTIVITY_ICONS and C.FEED_ACTIVITY_ICONS[activity.type] then
         iconPath = C.FEED_ACTIVITY_ICONS[activity.type]
     elseif activity.type == "IC" or activity.type == "IC_POST" then
@@ -13025,19 +13020,25 @@ function Journal:PopulateSocialCritter()
             end
             btn.border = border
 
-            -- Critter icon
-            local icon = btn:CreateTexture(nil, "ARTWORK")
-            icon:SetPoint("TOPLEFT", 2, -2)
-            icon:SetPoint("BOTTOMRIGHT", -2, 2)
-            icon:SetTexture(iconMap[critterId] or iconMap.flux)
-
-            if not isUnlocked then
-                icon:SetDesaturated(true)
-                icon:SetVertexColor(0.4, 0.4, 0.4)
+            if isUnlocked then
+                -- Critter icon (shown for unlocked critters)
+                local icon = btn:CreateTexture(nil, "ARTWORK")
+                icon:SetPoint("TOPLEFT", 2, -2)
+                icon:SetPoint("BOTTOMRIGHT", -2, 2)
+                icon:SetTexture(iconMap[critterId] or iconMap.flux)
+                btn.icon = icon
+            else
+                -- Mystery display for locked critters - show "?" instead of icon
+                local mystery = btn:CreateFontString(nil, "ARTWORK")
+                mystery:SetFont("Fonts\\FRIZQT__.TTF", 22, "OUTLINE")
+                mystery:SetPoint("CENTER", btn, "CENTER", 0, 0)
+                mystery:SetText("?")
+                mystery:SetTextColor(0.5, 0.5, 0.5)
+                btn.mystery = mystery
 
                 -- Lock overlay
                 local lock = btn:CreateTexture(nil, "OVERLAY")
-                lock:SetSize(16, 16)
+                lock:SetSize(14, 14)
                 lock:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", -2, 2)
                 lock:SetTexture("Interface\\PetBattles\\PetBattle-LockIcon")
                 btn.lock = lock
@@ -13053,14 +13054,16 @@ function Journal:PopulateSocialCritter()
                     self.bg:SetColorTexture(0.2, 0.2, 0.2, 0.9)
                 end
                 GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                GameTooltip:AddLine(self.critterData.name, 1, 0.84, 0)
-                GameTooltip:AddLine(self.critterData.description, 1, 1, 1, true)
-                if not self.isUnlocked then
-                    local unlockLevel = self.critterData.unlockLevel or 1
-                    local playerLevel = UnitLevel("player")
+                if self.isUnlocked then
+                    GameTooltip:AddLine(self.critterData.name, 1, 0.84, 0)
+                    GameTooltip:AddLine(self.critterData.description, 1, 1, 1, true)
+                else
+                    -- Mystery tooltip for locked critters
+                    GameTooltip:AddLine("???", 1, 0.84, 0)
+                    GameTooltip:AddLine("Mystery Critter", 0.7, 0.7, 0.7)
                     GameTooltip:AddLine(" ")
-                    GameTooltip:AddLine(string.format("Requires level %d", unlockLevel), 1, 0.5, 0)
-                    GameTooltip:AddLine(string.format("Your level: %d", playerLevel), 0.7, 0.7, 0.7)
+                    local unlockLevel = self.critterData.unlockLevel or 1
+                    GameTooltip:AddLine(string.format("Unlocks at Level %d", unlockLevel), 1, 0.5, 0)
                 end
                 GameTooltip:Show()
             end)
@@ -13136,25 +13139,31 @@ function Journal:PopulateSocialCritter()
                 levelText:SetTextColor(0.5, 0.5, 0.5)
             end
 
-            -- Critter name
-            local critterName = row:CreateFontString(nil, "OVERLAY")
-            critterName:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
-            critterName:SetPoint("LEFT", row, "LEFT", 55, 0)
-            critterName:SetWidth(80)
-            critterName:SetJustifyH("LEFT")
-            critterName:SetText(critterData.name)
+            -- Critter name (mystery for locked)
+            local critterNameText = row:CreateFontString(nil, "OVERLAY")
+            critterNameText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+            critterNameText:SetPoint("LEFT", row, "LEFT", 55, 0)
+            critterNameText:SetWidth(80)
+            critterNameText:SetJustifyH("LEFT")
             if isUnlocked then
-                critterName:SetTextColor(1, 0.84, 0) -- Gold for name
+                critterNameText:SetText(critterData.name)
+                critterNameText:SetTextColor(1, 0.84, 0) -- Gold for name
             else
-                critterName:SetTextColor(0.5, 0.5, 0.5)
+                critterNameText:SetText("???")
+                critterNameText:SetTextColor(0.5, 0.5, 0.5)
             end
 
-            -- Zone/Content
+            -- Zone/Content (mystery for locked)
             local zoneText = row:CreateFontString(nil, "OVERLAY")
             zoneText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
             zoneText:SetPoint("LEFT", row, "LEFT", 140, 0)
-            zoneText:SetText(unlock.zone)
-            zoneText:SetTextColor(0.6, 0.6, 0.6)
+            if isUnlocked then
+                zoneText:SetText(unlock.zone)
+                zoneText:SetTextColor(0.6, 0.6, 0.6)
+            else
+                zoneText:SetText("???")
+                zoneText:SetTextColor(0.5, 0.5, 0.5)
+            end
 
             -- Status indicator
             local statusText = row:CreateFontString(nil, "OVERLAY")
@@ -13322,7 +13331,7 @@ function Journal:CreatePartyFellowCard(parent, fellow)
     classIcon:SetSize(32, 32)
     classIcon:ClearAllPoints()
     classIcon:SetPoint("LEFT", card, "LEFT", 12, 0)
-    local iconPath = Directory and Directory:GetClassIcon(fellow.class) or "Interface\\Icons\\INV_Misc_QuestionMark"
+    local iconPath = Directory and Directory:GetClassIcon(fellow.class) or HopeAddon.DEFAULT_ICON_PATH
     classIcon:SetTexture(iconPath)
     classIcon:Show()
 
@@ -13656,7 +13665,7 @@ function Journal:CreateDirectoryCard(entry)
     local description = table.concat(descParts, "\n")
 
     -- Get class icon
-    local icon = Directory and Directory:GetClassIcon(entry.class) or "Interface\\Icons\\INV_Misc_QuestionMark"
+    local icon = Directory and Directory:GetClassIcon(entry.class) or HopeAddon.DEFAULT_ICON_PATH
 
     -- Create card with title-enhanced display name
     local card = self:AcquireCard(self.mainFrame.scrollContainer.content, {
@@ -15071,7 +15080,7 @@ function Journal:CreateArmoryPools()
             card.icon = card:CreateTexture(nil, "ARTWORK")
             card.icon:SetSize(CARD.ICON_SIZE, CARD.ICON_SIZE)
             card.icon:SetPoint("LEFT", card, "LEFT", 6, 0)
-            card.icon:SetTexture("Interface\\ICONS\\INV_Misc_QuestionMark")
+            card.icon:SetTexture(HopeAddon.DEFAULT_ICON_PATH)
 
             -- Category name (single-line, left of center)
             card.nameText = card:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -15112,7 +15121,7 @@ function Journal:CreateArmoryPools()
             card:Hide()
             card:ClearAllPoints()
             card:SetParent(UIParent)
-            card.icon:SetTexture("Interface\\ICONS\\INV_Misc_QuestionMark")
+            card.icon:SetTexture(HopeAddon.DEFAULT_ICON_PATH)
             card.icon:SetDesaturated(false)
             card.icon:SetAlpha(1)
             card.nameText:SetText("")
@@ -17127,7 +17136,7 @@ function Journal:GetArmoryGearPopup()
     local slotIcon = header:CreateTexture(nil, "ARTWORK")
     slotIcon:SetSize(24, 24)
     slotIcon:SetPoint("LEFT", header, "LEFT", C.PADDING, 0)
-    slotIcon:SetTexture("Interface\\ICONS\\INV_Misc_QuestionMark")
+    slotIcon:SetTexture(HopeAddon.DEFAULT_ICON_PATH)
     popup.slotIcon = slotIcon
 
     -- Header title
@@ -17731,7 +17740,7 @@ function Journal:PopulateBisCard(popup, bisItem)
             end
             card.icon:SetTexture(iconPath)
         else
-            card.icon:SetTexture("Interface\\ICONS\\INV_Misc_QuestionMark")
+            card.icon:SetTexture(HopeAddon.DEFAULT_ICON_PATH)
         end
     end
 
@@ -17990,7 +17999,7 @@ function Journal:CreateArmoryGroupHeader(parent, groupKey, itemCount, yOffset)
     header:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, yOffset)
 
     -- Get group info
-    local groupInfo = C.SOURCE_GROUPS[groupKey] or { label = groupKey, color = "GOLD_BRIGHT", icon = "Interface\\ICONS\\INV_Misc_QuestionMark" }
+    local groupInfo = C.SOURCE_GROUPS[groupKey] or { label = groupKey, color = "GOLD_BRIGHT", icon = HopeAddon.DEFAULT_ICON_PATH }
 
     -- Check expanded state
     local isExpanded = self.armoryState.popup.expandedGroups[groupKey]
@@ -18062,7 +18071,7 @@ function Journal:CreateArmoryPopupItemRow(parent, itemData, yOffset)
             end
             row.icon:SetTexture(iconPath)
         else
-            row.icon:SetTexture("Interface\\ICONS\\INV_Misc_QuestionMark")
+            row.icon:SetTexture(HopeAddon.DEFAULT_ICON_PATH)
         end
     end
 
@@ -18199,7 +18208,7 @@ function Journal:CreateArmoryGearPopupItemRow(parent, itemData, isBis, yOffset)
             end
             icon:SetTexture(iconPath)
         else
-            icon:SetTexture("Interface\\ICONS\\INV_Misc_QuestionMark")
+            icon:SetTexture(HopeAddon.DEFAULT_ICON_PATH)
         end
     elseif itemData.icon then
         local iconPath = itemData.icon
@@ -18208,7 +18217,7 @@ function Journal:CreateArmoryGearPopupItemRow(parent, itemData, isBis, yOffset)
         end
         icon:SetTexture(iconPath)
     else
-        icon:SetTexture("Interface\\ICONS\\INV_Misc_QuestionMark")
+        icon:SetTexture(HopeAddon.DEFAULT_ICON_PATH)
     end
     row.icon = icon
 

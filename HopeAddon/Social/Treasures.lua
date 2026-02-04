@@ -244,7 +244,7 @@ function Treasures:SetReserve(raidKey, itemName, itemIcon, bossId, bossName)
     -- Set the reserve
     treasures.reserves[raidKey] = {
         itemName = itemName,
-        itemIcon = itemIcon or "Interface\\Icons\\INV_Misc_QuestionMark",
+        itemIcon = itemIcon or HopeAddon.DEFAULT_ICON_PATH,
         bossId = bossId,
         bossName = bossName,
         timestamp = time(),
