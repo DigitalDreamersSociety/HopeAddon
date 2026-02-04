@@ -13004,6 +13004,7 @@ function Journal:PopulateSocialCritter()
 
             local btn = CreateFrame("Button", nil, gridContainer)
             btn:SetSize(ICON_SIZE, ICON_SIZE)
+            btn:RegisterForClicks("AnyUp")  -- Only respond to mouse-up, prevents stuck pushed state
             local col = (i - 1) % iconsPerRow
             btn:SetPoint("TOPLEFT", gridContainer, "TOPLEFT", col * (ICON_SIZE + ICON_SPACING), 0)
 

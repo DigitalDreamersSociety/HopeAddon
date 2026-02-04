@@ -129,13 +129,13 @@ CrusadeCritter.inCombat = false
 
 local DB_DEFAULTS = {
     enabled = true,
-    selectedCritter = "flux",
+    selectedCritter = "chomp",
     position = { x = -200, y = 0 },
     hideInCombat = true,
     housingOpen = false, -- Tab-out panel state persistence
 
     -- Unlock progress
-    unlockedCritters = { "flux" },
+    unlockedCritters = { "chomp" },
     completedDungeons = {},
 
     -- Visit tracking
@@ -438,7 +438,7 @@ end
 function CrusadeCritter:ShowBossKillPopup(bossData, killTime)
     local db = EnsureDB()
     if not db then return end
-    local critterId = db.selectedCritter or "flux"
+    local critterId = db.selectedCritter or "chomp"
 
     -- Get best time for this boss
     local bestTime = self:GetBestBossTime(bossData.name)
@@ -605,7 +605,7 @@ function CrusadeCritter:OnDungeonComplete(bossData)
         quipType = "slow_run"
     end
 
-    local critterId = db.selectedCritter or "flux"
+    local critterId = db.selectedCritter or "chomp"
     local quip = nil
     if HopeAddon.CritterContent then
         quip = HopeAddon.CritterContent:GetQuip(critterId, quipType)
@@ -680,7 +680,7 @@ end
 function CrusadeCritter:OnPlayerDeath()
     local db = EnsureDB()
     if not db then return end
-    local critterId = db.selectedCritter or "flux"
+    local critterId = db.selectedCritter or "chomp"
 
     if not HopeAddon.CritterContent or not HopeAddon.CritterUI then return end
 
@@ -697,7 +697,7 @@ end
 function CrusadeCritter:TriggerZoneQuip(zoneName, isFirstVisit)
     local db = EnsureDB()
     if not db then return end
-    local critterId = db.selectedCritter or "flux"
+    local critterId = db.selectedCritter or "chomp"
 
     if not HopeAddon.CritterContent or not HopeAddon.CritterUI then return end
 
@@ -711,7 +711,7 @@ end
 function CrusadeCritter:TriggerDungeonQuip(dungeonName, isFirstVisit)
     local db = EnsureDB()
     if not db then return end
-    local critterId = db.selectedCritter or "flux"
+    local critterId = db.selectedCritter or "chomp"
 
     if not HopeAddon.CritterContent or not HopeAddon.CritterUI then return end
 
@@ -730,7 +730,7 @@ function CrusadeCritter:ShowMascot()
 
     local db = EnsureDB()
     if not db then return end
-    local critterId = db.selectedCritter or "flux"
+    local critterId = db.selectedCritter or "chomp"
 
     HopeAddon.CritterUI:SetCritter(critterId)
     HopeAddon.CritterUI:ShowMascot()
@@ -811,7 +811,7 @@ end
 function CrusadeCritter:GetUnlockedCritters()
     local db = HopeAddon.db and HopeAddon.db.crusadeCritter
     if not HopeAddon.CritterContent then return {} end
-    return HopeAddon.CritterContent:GetUnlockedCritters(db and db.unlockedCritters or { "flux" })
+    return HopeAddon.CritterContent:GetUnlockedCritters(db and db.unlockedCritters or { "chomp" })
 end
 
 function CrusadeCritter:GetHubProgress(hubKey)
@@ -826,7 +826,7 @@ end
 ]]
 function CrusadeCritter:GetCurrentCritterName()
     local db = HopeAddon.db and HopeAddon.db.crusadeCritter
-    local critterId = db and db.selectedCritter or "flux"
+    local critterId = db and db.selectedCritter or "chomp"
 
     if HopeAddon.CritterContent then
         local critterData = HopeAddon.CritterContent:GetCritter(critterId)
@@ -1000,7 +1000,7 @@ end
 local function PrintHelp()
     print("|cff9B30FF=== Crusade Critter Commands ===|r")
     print("|cffffff00/critter on|r|cffffffff/|r|cffffff00off|r  - Enable or disable")
-    print("|cffffff00/critter select <name>|r - Select critter (flux, snookimp, shred, emo, cosmo, boomer, diva)")
+    print("|cffffff00/critter select <name>|r - Select critter (chomp, snookimp, shred, emo, cosmo, boomer, diva)")
     print("|cffffff00/critter guides on|r|cffffffff/|r|cffffff00off|r - Toggle boss guides on dungeon entry")
     print("|cffffff00/critter list|r - Show unlocked critters and progress")
     print("|cffffff00/critter test|r - Enter test mode (simulates Stockades)")
@@ -1018,7 +1018,7 @@ local function PrintStatus()
         return
     end
     local status = db.enabled and "|cff00ff00ENABLED|r" or "|cffff0000DISABLED|r"
-    local selected = db.selectedCritter or "flux"
+    local selected = db.selectedCritter or "chomp"
     print("|cff9B30FFCrusade Critter:|r " .. status)
     print("  Selected: |cffffff00" .. selected .. "|r")
 end
@@ -1034,7 +1034,7 @@ local function PrintCritterList()
     print("|cff9B30FF=== Crusade Critter Collection ===|r")
 
     -- List all critters with unlock status
-    local critterOrder = { "flux", "snookimp", "shred", "emo", "cosmo", "boomer", "diva" }
+    local critterOrder = { "chomp", "snookimp", "shred", "emo", "cosmo", "boomer", "diva" }
     for _, critterId in ipairs(critterOrder) do
         local critter = Content and Content.CRITTERS[critterId]
         if critter then
@@ -1065,7 +1065,7 @@ end
 local function SelectCritter(name)
     if not name or name == "" then
         print("|cffff0000Usage: /critter select <name>|r")
-        print("Available: flux, snookimp, shred, emo, cosmo, boomer, diva")
+        print("Available: chomp, snookimp, shred, emo, cosmo, boomer, diva")
         return
     end
 
@@ -1075,7 +1075,7 @@ local function SelectCritter(name)
     -- Check if critter exists
     if not Content or not Content.CRITTERS[name] then
         print("|cffff0000Unknown critter: " .. name .. "|r")
-        print("Available: flux, snookimp, shred, emo, cosmo, boomer, diva")
+        print("Available: chomp, snookimp, shred, emo, cosmo, boomer, diva")
         return
     end
 

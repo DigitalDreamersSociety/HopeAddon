@@ -22,7 +22,7 @@ local MSG_LOCATION = "LOC"      -- Location update
 local BROADCAST_INTERVAL = 15   -- Seconds between broadcasts (faster detection)
 local PROFILE_CACHE_TIME = 3600 -- 1 hour cache for profiles
 local PING_COOLDOWN = 5         -- Minimum seconds between pings to same player
-local DISCOVERY_SOUND_COOLDOWN = 30  -- Cooldown for Murloc sound to prevent spam in crowded areas
+local DISCOVERY_SOUND_COOLDOWN = 120  -- Cooldown for Murloc sound to prevent spam in crowded areas (2 minutes)
 
 -- RP Status options
 FellowTravelers.STATUS_OPTIONS = {
@@ -49,6 +49,7 @@ FellowTravelers.originalAddMessage = nil  -- For chat hook
 FellowTravelers.pendingBroadcast = nil  -- Timer deduplication
 FellowTravelers.profileRequestCooldowns = {}  -- [playerName] = lastRequestTime
 FellowTravelers.lastDiscoverySoundTime = 0  -- Cooldown tracking for Murloc sound
+FellowTravelers.soundPlayedForPlayer = {}  -- Per-session tracking to ensure sound only plays once per unique player
 FellowTravelers.cleanupTicker = nil  -- Periodic cleanup timer handle
 FellowTravelers.broadcastTicker = nil  -- Periodic broadcast timer handle for continuous discovery
 FellowTravelers.messageCallbacks = {}  -- Registered message handlers for extensibility
@@ -728,11 +729,15 @@ function FellowTravelers:RegisterFellow(name, info)
         fellows[name] = {
             firstSeen = HopeAddon:GetDate(),
         }
-        -- Play Murloc sound with cooldown to prevent spam in crowded areas (Shattrath, raids)
-        local now = GetTime()
-        if now - self.lastDiscoverySoundTime >= DISCOVERY_SOUND_COOLDOWN then
-            HopeAddon:PlaySound("FELLOW_DISCOVERY")
-            self.lastDiscoverySoundTime = now
+        -- Play Murloc sound with per-session tracking and cooldown to prevent spam
+        -- Belt-and-suspenders: check BOTH per-session tracking AND global cooldown
+        if not self.soundPlayedForPlayer[name] then
+            local now = GetTime()
+            if now - self.lastDiscoverySoundTime >= DISCOVERY_SOUND_COOLDOWN then
+                HopeAddon:PlaySound("FELLOW_DISCOVERY")
+                self.lastDiscoverySoundTime = now
+            end
+            self.soundPlayedForPlayer[name] = true  -- Mark as played for this session
         end
         HopeAddon:Print("|cFF9B30FF[Fellow Traveler]|r |cFF00FF00" .. name .. "|r discovered nearby! Mrglglgl!")
     end

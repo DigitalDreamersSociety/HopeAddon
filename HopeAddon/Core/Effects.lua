@@ -593,6 +593,71 @@ function Effects:SlideIn(frame, direction, distance, duration)
     return ag
 end
 
+-- Bouncy pop-in animation (for speech bubbles)
+-- TBC Compatible: Uses Timer instead of Scale animations
+-- Animation: 0.3 -> 1.15 (overshoot) -> 0.95 (bounce back) -> 1.0 (settle)
+function Effects:BounceIn(frame, duration, callback)
+    if HopeAddon.db and not HopeAddon.db.settings.animationsEnabled then
+        frame:SetAlpha(1)
+        frame:SetScale(1.0)
+        frame:Show()
+        if callback then callback() end
+        return nil
+    end
+
+    duration = duration or 0.35
+    frame:SetAlpha(0)
+    frame:SetScale(0.3)
+    frame:Show()
+
+    local elapsed = 0
+    -- Phase timings (percentages of total duration)
+    local phase1End = duration * 0.45  -- Scale up to 1.15 (overshoot)
+    local phase2End = duration * 0.70  -- Scale down to 0.95 (bounce back)
+    local phase3End = duration         -- Settle to 1.0
+
+    local ticker
+    ticker = HopeAddon.Timer:NewTicker(0.016, function()  -- ~60fps
+        elapsed = elapsed + 0.016
+
+        if elapsed >= duration then
+            -- Finished - set final state
+            frame:SetScale(1.0)
+            frame:SetAlpha(1)
+            ticker:Cancel()
+            if callback then callback() end
+            return
+        end
+
+        -- Calculate alpha (fade in during first 20% of duration)
+        local fadeProgress = math_min(1, elapsed / (duration * 0.2))
+        frame:SetAlpha(fadeProgress)
+
+        -- Calculate scale based on phase
+        local scale
+        if elapsed < phase1End then
+            -- Phase 1: Scale from 0.3 to 1.15 (overshoot)
+            local progress = elapsed / phase1End
+            local eased = 1 - (1 - progress) * (1 - progress)  -- easeOutQuad
+            scale = 0.3 + (1.15 - 0.3) * eased
+        elseif elapsed < phase2End then
+            -- Phase 2: Scale from 1.15 to 0.95 (bounce back)
+            local progress = (elapsed - phase1End) / (phase2End - phase1End)
+            local eased = progress * progress  -- easeInQuad
+            scale = 1.15 - (1.15 - 0.95) * eased
+        else
+            -- Phase 3: Scale from 0.95 to 1.0 (settle)
+            local progress = (elapsed - phase2End) / (phase3End - phase2End)
+            local eased = 1 - (1 - progress) * (1 - progress)  -- easeOutQuad
+            scale = 0.95 + (1.0 - 0.95) * eased
+        end
+
+        frame:SetScale(scale)
+    end)
+
+    return ticker
+end
+
 -- Scale pop effect (for achievements/milestones)
 -- TBC Compatible: Uses Timer instead of Scale animations (SetFromScale doesn't exist in 2.4.3)
 function Effects:PopIn(frame, duration)

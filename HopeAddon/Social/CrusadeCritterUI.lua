@@ -5,7 +5,7 @@
     Visual specs:
     - Tab button on right screen edge (24x60px)
     - Housing container slides out (120x140px)
-    - 64x64 3D model with soft glow (96px)
+    - 80x80 3D model with soft glow (112px)
     - Comic-style white speech bubble
     - Gentle bobbing animation (3px, 2sec cycle)
     - Critter selector popup on click
@@ -19,8 +19,8 @@ HopeAddon:RegisterModule("CritterUI", CritterUI)
 -- CONSTANTS
 --============================================================
 
-local MODEL_SIZE = 64
-local GLOW_SIZE = 96
+local MODEL_SIZE = 80
+local GLOW_SIZE = 112
 local BUBBLE_WIDTH = 280
 local BUBBLE_PADDING = 12
 local BUBBLE_DURATION = 5
@@ -80,6 +80,10 @@ CritterUI.bossTipsState = nil -- { tips, currentIndex, state, bossKey }
 CritterUI.tipsTypewriterTicker = nil
 CritterUI.prePullButton = nil
 CritterUI.bossDropdown = nil
+
+-- Idle quip timer system
+CritterUI.idleQuipTimer = nil
+CritterUI.bubbleBounceAnim = nil
 
 -- Floating bubble system (independent of housing)
 CritterUI.floatingBubble = nil
@@ -172,7 +176,7 @@ function CritterUI:UpdateTabIcon()
 
     -- Map critter IDs to appropriate icons (TBC-compatible icons)
     local iconMap = {
-        flux = "Interface\\Icons\\Inv_Pet_ManaWyrm",
+        chomp = "Interface\\Icons\\Ability_Hunter_Pet_Ravager",
         snookimp = "Interface\\Icons\\Spell_Shadow_SummonImp",
         shred = "Interface\\Icons\\Ability_Creature_Poison_04",
         emo = "Interface\\Icons\\Ability_Hunter_Pet_Bat",
@@ -181,14 +185,14 @@ function CritterUI:UpdateTabIcon()
         diva = "Interface\\Icons\\Ability_Hunter_Pet_DragonHawk",
     }
 
-    local critterId = "flux"
+    local critterId = "chomp"
     if self.currentCritter and self.currentCritter.id then
         critterId = self.currentCritter.id
     elseif HopeAddon.db and HopeAddon.db.crusadeCritter then
-        critterId = HopeAddon.db.crusadeCritter.selectedCritter or "flux"
+        critterId = HopeAddon.db.crusadeCritter.selectedCritter or "chomp"
     end
 
-    local icon = iconMap[critterId] or iconMap.flux
+    local icon = iconMap[critterId] or iconMap.chomp
     self.tabButton.icon:SetTexture(icon)
 end
 
@@ -296,6 +300,44 @@ function CritterUI:CreateHousingContainer()
         GameTooltip:Hide()
     end)
 
+    -- Make housing draggable
+    housing:SetMovable(true)
+    housing:SetClampedToScreen(true)
+
+    -- Create drag handle at top
+    local dragHandle = CreateFrame("Frame", nil, housing)
+    dragHandle:SetHeight(16)
+    dragHandle:SetPoint("TOPLEFT", housing, "TOPLEFT", 4, -4)
+    dragHandle:SetPoint("TOPRIGHT", housing, "TOPRIGHT", -4, -4)
+    dragHandle:EnableMouse(true)
+    dragHandle:RegisterForDrag("LeftButton")
+
+    -- Visual indicator (subtle bar)
+    local handleTex = dragHandle:CreateTexture(nil, "ARTWORK")
+    handleTex:SetTexture("Interface\\Buttons\\WHITE8x8")
+    handleTex:SetVertexColor(0.4, 0.35, 0.25, 0.6)
+    handleTex:SetHeight(4)
+    handleTex:SetPoint("LEFT", 4, 0)
+    handleTex:SetPoint("RIGHT", -4, 0)
+
+    -- Drag scripts
+    dragHandle:SetScript("OnDragStart", function()
+        housing:StartMoving()
+    end)
+    dragHandle:SetScript("OnDragStop", function()
+        housing:StopMovingOrSizing()
+        CritterUI:SaveHousingPosition()
+    end)
+
+    -- Right-click to reset position
+    dragHandle:SetScript("OnMouseUp", function(_, button)
+        if button == "RightButton" then
+            CritterUI:ResetHousingPosition()
+        end
+    end)
+
+    housing.dragHandle = dragHandle
+
     housing:Hide()
     self.housingContainer = housing
 
@@ -360,8 +402,17 @@ function CritterUI:SlideHousingIn()
         SLIDE_DURATION,
         function()
             self.slideAnimation = nil
+            -- Restore saved position if available
+            local savedPos = HopeAddon.db and HopeAddon.db.crusadeCritter
+                and HopeAddon.db.crusadeCritter.housingPosition
+            if savedPos then
+                self.housingContainer:ClearAllPoints()
+                self.housingContainer:SetPoint(savedPos.point, UIParent, savedPos.relativePoint, savedPos.x, savedPos.y)
+            end
             -- Start bobbing after slide completes
             self:StartBobbing()
+            -- Start idle quip timer
+            self:StartIdleQuipTimer()
         end
     )
 end
@@ -384,6 +435,9 @@ function CritterUI:SlideHousingOut()
 
     -- Stop bobbing
     self:StopBobbing()
+
+    -- Stop idle quip timer
+    self:StopIdleQuipTimer()
 
     -- Hide speech bubble
     self:HideSpeechBubble()
@@ -415,6 +469,34 @@ end
 function CritterUI:SaveHousingState()
     if HopeAddon.db and HopeAddon.db.crusadeCritter then
         HopeAddon.db.crusadeCritter.housingOpen = self.isHousingOpen
+    end
+end
+
+--[[
+    Save housing position to database
+]]
+function CritterUI:SaveHousingPosition()
+    if not self.housingContainer or not HopeAddon.db or not HopeAddon.db.crusadeCritter then return end
+    local point, _, relativePoint, xOfs, yOfs = self.housingContainer:GetPoint()
+    HopeAddon.db.crusadeCritter.housingPosition = {
+        point = point,
+        relativePoint = relativePoint,
+        x = xOfs,
+        y = yOfs,
+    }
+end
+
+--[[
+    Reset housing position to default
+]]
+function CritterUI:ResetHousingPosition()
+    if HopeAddon.db and HopeAddon.db.crusadeCritter then
+        HopeAddon.db.crusadeCritter.housingPosition = nil
+    end
+    if self.housingContainer then
+        self.housingContainer:ClearAllPoints()
+        local targetX = -(TAB_WIDTH + HOUSING_OFFSET_X)
+        self.housingContainer:SetPoint("RIGHT", UIParent, "RIGHT", targetX, HOUSING_Y_OFFSET)
     end
 end
 
@@ -556,7 +638,7 @@ function CritterUI:PopulateCritterSelector()
 
     -- Icon map for critters (TBC-compatible icons)
     local iconMap = {
-        flux = "Interface\\Icons\\Inv_Pet_ManaWyrm",
+        chomp = "Interface\\Icons\\Ability_Hunter_Pet_Ravager",
         snookimp = "Interface\\Icons\\Spell_Shadow_SummonImp",
         shred = "Interface\\Icons\\Ability_Creature_Poison_04",
         emo = "Interface\\Icons\\Ability_Hunter_Pet_Bat",
@@ -565,7 +647,7 @@ function CritterUI:PopulateCritterSelector()
         diva = "Interface\\Icons\\Ability_Hunter_Pet_DragonHawk",
     }
 
-    local critterOrder = { "flux", "snookimp", "shred", "emo", "cosmo", "boomer", "diva" }
+    local critterOrder = { "chomp", "snookimp", "shred", "emo", "cosmo", "boomer", "diva" }
     local iconSize = 40
     local spacing = 8
     local cols = 4
@@ -585,7 +667,7 @@ function CritterUI:PopulateCritterSelector()
             -- Icon texture
             local tex = btn:CreateTexture(nil, "ARTWORK")
             tex:SetAllPoints(btn)
-            tex:SetTexture(iconMap[critterId] or iconMap.flux)
+            tex:SetTexture(iconMap[critterId] or iconMap.chomp)
             tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
             btn.icon = tex
 
@@ -765,24 +847,35 @@ function CritterUI:SetCritter(critterId)
         self:CreateHousingContainer()
     end
 
-    local model = self.housingContainer.model
-    local glow = self.housingContainer.glow
+    -- Validate housingContainer is a valid frame (defensive check)
+    if type(self.housingContainer) ~= "table" then
+        HopeAddon:Debug("CritterUI: Invalid housingContainer type: " .. type(self.housingContainer))
+        self.housingContainer = nil  -- Reset so next call recreates
+        return
+    end
+
+    local model = self.housingContainer and self.housingContainer.model
+    local glow = self.housingContainer and self.housingContainer.glow
 
     -- Set 3D model using displayID (TBC compatible)
-    if critterData.displayID then
+    if critterData.displayID and model and type(model) == "table" then
         model:ClearModel()              -- Reset model state first
         model:Show()                    -- CRITICAL: Show BEFORE setting display!
         model:SetDisplayInfo(critterData.displayID)
         model:SetCamera(1)              -- Full body camera (not portrait/face zoom)
-        model:SetPosition(0, 0, 0)      -- Reset position
+        -- Apply per-critter Z offset for zoom adjustment (negative = zoomed out)
+        local zOffset = critterData.modelOffset or 0
+        model:SetPosition(0, 0, zOffset)
         model:SetFacing(0)
         -- Enable lighting so model isn't black/invisible
         -- TBC SetLight: enabled, omni, dirX, dirY, dirZ, ambInt, ambR, ambG, ambB, dirInt, dirR, dirG, dirB
-        model:SetLight(true, false, 0, -0.707, -0.707, 0.8, 1.0, 1.0, 1.0, 0.8, 1.0, 1.0, 1.0)
+        if type(model.SetLight) == "function" then
+            pcall(model.SetLight, model, true, false, 0, -0.707, -0.707, 0.8, 1.0, 1.0, 1.0, 0.8, 1.0, 1.0, 1.0)
+        end
     end
 
     -- Set glow color
-    if critterData.glowColor then
+    if critterData.glowColor and glow then
         local c = critterData.glowColor
         glow:SetVertexColor(c.r, c.g, c.b, 1)
     end
@@ -1010,10 +1103,24 @@ function CritterUI:ShowSpeechBubble(message, duration, callback)
     local bubbleHeight = textHeight + (BUBBLE_PADDING * 2) + 4
     bubble:SetHeight(math.max(50, bubbleHeight))
 
-    -- Clear and start typewriter
+    -- Clear text before animation
     text:SetText("")
-    bubble:Show()
-    bubble:SetAlpha(1)
+
+    -- Cancel any existing bounce animation
+    if self.bubbleBounceAnim then
+        self.bubbleBounceAnim:Cancel()
+        self.bubbleBounceAnim = nil
+    end
+
+    -- Bouncy pop-in animation
+    if HopeAddon.Effects then
+        self.bubbleBounceAnim = HopeAddon.Effects:BounceIn(bubble, 0.35, function()
+            self.bubbleBounceAnim = nil
+        end)
+    else
+        bubble:Show()
+        bubble:SetAlpha(1)
+    end
 
     -- Typewriter effect
     if HopeAddon.Effects then
@@ -1037,6 +1144,12 @@ end
 function CritterUI:HideSpeechBubble(callback)
     if not self.speechBubble then return end
 
+    -- Cancel bounce animation if still running
+    if self.bubbleBounceAnim then
+        self.bubbleBounceAnim:Cancel()
+        self.bubbleBounceAnim = nil
+    end
+
     if self.bubbleTimer then
         self.bubbleTimer:Cancel()
         self.bubbleTimer = nil
@@ -1047,6 +1160,69 @@ function CritterUI:HideSpeechBubble(callback)
     else
         self.speechBubble:Hide()
         if callback then callback() end
+    end
+end
+
+--============================================================
+-- IDLE QUIP TIMER SYSTEM
+--============================================================
+
+local IDLE_QUIP_INTERVAL = 30 -- Seconds between idle quips
+
+--[[
+    Start the idle quip timer (triggers random quips when housing is open)
+]]
+function CritterUI:StartIdleQuipTimer()
+    -- Cancel existing timer if any
+    self:StopIdleQuipTimer()
+
+    if not HopeAddon.Timer then return end
+
+    self.idleQuipTimer = HopeAddon.Timer:NewTicker(IDLE_QUIP_INTERVAL, function()
+        -- Only trigger if housing is still open and not in combat
+        if self.isHousingOpen and not UnitAffectingCombat("player") then
+            self:TriggerIdleQuip()
+        end
+    end)
+
+    HopeAddon:Debug("Idle quip timer started")
+end
+
+--[[
+    Stop the idle quip timer
+]]
+function CritterUI:StopIdleQuipTimer()
+    if self.idleQuipTimer then
+        self.idleQuipTimer:Cancel()
+        self.idleQuipTimer = nil
+        HopeAddon:Debug("Idle quip timer stopped")
+    end
+end
+
+--[[
+    Trigger a random idle quip from the current critter
+]]
+function CritterUI:TriggerIdleQuip()
+    -- Don't trigger if speech bubble is already showing
+    if self.speechBubble and self.speechBubble:IsShown() then
+        return
+    end
+
+    -- Get current critter ID
+    local critterId = "chomp"
+    if self.currentCritter and self.currentCritter.id then
+        critterId = self.currentCritter.id
+    elseif HopeAddon.db and HopeAddon.db.crusadeCritter then
+        critterId = HopeAddon.db.crusadeCritter.selectedCritter or "chomp"
+    end
+
+    -- Get random idle quip
+    if HopeAddon.CritterContent then
+        local quip = HopeAddon.CritterContent:GetQuip(critterId, "idle")
+        if quip then
+            self:ShowSpeechBubble(quip, 5)
+            HopeAddon:Debug("Idle quip triggered: " .. quip)
+        end
     end
 end
 
@@ -1601,9 +1777,9 @@ function CritterUI:ShowCombinedStats(bossData, killTime, bestTime, quip, nextBos
         window.quoteText:SetText("\"" .. quip .. "\"")
 
         -- Set attribution
-        local critterId = "flux"
+        local critterId = "chomp"
         if HopeAddon.db and HopeAddon.db.crusadeCritter then
-            critterId = HopeAddon.db.crusadeCritter.selectedCritter or "flux"
+            critterId = HopeAddon.db.crusadeCritter.selectedCritter or "chomp"
         end
         local critterData = HopeAddon.CritterContent and HopeAddon.CritterContent:GetCritter(critterId)
         if critterData then
@@ -1835,9 +2011,9 @@ function CritterUI:ShowBossTips(bossKey, bossName)
     if not Content then return end
 
     -- Get critter ID
-    local critterId = "flux"
+    local critterId = "chomp"
     if HopeAddon.db and HopeAddon.db.crusadeCritter then
-        critterId = HopeAddon.db.crusadeCritter.selectedCritter or "flux"
+        critterId = HopeAddon.db.crusadeCritter.selectedCritter or "chomp"
     end
 
     -- Check if heroic (check instance difficulty)
@@ -2860,11 +3036,10 @@ function CritterUI:CreateDebugPanel()
         return btn
     end
 
-    local model = self.housingContainer and self.housingContainer.model
-
-    -- Test buttons
+    -- Test buttons (each callback gets fresh model reference to avoid stale closure)
     addButton("SetUnit(player)", function()
-        if model then
+        local model = self.housingContainer and self.housingContainer.model
+        if model and type(model) == "table" then
             model:ClearModel()
             model:SetUnit("player")
             print("Set model to player unit")
@@ -2872,7 +3047,8 @@ function CritterUI:CreateDebugPanel()
     end)
 
     addButton("DisplayID 5839 (Wyrm)", function()
-        if model then
+        local model = self.housingContainer and self.housingContainer.model
+        if model and type(model) == "table" then
             model:ClearModel()
             model:SetDisplayInfo(5839)
             print("Set displayID 5839")
@@ -2880,7 +3056,8 @@ function CritterUI:CreateDebugPanel()
     end)
 
     addButton("DisplayID 4449 (Imp)", function()
-        if model then
+        local model = self.housingContainer and self.housingContainer.model
+        if model and type(model) == "table" then
             model:ClearModel()
             model:SetDisplayInfo(4449)
             print("Set displayID 4449")
@@ -2888,16 +3065,20 @@ function CritterUI:CreateDebugPanel()
     end)
 
     addButton("Toggle Light", function()
-        if model then
+        local model = self.housingContainer and self.housingContainer.model
+        if model and type(model) == "table" then
             self.debugLightOn = not self.debugLightOn
             -- TBC SetLight: enabled, omni, dirX, dirY, dirZ, ambInt, ambR, ambG, ambB, dirInt, dirR, dirG, dirB
-            model:SetLight(self.debugLightOn, true, 0, 0, 1, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0)
+            if type(model.SetLight) == "function" then
+                pcall(model.SetLight, model, self.debugLightOn, true, 0, 0, 1, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0)
+            end
             print("Light: " .. (self.debugLightOn and "ON" or "OFF"))
         end
     end)
 
     addButton("Cycle Camera (0-3)", function()
-        if model then
+        local model = self.housingContainer and self.housingContainer.model
+        if model and type(model) == "table" then
             self.debugCamera = ((self.debugCamera or 0) + 1) % 4
             model:SetCamera(self.debugCamera)
             print("Camera: " .. self.debugCamera)
@@ -2905,7 +3086,8 @@ function CritterUI:CreateDebugPanel()
     end)
 
     addButton("Print Model State", function()
-        if model then
+        local model = self.housingContainer and self.housingContainer.model
+        if model and type(model) == "table" then
             print("Model visible:", model:IsVisible())
             print("Model shown:", model:IsShown())
             print("Model alpha:", model:GetAlpha())
@@ -2965,6 +3147,15 @@ end
 
 function CritterUI:OnDisable()
     self:StopBobbing()
+
+    -- Stop idle quip timer
+    self:StopIdleQuipTimer()
+
+    -- Cancel bubble bounce animation
+    if self.bubbleBounceAnim then
+        self.bubbleBounceAnim:Cancel()
+        self.bubbleBounceAnim = nil
+    end
 
     if self.bubbleTimer then
         self.bubbleTimer:Cancel()

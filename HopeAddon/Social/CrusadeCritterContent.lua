@@ -3,7 +3,7 @@
     Quip database organized by critter personality
 
     Quips are organized by:
-    - Critter ID (flux, snookimp, shred, emo, cosmo, boomer, diva)
+    - Critter ID (chomp, snookimp, shred, emo, cosmo, boomer, diva)
     - Event type (boss_kill, fast_run, slow_run, player_death, zone_entry, dungeon_entry, unlock)
 
     3D Models use SetDisplayInfo(displayID) for TBC Classic compatibility
@@ -32,12 +32,12 @@ HopeAddon.CritterContent = CritterContent
 -- - Owls: Dun Morogh (Ironbeak Owl), Teldrassil
 -- - Phoenix-Hawks: Tempest Keep (The Eye raid, also in Botanica)
 CritterContent.CRITTERS = {
-    flux = {
-        name = "Flux",
-        description = "A panicked Mana Wyrm who accidentally time-traveled to 2007",
-        displayID = 5839,  -- Mana Wyrm (VERIFIED - NPC #15274)
-        glowColor = { r = 0.61, g = 0.19, b = 1.00 },  -- TBC Purple
-        soundOnAppear = "Sound\\Creature\\ManaWyrm\\ManaWyrmAggro.ogg",
+    chomp = {
+        name = "Chomp",
+        description = "A ravenous Ravager from 2007 - was about to eat fast food for a month straight, then woke up here!",
+        displayID = 20155,  -- Ravager Hatchling (green model)
+        glowColor = { r = 0.00, g = 0.60, b = 0.20 },  -- Dark Green
+        soundOnAppear = "Sound\\Creature\\Ravager\\RavagerAggro.ogg",
         unlocked = true, -- Always unlocked as starter
     },
     snookimp = {
@@ -59,10 +59,11 @@ CritterContent.CRITTERS = {
     emo = {
         name = "Emo",
         description = "Fall Out Boy scene kid bat - dark but deep",
-        displayID = 10357,  -- Purple-Red Bat (verify in-game)
+        displayID = 1566,  -- Darkspear Bat (dark model)
         glowColor = { r = 0.40, g = 0.00, b = 0.40 },  -- Dark Purple
         soundOnAppear = "Sound\\Creature\\Bat\\BatPissed.ogg",
         unlockHub = "auchindoun",
+        modelOffset = -0.5,  -- Push model back (negative Z = further from camera)
     },
     cosmo = {
         name = "Cosmo",
@@ -71,6 +72,7 @@ CritterContent.CRITTERS = {
         glowColor = { r = 0.50, g = 0.70, b = 1.00 },  -- Light Blue
         soundOnAppear = "Sound\\Creature\\Moth\\MothAggro.ogg",
         unlockHub = "tempest_keep",
+        modelOffset = -0.3,  -- Push model back (negative Z = further from camera)
     },
     boomer = {
         name = "Boomer",
@@ -138,9 +140,16 @@ end
 
 CritterContent.QUIPS = {
     --============================================================
-    -- FLUX (Starter) - Panicked Nether Ray, 2007 time traveler
+    -- CHOMP (Starter) - Ravenous Ravager, fast food fiend, 2007
     --============================================================
-    flux = {
+    chomp = {
+        idle = {
+            "Man, I miss flip phones. You could SLAM those things shut when you were mad!",
+            "Did you know Pluto got demoted in 2006? Still not over it...",
+            "I wonder if my Neopets are still alive... probably not.",
+            "Hey, remember when we had to WAIT for songs to download? Good times... terrible times.",
+            "*checks imaginary MySpace* Still no friend requests. Story of 2007.",
+        },
         boss_kill = {
             "Boss down! Now excuse me, I need to update my MySpace top 8.",
             "OMG that was smoother than my iPod Nano's click wheel!",
@@ -188,6 +197,13 @@ CritterContent.QUIPS = {
     -- SNOOKIMP (Hellfire Citadel)
     --============================================================
     snookimp = {
+        idle = {
+            "Yo, when's the next gym sesh? These demons ain't gonna SMUSH themselves!",
+            "GTL, baby! Grind, Tan, LOOT! That's the life!",
+            "You see my tan? The fel fire really brings out my glow!",
+            "This situation is FRESH! We're looking GOOD out here!",
+            "*flexes* These gains don't happen by accident, yo!",
+        },
         boss_kill = {
             "That boss's tan was WEAK. Needed more fel fire!",
             "Gym, Tan, LOOT-ry! Just smushed that boss!",
@@ -232,6 +248,13 @@ CritterContent.QUIPS = {
     -- SHRED (Coilfang Reservoir)
     --============================================================
     shred = {
+        idle = {
+            "Dude, you ever just look at a cliff and think... 'I could SEND that'?",
+            "The vibes here are totally tubular, bro! Maximum chill!",
+            "I'm like 90% sure I could grind that railing. Just saying.",
+            "Bro, life is like a half-pipe. You gotta commit or bail!",
+            "*air guitars* SHRED IT, BRO! Oh wait, wrong kind of shred. Heh.",
+        },
         boss_kill = {
             "SICK run, bro! That kill was totally X Games worthy!",
             "That was a perfect 10 from the judges! Tony Hawk approves!",
@@ -275,6 +298,13 @@ CritterContent.QUIPS = {
     -- EMO (Auchindoun)
     --============================================================
     emo = {
+        idle = {
+            "*sigh* Nobody understands the weight of existence like I do.",
+            "I wrote a poem about this moment. It's called 'Waiting in Darkness.'",
+            "The void stares back... and honestly? It gets me.",
+            "My playlist is just Fall Out Boy and tears. It's fine. I'm fine.",
+            "Sometimes I feel like a ghost haunting my own life... deep, right?",
+        },
         boss_kill = {
             "Thnks fr th Mmrs... of killing that boss!",
             "Sugar, we're goin' down... the dungeon. To victory.",
@@ -319,6 +349,13 @@ CritterContent.QUIPS = {
     -- COSMO (Tempest Keep)
     --============================================================
     cosmo = {
+        idle = {
+            "Did you know there are more stars than grains of sand on Earth? *stares wistfully*",
+            "I wonder what's beyond the Twisting Nether... more nether? More twist?",
+            "The cosmos is infinite... and so is my curiosity. *zones out*",
+            "If light takes millions of years to reach us... are we seeing the past? Whoa.",
+            "*staring upward* Sorry, what? I was thinking about black holes again.",
+        },
         boss_kill = {
             "The space magic is strong with this group!",
             "May the loot be with you!",
@@ -366,6 +403,13 @@ CritterContent.QUIPS = {
     -- BOOMER (Caverns of Time)
     --============================================================
     boomer = {
+        idle = {
+            "Back in MY day, we didn't have quest markers. We READ the quest text!",
+            "Kids these days with their flying mounts... we WALKED everywhere!",
+            "You know what's wrong with games today? Too many tutorials!",
+            "In vanilla, THIS would've been a 40-man raid. Just saying.",
+            "*adjusts spectacles* The lawn isn't going to mow itself, you know.",
+        },
         boss_kill = {
             "We wiped 40 times on that boss back in my day!",
             "We walked uphill BOTH WAYS to this dungeon!",
@@ -407,6 +451,13 @@ CritterContent.QUIPS = {
     -- DIVA (Isle of Quel'Danas / Magisters' Terrace)
     --============================================================
     diva = {
+        idle = {
+            "Darling, excellence doesn't happen by accident. It takes WORK and GLAM!",
+            "Is my feather ruffled? Someone check. Image is EVERYTHING!",
+            "The spotlight isn't going to find itself, sweetie. We CREATE the moment!",
+            "Fashion tip: fel green is SO last expansion. Gold is timeless!",
+            "*preens dramatically* Mirror mirror on the wall... yes, still fabulous.",
+        },
         boss_kill = {
             "That boss was SO last season!",
             "Fierce! Absolutely FIERCE!",
@@ -469,9 +520,9 @@ CritterContent.UNLOCK_MESSAGES = {
 
 CritterContent.BOSS_TIPS = {
     --============================================================
-    -- FLUX (2007 references, old tech/memes, MySpace/AIM/flip phones)
+    -- CHOMP (2007 references, fast food, old tech/memes)
     --============================================================
-    flux = {
+    chomp = {
         -- Hellfire Ramparts
         watchkeeper_gargolmar = {
             { text = "This orc is like the AOL login screen - annoying but manageable!", heroic = false },
@@ -1085,8 +1136,8 @@ CritterContent.DEFAULT_BOSS_TIPS = {
 function CritterContent:GetQuip(critterId, eventType, context)
     local critterQuips = self.QUIPS[critterId]
     if not critterQuips then
-        -- Fall back to flux
-        critterQuips = self.QUIPS.flux
+        -- Fall back to chomp
+        critterQuips = self.QUIPS.chomp
     end
 
     local eventQuips = critterQuips[eventType]
@@ -1219,9 +1270,9 @@ function CritterContent:GetBossTips(critterId, bossKey, isHeroic)
         return tips
     end
 
-    -- Fall back to flux if no critter-specific tips
-    if critterId ~= "flux" then
-        critterTips = self.BOSS_TIPS.flux
+    -- Fall back to chomp if no critter-specific tips
+    if critterId ~= "chomp" then
+        critterTips = self.BOSS_TIPS.chomp
         if critterTips and critterTips[bossKey] then
             for _, tip in ipairs(critterTips[bossKey]) do
                 if not tip.heroic or isHeroic then
@@ -1252,8 +1303,8 @@ end
     @return number - Number of tips available
 ]]
 function CritterContent:GetBossTipCount(bossKey, isHeroic)
-    -- Check flux tips as default (most complete)
-    local critterTips = self.BOSS_TIPS.flux
+    -- Check chomp tips as default (most complete)
+    local critterTips = self.BOSS_TIPS.chomp
     local count = 0
 
     if critterTips and critterTips[bossKey] then
