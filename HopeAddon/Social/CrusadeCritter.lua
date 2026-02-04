@@ -134,10 +134,6 @@ local DB_DEFAULTS = {
     hideInCombat = true,
     housingOpen = false, -- Tab-out panel state persistence
 
-    -- Unlock progress
-    unlockedCritters = { "chomp" },
-    completedDungeons = {},
-
     -- Visit tracking
     visitedZones = {},
     visitedDungeons = {},
@@ -150,9 +146,6 @@ local DB_DEFAULTS = {
 
     -- Current run state (cleared on logout)
     currentRun = nil,
-
-    -- New unlock flag for tab badge
-    hasNewUnlock = false,
 
     -- Boss tips settings
     showBossTips = true,           -- Enable tip system
@@ -216,6 +209,7 @@ function CrusadeCritter:OnEnable()
     self.eventFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
     self.eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
     self.eventFrame:RegisterEvent("PLAYER_DEAD")
+    self.eventFrame:RegisterEvent("PLAYER_LEVEL_UP")
 
     self.eventFrame:SetScript("OnEvent", function(_, event, ...)
         self:OnEvent(event, ...)
@@ -267,6 +261,10 @@ function CrusadeCritter:OnEvent(event, ...)
 
     elseif event == "PLAYER_DEAD" then
         self:OnPlayerDeath()
+
+    elseif event == "PLAYER_LEVEL_UP" then
+        local newLevel = ...
+        self:OnLevelUp(newLevel)
     end
 end
 
@@ -432,11 +430,6 @@ function CrusadeCritter:OnBossKill(npcID, bossData)
     else
         -- Mid-boss - show quick popup
         self:ShowBossKillPopup(bossData, bossKillTime)
-
-        -- Check for critter unlock on any boss kill (not just final)
-        if self.currentRun then
-            self:CheckUnlock(self.currentRun.dungeonKey)
-        end
     end
 end
 
@@ -628,54 +621,23 @@ function CrusadeCritter:OnDungeonComplete(bossData)
         }, quip)
     end
 
-    -- Check for critter unlock
-    self:CheckUnlock(dungeonKey)
-
     -- Clear current run
     self.currentRun = nil
 end
 
 --============================================================
--- UNLOCK SYSTEM
+-- UNLOCK SYSTEM (Level-Based)
 --============================================================
 
-function CrusadeCritter:CheckUnlock(completedDungeonKey)
-    local db = EnsureDB()
-    if not db then return end
-    local Content = HopeAddon.CritterContent
-
-    if not Content then return end
-
-    -- Mark dungeon as visited (any boss kill counts)
-    db.completedDungeons[completedDungeonKey] = true
-
-    -- Find which hub this dungeon belongs to
-    local hubKey = Content.DUNGEON_TO_HUB[completedDungeonKey]
-    if hubKey then
-        -- ANY boss kill in hub = unlock critter immediately
-        local critterId = Content:GetHubCritter(hubKey)
-        if critterId and not self:IsCritterUnlocked(critterId) then
-            self:UnlockCritter(critterId)
-        end
-    end
-end
-
 function CrusadeCritter:IsCritterUnlocked(critterId)
-    return true  -- TEMP: unlock all for debugging
-end
+    local Content = HopeAddon.CritterContent
+    if not Content then return false end
 
-function CrusadeCritter:UnlockCritter(critterId)
-    local db = EnsureDB()
-    if not db then return end
-    table.insert(db.unlockedCritters, critterId)
+    local critterData = Content.CRITTERS[critterId]
+    if not critterData then return false end
 
-    -- Set new unlock flag for tab badge
-    db.hasNewUnlock = true
-
-    -- Show celebration
-    if HopeAddon.CritterUI then
-        HopeAddon.CritterUI:ShowUnlockCelebration(critterId)
-    end
+    local playerLevel = UnitLevel("player")
+    return playerLevel >= (critterData.unlockLevel or 1)
 end
 
 --============================================================
@@ -693,6 +655,48 @@ function CrusadeCritter:OnPlayerDeath()
     if quip then
         HopeAddon.CritterUI:ShowSpeechBubble(quip, 5)
     end
+end
+
+--============================================================
+-- LEVEL UP CELEBRATION
+--============================================================
+
+function CrusadeCritter:OnLevelUp(newLevel)
+    -- Check which critters just became available at this level
+    local Content = HopeAddon.CritterContent
+    if not Content then return end
+
+    local newlyUnlocked = {}
+    for critterId, critterData in pairs(Content.CRITTERS) do
+        local unlockLevel = critterData.unlockLevel or 1
+        -- Critter unlocks exactly at this level (not before, not after)
+        if unlockLevel == newLevel then
+            table.insert(newlyUnlocked, critterId)
+        end
+    end
+
+    if #newlyUnlocked == 0 then return end
+
+    -- Delay 3 seconds for level-up animation to finish
+    -- Also check not in combat
+    HopeAddon.Timer:After(3, function()
+        if UnitAffectingCombat("player") then
+            -- Retry in 5 more seconds if in combat
+            HopeAddon.Timer:After(5, function()
+                for _, critterId in ipairs(newlyUnlocked) do
+                    if HopeAddon.CritterUI then
+                        HopeAddon.CritterUI:ShowUnlockCelebration(critterId)
+                    end
+                end
+            end)
+        else
+            for _, critterId in ipairs(newlyUnlocked) do
+                if HopeAddon.CritterUI then
+                    HopeAddon.CritterUI:ShowUnlockCelebration(critterId)
+                end
+            end
+        end
+    end)
 end
 
 --============================================================
@@ -814,15 +818,19 @@ function CrusadeCritter:SetEnabled(enabled)
 end
 
 function CrusadeCritter:GetUnlockedCritters()
-    local db = HopeAddon.db and HopeAddon.db.crusadeCritter
     if not HopeAddon.CritterContent then return {} end
-    return HopeAddon.CritterContent:GetUnlockedCritters(db and db.unlockedCritters or { "chomp" })
-end
 
-function CrusadeCritter:GetHubProgress(hubKey)
-    local db = HopeAddon.db and HopeAddon.db.crusadeCritter
-    if not HopeAddon.CritterContent then return 0, 0 end
-    return HopeAddon.CritterContent:GetHubProgress(hubKey, db and db.completedDungeons or {})
+    -- Build list of unlocked critter IDs based on player level
+    local playerLevel = UnitLevel("player")
+    local unlockedIds = {}
+    for critterId, critterData in pairs(HopeAddon.CritterContent.CRITTERS) do
+        local unlockLevel = critterData.unlockLevel or 1
+        if playerLevel >= unlockLevel then
+            table.insert(unlockedIds, critterId)
+        end
+    end
+
+    return HopeAddon.CritterContent:GetUnlockedCritters(unlockedIds)
 end
 
 --[[
@@ -862,72 +870,6 @@ end
 function CrusadeCritter:IsBossGuidesEnabled()
     local db = HopeAddon.db and HopeAddon.db.crusadeCritter
     return db and db.showBossGuides ~= false
-end
-
---============================================================
--- TEST MODE
---============================================================
-
-function CrusadeCritter:EnterTestMode()
-    -- Simulate entering Stockades
-    self.currentRun = {
-        dungeonName = "The Stockade",
-        dungeonKey = "stockades",
-        startTime = GetTime(),
-        bossKills = {},
-        bossTimestamps = {},
-    }
-
-    self.enabled = true
-
-    -- Show mascot if not visible
-    self:ShowMascot()
-
-    -- Show test panel
-    if HopeAddon.CritterUI then
-        HopeAddon.CritterUI:ShowTestPanel()
-    end
-
-    print("|cff9B30FF[Test Mode]|r Simulated entering The Stockade")
-    print("  /critter test boss  - Simulate mid-boss kill")
-    print("  /critter test final - Simulate final boss + stats")
-    print("  /critter test unlock - Show unlock celebration")
-    print("  /critter test reset - Clear test run")
-end
-
-function CrusadeCritter:TestBossKill(isFinal)
-    if not self.currentRun then
-        print("|cffff0000Run /critter test first to enter test mode|r")
-        return
-    end
-
-    local bossName, npcID
-    if isFinal then
-        bossName = "Bazil Thredd"
-        npcID = 1716
-    else
-        -- Cycle through mid-bosses
-        local midBosses = {
-            { name = "Kam Deepfury", npcID = 1666 },
-            { name = "Targorr the Dread", npcID = 1696 },
-            { name = "Hamhock", npcID = 1717 },
-            { name = "Dextren Ward", npcID = 1663 },
-        }
-        local idx = (#self.currentRun.bossKills % #midBosses) + 1
-        local boss = midBosses[idx]
-        bossName = boss.name
-        npcID = boss.npcID
-    end
-
-    local bossData = {
-        name = bossName,
-        dungeon = "stockades",
-        isFinal = isFinal,
-    }
-
-    print("|cff9B30FF[Test Mode]|r " .. (isFinal and "FINAL: " or "") .. bossName .. " killed!")
-
-    self:OnBossKill(npcID, bossData)
 end
 
 --============================================================
@@ -1008,12 +950,6 @@ local function PrintHelp()
     print("|cffffff00/critter select <name>|r - Select critter (chomp, snookimp, shred, emo, cosmo, boomer, diva)")
     print("|cffffff00/critter guides on|r|cffffffff/|r|cffffff00off|r - Toggle boss guides on dungeon entry")
     print("|cffffff00/critter list|r - Show unlocked critters and progress")
-    print("|cffffff00/critter test|r - Enter test mode (simulates Stockades)")
-    print("|cffffff00/critter test boss|r - Simulate mid-boss kill")
-    print("|cffffff00/critter test final|r - Simulate final boss kill")
-    print("|cffffff00/critter test unlock|r - Show unlock celebration")
-    print("|cffffff00/critter test guides|r - Test boss guides display")
-    print("|cffffff00/critter test reset|r - Clear test run data")
 end
 
 local function PrintStatus()
@@ -1035,16 +971,19 @@ local function PrintCritterList()
         return
     end
     local Content = HopeAddon.CritterContent
+    local playerLevel = UnitLevel("player")
 
     print("|cff9B30FF=== Crusade Critter Collection ===|r")
+    print(string.format("  Your level: |cffffff00%d|r", playerLevel))
 
     -- List all critters with unlock status
-    local critterOrder = { "chomp", "snookimp", "shred", "emo", "cosmo", "boomer", "diva" }
+    local critterOrder = { "chomp", "snookimp", "shred", "emo", "boomer", "cosmo", "diva" }
     for _, critterId in ipairs(critterOrder) do
         local critter = Content and Content.CRITTERS[critterId]
         if critter then
             local unlocked = CrusadeCritter:IsCritterUnlocked(critterId)
             local selected = (db.selectedCritter == critterId)
+            local unlockLevel = critter.unlockLevel or 1
 
             local status = ""
             if selected then
@@ -1052,14 +991,8 @@ local function PrintCritterList()
             elseif unlocked then
                 status = " |cff00ff00[UNLOCKED]|r"
             else
-                -- Show unlock requirement
-                local hub = critter.unlockHub
-                if hub and Content.DUNGEON_HUBS[hub] then
-                    local completed, total = CrusadeCritter:GetHubProgress(hub)
-                    status = string.format(" |cffff6600[%d/%d %s]|r", completed, total, Content.DUNGEON_HUBS[hub].name)
-                else
-                    status = " |cff888888[LOCKED]|r"
-                end
+                -- Show level requirement
+                status = string.format(" |cffff6600[Level %d]|r", unlockLevel)
             end
 
             print(string.format("  |cffffff00%s|r - %s%s", critterId, critter.name, status))
@@ -1087,13 +1020,9 @@ local function SelectCritter(name)
     -- Check if unlocked
     if not CrusadeCritter:IsCritterUnlocked(name) then
         local critter = Content.CRITTERS[name]
-        local hub = critter.unlockHub
-        if hub and Content.DUNGEON_HUBS[hub] then
-            local completed, total = CrusadeCritter:GetHubProgress(hub)
-            print(string.format("|cffff0000%s is locked!|r Complete %s dungeons (%d/%d)", critter.name, Content.DUNGEON_HUBS[hub].name, completed, total))
-        else
-            print("|cffff0000That critter is locked!|r")
-        end
+        local unlockLevel = critter.unlockLevel or 1
+        local playerLevel = UnitLevel("player")
+        print(string.format("|cffff0000%s is locked!|r Requires level %d (you are level %d)", critter.name, unlockLevel, playerLevel))
         return
     end
 
@@ -1149,35 +1078,6 @@ SlashCmdList["CRITTER"] = function(msg)
             local enabled = CrusadeCritter:IsBossGuidesEnabled()
             print("|cff9B30FFBoss guides:|r " .. (enabled and "|cff00ff00ON|r" or "|cffff0000OFF|r"))
             print("  Use |cffffff00/critter guides on|r or |cffffff00/critter guides off|r to toggle")
-        end
-
-    elseif cmd == "test" then
-        if arg == "boss" then
-            -- Simulate mid-boss kill
-            CrusadeCritter:TestBossKill(false)
-        elseif arg == "final" then
-            -- Simulate final boss kill
-            CrusadeCritter:TestBossKill(true)
-        elseif arg == "unlock" then
-            -- Show unlock celebration
-            if HopeAddon.CritterUI then
-                HopeAddon.CritterUI:ShowUnlockCelebration("snookimp")
-            end
-        elseif arg == "guides" then
-            -- Test boss guides display (combined guide panel)
-            if HopeAddon.CritterUI then
-                HopeAddon.CritterUI:SetInDungeonMode(true, "ramparts")
-                HopeAddon.CritterUI:ShowGuidePanel()
-                HopeAddon.CritterUI:SelectInstance("ramparts")
-                print("|cff9B30FF[Test Mode]|r Showing Hellfire Ramparts guide panel")
-            end
-        elseif arg == "reset" then
-            -- Reset test run
-            CrusadeCritter.currentRun = nil
-            print("|cff00ff00Test run cleared.|r")
-        else
-            -- Enter test mode
-            CrusadeCritter:EnterTestMode()
         end
 
     else

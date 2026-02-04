@@ -38,7 +38,7 @@ CritterContent.CRITTERS = {
         displayID = 20155,  -- Ravager Hatchling (green model)
         glowColor = { r = 0.00, g = 0.60, b = 0.20 },  -- Dark Green
         soundOnAppear = "Sound\\Creature\\Ravager\\RavagerAggro.ogg",
-        unlocked = true, -- Always unlocked as starter
+        unlockLevel = 1,  -- Always available (starter)
     },
     snookimp = {
         name = "Snookimp",
@@ -46,7 +46,7 @@ CritterContent.CRITTERS = {
         displayID = 4449,  -- Imp (VERIFIED - NPC #416)
         glowColor = { r = 1.00, g = 0.50, b = 0.00 },  -- Orange
         soundOnAppear = "Sound\\Creature\\Imp\\ImpAggro.ogg",
-        unlockHub = "hellfire",
+        unlockLevel = 60,  -- Hellfire Citadel dungeons
     },
     shred = {
         name = "Shred",
@@ -54,7 +54,7 @@ CritterContent.CRITTERS = {
         displayID = 17752,  -- Greater Sporebat (VERIFIED - NPC #18129)
         glowColor = { r = 0.00, g = 0.80, b = 0.80 },  -- Teal
         soundOnAppear = "Sound\\Creature\\Sporebat\\SporeBatAggro.ogg",
-        unlockHub = "coilfang",
+        unlockLevel = 62,  -- Coilfang Reservoir
     },
     emo = {
         name = "Emo",
@@ -62,7 +62,7 @@ CritterContent.CRITTERS = {
         displayID = 1566,  -- Darkspear Bat (dark model)
         glowColor = { r = 0.40, g = 0.00, b = 0.40 },  -- Dark Purple
         soundOnAppear = "Sound\\Creature\\Bat\\BatPissed.ogg",
-        unlockHub = "auchindoun",
+        unlockLevel = 64,  -- Auchindoun
         modelOffset = -0.5,  -- Push model back (negative Z = further from camera)
     },
     cosmo = {
@@ -71,7 +71,7 @@ CritterContent.CRITTERS = {
         displayID = 19986,  -- Red Moth (VERIFIED - NPC #21009)
         glowColor = { r = 0.50, g = 0.70, b = 1.00 },  -- Light Blue
         soundOnAppear = "Sound\\Creature\\Moth\\MothAggro.ogg",
-        unlockHub = "tempest_keep",
+        unlockLevel = 68,  -- Tempest Keep
         modelOffset = -0.3,  -- Push model back (negative Z = further from camera)
     },
     boomer = {
@@ -80,7 +80,7 @@ CritterContent.CRITTERS = {
         displayID = 4877,  -- Ironbeak Owl (VERIFIED - NPC #7097)
         glowColor = { r = 0.80, g = 0.60, b = 0.30 },  -- Bronze
         soundOnAppear = "Sound\\Creature\\Owl\\OwlAggro.ogg",
-        unlockHub = "caverns",
+        unlockLevel = 66,  -- Caverns of Time
     },
     diva = {
         name = "Diva",
@@ -88,7 +88,7 @@ CritterContent.CRITTERS = {
         displayID = 19298,  -- Phoenix-Hawk Hatchling (VERIFIED - NPC #20038)
         glowColor = { r = 1.00, g = 0.84, b = 0.00 },  -- Gold
         soundOnAppear = "Sound\\Creature\\DragonHawk\\DragonHawkAggro.ogg",
-        unlockHub = "queldanas",
+        unlockLevel = 70,  -- Isle of Quel'Danas
     },
 }
 

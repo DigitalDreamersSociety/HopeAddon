@@ -2,7 +2,7 @@
 ## Title: |cff9B30FFHope Is Here|r
 ## Notes: Your TBC Journey Journal
 ## Author: Philfestive
-## Version: 0.6
+## Version: 0.9
 ## IconTexture: Interface\Icons\INV_Misc_Book_09
 ## SavedVariables: HopeAddonDB
 ## SavedVariablesPerCharacter: HopeAddonCharDB

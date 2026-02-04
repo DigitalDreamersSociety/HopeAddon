@@ -74,7 +74,6 @@ CritterUI.currentCritter = nil
 CritterUI.bossPopupTimer = nil
 CritterUI.unlockTimer = nil
 CritterUI.unlockPopup = nil
-CritterUI.testPanel = nil
 CritterUI.selectorPopup = nil
 CritterUI.isHousingOpen = false
 CritterUI.wasOpenBeforeCombat = false
@@ -556,6 +555,33 @@ function CritterUI:ResetHousingPosition()
 end
 
 --[[
+    Save guide panel position to database
+]]
+function CritterUI:SaveGuidePanelPosition()
+    if not self.guidePanel or not HopeAddon.db or not HopeAddon.db.crusadeCritter then return end
+    local point, _, relativePoint, xOfs, yOfs = self.guidePanel:GetPoint()
+    HopeAddon.db.crusadeCritter.guidePanelPosition = {
+        point = point,
+        relativePoint = relativePoint,
+        x = xOfs,
+        y = yOfs,
+    }
+end
+
+--[[
+    Reset guide panel position to default
+]]
+function CritterUI:ResetGuidePanelPosition()
+    if HopeAddon.db and HopeAddon.db.crusadeCritter then
+        HopeAddon.db.crusadeCritter.guidePanelPosition = nil
+    end
+    if self.guidePanel then
+        self.guidePanel:ClearAllPoints()
+        self.guidePanel:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -100, 180)
+    end
+end
+
+--[[
     Load housing state from database
 ]]
 function CritterUI:LoadHousingState()
@@ -777,17 +803,10 @@ function CritterUI:PopulateCritterSelector()
                 GameTooltip:AddLine(critterData.description, 1, 1, 1, true)
                 if not isUnlocked then
                     GameTooltip:AddLine(" ")
-                    local hub = critterData.unlockHub
-                    if hub and Content.DUNGEON_HUBS[hub] then
-                        local completed, total = 0, 0
-                        if Critter then
-                            completed, total = Critter:GetHubProgress(hub)
-                        end
-                        GameTooltip:AddLine(string.format("Complete %s (%d/%d)",
-                            Content.DUNGEON_HUBS[hub].name, completed, total), 1, 0.3, 0.3)
-                    else
-                        GameTooltip:AddLine("Locked", 1, 0.3, 0.3)
-                    end
+                    local unlockLevel = critterData.unlockLevel or 1
+                    local playerLevel = UnitLevel("player")
+                    GameTooltip:AddLine(string.format("Requires level %d (you are %d)",
+                        unlockLevel, playerLevel), 1, 0.3, 0.3)
                 elseif isSelected then
                     GameTooltip:AddLine(" ")
                     GameTooltip:AddLine("Currently selected", 0.3, 1, 0.3)
@@ -3021,227 +3040,6 @@ function CritterUI:ShowUnlockCelebration(critterId)
 end
 
 --============================================================
--- TEST PANEL
---============================================================
-
---[[
-    Create the test panel with buttons for testing Crusade Critter features
-    @return Frame - The test panel
-]]
-function CritterUI:CreateTestPanel()
-    if self.testPanel then
-        return self.testPanel
-    end
-
-    local panel = CreateFrame("Frame", "HopeCritterTestPanel", UIParent, "BackdropTemplate")
-    panel:SetSize(140, 180)
-    panel:SetBackdrop(HopeAddon.Constants.BACKDROPS.DARK_GOLD)
-    panel:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
-    panel:SetBackdropBorderColor(0.6, 0.2, 1, 1) -- Purple for test mode
-    panel:SetFrameStrata("HIGH")
-    panel:SetPoint("LEFT", UIParent, "CENTER", -300, 0)
-    panel:SetMovable(true)
-    panel:EnableMouse(true)
-    panel:RegisterForDrag("LeftButton")
-    panel:SetScript("OnDragStart", panel.StartMoving)
-    panel:SetScript("OnDragStop", panel.StopMovingOrSizing)
-    panel:SetClampedToScreen(true)
-
-    -- Title
-    local title = panel:CreateFontString(nil, "OVERLAY")
-    title:SetFont(HopeAddon.assets.fonts.HEADER, 11, "")
-    title:SetPoint("TOP", panel, "TOP", 0, -8)
-    title:SetText("[TEST MODE]")
-    title:SetTextColor(0.6, 0.2, 1) -- Purple
-
-    -- Close button
-    local closeBtn = CreateFrame("Button", nil, panel, "UIPanelCloseButton")
-    closeBtn:SetPoint("TOPRIGHT", panel, "TOPRIGHT", 2, 2)
-    closeBtn:SetScale(0.8)
-    closeBtn:SetScript("OnClick", function()
-        CritterUI:HideTestPanel()
-    end)
-
-    -- Helper to create buttons
-    local buttonY = -30
-    local function AddButton(label, onClick)
-        local btn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-        btn:SetSize(120, 22)
-        btn:SetPoint("TOP", panel, "TOP", 0, buttonY)
-        btn:SetText(label)
-        btn:SetScript("OnClick", onClick)
-        buttonY = buttonY - 28
-        return btn
-    end
-
-    -- Buttons
-    AddButton("Kill Boss", function()
-        if HopeAddon.CrusadeCritter then
-            HopeAddon.CrusadeCritter:TestBossKill(false)
-        end
-    end)
-
-    AddButton("Kill Final Boss", function()
-        if HopeAddon.CrusadeCritter then
-            HopeAddon.CrusadeCritter:TestBossKill(true)
-        end
-    end)
-
-    AddButton("Show Unlock", function()
-        CritterUI:ShowUnlockCelebration("snookimp")
-    end)
-
-    AddButton("Reset Run", function()
-        if HopeAddon.CrusadeCritter then
-            HopeAddon.CrusadeCritter.currentRun = nil
-            HopeAddon.CrusadeCritter:EnterTestMode()
-        end
-    end)
-
-    AddButton("Exit Test", function()
-        if HopeAddon.CrusadeCritter then
-            HopeAddon.CrusadeCritter.currentRun = nil
-        end
-        CritterUI:HideTestPanel()
-    end)
-
-    panel:Hide()
-    self.testPanel = panel
-    return panel
-end
-
---[[
-    Show the test panel
-]]
-function CritterUI:ShowTestPanel()
-    if not self.testPanel then
-        self:CreateTestPanel()
-    end
-    self.testPanel:Show()
-end
-
---[[
-    Hide the test panel
-]]
-function CritterUI:HideTestPanel()
-    if self.testPanel then
-        self.testPanel:Hide()
-    end
-end
-
---============================================================
--- DEBUG PANEL (Model Rendering Diagnostics)
---============================================================
-
---[[
-    Create debug panel with buttons to test various model rendering approaches
-    @return Frame - The debug panel
-]]
-function CritterUI:CreateDebugPanel()
-    if self.debugPanel then return end
-
-    local panel = CreateFrame("Frame", "HopeCritterDebugPanel", UIParent, "BackdropTemplate")
-    panel:SetSize(200, 210)
-    panel:SetPoint("RIGHT", UIParent, "RIGHT", -10, -50)
-    panel:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8x8",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        edgeSize = 12,
-    })
-    panel:SetBackdropColor(0.1, 0.1, 0.1, 0.9)
-    panel:SetFrameStrata("HIGH")
-
-    local title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    title:SetPoint("TOP", 0, -8)
-    title:SetText("Model Debug")
-
-    local yOffset = -28
-    local function addButton(text, onClick)
-        local btn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-        btn:SetSize(180, 22)
-        btn:SetPoint("TOP", panel, "TOP", 0, yOffset)
-        btn:SetText(text)
-        btn:SetScript("OnClick", onClick)
-        yOffset = yOffset - 26
-        return btn
-    end
-
-    -- Test buttons (each callback gets fresh model reference to avoid stale closure)
-    addButton("SetUnit(player)", function()
-        local model = self.housingContainer and self.housingContainer.model
-        if model and type(model) == "table" then
-            model:ClearModel()
-            model:SetUnit("player")
-        end
-    end)
-
-    addButton("DisplayID 5839 (Wyrm)", function()
-        local model = self.housingContainer and self.housingContainer.model
-        if model and type(model) == "table" then
-            model:ClearModel()
-            model:SetDisplayInfo(5839)
-        end
-    end)
-
-    addButton("DisplayID 4449 (Imp)", function()
-        local model = self.housingContainer and self.housingContainer.model
-        if model and type(model) == "table" then
-            model:ClearModel()
-            model:SetDisplayInfo(4449)
-        end
-    end)
-
-    addButton("Toggle Light", function()
-        local model = self.housingContainer and self.housingContainer.model
-        if model and type(model) == "table" then
-            self.debugLightOn = not self.debugLightOn
-            -- TBC SetLight: enabled, omni, dirX, dirY, dirZ, ambInt, ambR, ambG, ambB, dirInt, dirR, dirG, dirB
-            if type(model.SetLight) == "function" then
-                pcall(model.SetLight, model, self.debugLightOn, true, 0, 0, 1, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0)
-            end
-        end
-    end)
-
-    addButton("Cycle Camera (0-3)", function()
-        local model = self.housingContainer and self.housingContainer.model
-        if model and type(model) == "table" then
-            self.debugCamera = ((self.debugCamera or 0) + 1) % 4
-            model:SetCamera(self.debugCamera)
-        end
-    end)
-
-    addButton("Print Model State", function()
-        local model = self.housingContainer and self.housingContainer.model
-        if model and type(model) == "table" then
-            HopeAddon:Debug("Model visible: " .. tostring(model:IsVisible()))
-            HopeAddon:Debug("Model shown: " .. tostring(model:IsShown()))
-            HopeAddon:Debug("Model alpha: " .. tostring(model:GetAlpha()))
-            local w, h = model:GetSize()
-            HopeAddon:Debug("Model size: " .. w .. "x" .. h)
-        end
-    end)
-
-    -- Cycle through all mascots
-    addButton("Next Mascot", function()
-        if HopeAddon.CritterContent then
-            local critters = HopeAddon.CritterContent:GetAllCritters()
-            local ids = {}
-            for id in pairs(critters) do
-                table.insert(ids, id)
-            end
-            table.sort(ids)
-
-            self.debugMascotIdx = ((self.debugMascotIdx or 0) % #ids) + 1
-            local critterId = ids[self.debugMascotIdx]
-            self:SetCritter(critterId)
-        end
-    end)
-
-    self.debugPanel = panel
-    panel:Show()
-end
-
---============================================================
 -- DUNGEON PROGRESS STATS PANEL
 --============================================================
 
@@ -3376,15 +3174,36 @@ function CritterUI:CreateStatsDropdown(parent, width, onChange)
         self:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
     end)
 
-    function dropdown:SetOptions(options)
+    function dropdown:SetOptions(options, preserveSelection)
+        local previousKey = nil
+        if preserveSelection and self.selectedIndex > 0 and self.options[self.selectedIndex] then
+            previousKey = self.options[self.selectedIndex].key
+        end
+
         self.options = options or {}
         if #self.options > 0 then
-            self.selectedIndex = 1
-            local firstOpt = self.options[1]
-            if type(firstOpt) == "table" then
-                self.text:SetText(firstOpt.name or tostring(firstOpt.key) or "Option 1")
-            else
-                self.text:SetText(tostring(firstOpt))
+            -- Try to preserve previous selection if requested
+            local foundPrevious = false
+            if previousKey then
+                for i, opt in ipairs(self.options) do
+                    if opt.key == previousKey then
+                        self.selectedIndex = i
+                        self.text:SetText(opt.name or tostring(opt.key) or "Option " .. i)
+                        foundPrevious = true
+                        break
+                    end
+                end
+            end
+
+            -- Fall back to first option if not preserving or not found
+            if not foundPrevious then
+                self.selectedIndex = 1
+                local firstOpt = self.options[1]
+                if type(firstOpt) == "table" then
+                    self.text:SetText(firstOpt.name or tostring(firstOpt.key) or "Option 1")
+                else
+                    self.text:SetText(tostring(firstOpt))
+                end
             end
         else
             self.selectedIndex = 0
@@ -3865,9 +3684,50 @@ function CritterUI:CreateStatsPanel()
     panel:SetBackdropBorderColor(1, 0.84, 0, 1)
     panel:SetFrameStrata("HIGH")
     panel:SetClampedToScreen(true)
+    panel:SetMovable(true)
 
-    -- Position: bottom-right of screen
-    panel:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -100, 180)
+    -- Position: load saved or use default (bottom-right)
+    local savedPos = HopeAddon.db and HopeAddon.db.crusadeCritter
+        and HopeAddon.db.crusadeCritter.guidePanelPosition
+    if savedPos then
+        panel:SetPoint(savedPos.point, UIParent, savedPos.relativePoint, savedPos.x, savedPos.y)
+    else
+        panel:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -100, 180)
+    end
+
+    -- Create drag handle at top
+    local dragHandle = CreateFrame("Frame", nil, panel)
+    dragHandle:SetHeight(16)
+    dragHandle:SetPoint("TOPLEFT", panel, "TOPLEFT", 4, -4)
+    dragHandle:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -4, -4)
+    dragHandle:EnableMouse(true)
+    dragHandle:RegisterForDrag("LeftButton")
+
+    -- Visual indicator (subtle bar)
+    local handleTex = dragHandle:CreateTexture(nil, "ARTWORK")
+    handleTex:SetTexture("Interface\\Buttons\\WHITE8x8")
+    handleTex:SetVertexColor(0.4, 0.35, 0.25, 0.6)
+    handleTex:SetHeight(4)
+    handleTex:SetPoint("LEFT", 4, 0)
+    handleTex:SetPoint("RIGHT", -4, 0)
+
+    -- Drag scripts
+    dragHandle:SetScript("OnDragStart", function()
+        panel:StartMoving()
+    end)
+    dragHandle:SetScript("OnDragStop", function()
+        panel:StopMovingOrSizing()
+        CritterUI:SaveGuidePanelPosition()
+    end)
+
+    -- Right-click to reset position
+    dragHandle:SetScript("OnMouseUp", function(_, button)
+        if button == "RightButton" then
+            CritterUI:ResetGuidePanelPosition()
+        end
+    end)
+
+    panel.dragHandle = dragHandle
 
     -- Title
     local title = panel:CreateFontString(nil, "OVERLAY")
@@ -4293,17 +4153,19 @@ function CritterUI:UpdateHubStatus(instanceKey)
         return
     end
 
-    -- Check if hub has any progress (any boss killed)
-    local hasProgress = Content:HasHubProgress(hubKey, db and db.completedDungeons or {})
+    -- Check if critter is unlocked (level-based)
     local critterId = hub.critter
     local critterData = Content:GetCritter(critterId)
     local critterName = critterData and critterData.name or critterId
+    local Critter = HopeAddon.CrusadeCritter
+    local isUnlocked = Critter and Critter:IsCritterUnlocked(critterId)
 
-    if hasProgress then
+    if isUnlocked then
         self.guidePanel.hubStatus:SetText(string.format("\226\156\147 %s Unlocked!", critterName))
         self.guidePanel.hubStatus:SetTextColor(0.3, 0.8, 0.3)
     else
-        self.guidePanel.hubStatus:SetText(string.format("Unlock %s", critterName))
+        local unlockLevel = critterData and critterData.unlockLevel or 1
+        self.guidePanel.hubStatus:SetText(string.format("Unlock %s at Lv %d", critterName, unlockLevel))
         self.guidePanel.hubStatus:SetTextColor(0.7, 0.7, 0.7)
     end
 end
@@ -4407,7 +4269,10 @@ end
 ]]
 function CritterUI:GetRaidBosses(raidKey)
     local C = HopeAddon.Constants
-    if not C then return {} end
+    if not C then
+        print("|cffff0000[Critter]|r Constants not loaded - cannot get raid bosses")
+        return {}
+    end
 
     local bossTable = nil
     if raidKey == "karazhan" then
@@ -4430,7 +4295,10 @@ function CritterUI:GetRaidBosses(raidKey)
         bossTable = C.SUNWELL_BOSSES
     end
 
-    if not bossTable then return {} end
+    if not bossTable then
+        print("|cffff6600[Critter]|r No boss data found for raid: " .. tostring(raidKey))
+        return {}
+    end
 
     local options = {}
     for _, boss in ipairs(bossTable) do
@@ -4442,6 +4310,11 @@ function CritterUI:GetRaidBosses(raidKey)
             })
         end
     end
+
+    if #options == 0 then
+        print("|cffff6600[Critter]|r Boss table exists but no valid bosses for: " .. tostring(raidKey))
+    end
+
     return options
 end
 
@@ -4855,20 +4728,6 @@ end
 
 function CritterUI:OnInitialize()
     -- Create frames on demand
-
-    -- Debug panel slash command
-    SLASH_CRITTERDEBUG1 = "/critterdebug"
-    SlashCmdList["CRITTERDEBUG"] = function()
-        if not CritterUI.debugPanel then
-            CritterUI:CreateDebugPanel()
-        else
-            if CritterUI.debugPanel:IsShown() then
-                CritterUI.debugPanel:Hide()
-            else
-                CritterUI.debugPanel:Show()
-            end
-        end
-    end
 end
 
 function CritterUI:OnEnable()
@@ -4945,14 +4804,8 @@ function CritterUI:OnDisable()
     if self.statsWindow then
         self.statsWindow:Hide()
     end
-    if self.testPanel then
-        self.testPanel:Hide()
-    end
     if self.selectorPopup then
         self.selectorPopup:Hide()
-    end
-    if self.debugPanel then
-        self.debugPanel:Hide()
     end
 
     -- Clean up new combined stats and tips panels

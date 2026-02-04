@@ -1,0 +1,13 @@
+package-as: HopeAddon
+enable-nolib-creation: no
+ignore:
+  - nul
+  - "*.zip"
+  - .gitignore
+  - README.md
+  - CURSEFORGE_DESCRIPTION.md
+  - CURSEFORGE_SHORT_DESCRIPTION.txt
+  - .claude/
+  - docs/
+  - _Archive/
+  - .github/

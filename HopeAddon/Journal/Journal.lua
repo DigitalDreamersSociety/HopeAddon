@@ -13056,14 +13056,11 @@ function Journal:PopulateSocialCritter()
                 GameTooltip:AddLine(self.critterData.name, 1, 0.84, 0)
                 GameTooltip:AddLine(self.critterData.description, 1, 1, 1, true)
                 if not self.isUnlocked then
-                    local hub = self.critterData.unlockHub
-                    if hub and CritterContent.DUNGEON_HUBS[hub] then
-                        local hubData = CritterContent.DUNGEON_HUBS[hub]
-                        local completed, total = CrusadeCritter:GetHubProgress(hub)
-                        GameTooltip:AddLine(" ")
-                        GameTooltip:AddLine("Unlock: Complete " .. hubData.name, 1, 0.5, 0)
-                        GameTooltip:AddLine(string.format("Progress: %d/%d dungeons", completed, total), 0.7, 0.7, 0.7)
-                    end
+                    local unlockLevel = self.critterData.unlockLevel or 1
+                    local playerLevel = UnitLevel("player")
+                    GameTooltip:AddLine(" ")
+                    GameTooltip:AddLine(string.format("Requires level %d", unlockLevel), 1, 0.5, 0)
+                    GameTooltip:AddLine(string.format("Your level: %d", playerLevel), 0.7, 0.7, 0.7)
                 end
                 GameTooltip:Show()
             end)
@@ -13093,67 +13090,80 @@ function Journal:PopulateSocialCritter()
     yOffset = yOffset + ICON_SIZE + 10 + SECTION_SPACING
 
     --============================================================
-    -- SECTION 3: Dungeon Progress
+    -- SECTION 3: Unlock Progress (Level-Based)
     --============================================================
     local progressHeader = content:CreateFontString(nil, "OVERLAY")
     progressHeader:SetFont(HopeAddon.assets.fonts.HEADER, 11, "")
     progressHeader:SetPoint("TOPLEFT", content, "TOPLEFT", MARGIN, -yOffset)
-    progressHeader:SetText("Dungeon Progress")
+    progressHeader:SetText("Unlock Progress")
     progressHeader:SetTextColor(HopeAddon:GetTextColor("GOLD_BRIGHT"))
     self:TrackSocialRegion(progressHeader)
     yOffset = yOffset + 20
 
-    -- Hub progress rows
-    local hubOrder = { "hellfire", "coilfang", "auchindoun", "tempest_keep", "caverns", "queldanas" }
-    local BAR_WIDTH = 100
-    local BAR_HEIGHT = 12
+    -- Level unlock rows
+    local playerLevel = UnitLevel("player")
+    local critterUnlocks = {
+        { level = 1, critterId = "chomp", zone = "Starter" },
+        { level = 60, critterId = "snookimp", zone = "Hellfire Citadel" },
+        { level = 62, critterId = "shred", zone = "Coilfang Reservoir" },
+        { level = 64, critterId = "emo", zone = "Auchindoun" },
+        { level = 66, critterId = "boomer", zone = "Caverns of Time" },
+        { level = 68, critterId = "cosmo", zone = "Tempest Keep" },
+        { level = 70, critterId = "diva", zone = "Isle of Quel'Danas" },
+    }
     local ROW_HEIGHT = 22
 
-    for _, hubKey in ipairs(hubOrder) do
-        local hubData = CritterContent and CritterContent.DUNGEON_HUBS[hubKey]
-        if hubData then
-            local completed, total = 0, 0
-            if CrusadeCritter then
-                completed, total = CrusadeCritter:GetHubProgress(hubKey)
-            else
-                total = #hubData.dungeons
-            end
-            local isComplete = (completed == total and total > 0)
-            local critterReward = CritterContent.CRITTERS[hubData.critter]
+    for _, unlock in ipairs(critterUnlocks) do
+        local critterData = CritterContent and CritterContent.CRITTERS[unlock.critterId]
+        if critterData then
+            local isUnlocked = playerLevel >= unlock.level
 
             -- Row container
             local row = CreateFrame("Frame", nil, content)
             row:SetSize(content:GetWidth() - 2 * MARGIN, ROW_HEIGHT)
             row:SetPoint("TOPLEFT", content, "TOPLEFT", MARGIN, -yOffset)
 
-            -- Hub name
-            local hubName = row:CreateFontString(nil, "OVERLAY")
-            hubName:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
-            hubName:SetPoint("LEFT", row, "LEFT", 0, 0)
-            hubName:SetWidth(120)
-            hubName:SetJustifyH("LEFT")
-            hubName:SetText(hubData.name)
-            if isComplete then
-                hubName:SetTextColor(0.2, 0.8, 0.2) -- Green for complete
+            -- Level requirement
+            local levelText = row:CreateFontString(nil, "OVERLAY")
+            levelText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+            levelText:SetPoint("LEFT", row, "LEFT", 0, 0)
+            levelText:SetWidth(50)
+            levelText:SetJustifyH("LEFT")
+            levelText:SetText(string.format("Lv %d", unlock.level))
+            if isUnlocked then
+                levelText:SetTextColor(0.2, 0.8, 0.2) -- Green for unlocked
             else
-                hubName:SetTextColor(0.8, 0.8, 0.8)
+                levelText:SetTextColor(0.5, 0.5, 0.5)
             end
 
-            -- Progress bar
-            local progressBar = Components:CreateProgressBar(row, BAR_WIDTH, BAR_HEIGHT, isComplete and "FEL_GREEN" or "GOLD_BRIGHT")
-            progressBar:SetPoint("LEFT", row, "LEFT", 125, 0)
-            local percent = total > 0 and (completed / total * 100) or 0
-            progressBar:SetProgress(percent)
-            progressBar.text:SetText(string.format("%d/%d", completed, total))
+            -- Critter name
+            local critterName = row:CreateFontString(nil, "OVERLAY")
+            critterName:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+            critterName:SetPoint("LEFT", row, "LEFT", 55, 0)
+            critterName:SetWidth(80)
+            critterName:SetJustifyH("LEFT")
+            critterName:SetText(critterData.name)
+            if isUnlocked then
+                critterName:SetTextColor(1, 0.84, 0) -- Gold for name
+            else
+                critterName:SetTextColor(0.5, 0.5, 0.5)
+            end
 
-            -- Critter reward indicator
-            local rewardText = row:CreateFontString(nil, "OVERLAY")
-            rewardText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
-            rewardText:SetPoint("LEFT", progressBar, "RIGHT", 10, 0)
-            if critterReward then
-                local arrow = isComplete and "|cFF00FF00->|r " or "-> "
-                rewardText:SetText(arrow .. critterReward.name)
-                rewardText:SetTextColor(0.6, 0.6, 0.6)
+            -- Zone/Content
+            local zoneText = row:CreateFontString(nil, "OVERLAY")
+            zoneText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+            zoneText:SetPoint("LEFT", row, "LEFT", 140, 0)
+            zoneText:SetText(unlock.zone)
+            zoneText:SetTextColor(0.6, 0.6, 0.6)
+
+            -- Status indicator
+            local statusText = row:CreateFontString(nil, "OVERLAY")
+            statusText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+            statusText:SetPoint("RIGHT", row, "RIGHT", 0, 0)
+            if isUnlocked then
+                statusText:SetText("|cFF00FF00UNLOCKED|r")
+            else
+                statusText:SetText(string.format("|cFFFF6600%d levels|r", unlock.level - playerLevel))
             end
 
             yOffset = yOffset + ROW_HEIGHT

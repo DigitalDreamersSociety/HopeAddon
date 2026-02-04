@@ -60,6 +60,31 @@ Never lose track of where you are in those long quest chains!
 
 ---
 
+### 🐾 Crusade Critter - Your Dungeon Mascot
+
+A companion mascot system that joins you on your TBC dungeon adventures!
+
+| Feature | Description |
+|---------|-------------|
+| 🏠 **Tab-out Housing** | Your critter lives in a cozy panel on your screen edge |
+| 💬 **Quips & Reactions** | Mascots comment on boss kills, deaths, zone changes |
+| 🔓 **Unlock System** | Start with Chomp, unlock 6 more by defeating dungeon bosses |
+| 📊 **Run Statistics** | Track boss kill times and dungeon completion speeds |
+| 📖 **Boss Guides** | Built-in tips for every TBC dungeon boss |
+
+**Unlock Your Collection:**
+| Critter | Unlock Location |
+|---------|-----------------|
+| 🦴 Chomp | Always available (starter) |
+| 😈 Snookimp | Hellfire Citadel dungeons |
+| 🌿 Shred | Coilfang Reservoir dungeons |
+| 🦇 Emo | Auchindoun dungeons |
+| ⭐ Cosmo | Tempest Keep dungeons |
+| 🦉 Boomer | Caverns of Time dungeons |
+| 🐉 Diva | Magisters' Terrace |
+
+---
+
 ### 🎮 Multiplayer Minigames
 
 Challenge your Fellow Travelers to epic battles!
