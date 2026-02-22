@@ -52,7 +52,7 @@ CritterContent.CRITTERS = {
         name = "Shred",
         description = "Extreme sports Sporebat - X Games energy!",
         displayID = 17752,  -- Greater Sporebat (VERIFIED - NPC #18129)
-        glowColor = { r = 0.00, g = 0.80, b = 0.80 },  -- Teal
+        glowColor = HopeAddon.colors.OUTLAND_TEAL,  -- Teal
         soundOnAppear = "Sound\\Creature\\Sporebat\\SporeBatAggro.ogg",
         unlockLevel = 62,  -- Coilfang Reservoir
     },
@@ -833,27 +833,6 @@ CritterContent.BOSS_TIPS = {
             { text = "Gravity Lapse floats everyone - swim to him like navigating dial-up lag!", heroic = false },
             { text = "Pyroblast is like an unwanted download - INTERRUPT IT!", heroic = false },
             { text = "HEROIC: Phoenix respawns faster than spam - egg priority is critical!", heroic = true },
-        },
-        -- Stockades (Test)
-        kam_deepfury = {
-            { text = "Basic boss - tank and spank like it's 2007!", heroic = false },
-            { text = "Shield Slam hits hard but nothing special!", heroic = false },
-        },
-        targorr_the_dread = {
-            { text = "Enrage at low health - burn him fast!", heroic = false },
-            { text = "Nothing too scary here - good warmup!", heroic = false },
-        },
-        hamhock = {
-            { text = "He chains lightning - spread out a bit!", heroic = false },
-            { text = "Bloodlust makes him hit faster - save cooldowns!", heroic = false },
-        },
-        dextren_ward = {
-            { text = "Rend causes bleed - healers watch the tank!", heroic = false },
-            { text = "Intimidating Shout fears - be ready!", heroic = false },
-        },
-        bazil_thredd = {
-            { text = "Final boss vibes! Smoke Bomb blinds melee!", heroic = false },
-            { text = "Battle Shout buffs him - dispel or burn fast!", heroic = false },
         },
     },
 
@@ -3121,14 +3100,6 @@ CritterContent.BOSS_GUIDES = {
         { boss = "Vexallus", tip = "Kill or kite Pure Energies! Overload increases your damage but hurts you." },
         { boss = "Priestess Delrissa", tip = "CC adds if you can! Kill order depends on which adds spawn." },
         { boss = "Kael'thas Sunstrider", tip = "Kill Phoenix Egg! Move from Flamestrike. Swim to him during Gravity Lapse!" },
-    },
-    -- Test Dungeon (Stockades)
-    stockades = {
-        { boss = "Kam Deepfury", tip = "Basic tank and spank - nothing special here!" },
-        { boss = "Targorr the Dread", tip = "Enrages at low health - burn him down fast!" },
-        { boss = "Hamhock", tip = "Spread out for Chain Lightning! Bloodlust makes him faster." },
-        { boss = "Dextren Ward", tip = "Rend causes bleed - healers watch the tank!" },
-        { boss = "Bazil Thredd", tip = "Smoke Bomb blinds melee. Battle Shout can be dispelled." },
     },
 }
 

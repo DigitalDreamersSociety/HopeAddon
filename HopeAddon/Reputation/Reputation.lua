@@ -75,7 +75,12 @@ function Reputation:CreateNotificationPool()
         frame:ClearAllPoints()
         frame:SetParent(nil)
         frame:SetAlpha(1)
-        -- Clear font string text
+        -- Clear font string text (re-set font first since SetParent(nil) clears inherited font)
+        local fallbackFont = HopeAddon.assets and HopeAddon.assets.fonts and HopeAddon.assets.fonts.BODY or "Fonts\\FRIZQT__.TTF"
+        frame.titleText:SetFont(fallbackFont, 12, "")
+        frame.line1:SetFont(fallbackFont, 12, "")
+        frame.line2:SetFont(fallbackFont, 12, "")
+        frame.line3:SetFont(fallbackFont, 12, "")
         frame.titleText:SetText("")
         frame.line1:SetText("")
         frame.line2:SetText("")

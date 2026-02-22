@@ -13,7 +13,7 @@ local UnitLevel = UnitLevel
 -- Create global addon table (may already exist from Constants.lua)
 HopeAddon = HopeAddon or {}
 HopeAddon.name = "HopeAddon"
-HopeAddon.version = "1.0.0"
+HopeAddon.version = "0.9.0"
 
 -- Saved variables references (populated on ADDON_LOADED)
 HopeAddon.db = nil        -- Account-wide data
@@ -1503,7 +1503,6 @@ function HopeAddon:GetDefaultCharDB()
                 shareProfile = true,
                 showTooltips = true,
                 colorNameplates = true,     -- Color Fellow nameplates by RP status
-                colorMinimapPins = true,    -- Color minimap pins by RP status
             },
         },
 
@@ -1695,15 +1694,6 @@ SlashCmdList["HOPE"] = function(msg)
         if NameplateColors then
             local enabled = NameplateColors:Toggle()
             HopeAddon:Print("Fellow nameplate colors:", enabled and "|cFF33FF33ON|r" or "|cFFFF3333OFF|r")
-            if enabled then
-                HopeAddon:Print("  |cFF33FF33IC|r = Green, |cFF00BFFFOOC|r = Blue, |cFFFF33CCLF_RP|r = Pink")
-            end
-        end
-    elseif cmd == "pins" then
-        -- Toggle minimap pin RP status coloring
-        if HopeAddon.MapPins then
-            local enabled = HopeAddon.MapPins:TogglePinColoring()
-            HopeAddon:Print("Fellow minimap pin colors:", enabled and "|cFF33FF33ON|r" or "|cFFFF3333OFF|r")
             if enabled then
                 HopeAddon:Print("  |cFF33FF33IC|r = Green, |cFF00BFFFOOC|r = Blue, |cFFFF33CCLF_RP|r = Pink")
             end
@@ -2121,6 +2111,7 @@ end
 
 -- /fire slash command for Battleship gameplay
 SLASH_FIRE1 = "/fire"
+SLASH_FIRE2 = "/hopefire"  -- Non-conflicting alias
 SlashCmdList["FIRE"] = function(msg)
     local BattleshipGame = HopeAddon:GetModule("BattleshipGame")
     if not BattleshipGame then
@@ -2174,6 +2165,7 @@ end
 
 -- /ready slash command for Battleship
 SLASH_READY1 = "/ready"
+SLASH_READY2 = "/hoperead"  -- Non-conflicting alias (intentionally short)
 SlashCmdList["READY"] = function(msg)
     local BattleshipGame = HopeAddon:GetModule("BattleshipGame")
     if not BattleshipGame then
@@ -2196,6 +2188,7 @@ end
 
 -- /surrender slash command for Battleship
 SLASH_SURRENDER1 = "/surrender"
+SLASH_SURRENDER2 = "/hopesurrender"  -- Non-conflicting alias
 SlashCmdList["SURRENDER"] = function(msg)
     local BattleshipGame = HopeAddon:GetModule("BattleshipGame")
     if not BattleshipGame then
@@ -2219,6 +2212,7 @@ end
 -- /gc or /gamechat for in-game chat during multiplayer games
 SLASH_GAMECHAT1 = "/gc"
 SLASH_GAMECHAT2 = "/gamechat"
+SLASH_GAMECHAT3 = "/hopegc"  -- Non-conflicting alias
 SlashCmdList["GAMECHAT"] = function(msg)
     if not msg or msg == "" then
         HopeAddon:Print("Usage: /gc <message>")

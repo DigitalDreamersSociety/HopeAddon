@@ -1293,6 +1293,11 @@ function PacManGame:UpdateGhostRelease(gameId)
             if state.gameTime >= releaseTime then
                 ghost.released = true
                 ghost.mode = state.currentMode
+                -- Teleport ghost to house exit so it can leave immediately
+                local exit = HopeAddon.PacManMaps.GHOST_SPAWNS.BLINKY
+                ghost.row = exit.row
+                ghost.col = exit.col
+                ghost.direction = "UP"
             end
         end
     end
@@ -1354,6 +1359,10 @@ function PacManGame:Respawn(gameId)
     state.pacman.direction = "LEFT"
     state.pacman.nextDirection = nil
     state.pacman.moveTimer = 0
+    state.gameTime = 0
+    state.modeTimer = 0
+    state.modePhase = 1
+    state.currentMode = "SCATTER"
 
     for i, ghost in ipairs(state.ghosts) do
         local spawn = Maps.GHOST_SPAWNS[ghost.name]
@@ -1362,6 +1371,7 @@ function PacManGame:Respawn(gameId)
         ghost.mode = (i == 1) and "SCATTER" or "HOUSE"
         ghost.released = (i == 1)
         ghost.moveTimer = 0
+        ghost.direction = (i == 1) and "LEFT" or "UP"
     end
 
     state.powerTimer = 0

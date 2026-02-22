@@ -1,8 +1,8 @@
-## Interface: 20504
+## Interface: 20505
 ## Title: |cff9B30FFHope Is Here|r
 ## Notes: Your TBC Journey Journal
 ## Author: Philfestive
-## Version: 0.9
+## Version: 0.9.0
 ## IconTexture: Interface\Icons\INV_Misc_Book_09
 ## SavedVariables: HopeAddonDB
 ## SavedVariablesPerCharacter: HopeAddonCharDB
@@ -31,6 +31,8 @@ Journal\ProfileEditor.lua
 
 # Raid Data
 Raids\RaidData.lua
+Raids\EncounterTracker.lua
+Raids\BossBreakdown.lua
 Raids\Attunements.lua
 Raids\Karazhan.lua
 Raids\Gruul.lua
@@ -49,7 +51,6 @@ Social\Minigames.lua
 Social\MinigamesUI.lua
 Social\Directory.lua
 Social\Relationships.lua
-Social\MapPins.lua
 Social\NameplateColors.lua
 Social\ActivityFeed.lua
 Social\Companions.lua

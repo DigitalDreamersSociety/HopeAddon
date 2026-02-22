@@ -1156,6 +1156,27 @@ function Components:CreateTextInput(parent, width, height, placeholder)
 end
 
 --[[
+    SIMPLE EDIT BOX
+    Standalone EditBox with dark backdrop and text insets
+
+    @param parent Frame - Parent frame
+    @param width number - Width in pixels
+    @param height number - Height in pixels
+    @return EditBox - The edit box frame
+]]
+function Components:CreateEditBox(parent, width, height)
+    local box = CreateBackdropFrame("EditBox", nil, parent)
+    box:SetSize(width or 200, height or 26)
+    box:SetAutoFocus(false)
+    box:SetFontObject(ChatFontNormal)
+    self:ApplyBackdrop(box, "TOOLTIP", "DARK_SOLID", nil)
+    box:SetTextInsets(5, 5, 3, 3)
+    box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+    box:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+    return box
+end
+
+--[[
     LABELED EDIT BOX
     EditBox with label above it - common form pattern
 
@@ -2555,11 +2576,11 @@ function Components:CreateSegmentedReputationBar(parent, width, height, options)
     -- Colors sourced from HopeAddon.ReputationData.STANDINGS
     local RepStandings = HopeAddon.ReputationData and HopeAddon.ReputationData.STANDINGS or {}
     local SEGMENT_DATA = {
-        { standingId = 4, name = "Neutral",  rep = 3000,  color = RepStandings[4] and RepStandings[4].color or { r = 1.0, g = 1.0, b = 0.0 } },
-        { standingId = 5, name = "Friendly", rep = 6000,  color = RepStandings[5] and RepStandings[5].color or { r = 0.0, g = 0.8, b = 0.0 } },
-        { standingId = 6, name = "Honored",  rep = 12000, color = RepStandings[6] and RepStandings[6].color or { r = 0.0, g = 0.6, b = 0.8 } },
-        { standingId = 7, name = "Revered",  rep = 21000, color = RepStandings[7] and RepStandings[7].color or { r = 0.0, g = 0.4, b = 0.8 } },
-        { standingId = 8, name = "Exalted",  rep = 0,     color = RepStandings[8] and RepStandings[8].color or { r = 0.6, g = 0.2, b = 1.0 } },
+        { standingId = 4, name = RepStandings[4] and RepStandings[4].name or "Neutral",  rep = 3000,  color = RepStandings[4] and RepStandings[4].color or { r = 1.0, g = 1.0, b = 0.0 } },
+        { standingId = 5, name = RepStandings[5] and RepStandings[5].name or "Friendly", rep = 6000,  color = RepStandings[5] and RepStandings[5].color or { r = 0.0, g = 0.8, b = 0.0 } },
+        { standingId = 6, name = RepStandings[6] and RepStandings[6].name or "Honored",  rep = 12000, color = RepStandings[6] and RepStandings[6].color or { r = 0.0, g = 0.6, b = 0.8 } },
+        { standingId = 7, name = RepStandings[7] and RepStandings[7].name or "Revered",  rep = 21000, color = RepStandings[7] and RepStandings[7].color or { r = 0.0, g = 0.4, b = 0.8 } },
+        { standingId = 8, name = RepStandings[8] and RepStandings[8].name or "Exalted",  rep = 0,     color = RepStandings[8] and RepStandings[8].color or { r = 0.6, g = 0.2, b = 1.0 } },
     }
     local TOTAL_REP = 42000
     local ICON_SIZE = 20

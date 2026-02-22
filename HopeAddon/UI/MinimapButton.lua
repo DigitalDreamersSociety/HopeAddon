@@ -77,6 +77,13 @@ function MinimapButton:CreateButton()
     button:SetFrameStrata("MEDIUM")
     button:SetFrameLevel(8)
 
+    -- Adjust for minimap addons that may reposition/resize Minimap
+    local loaded = C_AddOns and C_AddOns.IsAddOnLoaded or IsAddOnLoaded
+    if loaded("SexyMap") then
+        -- SexyMap may reposition/resize Minimap - use higher frame level
+        button:SetFrameLevel(12)
+    end
+
     -- Enable mouse and dragging
     button:EnableMouse(true)
     button:SetMovable(true)

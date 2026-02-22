@@ -33,8 +33,9 @@ Quick reference for AI assistants. **This addon is built entirely by AI.** Docum
 | **UI_ORGANIZATION_GUIDE.md** | UI specs, colors, components, pooling | UI work, styling, layout decisions |
 | **GAME_SYSTEM_DOCS.md** | Game loops, state machines, algorithms | Building or debugging minigames |
 | **CHANGELOG.md** | Historical bug fixes (Phases 5-71) | Learning what's been tried |
-| **Social/Games/GAME_UI_PATTERNS.md** | Minigame UI standards | Creating or modifying minigames |
-| **Tests/README.md** | Test procedures | Running and writing tests |
+| **docs/GAME_UI_PATTERNS.md** | Minigame UI standards | Creating or modifying minigames |
+| **docs/BOSS_RECAP_DOCS.md** | Boss kill recap system spec | Boss breakdown UI, encounter tracking |
+| **docs/PACWOW_COMPONENTS.md** | PacMan game reference | PacMan game mechanics, ghost AI, maps |
 
 ---
 
@@ -47,9 +48,8 @@ HopeAddon/
 +-- Journal/        # Main journal system (Journal, Pages, Milestones, ProfileEditor)
 +-- Raids/          # Raid tracking (RaidData, Attunements, Karazhan, Gruul, Magtheridon)
 +-- Reputation/     # Faction tracking (ReputationData, Reputation)
-+-- Social/         # Multiplayer features (Badges, Directory, FellowTravelers, Minigames, MapPins, etc.)
-|   +-- Games/      # Game system (GameCore, GameUI, GameComms, Tetris, Pong, Words, Battleship, Wordle)
-+-- Tests/          # Test suite (WordGameTests.lua, README.md)
++-- Social/         # Multiplayer features (Badges, Directory, FellowTravelers, Minigames, etc.)
+|   +-- Games/      # Game system (GameCore, GameUI, GameComms, Tetris, Pong, DeathRoll, Battleship, Wordle, PacMan)
 ```
 
 **SavedVariables:**
@@ -63,7 +63,7 @@ HopeAddon/
 | Feature | Status | Feature | Status |
 |---------|--------|---------|--------|
 | Journal UI (7 tabs) | DONE | Score Challenge | DONE |
-| Timeline | DONE | Words with WoW | DONE |
+| Timeline | DONE | PacMan | DONE |
 | Milestones | DONE | Battleship | DONE |
 | Attunements (6 chains) | DONE | WoW Wordle | DONE |
 | Reputation (18 factions) | DONE | Games Hall UI | DONE |
@@ -77,18 +77,20 @@ HopeAddon/
 | Pong | DONE | Calendar | DONE |
 | Calendar Validation | DONE | Soft Reserve | DONE |
 | Raids Tab (P1-P5) | DONE | Guild System | DONE |
+| Boss Kill Recap | DONE | Crusade Critter | DONE |
+| Nameplate Colors | DONE | | |
 
 ---
 
 ## Known Incomplete Items
 
 ### 1. Milestone Detail Modal (Low Priority)
-**File:** `Journal/Journal.lua:831`
+**File:** `Journal/Journal.lua`
 **Issue:** Clicking milestone cards plays sound but doesn't open a detail modal
 **Needed:** Full modal dialog showing milestone details
 
 ### 2. CheckAttunementIcons Placeholder (Medium Priority)
-**File:** `Social/TravelerIcons.lua:558-563`
+**File:** `Social/TravelerIcons.lua`
 **Issue:** Function is stubbed - waiting on addon communication protocol
 **Needed:** Logic to check if both players completed an attunement together
 
@@ -98,7 +100,7 @@ HopeAddon/
 **Needed:** Optional - dedicated settings tab in journal
 
 ### 4. Feed Mug Reactions UI (Low Priority)
-**File:** `Journal/Journal.lua:8620+`
+**File:** `Journal/Journal.lua`
 **Issue:** Mug counts tracked in `activity.mugs` but not visually displayed
 **Needed:** Add clickable mug icon with count display on each feed row
 
@@ -116,6 +118,7 @@ HopeAddon/
 | `Core/FramePool.lua` | Generic object pooling |
 | `Core/Sounds.lua` | Sound effect playback |
 | `Core/Timer.lua` | TBC-compatible timer system |
+| `Core/Charts.lua` | Chart/graph rendering utilities |
 
 ### Journal System
 | File | Purpose |
@@ -130,6 +133,8 @@ HopeAddon/
 |------|---------|
 | `Raids/Attunements.lua` | Quest chain tracking, progress calc |
 | `Raids/RaidData.lua` | Raid definitions (Phase 1-5, all 9 TBC raids) |
+| `Raids/EncounterTracker.lua` | Boss encounter event tracking & stats collection |
+| `Raids/BossBreakdown.lua` | Post-kill breakdown panel UI |
 | `Reputation/ReputationData.lua` | Faction definitions and standings |
 
 ### Social System
@@ -144,6 +149,15 @@ HopeAddon/
 | `Social/Calendar.lua` | Event scheduling and raid signups |
 | `Social/CalendarValidation.lua` | Event/signup validation rules |
 | `Social/Treasures.lua` | Soft Reserve (SR) loot system |
+| `Social/NameplateColors.lua` | Fellow Traveler nameplate coloring |
+| `Social/CrusadeCritter.lua` | Crusade Critter mascot core logic |
+| `Social/CrusadeCritterUI.lua` | Crusade Critter mascot UI system |
+| `Social/CrusadeCritterContent.lua` | Crusade Critter speech/tip content |
+| `Social/Companions.lua` | Companion pet system |
+| `Social/Romance.lua` | Romance/relationship system |
+| `Social/SocialToasts.lua` | Social notification toasts |
+| `Social/MinigamesUI.lua` | Minigames UI (dice, RPS, Death Roll) |
+| `Social/CalendarUI.lua` | Calendar UI rendering |
 
 ### Game System
 | File | Purpose |
@@ -153,9 +167,12 @@ HopeAddon/
 | `Social/Games/GameComms.lua` | Addon messaging for multiplayer |
 | `Social/Games/Tetris/*.lua` | Tetris implementation |
 | `Social/Games/Pong/PongGame.lua` | Pong implementation |
-| `Social/Games/WordsWithWoW/*.lua` | Words with WoW implementation |
+| `Social/Games/DeathRoll/*.lua` | Death Roll gambling game |
+| `Social/Games/PacMan/*.lua` | PacMan arcade game with ghost AI |
 | `Social/Games/Battleship/*.lua` | Battleship implementation |
 | `Social/Games/Wordle/*.lua` | WoW Wordle implementation |
+| `Social/Games/ScoreChallenge.lua` | Multiplayer score challenge system |
+| `Social/Games/GameChat.lua` | In-game opponent chat |
 
 ### UI Framework
 | File | Purpose |
@@ -175,8 +192,8 @@ HopeAddon/
 1. Core Foundation (FramePool, Constants, Timer, Core, Sounds, Effects)
 2. UI Components (Components, Glow, Animations)
 3. Journal System (Journal, Pages, Milestones, ProfileEditor)
-4. Raid & Reputation (RaidData, Attunements, Reputation)
-5. Social Features (Badges, FellowTravelers, Directory, Relationships, Minigames, MapPins)
+4. Raid & Reputation (RaidData, EncounterTracker, BossBreakdown, Attunements, Reputation)
+5. Social Features (Badges, FellowTravelers, Directory, Relationships, Minigames, NameplateColors, CrusadeCritter)
 6. Game System (GameCore, GameUI, GameComms, game implementations)
 
 **Key Relationships:**
@@ -204,7 +221,6 @@ HopeAddon/
 - `travelers.fellows[playerName]` - Addon users only
 - `travelers.myProfile` - Player's RP profile
 - `relationships[playerName]` - Player notes
-- `savedGames.words` - Persistent Words with WoW game states
 
 **Full schema: See MODULE_API_REFERENCE.md**
 
@@ -366,7 +382,6 @@ end
 /hope combathide               - Toggle auto-hide UI during combat
 /hope minimap                  - Toggle minimap button visibility
 /hope nameplates               - Toggle Fellow nameplate coloring
-/hope pins                     - Toggle minimap pin RP status coloring
 /hope demo                     - Populate sample data for UI testing
 /hope reset demo               - Clear demo data
 /hope reset confirm            - Reset all character data

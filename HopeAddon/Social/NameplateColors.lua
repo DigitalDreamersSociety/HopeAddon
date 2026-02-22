@@ -21,8 +21,8 @@ local function GetRPStatusColors()
     return HopeAddon.Constants.RP_STATUS_COLORS
 end
 
--- Update interval (100ms for responsiveness without perf hit)
-local UPDATE_INTERVAL = 0.1
+-- Update interval (250ms is responsive but less CPU intensive)
+local UPDATE_INTERVAL = 0.25
 
 -- Cache for nameplate name texts to avoid repeated GetText() calls
 local nameplateCache = {}
@@ -39,6 +39,38 @@ local regionsCache = {}
 NameplateColors.enabled = true
 NameplateColors.updateFrame = nil
 NameplateColors.timer = 0
+NameplateColors.disabledByConflict = nil
+
+--============================================================
+-- ADDON CONFLICT DETECTION
+--============================================================
+
+-- Known nameplate addon detection
+local CONFLICTING_NAMEPLATE_ADDONS = {
+    "ElvUI",            -- ElvUI has complete nameplate system
+    "TidyPlates",       -- Tidy Plates
+    "TidyPlatesThreat", -- Threat Plates
+    "ThreatPlates",     -- Threat Plates standalone
+    "Plater",           -- Plater Nameplates
+    "Kui_Nameplates",   -- KuiNameplates
+    "NeatPlates",       -- NeatPlates
+    -- UI suites that replace nameplates
+    "Tukui",            -- Tukui has nameplate module
+    "ShadowedUnitFrames", -- SUF has nameplate options
+    "Altz_UI",          -- Altz UI suite
+    "RealUI",           -- RealUI suite
+    "bdNameplates",     -- bdUI nameplates
+}
+
+local function HasConflictingNameplateAddon()
+    for _, addonName in ipairs(CONFLICTING_NAMEPLATE_ADDONS) do
+        local loaded = C_AddOns and C_AddOns.IsAddOnLoaded or IsAddOnLoaded
+        if loaded(addonName) then
+            return addonName
+        end
+    end
+    return nil
+end
 
 --============================================================
 -- HELPER FUNCTIONS
@@ -253,6 +285,22 @@ function NameplateColors:OnInitialize()
 end
 
 function NameplateColors:OnEnable()
+    -- Check for conflicting nameplate addons FIRST
+    local conflictAddon = HasConflictingNameplateAddon()
+    if conflictAddon then
+        HopeAddon:Debug("NameplateColors: Disabled due to conflict with " .. conflictAddon)
+        self.enabled = false
+        self.disabledByConflict = conflictAddon
+        -- Inform user why nameplate coloring is disabled
+        C_Timer.After(3, function()
+            if self.disabledByConflict then
+                HopeAddon:Print("Fellow Traveler nameplate coloring disabled - " ..
+                    self.disabledByConflict .. " detected")
+            end
+        end)
+        return  -- Don't create update frame
+    end
+
     -- Load setting
     if HopeAddon.charDb and HopeAddon.charDb.travelers and HopeAddon.charDb.travelers.fellowSettings then
         local setting = HopeAddon.charDb.travelers.fellowSettings.colorNameplates

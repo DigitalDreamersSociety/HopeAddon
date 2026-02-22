@@ -3070,9 +3070,9 @@ function Journal:CreateLootCard(parent, item, cardKey)
     if item.sourceType == "rep" and item.faction then
         -- Get current standing with faction
         local standingId, currentRep, maxRep = self:GetFactionProgress(item.faction)
-        local standingNames = HopeAddon.Constants.STANDING_NAMES
-        local currentStanding = standingNames[standingId] or "Unknown"
-        local requiredStanding = standingNames[item.standing] or "Exalted"
+        local standings = HopeAddon.ReputationData and HopeAddon.ReputationData.STANDINGS or {}
+        local currentStanding = (standings[standingId] and standings[standingId].name) or "Unknown"
+        local requiredStanding = (standings[item.standing] and standings[item.standing].name) or "Exalted"
 
         -- Calculate progress
         local isComplete = standingId >= item.standing
@@ -15241,7 +15241,7 @@ function Journal:CreateArmoryPhaseButtons()
     local C = HopeAddon.Constants.ARMORY_PHASE_BUTTON
 
     -- Phases to show (all 5 phases)
-    local phasesToShow = { 1, 2, 3, 4, 5 }
+    local phasesToShow = { 0, 1, 2, 3, 4, 5 }
 
     for buttonIndex, phase in ipairs(phasesToShow) do
         local phaseConfig = C.PHASES[phase]

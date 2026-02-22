@@ -294,20 +294,7 @@ function FellowTravelers:BroadcastPresence()
 
     local zone = GetZoneText() or ""
 
-    -- Get player location for sharing
-    local x, y = nil, nil
-    local MapPins = HopeAddon.MapPins
-    if MapPins then
-        x, y = MapPins:GetPlayerLocation()
-    end
-
-    -- Include location in ping if available
-    local locStr = ""
-    if x and y then
-        locStr = string.format("|%.3f|%.3f", x, y)
-    end
-
-    local msg = string.format("%s:%d:%s%s", MSG_PING, PROTOCOL_VERSION, zone, locStr)
+    local msg = string.format("%s:%d:%s", MSG_PING, PROTOCOL_VERSION, zone)
 
     -- Send to different channels based on context
     -- Priority: INSTANCE_CHAT (for BGs/dungeons) > RAID > PARTY > GUILD > YELL
@@ -461,14 +448,6 @@ function FellowTravelers:HandlePing(sender, zoneData, channel)
         y = y,
     })
 
-    -- Update MapPins if location available
-    if x and y and zone then
-        local MapPins = HopeAddon.MapPins
-        if MapPins then
-            MapPins:UpdateFellowLocation(sender, x, y, zone)
-        end
-    end
-
     -- Respond with PONG (if not on cooldown)
     local now = GetTime()
     local cooldown = self.pingCooldowns[sender] or 0
@@ -481,34 +460,15 @@ function FellowTravelers:HandlePing(sender, zoneData, channel)
         local color = HopeAddon.Badges and HopeAddon.Badges:GetSelectedColor() or nil
         local title = HopeAddon.Badges and HopeAddon.Badges:GetSelectedTitle() or nil
 
-        -- Get our location
-        local myX, myY, myZone = nil, nil, GetZoneText()
-        local MapPins = HopeAddon.MapPins
-        if MapPins then
-            myX, myY, myZone = MapPins:GetPlayerLocation()
-        end
+        local myZone = GetZoneText() or ""
 
-        -- Build response - only include location if we have valid coords
-        local responseData
-        if myX and myY then
-            responseData = string.format("%d|%s|%s|%s|%s|%.3f|%.3f",
-                level,
-                class or "",
-                color or "",
-                title or "",
-                myZone or "",
-                myX,
-                myY
-            )
-        else
-            responseData = string.format("%d|%s|%s|%s|%s||",
-                level,
-                class or "",
-                color or "",
-                title or "",
-                myZone or ""
-            )
-        end
+        local responseData = string.format("%d|%s|%s|%s|%s||",
+            level,
+            class or "",
+            color or "",
+            title or "",
+            myZone
+        )
 
         self:SendDirectMessage(sender, MSG_PONG, responseData)
     end
@@ -537,14 +497,6 @@ function FellowTravelers:HandlePong(sender, data)
         x = x,
         y = y,
     })
-
-    -- Update MapPins if location available
-    if x and y and zone and x ~= 0 and y ~= 0 then
-        local MapPins = HopeAddon.MapPins
-        if MapPins then
-            MapPins:UpdateFellowLocation(sender, x, y, zone)
-        end
-    end
 
     -- Request full profile if we don't have it cached
     local fellow = self:GetFellow(sender)
@@ -1035,6 +987,20 @@ function FellowTravelers:HookTooltip()
     -- P2.4: Guard against double-hooking (HookScript can't be unhooked)
     if GameTooltip._hopeTooltipHooked then return end
     GameTooltip._hopeTooltipHooked = true
+
+    -- Warn about potential tooltip addon conflicts (once per session)
+    if not self.tooltipConflictWarned then
+        local tooltipAddons = { "TipTac", "TipTacTalents", "FreebTip", "Tukui", "ElvUI" }
+        for _, addon in ipairs(tooltipAddons) do
+            local loaded = C_AddOns and C_AddOns.IsAddOnLoaded or IsAddOnLoaded
+            if loaded(addon) then
+                HopeAddon:Debug("FellowTravelers: Tooltip enhancement may conflict with " .. addon)
+                break
+            end
+        end
+        self.tooltipConflictWarned = true
+    end
+
     GameTooltip:HookScript("OnTooltipSetUnit", OnTooltipSetUnit)
 end
 
@@ -1045,6 +1011,19 @@ end
 function FellowTravelers:HookChat()
     local settings = HopeAddon.charDb.travelers and HopeAddon.charDb.travelers.fellowSettings
     if not settings or not settings.colorChat then return end
+
+    -- Warn about potential chat addon conflicts (once per session)
+    if not self.chatConflictWarned then
+        local chatAddons = { "Prat", "Prat-3.0", "Chatter", "BasicChatMods" }
+        for _, addon in ipairs(chatAddons) do
+            local loaded = C_AddOns and C_AddOns.IsAddOnLoaded or IsAddOnLoaded
+            if loaded(addon) then
+                HopeAddon:Debug("FellowTravelers: Chat coloring may conflict with " .. addon)
+                break
+            end
+        end
+        self.chatConflictWarned = true
+    end
 
     -- Hook each chat frame
     for i = 1, NUM_CHAT_WINDOWS do

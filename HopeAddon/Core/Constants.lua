@@ -155,14 +155,6 @@ C.TBC_DUNGEONS = {
         finalBossNPC = 24664,
         icon = "Spell_Fire_BurnoutGreen",
     },
-    -- Test Dungeon (Stockades)
-    ["Stockades"] = {
-        key = "stockades",
-        zone = "Stormwind City",
-        finalBoss = "Bazil Thredd",
-        finalBossNPC = 1716,
-        icon = "INV_Misc_Key_10",
-    },
 }
 
 -- Reverse lookup: NPC ID -> dungeon key
@@ -273,14 +265,6 @@ C.DUNGEON_BOSS_ORDER = {
         { key = "priestess_delrissa", npcId = 24560, name = "Priestess Delrissa" },
         { key = "kaelthas_sunstrider", npcId = 24664, name = "Kael'thas Sunstrider", isFinal = true },
     },
-    -- Test Dungeon
-    stockades = {
-        { key = "kam_deepfury", npcId = 1666, name = "Kam Deepfury" },
-        { key = "targorr_the_dread", npcId = 1696, name = "Targorr the Dread" },
-        { key = "hamhock", npcId = 1717, name = "Hamhock" },
-        { key = "dextren_ward", npcId = 1663, name = "Dextren Ward" },
-        { key = "bazil_thredd", npcId = 1716, name = "Bazil Thredd", isFinal = true },
-    },
 }
 
 -- Boss icons for display in stats/tips windows
@@ -355,12 +339,6 @@ C.BOSS_ICONS = {
     vexallus = "Spell_Arcane_Arcane04",
     priestess_delrissa = "Spell_Holy_Resurrection",
     kaelthas_sunstrider = "Spell_Fire_BurnoutGreen",
-    -- Test Dungeon (Stockades)
-    kam_deepfury = "Ability_Warrior_Sunder",
-    targorr_the_dread = "Ability_Gouge",
-    hamhock = "Ability_BullRush",
-    dextren_ward = "Ability_Rogue_Rupture",
-    bazil_thredd = "Ability_BackStab",
 }
 
 --============================================================
@@ -383,7 +361,7 @@ C.PREREQUISITE_ICONS = {
     dungeon = "INV_Misc_Rune_07",
     quest = "INV_Misc_Note_01",
     item = "INV_Misc_Bag_10",
-    default = "INV_Misc_QuestionMark",
+    default = HopeAddon.DEFAULT_ICON,
 }
 
 C.PREREQUISITE_STATUS_COLORS = {
@@ -4546,7 +4524,7 @@ C.UI_COLORS = {
 }
 
 -- RP Status colors (bright, neon-style for visibility)
--- Used by: MapPins, NameplateColors, FellowTravelers
+-- Used by: NameplateColors, FellowTravelers
 C.RP_STATUS_COLORS = {
     IC = { r = 0.2, g = 1.0, b = 0.2 },       -- Bright Green - In Character
     OOC = { r = 0.0, g = 0.75, b = 1.0 },     -- Sky Blue - Out of Character
@@ -7412,6 +7390,14 @@ C.ARMORY_PHASE_BUTTON = {
     FONT = "GameFontNormal",
     FONT_SIZE = 12,
     PHASES = {
+        [0] = {
+            label = "P",
+            tooltip = "Pre-BiS: Pre-Raid Gear",
+            color = "OUTLAND_TEAL",
+            raids = {},
+            gearSources = { "Normal Dungeons", "Heroic Dungeons", "Reputation Rewards", "Crafted BoE", "Quest Rewards", "World Drops" },
+            recommendedILvl = "85-100",
+        },
         [1] = {
             label = "1",
             tooltip = "Phase 1: Karazhan Era",
@@ -8249,6 +8235,13 @@ C.REPUTATION_LOOT_POPUP = {
 
 -- Phase definitions with metadata (Phase-based, not Tier-based)
 C.ARMORY_PHASES = {
+    [0] = {
+        name = "Pre-BiS",
+        content = "Normal & Heroic Dungeons, Reputation, Crafting, Quests",
+        color = "OUTLAND_TEAL",
+        raids = {},
+        sources = { "heroic", "dungeon", "badge", "rep", "crafted", "quest", "world" },
+    },
     [1] = {
         name = "Phase 1",
         content = "Karazhan, Gruul, Magtheridon, Heroics, Badge Gear, Reputation",

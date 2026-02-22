@@ -75,6 +75,1956 @@ C.ARMORY_SPECS = {
 -----------------------------------------------------------
 C.ARMORY_SPEC_BIS_DATABASE = {
     -------------------------------------------------
+    -- PHASE 0: Pre-BiS (Pre-Raid Gear)
+    -------------------------------------------------
+    [0] = {
+        -------------------------------------------
+        -- WARRIOR DPS (Arms/Fury)
+        -------------------------------------------
+        ["warrior-dps"] = {
+            head = {
+                bis = { id = 32087, name = "Mask of the Deceiver", source = "G'eras (50 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 28224, name = "Wastewalker Helm", source = "Epoch Hunter (Heroic Old Hillsbrad)", sourceType = "heroic" },
+                }
+            },
+            neck = {
+                bis = { id = 29381, name = "Choker of Vile Intent", source = "G'eras (25 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 27779, name = "Strength of the Untamed", source = "The Black Stalker (Heroic Underbog)", sourceType = "heroic" },
+                }
+            },
+            shoulders = {
+                bis = { id = 27797, name = "Wastewalker Shoulderpads", source = "Avatar of the Martyred (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                alts = {
+                    { id = 27434, name = "Mantle of Perenolde", source = "Epoch Hunter (Old Hillsbrad)", sourceType = "dungeon" },
+                }
+            },
+            back = {
+                bis = { id = 24259, name = "Vengeance Wrap", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 27878, name = "Auchenai Death Shroud", source = "Avatar of the Martyred (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                }
+            },
+            chest = {
+                bis = { id = 29517, name = "Ebon Netherscale Breastplate", source = "Dragonscale Leatherworking", sourceType = "crafted" },
+                alts = {
+                    { id = 28403, name = "Doomplate Chestguard", source = "Harbinger Skyriss (Arcatraz)", sourceType = "dungeon" },
+                }
+            },
+            wrist = {
+                bis = { id = 23537, name = "Black Felsteel Bracers", source = "Blacksmithing", sourceType = "crafted" },
+                alts = {
+                    { id = 28171, name = "Spymistress's Wristguards", source = "Quest (Shadowmoon Valley)", sourceType = "quest" },
+                }
+            },
+            hands = {
+                bis = { id = 27531, name = "Wastewalker Gloves", source = "Warchief Kargath (Heroic Shattered Halls)", sourceType = "heroic" },
+                alts = {
+                    { id = 25685, name = "Fel Leather Gloves", source = "Leatherworking", sourceType = "crafted" },
+                }
+            },
+            waist = {
+                bis = { id = 29247, name = "Girdle of the Deathdealer", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                alts = {
+                    { id = 27911, name = "Dunewind Sash", source = "Nexus-Prince Shaffar (Mana-Tombs)", sourceType = "dungeon" },
+                }
+            },
+            legs = {
+                bis = { id = 30257, name = "Shattrath Leggings", source = "Quest (Shattrath)", sourceType = "quest" },
+                alts = {
+                    { id = 25687, name = "Fel Leather Leggings", source = "Leatherworking", sourceType = "crafted" },
+                }
+            },
+            feet = {
+                bis = { id = 25686, name = "Fel Leather Boots", source = "Leatherworking", sourceType = "crafted" },
+                alts = {
+                    { id = 27867, name = "Moonstrider Boots", source = "Botanica", sourceType = "dungeon" },
+                }
+            },
+            ring1 = {
+                bis = { id = 30834, name = "Shapeshifter's Signet", source = "Lower City Exalted", sourceType = "rep" },
+                alts = {
+                    { id = 29379, name = "Ring of Arathi Warlords", source = "G'eras (25 Badges)", sourceType = "badge" },
+                }
+            },
+            ring2 = {
+                bis = { id = 28323, name = "Ring of Umbral Doom", source = "Thorngrin the Tender (Heroic Botanica)", sourceType = "heroic" },
+                alts = {
+                    { id = 27925, name = "Ravenclaw Band", source = "Sethekk Halls", sourceType = "dungeon" },
+                }
+            },
+            trinket1 = {
+                bis = { id = 28034, name = "Hourglass of the Unraveller", source = "Temporus (Heroic Black Morass)", sourceType = "heroic" },
+                alts = {
+                    { id = 29383, name = "Bloodlust Brooch", source = "G'eras (41 Badges)", sourceType = "badge" },
+                }
+            },
+            trinket2 = {
+                bis = { id = 29383, name = "Bloodlust Brooch", source = "G'eras (41 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 28288, name = "Abacus of Violent Odds", source = "Pathaleon the Calculator (Heroic Mechanar)", sourceType = "heroic" },
+                }
+            },
+            mainhand = {
+                bis = { id = 28438, name = "Dragonmaw", source = "Blacksmithing (Hammersmith)", sourceType = "crafted" },
+                alts = {
+                    { id = 28429, name = "Lionheart Champion", source = "Blacksmithing (Swordsmith)", sourceType = "crafted" },
+                }
+            },
+            offhand = {
+                bis = { id = 27872, name = "The Harvester of Souls", source = "Avatar of the Martyred (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                alts = {
+                    { id = 23540, name = "Felsteel Longblade", source = "Blacksmithing", sourceType = "crafted" },
+                }
+            },
+            ranged = {
+                bis = { id = 30724, name = "Barrel-Blade Longrifle", source = "Doomwalker", sourceType = "world" },
+                alts = {
+                    { id = 29115, name = "Consortium Blaster", source = "Consortium Exalted", sourceType = "rep" },
+                }
+            },
+        },
+
+        -------------------------------------------
+        -- PROTECTION WARRIOR
+        -------------------------------------------
+        ["protection-warrior-tank"] = {
+            head = {
+                bis = { id = 32083, name = "Faceguard of Determination", source = "G'eras (50 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 23519, name = "Felsteel Helm", source = "Blacksmithing", sourceType = "crafted" },
+                }
+            },
+            neck = {
+                bis = { id = 29386, name = "Necklace of the Juggernaut", source = "G'eras (25 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 27792, name = "Mark of the Ravenguard", source = "Anzu (Heroic Sethekk Halls)", sourceType = "heroic" },
+                }
+            },
+            shoulders = {
+                bis = { id = 27847, name = "Spaulders of the Righteous", source = "Laj (Heroic Botanica)", sourceType = "heroic" },
+                alts = {
+                    { id = 27434, name = "Mantle of Perenolde", source = "Epoch Hunter (Old Hillsbrad)", sourceType = "dungeon" },
+                }
+            },
+            back = {
+                bis = { id = 27518, name = "Devilshark Cape", source = "Warlord Kalithresh (The Steamvault)", sourceType = "dungeon" },
+                alts = {
+                    { id = 24253, name = "Cloak of Eternity", source = "Tailoring", sourceType = "crafted" },
+                }
+            },
+            chest = {
+                bis = { id = 29127, name = "Vindicator's Hauberk", source = "Aldor Exalted", sourceType = "rep" },
+                alts = {
+                    { id = 28403, name = "Doomplate Chestguard", source = "Harbinger Skyriss (Arcatraz)", sourceType = "dungeon" },
+                }
+            },
+            wrist = {
+                bis = { id = 23537, name = "Black Felsteel Bracers", source = "Blacksmithing", sourceType = "crafted" },
+                alts = {
+                    { id = 28171, name = "Spymistress's Wristguards", source = "Quest (Shadowmoon Valley)", sourceType = "quest" },
+                }
+            },
+            hands = {
+                bis = { id = 23517, name = "Felsteel Gloves", source = "Blacksmithing", sourceType = "crafted" },
+                alts = {
+                    { id = 27531, name = "Wastewalker Gloves", source = "Warchief Kargath (Heroic Shattered Halls)", sourceType = "heroic" },
+                }
+            },
+            waist = {
+                bis = { id = 29247, name = "Girdle of the Deathdealer", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                alts = {
+                    { id = 27911, name = "Dunewind Sash", source = "Nexus-Prince Shaffar (Mana-Tombs)", sourceType = "dungeon" },
+                }
+            },
+            legs = {
+                bis = { id = 30257, name = "Shattrath Leggings", source = "Quest (Shattrath)", sourceType = "quest" },
+                alts = {
+                    { id = 23518, name = "Felsteel Leggings", source = "Blacksmithing", sourceType = "crafted" },
+                }
+            },
+            feet = {
+                bis = { id = 25686, name = "Fel Leather Boots", source = "Leatherworking", sourceType = "crafted" },
+                alts = {
+                    { id = 27813, name = "Boots of the Colossus", source = "Pandemonius (Heroic Mana-Tombs)", sourceType = "heroic" },
+                }
+            },
+            ring1 = {
+                bis = { id = 30834, name = "Shapeshifter's Signet", source = "Lower City Exalted", sourceType = "rep" },
+                alts = {
+                    { id = 29379, name = "Ring of Arathi Warlords", source = "G'eras (25 Badges)", sourceType = "badge" },
+                }
+            },
+            ring2 = {
+                bis = { id = 28323, name = "Ring of Umbral Doom", source = "Thorngrin the Tender (Heroic Botanica)", sourceType = "heroic" },
+                alts = {
+                    { id = 27436, name = "Ring of the Stalwart Protector", source = "Quest (Old Hillsbrad)", sourceType = "quest" },
+                }
+            },
+            trinket1 = {
+                bis = { id = 28034, name = "Hourglass of the Unraveller", source = "Temporus (Heroic Black Morass)", sourceType = "heroic" },
+                alts = {
+                    { id = 27770, name = "Argussian Compass", source = "Warp Splinter (Heroic Underbog)", sourceType = "heroic" },
+                }
+            },
+            trinket2 = {
+                bis = { id = 29383, name = "Bloodlust Brooch", source = "G'eras (41 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 28288, name = "Abacus of Violent Odds", source = "Pathaleon the Calculator (Heroic Mechanar)", sourceType = "heroic" },
+                }
+            },
+            mainhand = {
+                bis = { id = 29185, name = "Continuum Blade", source = "Keepers of Time Exalted", sourceType = "rep" },
+                alts = {
+                    { id = 23540, name = "Felsteel Longblade", source = "Blacksmithing", sourceType = "crafted" },
+                }
+            },
+            offhand = {
+                bis = { id = 29176, name = "Crest of the Sha'tar", source = "The Sha'tar Exalted", sourceType = "rep" },
+                alts = {
+                    { id = 29266, name = "Azure-Shield of Coldarra", source = "G'eras (33 Badges)", sourceType = "badge" },
+                }
+            },
+            ranged = {
+                bis = { id = 30724, name = "Barrel-Blade Longrifle", source = "Doomwalker", sourceType = "world" },
+                alts = {
+                    { id = 29115, name = "Consortium Blaster", source = "Consortium Exalted", sourceType = "rep" },
+                }
+            },
+        },
+
+        -------------------------------------------
+        -- HOLY PALADIN
+        -------------------------------------------
+        ["holy-paladin-healer"] = {
+            head = {
+                bis = { id = 32090, name = "Cowl of Naaru Blessings", source = "G'eras (50 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 24264, name = "Whitemend Hood", source = "Tailoring", sourceType = "crafted" },
+                }
+            },
+            neck = {
+                bis = { id = 29374, name = "Necklace of Eternal Hope", source = "G'eras (25 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 30377, name = "Karja's Medallion", source = "Quest (Netherstorm)", sourceType = "quest" },
+                }
+            },
+            shoulders = {
+                bis = { id = 21874, name = "Primal Mooncloth Shoulders", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 27775, name = "Hallowed Pauldrons", source = "Grandmaster Vorpil (Shadow Labyrinth)", sourceType = "dungeon" },
+                }
+            },
+            back = {
+                bis = { id = 29354, name = "Light-Touched Stole of Altruism", source = "Exarch Maladaar (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                alts = {
+                    { id = 29375, name = "Bishop's Cloak", source = "G'eras (25 Badges)", sourceType = "badge" },
+                }
+            },
+            chest = {
+                bis = { id = 21875, name = "Primal Mooncloth Robe", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 28230, name = "Hallowed Garments", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
+                }
+            },
+            wrist = {
+                bis = { id = 29183, name = "Bindings of the Timewalker", source = "Keepers of Time Exalted", sourceType = "rep" },
+                alts = {
+                    { id = 29249, name = "Bands of the Benevolent", source = "Talon King Ikiss (Heroic Sethekk Halls)", sourceType = "heroic" },
+                }
+            },
+            hands = {
+                bis = { id = 27536, name = "Hallowed Handwraps", source = "Warchief Kargath (The Shattered Halls)", sourceType = "dungeon" },
+                alts = {
+                    { id = 29506, name = "Gloves of the Living Touch", source = "Leatherworking", sourceType = "crafted" },
+                }
+            },
+            waist = {
+                bis = { id = 21873, name = "Primal Mooncloth Belt", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 29250, name = "Cord of Sanctification", source = "Epoch Hunter (Heroic Old Hillsbrad)", sourceType = "heroic" },
+                }
+            },
+            legs = {
+                bis = { id = 24261, name = "Whitemend Pants", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 30543, name = "Pontifex Kilt", source = "Mekgineer Steamrigger (Heroic Steamvault)", sourceType = "heroic" },
+                }
+            },
+            feet = {
+                bis = { id = 29251, name = "Boots of the Pious", source = "Pathaleon the Calculator (Heroic Mechanar)", sourceType = "heroic" },
+                alts = {
+                    { id = 27411, name = "Slippers of Serenity", source = "Exarch Maladaar (Auchenai Crypts)", sourceType = "dungeon" },
+                }
+            },
+            ring1 = {
+                bis = { id = 29373, name = "Band of Halos", source = "G'eras (25 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 31383, name = "Spiritualist's Mark of the Sha'tar", source = "Quest (Shadowmoon Valley)", sourceType = "quest" },
+                }
+            },
+            ring2 = {
+                bis = { id = 29169, name = "Ring of Convalescence", source = "Honor Hold Revered", sourceType = "rep" },
+                alts = {
+                    { id = 29322, name = "Keeper's Ring of Piety", source = "Quest (Caverns of Time)", sourceType = "quest" },
+                }
+            },
+            trinket1 = {
+                bis = { id = 29376, name = "Essence of the Martyr", source = "G'eras (41 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 28190, name = "Scarab of the Infinite Cycle", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                }
+            },
+            trinket2 = {
+                bis = { id = 30841, name = "Lower City Prayerbook", source = "Lower City Revered", sourceType = "rep" },
+                alts = {
+                    { id = 28190, name = "Scarab of the Infinite Cycle", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                }
+            },
+            mainhand = {
+                bis = { id = 29353, name = "Shockwave Truncheon", source = "Murmur (Heroic Shadow Labyrinth)", sourceType = "heroic" },
+                alts = {
+                    { id = 29175, name = "Gavel of Pure Light", source = "The Sha'tar Exalted", sourceType = "rep" },
+                }
+            },
+            offhand = {
+                bis = { id = 29267, name = "Light-Bearer's Faith Shield", source = "G'eras (33 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 29274, name = "Tears of Heaven", source = "G'eras (25 Badges)", sourceType = "badge" },
+                }
+            },
+            ranged = {
+                bis = { id = 28296, name = "Libram of the Lightbringer", source = "Heroic Mana-Tombs", sourceType = "heroic" },
+                alts = {
+                    { id = 27484, name = "Libram of Avengement", source = "Lower City Revered", sourceType = "rep" },
+                }
+            },
+        },
+
+        -------------------------------------------
+        -- PROTECTION PALADIN
+        -------------------------------------------
+        ["paladin-tank"] = {
+            head = {
+                bis = { id = 32083, name = "Faceguard of Determination", source = "G'eras (50 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 23519, name = "Felsteel Helm", source = "Blacksmithing", sourceType = "crafted" },
+                }
+            },
+            neck = {
+                bis = { id = 29386, name = "Necklace of the Juggernaut", source = "G'eras (25 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 27792, name = "Mark of the Ravenguard", source = "Anzu (Heroic Sethekk Halls)", sourceType = "heroic" },
+                }
+            },
+            shoulders = {
+                bis = { id = 27847, name = "Spaulders of the Righteous", source = "Laj (Heroic Botanica)", sourceType = "heroic" },
+                alts = {
+                    { id = 27434, name = "Mantle of Perenolde", source = "Epoch Hunter (Old Hillsbrad)", sourceType = "dungeon" },
+                }
+            },
+            back = {
+                bis = { id = 27518, name = "Devilshark Cape", source = "Warlord Kalithresh (The Steamvault)", sourceType = "dungeon" },
+                alts = {
+                    { id = 24253, name = "Cloak of Eternity", source = "Tailoring", sourceType = "crafted" },
+                }
+            },
+            chest = {
+                bis = { id = 29127, name = "Vindicator's Hauberk", source = "Aldor Exalted", sourceType = "rep" },
+                alts = {
+                    { id = 28403, name = "Doomplate Chestguard", source = "Harbinger Skyriss (Arcatraz)", sourceType = "dungeon" },
+                }
+            },
+            wrist = {
+                bis = { id = 23537, name = "Black Felsteel Bracers", source = "Blacksmithing", sourceType = "crafted" },
+                alts = {
+                    { id = 29183, name = "Bindings of the Timewalker", source = "Keepers of Time Exalted", sourceType = "rep" },
+                }
+            },
+            hands = {
+                bis = { id = 23517, name = "Felsteel Gloves", source = "Blacksmithing", sourceType = "crafted" },
+                alts = {
+                    { id = 27535, name = "Gauntlets of Dissension", source = "Grandmaster Vorpil (Shadow Labyrinth)", sourceType = "dungeon" },
+                }
+            },
+            waist = {
+                bis = { id = 29247, name = "Girdle of the Deathdealer", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                alts = {
+                    { id = 27911, name = "Dunewind Sash", source = "Nexus-Prince Shaffar (Mana-Tombs)", sourceType = "dungeon" },
+                }
+            },
+            legs = {
+                bis = { id = 30257, name = "Shattrath Leggings", source = "Quest (Shattrath)", sourceType = "quest" },
+                alts = {
+                    { id = 23518, name = "Felsteel Leggings", source = "Blacksmithing", sourceType = "crafted" },
+                }
+            },
+            feet = {
+                bis = { id = 25686, name = "Fel Leather Boots", source = "Leatherworking", sourceType = "crafted" },
+                alts = {
+                    { id = 27813, name = "Boots of the Colossus", source = "Pandemonius (Heroic Mana-Tombs)", sourceType = "heroic" },
+                }
+            },
+            ring1 = {
+                bis = { id = 30834, name = "Shapeshifter's Signet", source = "Lower City Exalted", sourceType = "rep" },
+                alts = {
+                    { id = 29379, name = "Ring of Arathi Warlords", source = "G'eras (25 Badges)", sourceType = "badge" },
+                }
+            },
+            ring2 = {
+                bis = { id = 28323, name = "Ring of Umbral Doom", source = "Thorngrin the Tender (Heroic Botanica)", sourceType = "heroic" },
+                alts = {
+                    { id = 27436, name = "Ring of the Stalwart Protector", source = "Quest (Old Hillsbrad)", sourceType = "quest" },
+                }
+            },
+            trinket1 = {
+                bis = { id = 28034, name = "Hourglass of the Unraveller", source = "Temporus (Heroic Black Morass)", sourceType = "heroic" },
+                alts = {
+                    { id = 27770, name = "Argussian Compass", source = "Warp Splinter (Heroic Underbog)", sourceType = "heroic" },
+                }
+            },
+            trinket2 = {
+                bis = { id = 29383, name = "Bloodlust Brooch", source = "G'eras (41 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 28288, name = "Abacus of Violent Odds", source = "Pathaleon the Calculator (Heroic Mechanar)", sourceType = "heroic" },
+                }
+            },
+            mainhand = {
+                bis = { id = 29185, name = "Continuum Blade", source = "Keepers of Time Exalted", sourceType = "rep" },
+                alts = {
+                    { id = 23540, name = "Felsteel Longblade", source = "Blacksmithing", sourceType = "crafted" },
+                }
+            },
+            offhand = {
+                bis = { id = 29176, name = "Crest of the Sha'tar", source = "The Sha'tar Exalted", sourceType = "rep" },
+                alts = {
+                    { id = 29266, name = "Azure-Shield of Coldarra", source = "G'eras (33 Badges)", sourceType = "badge" },
+                }
+            },
+            ranged = {
+                bis = { id = 28296, name = "Libram of the Lightbringer", source = "Heroic Mana-Tombs", sourceType = "heroic" },
+                alts = {
+                    { id = 27484, name = "Libram of Avengement", source = "Lower City Revered", sourceType = "rep" },
+                }
+            },
+        },
+
+        -------------------------------------------
+        -- RETRIBUTION PALADIN
+        -------------------------------------------
+        ["retribution-paladin-dps"] = {
+            head = {
+                bis = { id = 32087, name = "Mask of the Deceiver", source = "G'eras (50 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 28224, name = "Wastewalker Helm", source = "Epoch Hunter (Heroic Old Hillsbrad)", sourceType = "heroic" },
+                }
+            },
+            neck = {
+                bis = { id = 29381, name = "Choker of Vile Intent", source = "G'eras (25 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 27779, name = "Strength of the Untamed", source = "The Black Stalker (Heroic Underbog)", sourceType = "heroic" },
+                }
+            },
+            shoulders = {
+                bis = { id = 27797, name = "Wastewalker Shoulderpads", source = "Avatar of the Martyred (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                alts = {
+                    { id = 27434, name = "Mantle of Perenolde", source = "Epoch Hunter (Old Hillsbrad)", sourceType = "dungeon" },
+                }
+            },
+            back = {
+                bis = { id = 24259, name = "Vengeance Wrap", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 27878, name = "Auchenai Death Shroud", source = "Avatar of the Martyred (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                }
+            },
+            chest = {
+                bis = { id = 29517, name = "Ebon Netherscale Breastplate", source = "Dragonscale Leatherworking", sourceType = "crafted" },
+                alts = {
+                    { id = 28403, name = "Doomplate Chestguard", source = "Harbinger Skyriss (Arcatraz)", sourceType = "dungeon" },
+                }
+            },
+            wrist = {
+                bis = { id = 23537, name = "Black Felsteel Bracers", source = "Blacksmithing", sourceType = "crafted" },
+                alts = {
+                    { id = 28171, name = "Spymistress's Wristguards", source = "Quest (Shadowmoon Valley)", sourceType = "quest" },
+                }
+            },
+            hands = {
+                bis = { id = 27531, name = "Wastewalker Gloves", source = "Warchief Kargath (Heroic Shattered Halls)", sourceType = "heroic" },
+                alts = {
+                    { id = 25685, name = "Fel Leather Gloves", source = "Leatherworking", sourceType = "crafted" },
+                }
+            },
+            waist = {
+                bis = { id = 29247, name = "Girdle of the Deathdealer", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                alts = {
+                    { id = 27911, name = "Dunewind Sash", source = "Nexus-Prince Shaffar (Mana-Tombs)", sourceType = "dungeon" },
+                }
+            },
+            legs = {
+                bis = { id = 30257, name = "Shattrath Leggings", source = "Quest (Shattrath)", sourceType = "quest" },
+                alts = {
+                    { id = 25687, name = "Fel Leather Leggings", source = "Leatherworking", sourceType = "crafted" },
+                }
+            },
+            feet = {
+                bis = { id = 25686, name = "Fel Leather Boots", source = "Leatherworking", sourceType = "crafted" },
+                alts = {
+                    { id = 27867, name = "Moonstrider Boots", source = "Botanica", sourceType = "dungeon" },
+                }
+            },
+            ring1 = {
+                bis = { id = 30834, name = "Shapeshifter's Signet", source = "Lower City Exalted", sourceType = "rep" },
+                alts = {
+                    { id = 29379, name = "Ring of Arathi Warlords", source = "G'eras (25 Badges)", sourceType = "badge" },
+                }
+            },
+            ring2 = {
+                bis = { id = 28323, name = "Ring of Umbral Doom", source = "Thorngrin the Tender (Heroic Botanica)", sourceType = "heroic" },
+                alts = {
+                    { id = 27925, name = "Ravenclaw Band", source = "Sethekk Halls", sourceType = "dungeon" },
+                }
+            },
+            trinket1 = {
+                bis = { id = 28034, name = "Hourglass of the Unraveller", source = "Temporus (Heroic Black Morass)", sourceType = "heroic" },
+                alts = {
+                    { id = 29383, name = "Bloodlust Brooch", source = "G'eras (41 Badges)", sourceType = "badge" },
+                }
+            },
+            trinket2 = {
+                bis = { id = 29383, name = "Bloodlust Brooch", source = "G'eras (41 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 28288, name = "Abacus of Violent Odds", source = "Pathaleon the Calculator (Heroic Mechanar)", sourceType = "heroic" },
+                }
+            },
+            mainhand = {
+                bis = { id = 28429, name = "Lionheart Champion", source = "Blacksmithing (Swordsmith)", sourceType = "crafted" },
+                alts = {
+                    { id = 28438, name = "Dragonmaw", source = "Blacksmithing (Hammersmith)", sourceType = "crafted" },
+                }
+            },
+            offhand = {
+                bis = { id = 27872, name = "The Harvester of Souls", source = "Avatar of the Martyred (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                alts = {
+                    { id = 23540, name = "Felsteel Longblade", source = "Blacksmithing", sourceType = "crafted" },
+                }
+            },
+            ranged = {
+                bis = { id = 27917, name = "Libram of Divine Purpose", source = "The Mechanar", sourceType = "dungeon" },
+                alts = {
+                    { id = 27484, name = "Libram of Avengement", source = "Lower City Revered", sourceType = "rep" },
+                }
+            },
+        },
+
+        -------------------------------------------
+        -- HUNTER DPS
+        -------------------------------------------
+        ["hunter-dps"] = {
+            head = {
+                bis = { id = 28275, name = "Beast Lord Helm", source = "Pathaleon the Calculator (Heroic Mechanar)", sourceType = "heroic" },
+                alts = {
+                    { id = 32087, name = "Mask of the Deceiver", source = "G'eras (50 Badges)", sourceType = "badge" },
+                }
+            },
+            neck = {
+                bis = { id = 29381, name = "Choker of Vile Intent", source = "G'eras (25 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 27779, name = "Strength of the Untamed", source = "The Black Stalker (Heroic Underbog)", sourceType = "heroic" },
+                }
+            },
+            shoulders = {
+                bis = { id = 27801, name = "Beast Lord Mantle", source = "Warbringer O'mrogg (Heroic Shattered Halls)", sourceType = "heroic" },
+                alts = {
+                    { id = 27797, name = "Wastewalker Shoulderpads", source = "Avatar of the Martyred (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                }
+            },
+            back = {
+                bis = { id = 24259, name = "Vengeance Wrap", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 27878, name = "Auchenai Death Shroud", source = "Avatar of the Martyred (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                }
+            },
+            chest = {
+                bis = { id = 28228, name = "Beast Lord Cuirass", source = "Murmur (Heroic Shadow Labyrinth)", sourceType = "heroic" },
+                alts = {
+                    { id = 29517, name = "Ebon Netherscale Breastplate", source = "Dragonscale Leatherworking", sourceType = "crafted" },
+                }
+            },
+            wrist = {
+                bis = { id = 25696, name = "Felstalker Bracers", source = "Leatherworking", sourceType = "crafted" },
+                alts = {
+                    { id = 28171, name = "Spymistress's Wristguards", source = "Quest (Shadowmoon Valley)", sourceType = "quest" },
+                }
+            },
+            hands = {
+                bis = { id = 27474, name = "Beast Lord Handguards", source = "Warlord Kalithresh (Heroic Steamvault)", sourceType = "heroic" },
+                alts = {
+                    { id = 27531, name = "Wastewalker Gloves", source = "Warchief Kargath (Heroic Shattered Halls)", sourceType = "heroic" },
+                }
+            },
+            waist = {
+                bis = { id = 29247, name = "Girdle of the Deathdealer", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                alts = {
+                    { id = 27911, name = "Dunewind Sash", source = "Nexus-Prince Shaffar (Mana-Tombs)", sourceType = "dungeon" },
+                }
+            },
+            legs = {
+                bis = { id = 27874, name = "Beast Lord Leggings", source = "The Black Stalker (Heroic Underbog)", sourceType = "heroic" },
+                alts = {
+                    { id = 30257, name = "Shattrath Leggings", source = "Quest (Shattrath)", sourceType = "quest" },
+                }
+            },
+            feet = {
+                bis = { id = 25686, name = "Fel Leather Boots", source = "Leatherworking", sourceType = "crafted" },
+                alts = {
+                    { id = 27867, name = "Moonstrider Boots", source = "Botanica", sourceType = "dungeon" },
+                }
+            },
+            ring1 = {
+                bis = { id = 30834, name = "Shapeshifter's Signet", source = "Lower City Exalted", sourceType = "rep" },
+                alts = {
+                    { id = 29379, name = "Ring of Arathi Warlords", source = "G'eras (25 Badges)", sourceType = "badge" },
+                }
+            },
+            ring2 = {
+                bis = { id = 28323, name = "Ring of Umbral Doom", source = "Thorngrin the Tender (Heroic Botanica)", sourceType = "heroic" },
+                alts = {
+                    { id = 27925, name = "Ravenclaw Band", source = "Sethekk Halls", sourceType = "dungeon" },
+                }
+            },
+            trinket1 = {
+                bis = { id = 28034, name = "Hourglass of the Unraveller", source = "Temporus (Heroic Black Morass)", sourceType = "heroic" },
+                alts = {
+                    { id = 29383, name = "Bloodlust Brooch", source = "G'eras (41 Badges)", sourceType = "badge" },
+                }
+            },
+            trinket2 = {
+                bis = { id = 29383, name = "Bloodlust Brooch", source = "G'eras (41 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 28288, name = "Abacus of Violent Odds", source = "Pathaleon the Calculator (Heroic Mechanar)", sourceType = "heroic" },
+                }
+            },
+            mainhand = {
+                bis = { id = 29348, name = "The Bladefist", source = "Warchief Kargath (Heroic Shattered Halls)", sourceType = "heroic" },
+                alts = {
+                    { id = 28189, name = "Latros' Shifting Sword", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                }
+            },
+            offhand = {
+                bis = { id = 27846, name = "Claw of the Watcher", source = "Darkweaver Syth (Heroic Sethekk Halls)", sourceType = "heroic" },
+                alts = {
+                    { id = 23540, name = "Felsteel Longblade", source = "Blacksmithing", sourceType = "crafted" },
+                }
+            },
+            ranged = {
+                bis = { id = 29351, name = "Valanos' Longbow", source = "Warp Splinter (Heroic Botanica)", sourceType = "heroic" },
+                alts = {
+                    { id = 29115, name = "Consortium Blaster", source = "Consortium Exalted", sourceType = "rep" },
+                }
+            },
+        },
+
+        -------------------------------------------
+        -- ROGUE DPS
+        -------------------------------------------
+        ["rogue-dps"] = {
+            head = {
+                bis = { id = 32087, name = "Mask of the Deceiver", source = "G'eras (50 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 28224, name = "Wastewalker Helm", source = "Epoch Hunter (Heroic Old Hillsbrad)", sourceType = "heroic" },
+                }
+            },
+            neck = {
+                bis = { id = 29381, name = "Choker of Vile Intent", source = "G'eras (25 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 27779, name = "Strength of the Untamed", source = "The Black Stalker (Heroic Underbog)", sourceType = "heroic" },
+                }
+            },
+            shoulders = {
+                bis = { id = 27797, name = "Wastewalker Shoulderpads", source = "Avatar of the Martyred (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                alts = {
+                    { id = 27434, name = "Mantle of Perenolde", source = "Epoch Hunter (Old Hillsbrad)", sourceType = "dungeon" },
+                }
+            },
+            back = {
+                bis = { id = 24259, name = "Vengeance Wrap", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 27878, name = "Auchenai Death Shroud", source = "Avatar of the Martyred (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                }
+            },
+            chest = {
+                bis = { id = 29525, name = "Primalstrike Vest", source = "Tribal Leatherworking", sourceType = "crafted" },
+                alts = {
+                    { id = 28264, name = "Wastewalker Tunic", source = "Epoch Hunter (Heroic Old Hillsbrad)", sourceType = "heroic" },
+                }
+            },
+            wrist = {
+                bis = { id = 29526, name = "Primalstrike Bracers", source = "Tribal Leatherworking", sourceType = "crafted" },
+                alts = {
+                    { id = 28171, name = "Spymistress's Wristguards", source = "Quest (Shadowmoon Valley)", sourceType = "quest" },
+                }
+            },
+            hands = {
+                bis = { id = 27531, name = "Wastewalker Gloves", source = "Warchief Kargath (Heroic Shattered Halls)", sourceType = "heroic" },
+                alts = {
+                    { id = 25685, name = "Fel Leather Gloves", source = "Leatherworking", sourceType = "crafted" },
+                }
+            },
+            waist = {
+                bis = { id = 29247, name = "Girdle of the Deathdealer", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                alts = {
+                    { id = 29527, name = "Primalstrike Belt", source = "Tribal Leatherworking", sourceType = "crafted" },
+                }
+            },
+            legs = {
+                bis = { id = 30257, name = "Shattrath Leggings", source = "Quest (Shattrath)", sourceType = "quest" },
+                alts = {
+                    { id = 25687, name = "Fel Leather Leggings", source = "Leatherworking", sourceType = "crafted" },
+                }
+            },
+            feet = {
+                bis = { id = 25686, name = "Fel Leather Boots", source = "Leatherworking", sourceType = "crafted" },
+                alts = {
+                    { id = 27867, name = "Moonstrider Boots", source = "Botanica", sourceType = "dungeon" },
+                }
+            },
+            ring1 = {
+                bis = { id = 30834, name = "Shapeshifter's Signet", source = "Lower City Exalted", sourceType = "rep" },
+                alts = {
+                    { id = 29379, name = "Ring of Arathi Warlords", source = "G'eras (25 Badges)", sourceType = "badge" },
+                }
+            },
+            ring2 = {
+                bis = { id = 28323, name = "Ring of Umbral Doom", source = "Thorngrin the Tender (Heroic Botanica)", sourceType = "heroic" },
+                alts = {
+                    { id = 27925, name = "Ravenclaw Band", source = "Sethekk Halls", sourceType = "dungeon" },
+                }
+            },
+            trinket1 = {
+                bis = { id = 28034, name = "Hourglass of the Unraveller", source = "Temporus (Heroic Black Morass)", sourceType = "heroic" },
+                alts = {
+                    { id = 29383, name = "Bloodlust Brooch", source = "G'eras (41 Badges)", sourceType = "badge" },
+                }
+            },
+            trinket2 = {
+                bis = { id = 29383, name = "Bloodlust Brooch", source = "G'eras (41 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 28288, name = "Abacus of Violent Odds", source = "Pathaleon the Calculator (Heroic Mechanar)", sourceType = "heroic" },
+                }
+            },
+            mainhand = {
+                bis = { id = 28189, name = "Latros' Shifting Sword", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                alts = {
+                    { id = 23540, name = "Felsteel Longblade", source = "Blacksmithing", sourceType = "crafted" },
+                }
+            },
+            offhand = {
+                bis = { id = 27872, name = "The Harvester of Souls", source = "Avatar of the Martyred (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                alts = {
+                    { id = 27846, name = "Claw of the Watcher", source = "Darkweaver Syth (Heroic Sethekk Halls)", sourceType = "heroic" },
+                }
+            },
+            ranged = {
+                bis = { id = 30724, name = "Barrel-Blade Longrifle", source = "Doomwalker", sourceType = "world" },
+                alts = {
+                    { id = 29115, name = "Consortium Blaster", source = "Consortium Exalted", sourceType = "rep" },
+                }
+            },
+        },
+
+        -------------------------------------------
+        -- PRIEST HEALER (Holy/Discipline)
+        -------------------------------------------
+        ["priest-healer"] = {
+            head = {
+                bis = { id = 32090, name = "Cowl of Naaru Blessings", source = "G'eras (50 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 24264, name = "Whitemend Hood", source = "Tailoring", sourceType = "crafted" },
+                }
+            },
+            neck = {
+                bis = { id = 29374, name = "Necklace of Eternal Hope", source = "G'eras (25 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 30377, name = "Karja's Medallion", source = "Quest (Netherstorm)", sourceType = "quest" },
+                }
+            },
+            shoulders = {
+                bis = { id = 21874, name = "Primal Mooncloth Shoulders", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 27775, name = "Hallowed Pauldrons", source = "Grandmaster Vorpil (Shadow Labyrinth)", sourceType = "dungeon" },
+                }
+            },
+            back = {
+                bis = { id = 29354, name = "Light-Touched Stole of Altruism", source = "Exarch Maladaar (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                alts = {
+                    { id = 29375, name = "Bishop's Cloak", source = "G'eras (25 Badges)", sourceType = "badge" },
+                }
+            },
+            chest = {
+                bis = { id = 21875, name = "Primal Mooncloth Robe", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 28230, name = "Hallowed Garments", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
+                }
+            },
+            wrist = {
+                bis = { id = 29183, name = "Bindings of the Timewalker", source = "Keepers of Time Exalted", sourceType = "rep" },
+                alts = {
+                    { id = 29249, name = "Bands of the Benevolent", source = "Talon King Ikiss (Heroic Sethekk Halls)", sourceType = "heroic" },
+                }
+            },
+            hands = {
+                bis = { id = 27536, name = "Hallowed Handwraps", source = "Warchief Kargath (The Shattered Halls)", sourceType = "dungeon" },
+                alts = {
+                    { id = 29506, name = "Gloves of the Living Touch", source = "Leatherworking", sourceType = "crafted" },
+                }
+            },
+            waist = {
+                bis = { id = 21873, name = "Primal Mooncloth Belt", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 29250, name = "Cord of Sanctification", source = "Epoch Hunter (Heroic Old Hillsbrad)", sourceType = "heroic" },
+                }
+            },
+            legs = {
+                bis = { id = 24261, name = "Whitemend Pants", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 30543, name = "Pontifex Kilt", source = "Mekgineer Steamrigger (Heroic Steamvault)", sourceType = "heroic" },
+                }
+            },
+            feet = {
+                bis = { id = 29251, name = "Boots of the Pious", source = "Pathaleon the Calculator (Heroic Mechanar)", sourceType = "heroic" },
+                alts = {
+                    { id = 27411, name = "Slippers of Serenity", source = "Exarch Maladaar (Auchenai Crypts)", sourceType = "dungeon" },
+                }
+            },
+            ring1 = {
+                bis = { id = 29373, name = "Band of Halos", source = "G'eras (25 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 31383, name = "Spiritualist's Mark of the Sha'tar", source = "Quest (Shadowmoon Valley)", sourceType = "quest" },
+                }
+            },
+            ring2 = {
+                bis = { id = 29169, name = "Ring of Convalescence", source = "Honor Hold Revered", sourceType = "rep" },
+                alts = {
+                    { id = 29322, name = "Keeper's Ring of Piety", source = "Quest (Caverns of Time)", sourceType = "quest" },
+                }
+            },
+            trinket1 = {
+                bis = { id = 29376, name = "Essence of the Martyr", source = "G'eras (41 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 28190, name = "Scarab of the Infinite Cycle", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                }
+            },
+            trinket2 = {
+                bis = { id = 30841, name = "Lower City Prayerbook", source = "Lower City Revered", sourceType = "rep" },
+                alts = {
+                    { id = 28190, name = "Scarab of the Infinite Cycle", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                }
+            },
+            mainhand = {
+                bis = { id = 29353, name = "Shockwave Truncheon", source = "Murmur (Heroic Shadow Labyrinth)", sourceType = "heroic" },
+                alts = {
+                    { id = 29175, name = "Gavel of Pure Light", source = "The Sha'tar Exalted", sourceType = "rep" },
+                }
+            },
+            offhand = {
+                bis = { id = 29274, name = "Tears of Heaven", source = "G'eras (25 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 29170, name = "Windcaller's Orb", source = "Cenarion Expedition Exalted", sourceType = "rep" },
+                }
+            },
+            ranged = {
+                bis = { id = 27885, name = "Soul-Wand of the Aldor", source = "Ambassador Hellmaw (Shadow Labyrinth)", sourceType = "dungeon" },
+                alts = {
+                    { id = 28386, name = "Nether Core's Control Rod", source = "Dalliah (Heroic Arcatraz)", sourceType = "heroic" },
+                }
+            },
+        },
+
+        -------------------------------------------
+        -- SHADOW PRIEST
+        -------------------------------------------
+        ["shadow-priest-dps"] = {
+            head = {
+                bis = { id = 24266, name = "Spellstrike Hood", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 32089, name = "Cowl of Naaru Blessings", source = "G'eras (50 Badges)", sourceType = "badge" },
+                }
+            },
+            neck = {
+                bis = { id = 29368, name = "Mantle of the Elven Kings", source = "G'eras (25 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 28134, name = "Brooch of Heightened Potential", source = "Warp Splinter (Heroic Botanica)", sourceType = "heroic" },
+                }
+            },
+            shoulders = {
+                bis = { id = 21869, name = "Frozen Shadoweave Shoulders", source = "Tailoring (Shadoweave)", sourceType = "crafted" },
+                alts = {
+                    { id = 27796, name = "Mana-Etched Spaulders", source = "Avatar of the Martyred (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                }
+            },
+            back = {
+                bis = { id = 28570, name = "Cloak of the Necropolis", source = "Quest (Netherstorm)", sourceType = "quest" },
+                alts = {
+                    { id = 27981, name = "Sethekk Oracle Cloak", source = "Darkweaver Syth (Heroic Sethekk Halls)", sourceType = "heroic" },
+                }
+            },
+            chest = {
+                bis = { id = 21871, name = "Frozen Shadoweave Robe", source = "Tailoring (Shadoweave)", sourceType = "crafted" },
+                alts = {
+                    { id = 28191, name = "Mana-Etched Vestments", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                }
+            },
+            wrist = {
+                bis = { id = 24250, name = "Bracers of Havok", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 29183, name = "Bindings of the Timewalker", source = "Keepers of Time Exalted", sourceType = "rep" },
+                }
+            },
+            hands = {
+                bis = { id = 28507, name = "Handwraps of Flowing Thought", source = "Heroic Mechanar", sourceType = "heroic" },
+                alts = {
+                    { id = 27493, name = "Gloves of the Deadwatcher", source = "Shirrak (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                }
+            },
+            waist = {
+                bis = { id = 24256, name = "Girdle of Ruination", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 29241, name = "Belt of Depravity", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                }
+            },
+            legs = {
+                bis = { id = 24262, name = "Spellstrike Pants", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 30543, name = "Pontifex Kilt", source = "Mekgineer Steamrigger (Heroic Steamvault)", sourceType = "heroic" },
+                }
+            },
+            feet = {
+                bis = { id = 21870, name = "Frozen Shadoweave Boots", source = "Tailoring (Shadoweave)", sourceType = "crafted" },
+                alts = {
+                    { id = 27821, name = "Sigil-Laced Boots", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
+                }
+            },
+            ring1 = {
+                bis = { id = 29126, name = "Seer's Signet", source = "Scryer Exalted", sourceType = "rep" },
+                alts = {
+                    { id = 29352, name = "Cobalt Band of Tyrigosa", source = "Heroic Black Morass", sourceType = "heroic" },
+                }
+            },
+            ring2 = {
+                bis = { id = 28227, name = "Sparking Arcanite Ring", source = "Darkweaver Syth (Heroic Sethekk Halls)", sourceType = "heroic" },
+                alts = {
+                    { id = 29172, name = "Ashyen's Gift", source = "Cenarion Expedition Exalted", sourceType = "rep" },
+                }
+            },
+            trinket1 = {
+                bis = { id = 29370, name = "Icon of the Silver Crescent", source = "G'eras (41 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 27683, name = "Quagmirran's Eye", source = "Quagmirran (Heroic Slave Pens)", sourceType = "heroic" },
+                }
+            },
+            trinket2 = {
+                bis = { id = 29132, name = "Scryer's Bloodgem", source = "Scryer Revered", sourceType = "rep" },
+                alts = {
+                    { id = 27683, name = "Quagmirran's Eye", source = "Quagmirran (Heroic Slave Pens)", sourceType = "heroic" },
+                }
+            },
+            mainhand = {
+                bis = { id = 29153, name = "Blade of the Archmage", source = "Sha'tar Revered", sourceType = "rep" },
+                alts = {
+                    { id = 27905, name = "Greatsword of Horrid Dreams", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
+                }
+            },
+            offhand = {
+                bis = { id = 29274, name = "Tears of Heaven", source = "G'eras (25 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 29170, name = "Windcaller's Orb", source = "Cenarion Expedition Exalted", sourceType = "rep" },
+                }
+            },
+            ranged = {
+                bis = { id = 28386, name = "Nether Core's Control Rod", source = "Dalliah (Heroic Arcatraz)", sourceType = "heroic" },
+                alts = {
+                    { id = 27885, name = "Soul-Wand of the Aldor", source = "Ambassador Hellmaw (Shadow Labyrinth)", sourceType = "dungeon" },
+                }
+            },
+        },
+
+        -------------------------------------------
+        -- ELEMENTAL SHAMAN
+        -------------------------------------------
+        ["elemental-shaman-dps"] = {
+            head = {
+                bis = { id = 24266, name = "Spellstrike Hood", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 32089, name = "Cowl of Naaru Blessings", source = "G'eras (50 Badges)", sourceType = "badge" },
+                }
+            },
+            neck = {
+                bis = { id = 29368, name = "Mantle of the Elven Kings", source = "G'eras (25 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 28134, name = "Brooch of Heightened Potential", source = "Warp Splinter (Heroic Botanica)", sourceType = "heroic" },
+                }
+            },
+            shoulders = {
+                bis = { id = 27796, name = "Mana-Etched Spaulders", source = "Avatar of the Martyred (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                alts = {
+                    { id = 21869, name = "Frozen Shadoweave Shoulders", source = "Tailoring (Shadoweave)", sourceType = "crafted" },
+                }
+            },
+            back = {
+                bis = { id = 28570, name = "Cloak of the Necropolis", source = "Quest (Netherstorm)", sourceType = "quest" },
+                alts = {
+                    { id = 27981, name = "Sethekk Oracle Cloak", source = "Darkweaver Syth (Heroic Sethekk Halls)", sourceType = "heroic" },
+                }
+            },
+            chest = {
+                bis = { id = 21871, name = "Frozen Shadoweave Robe", source = "Tailoring (Shadoweave)", sourceType = "crafted" },
+                alts = {
+                    { id = 28191, name = "Mana-Etched Vestments", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                }
+            },
+            wrist = {
+                bis = { id = 24250, name = "Bracers of Havok", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 29183, name = "Bindings of the Timewalker", source = "Keepers of Time Exalted", sourceType = "rep" },
+                }
+            },
+            hands = {
+                bis = { id = 28507, name = "Handwraps of Flowing Thought", source = "Heroic Mechanar", sourceType = "heroic" },
+                alts = {
+                    { id = 27493, name = "Gloves of the Deadwatcher", source = "Shirrak (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                }
+            },
+            waist = {
+                bis = { id = 24256, name = "Girdle of Ruination", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 29241, name = "Belt of Depravity", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                }
+            },
+            legs = {
+                bis = { id = 24262, name = "Spellstrike Pants", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 30543, name = "Pontifex Kilt", source = "Mekgineer Steamrigger (Heroic Steamvault)", sourceType = "heroic" },
+                }
+            },
+            feet = {
+                bis = { id = 21870, name = "Frozen Shadoweave Boots", source = "Tailoring (Shadoweave)", sourceType = "crafted" },
+                alts = {
+                    { id = 27821, name = "Sigil-Laced Boots", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
+                }
+            },
+            ring1 = {
+                bis = { id = 29126, name = "Seer's Signet", source = "Scryer Exalted", sourceType = "rep" },
+                alts = {
+                    { id = 29352, name = "Cobalt Band of Tyrigosa", source = "Heroic Black Morass", sourceType = "heroic" },
+                }
+            },
+            ring2 = {
+                bis = { id = 28227, name = "Sparking Arcanite Ring", source = "Darkweaver Syth (Heroic Sethekk Halls)", sourceType = "heroic" },
+                alts = {
+                    { id = 29172, name = "Ashyen's Gift", source = "Cenarion Expedition Exalted", sourceType = "rep" },
+                }
+            },
+            trinket1 = {
+                bis = { id = 29370, name = "Icon of the Silver Crescent", source = "G'eras (41 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 27683, name = "Quagmirran's Eye", source = "Quagmirran (Heroic Slave Pens)", sourceType = "heroic" },
+                }
+            },
+            trinket2 = {
+                bis = { id = 29132, name = "Scryer's Bloodgem", source = "Scryer Revered", sourceType = "rep" },
+                alts = {
+                    { id = 27683, name = "Quagmirran's Eye", source = "Quagmirran (Heroic Slave Pens)", sourceType = "heroic" },
+                }
+            },
+            mainhand = {
+                bis = { id = 29153, name = "Blade of the Archmage", source = "Sha'tar Revered", sourceType = "rep" },
+                alts = {
+                    { id = 27905, name = "Greatsword of Horrid Dreams", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
+                }
+            },
+            offhand = {
+                bis = { id = 29274, name = "Tears of Heaven", source = "G'eras (25 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 29170, name = "Windcaller's Orb", source = "Cenarion Expedition Exalted", sourceType = "rep" },
+                }
+            },
+            ranged = {
+                bis = { id = 27544, name = "Totem of Spontaneous Regrowth", source = "Mennu (Heroic Slave Pens)", sourceType = "heroic" },
+                alts = {
+                    { id = 25645, name = "Totem of the Plains", source = "Quest (Nagrand)", sourceType = "quest" },
+                }
+            },
+        },
+
+        -------------------------------------------
+        -- ENHANCEMENT SHAMAN
+        -------------------------------------------
+        ["enhancement-shaman-dps"] = {
+            head = {
+                bis = { id = 32087, name = "Mask of the Deceiver", source = "G'eras (50 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 28224, name = "Wastewalker Helm", source = "Epoch Hunter (Heroic Old Hillsbrad)", sourceType = "heroic" },
+                }
+            },
+            neck = {
+                bis = { id = 29381, name = "Choker of Vile Intent", source = "G'eras (25 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 27779, name = "Strength of the Untamed", source = "The Black Stalker (Heroic Underbog)", sourceType = "heroic" },
+                }
+            },
+            shoulders = {
+                bis = { id = 27797, name = "Wastewalker Shoulderpads", source = "Avatar of the Martyred (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                alts = {
+                    { id = 27434, name = "Mantle of Perenolde", source = "Epoch Hunter (Old Hillsbrad)", sourceType = "dungeon" },
+                }
+            },
+            back = {
+                bis = { id = 24259, name = "Vengeance Wrap", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 27878, name = "Auchenai Death Shroud", source = "Avatar of the Martyred (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                }
+            },
+            chest = {
+                bis = { id = 29517, name = "Ebon Netherscale Breastplate", source = "Dragonscale Leatherworking", sourceType = "crafted" },
+                alts = {
+                    { id = 28264, name = "Wastewalker Tunic", source = "Epoch Hunter (Heroic Old Hillsbrad)", sourceType = "heroic" },
+                }
+            },
+            wrist = {
+                bis = { id = 25696, name = "Felstalker Bracers", source = "Leatherworking", sourceType = "crafted" },
+                alts = {
+                    { id = 28171, name = "Spymistress's Wristguards", source = "Quest (Shadowmoon Valley)", sourceType = "quest" },
+                }
+            },
+            hands = {
+                bis = { id = 27531, name = "Wastewalker Gloves", source = "Warchief Kargath (Heroic Shattered Halls)", sourceType = "heroic" },
+                alts = {
+                    { id = 25685, name = "Fel Leather Gloves", source = "Leatherworking", sourceType = "crafted" },
+                }
+            },
+            waist = {
+                bis = { id = 29247, name = "Girdle of the Deathdealer", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                alts = {
+                    { id = 27911, name = "Dunewind Sash", source = "Nexus-Prince Shaffar (Mana-Tombs)", sourceType = "dungeon" },
+                }
+            },
+            legs = {
+                bis = { id = 30257, name = "Shattrath Leggings", source = "Quest (Shattrath)", sourceType = "quest" },
+                alts = {
+                    { id = 25687, name = "Fel Leather Leggings", source = "Leatherworking", sourceType = "crafted" },
+                }
+            },
+            feet = {
+                bis = { id = 25686, name = "Fel Leather Boots", source = "Leatherworking", sourceType = "crafted" },
+                alts = {
+                    { id = 27867, name = "Moonstrider Boots", source = "Botanica", sourceType = "dungeon" },
+                }
+            },
+            ring1 = {
+                bis = { id = 30834, name = "Shapeshifter's Signet", source = "Lower City Exalted", sourceType = "rep" },
+                alts = {
+                    { id = 29379, name = "Ring of Arathi Warlords", source = "G'eras (25 Badges)", sourceType = "badge" },
+                }
+            },
+            ring2 = {
+                bis = { id = 28323, name = "Ring of Umbral Doom", source = "Thorngrin the Tender (Heroic Botanica)", sourceType = "heroic" },
+                alts = {
+                    { id = 27925, name = "Ravenclaw Band", source = "Sethekk Halls", sourceType = "dungeon" },
+                }
+            },
+            trinket1 = {
+                bis = { id = 28034, name = "Hourglass of the Unraveller", source = "Temporus (Heroic Black Morass)", sourceType = "heroic" },
+                alts = {
+                    { id = 29383, name = "Bloodlust Brooch", source = "G'eras (41 Badges)", sourceType = "badge" },
+                }
+            },
+            trinket2 = {
+                bis = { id = 29383, name = "Bloodlust Brooch", source = "G'eras (41 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 28288, name = "Abacus of Violent Odds", source = "Pathaleon the Calculator (Heroic Mechanar)", sourceType = "heroic" },
+                }
+            },
+            mainhand = {
+                bis = { id = 28189, name = "Latros' Shifting Sword", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                alts = {
+                    { id = 23540, name = "Felsteel Longblade", source = "Blacksmithing", sourceType = "crafted" },
+                }
+            },
+            offhand = {
+                bis = { id = 27872, name = "The Harvester of Souls", source = "Avatar of the Martyred (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                alts = {
+                    { id = 27846, name = "Claw of the Watcher", source = "Darkweaver Syth (Heroic Sethekk Halls)", sourceType = "heroic" },
+                }
+            },
+            ranged = {
+                bis = { id = 27815, name = "Totem of Impact", source = "The Steamvault", sourceType = "dungeon" },
+                alts = {
+                    { id = 25645, name = "Totem of the Plains", source = "Quest (Nagrand)", sourceType = "quest" },
+                }
+            },
+        },
+
+        -------------------------------------------
+        -- RESTORATION SHAMAN
+        -------------------------------------------
+        ["shaman-healer"] = {
+            head = {
+                bis = { id = 24264, name = "Whitemend Hood", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 32090, name = "Cowl of Naaru Blessings", source = "G'eras (50 Badges)", sourceType = "badge" },
+                }
+            },
+            neck = {
+                bis = { id = 29374, name = "Necklace of Eternal Hope", source = "G'eras (25 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 30377, name = "Karja's Medallion", source = "Quest (Netherstorm)", sourceType = "quest" },
+                }
+            },
+            shoulders = {
+                bis = { id = 21874, name = "Primal Mooncloth Shoulders", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 27802, name = "Tidefury Shoulderguards", source = "Warbringer O'mrogg (The Shattered Halls)", sourceType = "dungeon" },
+                }
+            },
+            back = {
+                bis = { id = 31329, name = "Lifegiving Cloak", source = "World Drop", sourceType = "world" },
+                alts = {
+                    { id = 29354, name = "Light-Touched Stole of Altruism", source = "Exarch Maladaar (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                }
+            },
+            chest = {
+                bis = { id = 29522, name = "Windhawk Hauberk", source = "Tribal Leatherworking", sourceType = "crafted" },
+                alts = {
+                    { id = 21875, name = "Primal Mooncloth Robe", source = "Tailoring", sourceType = "crafted" },
+                }
+            },
+            wrist = {
+                bis = { id = 29523, name = "Windhawk Bracers", source = "Tribal Leatherworking", sourceType = "crafted" },
+                alts = {
+                    { id = 29183, name = "Bindings of the Timewalker", source = "Keepers of Time Exalted", sourceType = "rep" },
+                }
+            },
+            hands = {
+                bis = { id = 29506, name = "Gloves of the Living Touch", source = "Leatherworking", sourceType = "crafted" },
+                alts = {
+                    { id = 27510, name = "Tidefury Gauntlets", source = "Warlord Kalithresh (The Steamvault)", sourceType = "dungeon" },
+                }
+            },
+            waist = {
+                bis = { id = 29524, name = "Windhawk Belt", source = "Tribal Leatherworking", sourceType = "crafted" },
+                alts = {
+                    { id = 27835, name = "Stillwater Girdle", source = "Nexus-Prince Shaffar (Mana-Tombs)", sourceType = "dungeon" },
+                }
+            },
+            legs = {
+                bis = { id = 30543, name = "Pontifex Kilt", source = "Mekgineer Steamrigger (Heroic Steamvault)", sourceType = "heroic" },
+                alts = {
+                    { id = 24261, name = "Whitemend Pants", source = "Tailoring", sourceType = "crafted" },
+                }
+            },
+            feet = {
+                bis = { id = 27549, name = "Wavefury Boots", source = "Rokmar the Crackler (Heroic Slave Pens)", sourceType = "heroic" },
+                alts = {
+                    { id = 27411, name = "Slippers of Serenity", source = "Exarch Maladaar (Auchenai Crypts)", sourceType = "dungeon" },
+                }
+            },
+            ring1 = {
+                bis = { id = 29373, name = "Band of Halos", source = "G'eras (25 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 29169, name = "Ring of Convalescence", source = "Honor Hold Revered", sourceType = "rep" },
+                }
+            },
+            ring2 = {
+                bis = { id = 31383, name = "Spiritualist's Mark of the Sha'tar", source = "Quest (Shadowmoon Valley)", sourceType = "quest" },
+                alts = {
+                    { id = 29322, name = "Keeper's Ring of Piety", source = "Quest (Caverns of Time)", sourceType = "quest" },
+                }
+            },
+            trinket1 = {
+                bis = { id = 29376, name = "Essence of the Martyr", source = "G'eras (41 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 28190, name = "Scarab of the Infinite Cycle", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                }
+            },
+            trinket2 = {
+                bis = { id = 30841, name = "Lower City Prayerbook", source = "Lower City Revered", sourceType = "rep" },
+                alts = {
+                    { id = 28190, name = "Scarab of the Infinite Cycle", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                }
+            },
+            mainhand = {
+                bis = { id = 29353, name = "Shockwave Truncheon", source = "Murmur (Heroic Shadow Labyrinth)", sourceType = "heroic" },
+                alts = {
+                    { id = 29175, name = "Gavel of Pure Light", source = "The Sha'tar Exalted", sourceType = "rep" },
+                }
+            },
+            offhand = {
+                bis = { id = 29267, name = "Light-Bearer's Faith Shield", source = "G'eras (33 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 29274, name = "Tears of Heaven", source = "G'eras (25 Badges)", sourceType = "badge" },
+                }
+            },
+            ranged = {
+                bis = { id = 27544, name = "Totem of Spontaneous Regrowth", source = "Mennu the Betrayer (Heroic Slave Pens)", sourceType = "heroic" },
+                alts = {
+                    { id = 25645, name = "Totem of the Plains", source = "Quest (Nagrand)", sourceType = "quest" },
+                }
+            },
+        },
+
+        -------------------------------------------
+        -- MAGE DPS
+        -------------------------------------------
+        ["mage-dps"] = {
+            head = {
+                bis = { id = 24266, name = "Spellstrike Hood", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 32089, name = "Cowl of Naaru Blessings", source = "G'eras (50 Badges)", sourceType = "badge" },
+                }
+            },
+            neck = {
+                bis = { id = 29368, name = "Mantle of the Elven Kings", source = "G'eras (25 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 28134, name = "Brooch of Heightened Potential", source = "Warp Splinter (Heroic Botanica)", sourceType = "heroic" },
+                }
+            },
+            shoulders = {
+                bis = { id = 21869, name = "Frozen Shadoweave Shoulders", source = "Tailoring (Shadoweave)", sourceType = "crafted" },
+                alts = {
+                    { id = 27796, name = "Mana-Etched Spaulders", source = "Avatar of the Martyred (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                }
+            },
+            back = {
+                bis = { id = 28570, name = "Cloak of the Necropolis", source = "Quest (Netherstorm)", sourceType = "quest" },
+                alts = {
+                    { id = 27981, name = "Sethekk Oracle Cloak", source = "Darkweaver Syth (Heroic Sethekk Halls)", sourceType = "heroic" },
+                }
+            },
+            chest = {
+                bis = { id = 21871, name = "Frozen Shadoweave Robe", source = "Tailoring (Shadoweave)", sourceType = "crafted" },
+                alts = {
+                    { id = 28191, name = "Mana-Etched Vestments", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                }
+            },
+            wrist = {
+                bis = { id = 24250, name = "Bracers of Havok", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 29183, name = "Bindings of the Timewalker", source = "Keepers of Time Exalted", sourceType = "rep" },
+                }
+            },
+            hands = {
+                bis = { id = 28507, name = "Handwraps of Flowing Thought", source = "Attumen... (Heroic Mechanar)", sourceType = "heroic" },
+                alts = {
+                    { id = 27493, name = "Gloves of the Deadwatcher", source = "Shirrak (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                }
+            },
+            waist = {
+                bis = { id = 24256, name = "Girdle of Ruination", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 29241, name = "Belt of Depravity", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                }
+            },
+            legs = {
+                bis = { id = 24262, name = "Spellstrike Pants", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 30543, name = "Pontifex Kilt", source = "Mekgineer Steamrigger (Heroic Steamvault)", sourceType = "heroic" },
+                }
+            },
+            feet = {
+                bis = { id = 21870, name = "Frozen Shadoweave Boots", source = "Tailoring (Shadoweave)", sourceType = "crafted" },
+                alts = {
+                    { id = 27821, name = "Sigil-Laced Boots", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
+                }
+            },
+            ring1 = {
+                bis = { id = 29126, name = "Seer's Signet", source = "Scryer Exalted", sourceType = "rep" },
+                alts = {
+                    { id = 29352, name = "Cobalt Band of Tyrigosa", source = "Heroic Black Morass", sourceType = "heroic" },
+                }
+            },
+            ring2 = {
+                bis = { id = 28227, name = "Sparking Arcanite Ring", source = "Darkweaver Syth (Heroic Sethekk Halls)", sourceType = "heroic" },
+                alts = {
+                    { id = 29172, name = "Ashyen's Gift", source = "Cenarion Expedition Exalted", sourceType = "rep" },
+                }
+            },
+            trinket1 = {
+                bis = { id = 29370, name = "Icon of the Silver Crescent", source = "G'eras (41 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 27683, name = "Quagmirran's Eye", source = "Quagmirran (Heroic Slave Pens)", sourceType = "heroic" },
+                }
+            },
+            trinket2 = {
+                bis = { id = 29132, name = "Scryer's Bloodgem", source = "Scryer Revered", sourceType = "rep" },
+                alts = {
+                    { id = 27683, name = "Quagmirran's Eye", source = "Quagmirran (Heroic Slave Pens)", sourceType = "heroic" },
+                }
+            },
+            mainhand = {
+                bis = { id = 29153, name = "Blade of the Archmage", source = "Sha'tar Revered", sourceType = "rep" },
+                alts = {
+                    { id = 27905, name = "Greatsword of Horrid Dreams", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
+                }
+            },
+            offhand = {
+                bis = { id = 29274, name = "Tears of Heaven", source = "G'eras (25 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 29170, name = "Windcaller's Orb", source = "Cenarion Expedition Exalted", sourceType = "rep" },
+                }
+            },
+            ranged = {
+                bis = { id = 28386, name = "Nether Core's Control Rod", source = "Dalliah (Heroic Arcatraz)", sourceType = "heroic" },
+                alts = {
+                    { id = 27885, name = "Soul-Wand of the Aldor", source = "Ambassador Hellmaw (Shadow Labyrinth)", sourceType = "dungeon" },
+                }
+            },
+        },
+
+        -------------------------------------------
+        -- WARLOCK DPS
+        -------------------------------------------
+        ["warlock-dps"] = {
+            head = {
+                bis = { id = 24266, name = "Spellstrike Hood", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 32089, name = "Cowl of Naaru Blessings", source = "G'eras (50 Badges)", sourceType = "badge" },
+                }
+            },
+            neck = {
+                bis = { id = 29368, name = "Mantle of the Elven Kings", source = "G'eras (25 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 28134, name = "Brooch of Heightened Potential", source = "Warp Splinter (Heroic Botanica)", sourceType = "heroic" },
+                }
+            },
+            shoulders = {
+                bis = { id = 21869, name = "Frozen Shadoweave Shoulders", source = "Tailoring (Shadoweave)", sourceType = "crafted" },
+                alts = {
+                    { id = 27796, name = "Mana-Etched Spaulders", source = "Avatar of the Martyred (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                }
+            },
+            back = {
+                bis = { id = 28570, name = "Cloak of the Necropolis", source = "Quest (Netherstorm)", sourceType = "quest" },
+                alts = {
+                    { id = 27981, name = "Sethekk Oracle Cloak", source = "Darkweaver Syth (Heroic Sethekk Halls)", sourceType = "heroic" },
+                }
+            },
+            chest = {
+                bis = { id = 21871, name = "Frozen Shadoweave Robe", source = "Tailoring (Shadoweave)", sourceType = "crafted" },
+                alts = {
+                    { id = 28191, name = "Mana-Etched Vestments", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                }
+            },
+            wrist = {
+                bis = { id = 24250, name = "Bracers of Havok", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 29183, name = "Bindings of the Timewalker", source = "Keepers of Time Exalted", sourceType = "rep" },
+                }
+            },
+            hands = {
+                bis = { id = 28507, name = "Handwraps of Flowing Thought", source = "Heroic Mechanar", sourceType = "heroic" },
+                alts = {
+                    { id = 27493, name = "Gloves of the Deadwatcher", source = "Shirrak (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                }
+            },
+            waist = {
+                bis = { id = 24256, name = "Girdle of Ruination", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 29241, name = "Belt of Depravity", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                }
+            },
+            legs = {
+                bis = { id = 24262, name = "Spellstrike Pants", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 30543, name = "Pontifex Kilt", source = "Mekgineer Steamrigger (Heroic Steamvault)", sourceType = "heroic" },
+                }
+            },
+            feet = {
+                bis = { id = 21870, name = "Frozen Shadoweave Boots", source = "Tailoring (Shadoweave)", sourceType = "crafted" },
+                alts = {
+                    { id = 27821, name = "Sigil-Laced Boots", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
+                }
+            },
+            ring1 = {
+                bis = { id = 29126, name = "Seer's Signet", source = "Scryer Exalted", sourceType = "rep" },
+                alts = {
+                    { id = 29352, name = "Cobalt Band of Tyrigosa", source = "Heroic Black Morass", sourceType = "heroic" },
+                }
+            },
+            ring2 = {
+                bis = { id = 28227, name = "Sparking Arcanite Ring", source = "Darkweaver Syth (Heroic Sethekk Halls)", sourceType = "heroic" },
+                alts = {
+                    { id = 29172, name = "Ashyen's Gift", source = "Cenarion Expedition Exalted", sourceType = "rep" },
+                }
+            },
+            trinket1 = {
+                bis = { id = 29370, name = "Icon of the Silver Crescent", source = "G'eras (41 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 27683, name = "Quagmirran's Eye", source = "Quagmirran (Heroic Slave Pens)", sourceType = "heroic" },
+                }
+            },
+            trinket2 = {
+                bis = { id = 29132, name = "Scryer's Bloodgem", source = "Scryer Revered", sourceType = "rep" },
+                alts = {
+                    { id = 27683, name = "Quagmirran's Eye", source = "Quagmirran (Heroic Slave Pens)", sourceType = "heroic" },
+                }
+            },
+            mainhand = {
+                bis = { id = 29153, name = "Blade of the Archmage", source = "Sha'tar Revered", sourceType = "rep" },
+                alts = {
+                    { id = 27905, name = "Greatsword of Horrid Dreams", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
+                }
+            },
+            offhand = {
+                bis = { id = 29274, name = "Tears of Heaven", source = "G'eras (25 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 29170, name = "Windcaller's Orb", source = "Cenarion Expedition Exalted", sourceType = "rep" },
+                }
+            },
+            ranged = {
+                bis = { id = 28386, name = "Nether Core's Control Rod", source = "Dalliah (Heroic Arcatraz)", sourceType = "heroic" },
+                alts = {
+                    { id = 27885, name = "Soul-Wand of the Aldor", source = "Ambassador Hellmaw (Shadow Labyrinth)", sourceType = "dungeon" },
+                }
+            },
+        },
+
+        -------------------------------------------
+        -- BALANCE DRUID
+        -------------------------------------------
+        ["balance-druid-dps"] = {
+            head = {
+                bis = { id = 24266, name = "Spellstrike Hood", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 32089, name = "Cowl of Naaru Blessings", source = "G'eras (50 Badges)", sourceType = "badge" },
+                }
+            },
+            neck = {
+                bis = { id = 29368, name = "Mantle of the Elven Kings", source = "G'eras (25 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 28134, name = "Brooch of Heightened Potential", source = "Warp Splinter (Heroic Botanica)", sourceType = "heroic" },
+                }
+            },
+            shoulders = {
+                bis = { id = 21869, name = "Frozen Shadoweave Shoulders", source = "Tailoring (Shadoweave)", sourceType = "crafted" },
+                alts = {
+                    { id = 27796, name = "Mana-Etched Spaulders", source = "Avatar of the Martyred (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                }
+            },
+            back = {
+                bis = { id = 28570, name = "Cloak of the Necropolis", source = "Quest (Netherstorm)", sourceType = "quest" },
+                alts = {
+                    { id = 27981, name = "Sethekk Oracle Cloak", source = "Darkweaver Syth (Heroic Sethekk Halls)", sourceType = "heroic" },
+                }
+            },
+            chest = {
+                bis = { id = 21871, name = "Frozen Shadoweave Robe", source = "Tailoring (Shadoweave)", sourceType = "crafted" },
+                alts = {
+                    { id = 28191, name = "Mana-Etched Vestments", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                }
+            },
+            wrist = {
+                bis = { id = 24250, name = "Bracers of Havok", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 29183, name = "Bindings of the Timewalker", source = "Keepers of Time Exalted", sourceType = "rep" },
+                }
+            },
+            hands = {
+                bis = { id = 28507, name = "Handwraps of Flowing Thought", source = "Heroic Mechanar", sourceType = "heroic" },
+                alts = {
+                    { id = 27493, name = "Gloves of the Deadwatcher", source = "Shirrak (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                }
+            },
+            waist = {
+                bis = { id = 24256, name = "Girdle of Ruination", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 29241, name = "Belt of Depravity", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                }
+            },
+            legs = {
+                bis = { id = 24262, name = "Spellstrike Pants", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 30543, name = "Pontifex Kilt", source = "Mekgineer Steamrigger (Heroic Steamvault)", sourceType = "heroic" },
+                }
+            },
+            feet = {
+                bis = { id = 21870, name = "Frozen Shadoweave Boots", source = "Tailoring (Shadoweave)", sourceType = "crafted" },
+                alts = {
+                    { id = 27821, name = "Sigil-Laced Boots", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
+                }
+            },
+            ring1 = {
+                bis = { id = 29126, name = "Seer's Signet", source = "Scryer Exalted", sourceType = "rep" },
+                alts = {
+                    { id = 29352, name = "Cobalt Band of Tyrigosa", source = "Heroic Black Morass", sourceType = "heroic" },
+                }
+            },
+            ring2 = {
+                bis = { id = 28227, name = "Sparking Arcanite Ring", source = "Darkweaver Syth (Heroic Sethekk Halls)", sourceType = "heroic" },
+                alts = {
+                    { id = 29172, name = "Ashyen's Gift", source = "Cenarion Expedition Exalted", sourceType = "rep" },
+                }
+            },
+            trinket1 = {
+                bis = { id = 29370, name = "Icon of the Silver Crescent", source = "G'eras (41 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 27683, name = "Quagmirran's Eye", source = "Quagmirran (Heroic Slave Pens)", sourceType = "heroic" },
+                }
+            },
+            trinket2 = {
+                bis = { id = 29132, name = "Scryer's Bloodgem", source = "Scryer Revered", sourceType = "rep" },
+                alts = {
+                    { id = 27683, name = "Quagmirran's Eye", source = "Quagmirran (Heroic Slave Pens)", sourceType = "heroic" },
+                }
+            },
+            mainhand = {
+                bis = { id = 29153, name = "Blade of the Archmage", source = "Sha'tar Revered", sourceType = "rep" },
+                alts = {
+                    { id = 27905, name = "Greatsword of Horrid Dreams", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
+                }
+            },
+            offhand = {
+                bis = { id = 29274, name = "Tears of Heaven", source = "G'eras (25 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 29170, name = "Windcaller's Orb", source = "Cenarion Expedition Exalted", sourceType = "rep" },
+                }
+            },
+            ranged = {
+                bis = { id = 27886, name = "Idol of the Emerald Queen", source = "Ambassador Hellmaw (Shadow Labyrinth)", sourceType = "dungeon" },
+                alts = {
+                    { id = 25643, name = "Harold's Rejuvenating Broach", source = "Quest (Nagrand)", sourceType = "quest" },
+                }
+            },
+        },
+
+        -------------------------------------------
+        -- FERAL DRUID (Cat DPS)
+        -------------------------------------------
+        ["feral-druid-dps"] = {
+            head = {
+                bis = { id = 32087, name = "Mask of the Deceiver", source = "G'eras (50 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 28224, name = "Wastewalker Helm", source = "Epoch Hunter (Heroic Old Hillsbrad)", sourceType = "heroic" },
+                }
+            },
+            neck = {
+                bis = { id = 29381, name = "Choker of Vile Intent", source = "G'eras (25 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 27779, name = "Strength of the Untamed", source = "The Black Stalker (Heroic Underbog)", sourceType = "heroic" },
+                }
+            },
+            shoulders = {
+                bis = { id = 27797, name = "Wastewalker Shoulderpads", source = "Avatar of the Martyred (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                alts = {
+                    { id = 27434, name = "Mantle of Perenolde", source = "Epoch Hunter (Old Hillsbrad)", sourceType = "dungeon" },
+                }
+            },
+            back = {
+                bis = { id = 24259, name = "Vengeance Wrap", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 27878, name = "Auchenai Death Shroud", source = "Avatar of the Martyred (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                }
+            },
+            chest = {
+                bis = { id = 29525, name = "Primalstrike Vest", source = "Tribal Leatherworking", sourceType = "crafted" },
+                alts = {
+                    { id = 28264, name = "Wastewalker Tunic", source = "Epoch Hunter (Heroic Old Hillsbrad)", sourceType = "heroic" },
+                }
+            },
+            wrist = {
+                bis = { id = 29526, name = "Primalstrike Bracers", source = "Tribal Leatherworking", sourceType = "crafted" },
+                alts = {
+                    { id = 28171, name = "Spymistress's Wristguards", source = "Quest (Shadowmoon Valley)", sourceType = "quest" },
+                }
+            },
+            hands = {
+                bis = { id = 27531, name = "Wastewalker Gloves", source = "Warchief Kargath (Heroic Shattered Halls)", sourceType = "heroic" },
+                alts = {
+                    { id = 25685, name = "Fel Leather Gloves", source = "Leatherworking", sourceType = "crafted" },
+                }
+            },
+            waist = {
+                bis = { id = 29247, name = "Girdle of the Deathdealer", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                alts = {
+                    { id = 29527, name = "Primalstrike Belt", source = "Tribal Leatherworking", sourceType = "crafted" },
+                }
+            },
+            legs = {
+                bis = { id = 30257, name = "Shattrath Leggings", source = "Quest (Shattrath)", sourceType = "quest" },
+                alts = {
+                    { id = 25687, name = "Fel Leather Leggings", source = "Leatherworking", sourceType = "crafted" },
+                }
+            },
+            feet = {
+                bis = { id = 25686, name = "Fel Leather Boots", source = "Leatherworking", sourceType = "crafted" },
+                alts = {
+                    { id = 27867, name = "Moonstrider Boots", source = "Botanica", sourceType = "dungeon" },
+                }
+            },
+            ring1 = {
+                bis = { id = 30834, name = "Shapeshifter's Signet", source = "Lower City Exalted", sourceType = "rep" },
+                alts = {
+                    { id = 29379, name = "Ring of Arathi Warlords", source = "G'eras (25 Badges)", sourceType = "badge" },
+                }
+            },
+            ring2 = {
+                bis = { id = 28323, name = "Ring of Umbral Doom", source = "Thorngrin the Tender (Heroic Botanica)", sourceType = "heroic" },
+                alts = {
+                    { id = 27925, name = "Ravenclaw Band", source = "Sethekk Halls", sourceType = "dungeon" },
+                }
+            },
+            trinket1 = {
+                bis = { id = 28034, name = "Hourglass of the Unraveller", source = "Temporus (Heroic Black Morass)", sourceType = "heroic" },
+                alts = {
+                    { id = 29383, name = "Bloodlust Brooch", source = "G'eras (41 Badges)", sourceType = "badge" },
+                }
+            },
+            trinket2 = {
+                bis = { id = 29383, name = "Bloodlust Brooch", source = "G'eras (41 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 28288, name = "Abacus of Violent Odds", source = "Pathaleon the Calculator (Heroic Mechanar)", sourceType = "heroic" },
+                }
+            },
+            mainhand = {
+                bis = { id = 28476, name = "Braxxis' Staff of Slumber", source = "Warp Splinter (Heroic Botanica)", sourceType = "heroic" },
+                alts = {
+                    { id = 29171, name = "Earthwarden", source = "Cenarion Expedition Exalted", sourceType = "rep" },
+                }
+            },
+            offhand = {
+                bis = { id = 28476, name = "Braxxis' Staff of Slumber", source = "Warp Splinter (Heroic Botanica)", sourceType = "heroic" },
+                alts = {
+                    { id = 29171, name = "Earthwarden", source = "Cenarion Expedition Exalted", sourceType = "rep" },
+                }
+            },
+            ranged = {
+                bis = { id = 27886, name = "Idol of the Emerald Queen", source = "Ambassador Hellmaw (Shadow Labyrinth)", sourceType = "dungeon" },
+                alts = {
+                    { id = 25643, name = "Harold's Rejuvenating Broach", source = "Quest (Nagrand)", sourceType = "quest" },
+                }
+            },
+        },
+
+        -------------------------------------------
+        -- FERAL DRUID (Bear Tank)
+        -------------------------------------------
+        ["feral-druid-tank"] = {
+            head = {
+                bis = { id = 32087, name = "Mask of the Deceiver", source = "G'eras (50 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 28224, name = "Wastewalker Helm", source = "Epoch Hunter (Heroic Old Hillsbrad)", sourceType = "heroic" },
+                }
+            },
+            neck = {
+                bis = { id = 29386, name = "Necklace of the Juggernaut", source = "G'eras (25 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 27779, name = "Strength of the Untamed", source = "The Black Stalker (Heroic Underbog)", sourceType = "heroic" },
+                }
+            },
+            shoulders = {
+                bis = { id = 27797, name = "Wastewalker Shoulderpads", source = "Avatar of the Martyred (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                alts = {
+                    { id = 27434, name = "Mantle of Perenolde", source = "Epoch Hunter (Old Hillsbrad)", sourceType = "dungeon" },
+                }
+            },
+            back = {
+                bis = { id = 27518, name = "Devilshark Cape", source = "Warlord Kalithresh (The Steamvault)", sourceType = "dungeon" },
+                alts = {
+                    { id = 24253, name = "Cloak of Eternity", source = "Tailoring", sourceType = "crafted" },
+                }
+            },
+            chest = {
+                bis = { id = 25689, name = "Heavy Clefthoof Vest", source = "Leatherworking", sourceType = "crafted" },
+                alts = {
+                    { id = 29525, name = "Primalstrike Vest", source = "Tribal Leatherworking", sourceType = "crafted" },
+                }
+            },
+            wrist = {
+                bis = { id = 25690, name = "Heavy Clefthoof Bracers", source = "Leatherworking", sourceType = "crafted" },
+                alts = {
+                    { id = 28171, name = "Spymistress's Wristguards", source = "Quest (Shadowmoon Valley)", sourceType = "quest" },
+                }
+            },
+            hands = {
+                bis = { id = 27531, name = "Wastewalker Gloves", source = "Warchief Kargath (Heroic Shattered Halls)", sourceType = "heroic" },
+                alts = {
+                    { id = 25685, name = "Fel Leather Gloves", source = "Leatherworking", sourceType = "crafted" },
+                }
+            },
+            waist = {
+                bis = { id = 29247, name = "Girdle of the Deathdealer", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                alts = {
+                    { id = 27911, name = "Dunewind Sash", source = "Nexus-Prince Shaffar (Mana-Tombs)", sourceType = "dungeon" },
+                }
+            },
+            legs = {
+                bis = { id = 25691, name = "Heavy Clefthoof Leggings", source = "Leatherworking", sourceType = "crafted" },
+                alts = {
+                    { id = 30257, name = "Shattrath Leggings", source = "Quest (Shattrath)", sourceType = "quest" },
+                }
+            },
+            feet = {
+                bis = { id = 25686, name = "Fel Leather Boots", source = "Leatherworking", sourceType = "crafted" },
+                alts = {
+                    { id = 27867, name = "Moonstrider Boots", source = "Botanica", sourceType = "dungeon" },
+                }
+            },
+            ring1 = {
+                bis = { id = 30834, name = "Shapeshifter's Signet", source = "Lower City Exalted", sourceType = "rep" },
+                alts = {
+                    { id = 29379, name = "Ring of Arathi Warlords", source = "G'eras (25 Badges)", sourceType = "badge" },
+                }
+            },
+            ring2 = {
+                bis = { id = 28323, name = "Ring of Umbral Doom", source = "Thorngrin the Tender (Heroic Botanica)", sourceType = "heroic" },
+                alts = {
+                    { id = 27436, name = "Ring of the Stalwart Protector", source = "Quest (Old Hillsbrad)", sourceType = "quest" },
+                }
+            },
+            trinket1 = {
+                bis = { id = 28034, name = "Hourglass of the Unraveller", source = "Temporus (Heroic Black Morass)", sourceType = "heroic" },
+                alts = {
+                    { id = 27770, name = "Argussian Compass", source = "Warp Splinter (Heroic Underbog)", sourceType = "heroic" },
+                }
+            },
+            trinket2 = {
+                bis = { id = 29383, name = "Bloodlust Brooch", source = "G'eras (41 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 28288, name = "Abacus of Violent Odds", source = "Pathaleon the Calculator (Heroic Mechanar)", sourceType = "heroic" },
+                }
+            },
+            mainhand = {
+                bis = { id = 29171, name = "Earthwarden", source = "Cenarion Expedition Exalted", sourceType = "rep" },
+                alts = {
+                    { id = 28476, name = "Braxxis' Staff of Slumber", source = "Warp Splinter (Heroic Botanica)", sourceType = "heroic" },
+                }
+            },
+            offhand = {
+                bis = { id = 29171, name = "Earthwarden", source = "Cenarion Expedition Exalted", sourceType = "rep" },
+                alts = {
+                    { id = 28476, name = "Braxxis' Staff of Slumber", source = "Warp Splinter (Heroic Botanica)", sourceType = "heroic" },
+                }
+            },
+            ranged = {
+                bis = { id = 27886, name = "Idol of the Emerald Queen", source = "Ambassador Hellmaw (Shadow Labyrinth)", sourceType = "dungeon" },
+                alts = {
+                    { id = 25643, name = "Harold's Rejuvenating Broach", source = "Quest (Nagrand)", sourceType = "quest" },
+                }
+            },
+        },
+
+        -------------------------------------------
+        -- RESTORATION DRUID
+        -------------------------------------------
+        ["druid-healer"] = {
+            head = {
+                bis = { id = 24264, name = "Whitemend Hood", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 32090, name = "Cowl of Naaru Blessings", source = "G'eras (50 Badges)", sourceType = "badge" },
+                }
+            },
+            neck = {
+                bis = { id = 29374, name = "Necklace of Eternal Hope", source = "G'eras (25 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 30377, name = "Karja's Medallion", source = "Quest (Netherstorm)", sourceType = "quest" },
+                }
+            },
+            shoulders = {
+                bis = { id = 21874, name = "Primal Mooncloth Shoulders", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 27775, name = "Hallowed Pauldrons", source = "Grandmaster Vorpil (Shadow Labyrinth)", sourceType = "dungeon" },
+                }
+            },
+            back = {
+                bis = { id = 31329, name = "Lifegiving Cloak", source = "World Drop", sourceType = "world" },
+                alts = {
+                    { id = 29354, name = "Light-Touched Stole of Altruism", source = "Exarch Maladaar (Heroic Auchenai Crypts)", sourceType = "heroic" },
+                }
+            },
+            chest = {
+                bis = { id = 21875, name = "Primal Mooncloth Robe", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 29522, name = "Windhawk Hauberk", source = "Tribal Leatherworking", sourceType = "crafted" },
+                }
+            },
+            wrist = {
+                bis = { id = 29183, name = "Bindings of the Timewalker", source = "Keepers of Time Exalted", sourceType = "rep" },
+                alts = {
+                    { id = 29523, name = "Windhawk Bracers", source = "Tribal Leatherworking", sourceType = "crafted" },
+                }
+            },
+            hands = {
+                bis = { id = 29506, name = "Gloves of the Living Touch", source = "Leatherworking", sourceType = "crafted" },
+                alts = {
+                    { id = 27536, name = "Hallowed Handwraps", source = "Warchief Kargath (The Shattered Halls)", sourceType = "dungeon" },
+                }
+            },
+            waist = {
+                bis = { id = 21873, name = "Primal Mooncloth Belt", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 29524, name = "Windhawk Belt", source = "Tribal Leatherworking", sourceType = "crafted" },
+                }
+            },
+            legs = {
+                bis = { id = 24261, name = "Whitemend Pants", source = "Tailoring", sourceType = "crafted" },
+                alts = {
+                    { id = 30543, name = "Pontifex Kilt", source = "Mekgineer Steamrigger (Heroic Steamvault)", sourceType = "heroic" },
+                }
+            },
+            feet = {
+                bis = { id = 27411, name = "Slippers of Serenity", source = "Exarch Maladaar (Auchenai Crypts)", sourceType = "dungeon" },
+                alts = {
+                    { id = 29251, name = "Boots of the Pious", source = "Pathaleon the Calculator (Heroic Mechanar)", sourceType = "heroic" },
+                }
+            },
+            ring1 = {
+                bis = { id = 29373, name = "Band of Halos", source = "G'eras (25 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 27780, name = "Ring of Fabled Hope", source = "The Black Stalker (Heroic Underbog)", sourceType = "heroic" },
+                }
+            },
+            ring2 = {
+                bis = { id = 31383, name = "Spiritualist's Mark of the Sha'tar", source = "Quest (Shadowmoon Valley)", sourceType = "quest" },
+                alts = {
+                    { id = 29169, name = "Ring of Convalescence", source = "Honor Hold Revered", sourceType = "rep" },
+                }
+            },
+            trinket1 = {
+                bis = { id = 29376, name = "Essence of the Martyr", source = "G'eras (41 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 28190, name = "Scarab of the Infinite Cycle", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                }
+            },
+            trinket2 = {
+                bis = { id = 30841, name = "Lower City Prayerbook", source = "Lower City Revered", sourceType = "rep" },
+                alts = {
+                    { id = 28190, name = "Scarab of the Infinite Cycle", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                }
+            },
+            mainhand = {
+                bis = { id = 29353, name = "Shockwave Truncheon", source = "Murmur (Heroic Shadow Labyrinth)", sourceType = "heroic" },
+                alts = {
+                    { id = 29175, name = "Gavel of Pure Light", source = "The Sha'tar Exalted", sourceType = "rep" },
+                }
+            },
+            offhand = {
+                bis = { id = 29274, name = "Tears of Heaven", source = "G'eras (25 Badges)", sourceType = "badge" },
+                alts = {
+                    { id = 29170, name = "Windcaller's Orb", source = "Cenarion Expedition Exalted", sourceType = "rep" },
+                }
+            },
+            ranged = {
+                bis = { id = 27886, name = "Idol of the Emerald Queen", source = "Ambassador Hellmaw (Shadow Labyrinth)", sourceType = "dungeon" },
+                alts = {
+                    { id = 25643, name = "Harold's Rejuvenating Broach", source = "Quest (Nagrand)", sourceType = "quest" },
+                }
+            },
+        },
+
+    },
+
+    -------------------------------------------------
     -- PHASE 1: Pre-Raid + Karazhan/Gruul/Mag
     -------------------------------------------------
     [1] = {
@@ -718,126 +2668,122 @@ C.ARMORY_SPEC_BIS_DATABASE = {
         -------------------------------------------
         ["mage-dps"] = {
             head = {
-                bis = { id = 24266, name = "Spellstrike Hood", source = "Tailoring", sourceType = "crafted" },
+                bis = { id = 24266, name = "Spellstrike Hood", source = "Tailoring (BoE)", sourceType = "crafted" },
                 alts = {
-                    { id = 29076, name = "Collar of the Aldor", source = "Prince Malchezaar", sourceType = "raid" },
-                    { id = 28415, name = "Hood of Oblivion", source = "Harbinger Skyriss (Heroic Arcatraz)", sourceType = "heroic" },
+                    { id = 28193, name = "Mana-Etched Crown", source = "Aeonus (Black Morass)", sourceType = "dungeon" },
+                    { id = 31104, name = "Evoker's Helmet of Second Sight", source = "Quest: Teron Gorefiend, I am...", sourceType = "quest" },
                 }
             },
             neck = {
-                bis = { id = 28762, name = "Adornment of Stolen Souls", source = "Prince Malchezaar", sourceType = "raid" },
+                bis = { id = 29368, name = "Manasurge Pendant", source = "G'eras (25 Badges)", sourceType = "badge" },
                 alts = {
-                    { id = 28530, name = "Brooch of Unquenchable Fury", source = "Attumen the Huntsman", sourceType = "raid" },
-                    { id = 28134, name = "Brooch of Heightened Potential", source = "Warchief Kargath", sourceType = "heroic" },
+                    { id = 28134, name = "Brooch of Heightened Potential", source = "Blackheart the Inciter (Shadow Labyrinth)", sourceType = "dungeon" },
+                    { id = 21608, name = "Amulet of Vek'nilash", source = "World Drop BoE", sourceType = "world" },
                 }
             },
             shoulders = {
-                bis = { id = 29079, name = "Pauldrons of the Aldor", source = "High King Maulgar", sourceType = "raid" },
+                bis = { id = 27796, name = "Mana-Etched Spaulders", source = "Quagmirran (Heroic Slave Pens)", sourceType = "heroic" },
                 alts = {
-                    { id = 27796, name = "Mana-Etched Spaulders", source = "Rokmar the Crackler", sourceType = "heroic" },
-                    { id = 27778, name = "Spaulders of Oblivion", source = "Ambassador Hellmaw", sourceType = "dungeon" },
+                    { id = 27778, name = "Spaulders of Oblivion", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
+                    { id = 27994, name = "Mantle of Three Terrors", source = "Chrono Lord Deja (Black Morass)", sourceType = "dungeon" },
                 }
             },
             back = {
-                bis = { id = 28766, name = "Ruby Drape of the Mysticant", source = "Prince Malchezaar", sourceType = "raid" },
+                bis = { id = 27981, name = "Sethekk Oracle Cloak", source = "Talon King Ikiss (Sethekk Halls)", sourceType = "dungeon" },
                 alts = {
-                    { id = 28570, name = "Shadow-Cloak of Dalaran", source = "Moroes", sourceType = "raid" },
-                    { id = 27981, name = "Sethekk Oracle Cloak", source = "Talon King Ikiss", sourceType = "dungeon" },
+                    { id = 29369, name = "Shawl of Shifting Probabilities", source = "G'eras (25 Badges)", sourceType = "badge" },
+                    { id = 28269, name = "Baba's Cloak of Arcanistry", source = "Pathaleon the Calculator (Mechanar)", sourceType = "dungeon" },
                 }
             },
             chest = {
-                bis = { id = 21848, name = "Spellfire Robe", source = "Spellfire Tailoring", sourceType = "crafted" },
+                bis = { id = 21848, name = "Spellfire Robe", source = "Spellfire Tailoring (BoP)", sourceType = "crafted" },
                 alts = {
-                    { id = 28578, name = "Masquerade Gown", source = "Opera Event", sourceType = "raid" },
-                    { id = 29077, name = "Robe of the Aldor", source = "Magtheridon", sourceType = "raid" },
-                    { id = 28230, name = "Hallowed Garments", source = "Murmur", sourceType = "dungeon" },
+                    { id = 28232, name = "Robe of Oblivion", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
+                    { id = 28230, name = "Hallowed Garments", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
                 }
             },
             wrist = {
-                bis = { id = 24250, name = "Bracers of Havok", source = "Tailoring", sourceType = "crafted" },
+                bis = { id = 24250, name = "Bracers of Havok", source = "Tailoring (BoE)", sourceType = "crafted" },
                 alts = {
-                    { id = 27462, name = "Crimson Bracers of Gloom", source = "Omor the Unscarred", sourceType = "heroic" },
-                    { id = 28174, name = "Shattrath Wraps", source = "Quest", sourceType = "quest" },
+                    { id = 27462, name = "Crimson Bracers of Gloom", source = "Omor the Unscarred (Heroic Ramparts)", sourceType = "heroic" },
+                    { id = 28174, name = "Shattrath Wraps", source = "Quest: How to Break Into the Arcatraz", sourceType = "quest" },
                 }
             },
             hands = {
-                bis = { id = 21847, name = "Spellfire Gloves", source = "Spellfire Tailoring", sourceType = "crafted" },
+                bis = { id = 21847, name = "Spellfire Gloves", source = "Spellfire Tailoring (BoP)", sourceType = "crafted" },
                 alts = {
-                    { id = 28507, name = "Handwraps of Flowing Thought", source = "Attumen the Huntsman", sourceType = "raid" },
-                    { id = 27493, name = "Gloves of the Deadwatcher", source = "Shirrak the Dead Watcher", sourceType = "heroic" },
+                    { id = 27493, name = "Gloves of the Deadwatcher", source = "Shirrak the Dead Watcher (Auchenai Crypts)", sourceType = "dungeon" },
+                    { id = 27465, name = "Mana-Etched Gloves", source = "Omor the Unscarred (Heroic Ramparts)", sourceType = "heroic" },
                 }
             },
             waist = {
-                bis = { id = 21846, name = "Spellfire Belt", source = "Spellfire Tailoring", sourceType = "crafted" },
+                bis = { id = 21846, name = "Spellfire Belt", source = "Spellfire Tailoring (BoP)", sourceType = "crafted" },
                 alts = {
-                    { id = 28569, name = "Nethershard Girdle", source = "Moroes", sourceType = "raid" },
-                    { id = 24256, name = "Girdle of Ruination", source = "Tailoring", sourceType = "crafted" },
-                    { id = 28799, name = "Belt of Divine Inspiration", source = "Terestian Illhoof", sourceType = "raid" },
+                    { id = 24256, name = "Girdle of Ruination", source = "Tailoring (BoE)", sourceType = "crafted" },
+                    { id = 27795, name = "Sash of Serpentra", source = "Warlord Kalithresh (Steamvault)", sourceType = "dungeon" },
                 }
             },
             legs = {
-                bis = { id = 24262, name = "Spellstrike Pants", source = "Tailoring", sourceType = "crafted" },
+                bis = { id = 24262, name = "Spellstrike Pants", source = "Tailoring (BoE)", sourceType = "crafted" },
                 alts = {
-                    { id = 28594, name = "Trial-Fire Trousers", source = "Opera Event", sourceType = "raid" },
-                    { id = 27838, name = "Breeches of the Occultist", source = "Temporus", sourceType = "heroic" },
+                    { id = 30531, name = "Breeches of the Occultist", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                    { id = 27907, name = "Mana-Etched Pantaloons", source = "Talon King Ikiss (Heroic Sethekk Halls)", sourceType = "heroic" },
                 }
             },
             feet = {
-                bis = { id = 28517, name = "Boots of Foretelling", source = "Maiden of Virtue", sourceType = "raid" },
+                bis = { id = 28406, name = "Sigil-Laced Boots", source = "Harbinger Skyriss (Arcatraz)", sourceType = "dungeon" },
                 alts = {
-                    { id = 28585, name = "Ruby Slippers", source = "Opera Event", sourceType = "raid" },
-                    { id = 28179, name = "Shattrath Jumpers", source = "Quest", sourceType = "quest" },
+                    { id = 28179, name = "Shattrath Jumpers", source = "Quest: Into the Heart of the Labyrinth", sourceType = "quest" },
+                    { id = 27821, name = "Extravagant Boots of Malice", source = "Tavarok (Heroic Mana-Tombs)", sourceType = "heroic" },
                 }
             },
             ring1 = {
-                bis = { id = 28793, name = "Band of Crimson Fury", source = "Magtheridon Quest", sourceType = "quest" },
+                bis = { id = 29126, name = "Seer's Signet", source = "Scryers Exalted", sourceType = "rep" },
                 alts = {
-                    { id = 28510, name = "Spectral Band of Innervation", source = "Attumen the Huntsman", sourceType = "raid" },
-                    { id = 29287, name = "Violet Signet of the Archmage", source = "Violet Eye Exalted", sourceType = "reputation" },
-                    { id = 28753, name = "Ring of Recurrence", source = "Chess Event", sourceType = "raid" },
+                    { id = 29367, name = "Ring of Cryptic Dreams", source = "G'eras (25 Badges)", sourceType = "badge" },
+                    { id = 28227, name = "Sparking Arcanite Ring", source = "Epoch Hunter (Heroic Old Hillsbrad)", sourceType = "heroic" },
                 }
             },
             ring2 = {
-                bis = { id = 28753, name = "Ring of Recurrence", source = "Chess Event", sourceType = "raid" },
+                bis = { id = 29367, name = "Ring of Cryptic Dreams", source = "G'eras (25 Badges)", sourceType = "badge" },
                 alts = {
-                    { id = 28510, name = "Spectral Band of Innervation", source = "Attumen the Huntsman", sourceType = "raid" },
-                    { id = 29126, name = "Seer's Signet", source = "Lower City Exalted", sourceType = "reputation" },
-                    { id = 28227, name = "Sparking Arcanite Ring", source = "Sunseeker Astromage", sourceType = "heroic" },
+                    { id = 28227, name = "Sparking Arcanite Ring", source = "Epoch Hunter (Heroic Old Hillsbrad)", sourceType = "heroic" },
+                    { id = 29352, name = "Cobalt Band of Tyrigosa", source = "Nexus-Prince Shaffar (Heroic Mana-Tombs)", sourceType = "heroic" },
                 }
             },
             trinket1 = {
-                bis = { id = 28789, name = "Eye of Magtheridon", source = "Magtheridon", sourceType = "raid" },
+                bis = { id = 29370, name = "Icon of the Silver Crescent", source = "G'eras (41 Badges)", sourceType = "badge" },
                 alts = {
-                    { id = 29370, name = "Icon of the Silver Crescent", source = "G'eras (41 Badges)", sourceType = "badge" },
-                    { id = 27683, name = "Quagmirran's Eye", source = "Quagmirran", sourceType = "heroic" },
+                    { id = 27683, name = "Quagmirran's Eye", source = "Quagmirran (Heroic Slave Pens)", sourceType = "heroic" },
+                    { id = 29132, name = "Scryer's Bloodgem", source = "Scryers Revered", sourceType = "rep" },
                 }
             },
             trinket2 = {
-                bis = { id = 29370, name = "Icon of the Silver Crescent", source = "G'eras (41 Badges)", sourceType = "badge" },
+                bis = { id = 27683, name = "Quagmirran's Eye", source = "Quagmirran (Heroic Slave Pens)", sourceType = "heroic" },
                 alts = {
-                    { id = 27683, name = "Quagmirran's Eye", source = "Quagmirran", sourceType = "heroic" },
-                    { id = 29132, name = "Scryer's Bloodgem", source = "Scryers Revered", sourceType = "reputation" },
+                    { id = 29132, name = "Scryer's Bloodgem", source = "Scryers Revered", sourceType = "rep" },
+                    { id = 29179, name = "Xi'ri's Gift", source = "Sha'tar Revered", sourceType = "rep" },
                 }
             },
             mainhand = {
-                bis = { id = 28770, name = "Nathrezim Mindblade", source = "Prince Malchezaar", sourceType = "raid" },
+                bis = { id = 23554, name = "Eternium Runed Blade", source = "Blacksmithing (BoE)", sourceType = "crafted" },
                 alts = {
-                    { id = 28633, name = "Staff of Infinite Mysteries", source = "The Curator", sourceType = "raid" },
-                    { id = 30723, name = "Talon of the Tempest", source = "Doomwalker", sourceType = "world" },
+                    { id = 29185, name = "Continuum Blade", source = "Keepers of Time Revered", sourceType = "rep" },
+                    { id = 27905, name = "Greatsword of Horrid Dreams", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
                 }
             },
             offhand = {
                 bis = { id = 29270, name = "Flametongue Seal", source = "G'eras (25 Badges)", sourceType = "badge" },
                 alts = {
-                    { id = 29271, name = "Talisman of Kalecgos", source = "G'eras (35 Badges)", sourceType = "badge" },
-                    { id = 28734, name = "Jewel of Infinite Possibilities", source = "Netherspite", sourceType = "raid" },
+                    { id = 29273, name = "Khadgar's Knapsack", source = "G'eras (25 Badges)", sourceType = "badge" },
+                    { id = 28187, name = "Star-Heart Lamp", source = "Temporus (Black Morass)", sourceType = "dungeon" },
                 }
             },
             ranged = {
-                bis = { id = 28783, name = "Eredar Wand of Obliteration", source = "Magtheridon", sourceType = "raid" },
+                bis = { id = 28386, name = "Nether Core's Control Rod", source = "Dalliah the Doomsayer (Arcatraz)", sourceType = "dungeon" },
                 alts = {
-                    { id = 28673, name = "Tirisfal Wand of Ascendancy", source = "Shade of Aran", sourceType = "raid" },
-                    { id = 28386, name = "Nether Core's Control Rod", source = "Dalliah the Doomsayer (Heroic Arcatraz)", sourceType = "heroic" },
+                    { id = 27890, name = "Wand of the Netherwing", source = "Blackheart the Inciter (Shadow Labyrinth)", sourceType = "dungeon" },
+                    { id = 25939, name = "Voidfire Wand", source = "Pandemonius (Mana-Tombs)", sourceType = "dungeon" },
                 }
             },
         },
@@ -847,126 +2793,122 @@ C.ARMORY_SPEC_BIS_DATABASE = {
         -------------------------------------------
         ["warlock-dps"] = {
             head = {
-                bis = { id = 24266, name = "Spellstrike Hood", source = "Tailoring", sourceType = "crafted" },
+                bis = { id = 24266, name = "Spellstrike Hood", source = "Tailoring (BoE)", sourceType = "crafted" },
                 alts = {
-                    { id = 28963, name = "Voidheart Crown", source = "Prince Malchezaar", sourceType = "raid" },
-                    { id = 28415, name = "Hood of Oblivion", source = "Harbinger Skyriss (Heroic Arcatraz)", sourceType = "heroic" },
+                    { id = 28415, name = "Hood of Oblivion", source = "Harbinger Skyriss (Arcatraz)", sourceType = "dungeon" },
+                    { id = 31104, name = "Evoker's Helmet of Second Sight", source = "Quest: Teron Gorefiend, I am...", sourceType = "quest" },
                 }
             },
             neck = {
-                bis = { id = 28762, name = "Adornment of Stolen Souls", source = "Prince Malchezaar", sourceType = "raid" },
+                bis = { id = 29368, name = "Manasurge Pendant", source = "G'eras (25 Badges)", sourceType = "badge" },
                 alts = {
-                    { id = 28530, name = "Brooch of Unquenchable Fury", source = "Attumen the Huntsman", sourceType = "raid" },
-                    { id = 28134, name = "Brooch of Heightened Potential", source = "Warchief Kargath", sourceType = "heroic" },
+                    { id = 28134, name = "Brooch of Heightened Potential", source = "Blackheart the Inciter (Shadow Labyrinth)", sourceType = "dungeon" },
+                    { id = 27758, name = "Hydra-fang Necklace", source = "Ghaz'an (Underbog)", sourceType = "dungeon" },
                 }
             },
             shoulders = {
-                bis = { id = 28967, name = "Voidheart Mantle", source = "High King Maulgar", sourceType = "raid" },
+                bis = { id = 21869, name = "Frozen Shadoweave Shoulders", source = "Shadoweave Tailoring (BoP)", sourceType = "crafted" },
                 alts = {
-                    { id = 27778, name = "Spaulders of Oblivion", source = "Ambassador Hellmaw", sourceType = "dungeon" },
-                    { id = 27796, name = "Mana-Etched Spaulders", source = "Rokmar the Crackler", sourceType = "heroic" },
+                    { id = 27778, name = "Spaulders of Oblivion", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
+                    { id = 27796, name = "Mana-Etched Spaulders", source = "Quagmirran (Heroic Slave Pens)", sourceType = "heroic" },
                 }
             },
             back = {
-                bis = { id = 28766, name = "Ruby Drape of the Mysticant", source = "Prince Malchezaar", sourceType = "raid" },
+                bis = { id = 27981, name = "Sethekk Oracle Cloak", source = "Talon King Ikiss (Sethekk Halls)", sourceType = "dungeon" },
                 alts = {
-                    { id = 28570, name = "Shadow-Cloak of Dalaran", source = "Moroes", sourceType = "raid" },
-                    { id = 27981, name = "Sethekk Oracle Cloak", source = "Talon King Ikiss", sourceType = "dungeon" },
+                    { id = 29369, name = "Shawl of Shifting Probabilities", source = "G'eras (25 Badges)", sourceType = "badge" },
+                    { id = 28269, name = "Baba's Cloak of Arcanistry", source = "Pathaleon the Calculator (Mechanar)", sourceType = "dungeon" },
                 }
             },
             chest = {
-                bis = { id = 21848, name = "Spellfire Robe", source = "Spellfire Tailoring", sourceType = "crafted" },
+                bis = { id = 21871, name = "Frozen Shadoweave Robe", source = "Shadoweave Tailoring (BoP)", sourceType = "crafted" },
                 alts = {
-                    { id = 28578, name = "Masquerade Gown", source = "Opera Event", sourceType = "raid" },
-                    { id = 28964, name = "Voidheart Robe", source = "Magtheridon", sourceType = "raid" },
-                    { id = 28230, name = "Hallowed Garments", source = "Murmur", sourceType = "dungeon" },
+                    { id = 28232, name = "Robe of Oblivion", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
+                    { id = 28230, name = "Hallowed Garments", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
                 }
             },
             wrist = {
-                bis = { id = 24250, name = "Bracers of Havok", source = "Tailoring", sourceType = "crafted" },
+                bis = { id = 24250, name = "Bracers of Havok", source = "Tailoring (BoE)", sourceType = "crafted" },
                 alts = {
-                    { id = 28515, name = "Bands of Nefarious Deeds", source = "Terestian Illhoof", sourceType = "raid" },
-                    { id = 27462, name = "Crimson Bracers of Gloom", source = "Omor the Unscarred", sourceType = "heroic" },
+                    { id = 27462, name = "Crimson Bracers of Gloom", source = "Omor the Unscarred (Heroic Ramparts)", sourceType = "heroic" },
+                    { id = 28174, name = "Shattrath Wraps", source = "Quest: How to Break Into the Arcatraz", sourceType = "quest" },
                 }
             },
             hands = {
-                bis = { id = 21847, name = "Spellfire Gloves", source = "Spellfire Tailoring", sourceType = "crafted" },
+                bis = { id = 27493, name = "Gloves of the Deadwatcher", source = "Shirrak the Dead Watcher (Auchenai Crypts)", sourceType = "dungeon" },
                 alts = {
-                    { id = 28507, name = "Handwraps of Flowing Thought", source = "Attumen the Huntsman", sourceType = "raid" },
-                    { id = 27493, name = "Gloves of the Deadwatcher", source = "Shirrak the Dead Watcher", sourceType = "heroic" },
+                    { id = 27465, name = "Mana-Etched Gloves", source = "Omor the Unscarred (Heroic Ramparts)", sourceType = "heroic" },
+                    { id = 31149, name = "Gloves of Pandemonium", source = "Firewing Warlock (World Drop BoE)", sourceType = "world" },
                 }
             },
             waist = {
-                bis = { id = 21846, name = "Spellfire Belt", source = "Spellfire Tailoring", sourceType = "crafted" },
+                bis = { id = 24256, name = "Girdle of Ruination", source = "Tailoring (BoE)", sourceType = "crafted" },
                 alts = {
-                    { id = 28569, name = "Nethershard Girdle", source = "Moroes", sourceType = "raid" },
-                    { id = 24256, name = "Girdle of Ruination", source = "Tailoring", sourceType = "crafted" },
-                    { id = 28799, name = "Belt of Divine Inspiration", source = "Terestian Illhoof", sourceType = "raid" },
+                    { id = 27795, name = "Sash of Serpentra", source = "Warlord Kalithresh (Steamvault)", sourceType = "dungeon" },
+                    { id = 31461, name = "A'dal's Gift", source = "Quest: How to Break Into the Arcatraz", sourceType = "quest" },
                 }
             },
             legs = {
-                bis = { id = 24262, name = "Spellstrike Pants", source = "Tailoring", sourceType = "crafted" },
+                bis = { id = 24262, name = "Spellstrike Pants", source = "Tailoring (BoE)", sourceType = "crafted" },
                 alts = {
-                    { id = 28966, name = "Voidheart Leggings", source = "Gruul the Dragonkiller", sourceType = "raid" },
-                    { id = 27838, name = "Breeches of the Occultist", source = "Temporus", sourceType = "heroic" },
+                    { id = 30531, name = "Breeches of the Occultist", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                    { id = 27907, name = "Mana-Etched Pantaloons", source = "Talon King Ikiss (Heroic Sethekk Halls)", sourceType = "heroic" },
                 }
             },
             feet = {
-                bis = { id = 28517, name = "Boots of Foretelling", source = "Maiden of Virtue", sourceType = "raid" },
+                bis = { id = 21870, name = "Frozen Shadoweave Boots", source = "Shadoweave Tailoring (BoP)", sourceType = "crafted" },
                 alts = {
-                    { id = 28585, name = "Ruby Slippers", source = "Opera Event", sourceType = "raid" },
-                    { id = 28179, name = "Shattrath Jumpers", source = "Quest", sourceType = "quest" },
+                    { id = 27821, name = "Extravagant Boots of Malice", source = "Tavarok (Heroic Mana-Tombs)", sourceType = "heroic" },
+                    { id = 28179, name = "Shattrath Jumpers", source = "Quest: Into the Heart of the Labyrinth", sourceType = "quest" },
                 }
             },
             ring1 = {
-                bis = { id = 28793, name = "Band of Crimson Fury", source = "Magtheridon Quest", sourceType = "quest" },
+                bis = { id = 29126, name = "Seer's Signet", source = "Scryers Exalted", sourceType = "rep" },
                 alts = {
-                    { id = 28510, name = "Spectral Band of Innervation", source = "Attumen the Huntsman", sourceType = "raid" },
-                    { id = 29287, name = "Violet Signet of the Archmage", source = "Violet Eye Exalted", sourceType = "reputation" },
-                    { id = 28753, name = "Ring of Recurrence", source = "Chess Event", sourceType = "raid" },
+                    { id = 29367, name = "Ring of Cryptic Dreams", source = "G'eras (25 Badges)", sourceType = "badge" },
+                    { id = 28227, name = "Sparking Arcanite Ring", source = "Epoch Hunter (Heroic Old Hillsbrad)", sourceType = "heroic" },
                 }
             },
             ring2 = {
-                bis = { id = 28753, name = "Ring of Recurrence", source = "Chess Event", sourceType = "raid" },
+                bis = { id = 29367, name = "Ring of Cryptic Dreams", source = "G'eras (25 Badges)", sourceType = "badge" },
                 alts = {
-                    { id = 28510, name = "Spectral Band of Innervation", source = "Attumen the Huntsman", sourceType = "raid" },
-                    { id = 29126, name = "Seer's Signet", source = "Lower City Exalted", sourceType = "reputation" },
-                    { id = 28227, name = "Sparking Arcanite Ring", source = "Sunseeker Astromage", sourceType = "heroic" },
+                    { id = 28227, name = "Sparking Arcanite Ring", source = "Epoch Hunter (Heroic Old Hillsbrad)", sourceType = "heroic" },
+                    { id = 29352, name = "Cobalt Band of Tyrigosa", source = "Nexus-Prince Shaffar (Heroic Mana-Tombs)", sourceType = "heroic" },
                 }
             },
             trinket1 = {
-                bis = { id = 28789, name = "Eye of Magtheridon", source = "Magtheridon", sourceType = "raid" },
+                bis = { id = 29370, name = "Icon of the Silver Crescent", source = "G'eras (41 Badges)", sourceType = "badge" },
                 alts = {
-                    { id = 29370, name = "Icon of the Silver Crescent", source = "G'eras (41 Badges)", sourceType = "badge" },
-                    { id = 27683, name = "Quagmirran's Eye", source = "Quagmirran", sourceType = "heroic" },
+                    { id = 27683, name = "Quagmirran's Eye", source = "Quagmirran (Heroic Slave Pens)", sourceType = "heroic" },
+                    { id = 29132, name = "Scryer's Bloodgem", source = "Scryers Revered", sourceType = "rep" },
                 }
             },
             trinket2 = {
-                bis = { id = 29370, name = "Icon of the Silver Crescent", source = "G'eras (41 Badges)", sourceType = "badge" },
+                bis = { id = 27683, name = "Quagmirran's Eye", source = "Quagmirran (Heroic Slave Pens)", sourceType = "heroic" },
                 alts = {
-                    { id = 27683, name = "Quagmirran's Eye", source = "Quagmirran", sourceType = "heroic" },
-                    { id = 29132, name = "Scryer's Bloodgem", source = "Scryers Revered", sourceType = "reputation" },
+                    { id = 29132, name = "Scryer's Bloodgem", source = "Scryers Revered", sourceType = "rep" },
+                    { id = 29179, name = "Xi'ri's Gift", source = "Sha'tar Revered", sourceType = "rep" },
                 }
             },
             mainhand = {
-                bis = { id = 28770, name = "Nathrezim Mindblade", source = "Prince Malchezaar", sourceType = "raid" },
+                bis = { id = 23554, name = "Eternium Runed Blade", source = "Blacksmithing (BoE)", sourceType = "crafted" },
                 alts = {
-                    { id = 28633, name = "Staff of Infinite Mysteries", source = "The Curator", sourceType = "raid" },
-                    { id = 30723, name = "Talon of the Tempest", source = "Doomwalker", sourceType = "world" },
+                    { id = 29185, name = "Continuum Blade", source = "Keepers of Time Revered", sourceType = "rep" },
+                    { id = 27905, name = "Greatsword of Horrid Dreams", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
                 }
             },
             offhand = {
-                bis = { id = 28734, name = "Jewel of Infinite Possibilities", source = "Netherspite", sourceType = "raid" },
+                bis = { id = 29272, name = "Orb of the Soul-Eater", source = "G'eras (25 Badges)", sourceType = "badge" },
                 alts = {
-                    { id = 29271, name = "Talisman of Kalecgos", source = "G'eras (35 Badges)", sourceType = "badge" },
                     { id = 29273, name = "Khadgar's Knapsack", source = "G'eras (25 Badges)", sourceType = "badge" },
+                    { id = 28187, name = "Star-Heart Lamp", source = "Temporus (Black Morass)", sourceType = "dungeon" },
                 }
             },
             ranged = {
-                bis = { id = 28783, name = "Eredar Wand of Obliteration", source = "Magtheridon", sourceType = "raid" },
+                bis = { id = 28386, name = "Nether Core's Control Rod", source = "Dalliah the Doomsayer (Arcatraz)", sourceType = "dungeon" },
                 alts = {
-                    { id = 28673, name = "Tirisfal Wand of Ascendancy", source = "Shade of Aran", sourceType = "raid" },
-                    { id = 28386, name = "Nether Core's Control Rod", source = "Dalliah the Doomsayer (Heroic Arcatraz)", sourceType = "heroic" },
+                    { id = 27890, name = "Wand of the Netherwing", source = "Blackheart the Inciter (Shadow Labyrinth)", sourceType = "dungeon" },
+                    { id = 25939, name = "Voidfire Wand", source = "Pandemonius (Mana-Tombs)", sourceType = "dungeon" },
                 }
             },
         },
@@ -976,126 +2918,122 @@ C.ARMORY_SPEC_BIS_DATABASE = {
         -------------------------------------------
         ["shadow-priest-dps"] = {
             head = {
-                bis = { id = 24266, name = "Spellstrike Hood", source = "Tailoring", sourceType = "crafted" },
+                bis = { id = 24266, name = "Spellstrike Hood", source = "Tailoring (BoE)", sourceType = "crafted" },
                 alts = {
-                    { id = 29058, name = "Soul-Collar of the Incarnate", source = "Prince Malchezaar", sourceType = "raid" },
-                    { id = 28415, name = "Hood of Oblivion", source = "Harbinger Skyriss (Heroic Arcatraz)", sourceType = "heroic" },
+                    { id = 28415, name = "Hood of Oblivion", source = "Harbinger Skyriss (Arcatraz)", sourceType = "dungeon" },
+                    { id = 31104, name = "Evoker's Helmet of Second Sight", source = "Quest: Teron Gorefiend, I am...", sourceType = "quest" },
                 }
             },
             neck = {
-                bis = { id = 28762, name = "Adornment of Stolen Souls", source = "Prince Malchezaar", sourceType = "raid" },
+                bis = { id = 29368, name = "Manasurge Pendant", source = "G'eras (25 Badges)", sourceType = "badge" },
                 alts = {
-                    { id = 28530, name = "Brooch of Unquenchable Fury", source = "Attumen the Huntsman", sourceType = "raid" },
-                    { id = 28134, name = "Brooch of Heightened Potential", source = "Warchief Kargath", sourceType = "heroic" },
+                    { id = 28134, name = "Brooch of Heightened Potential", source = "Blackheart the Inciter (Shadow Labyrinth)", sourceType = "dungeon" },
+                    { id = 27758, name = "Hydra-fang Necklace", source = "Ghaz'an (Underbog)", sourceType = "dungeon" },
                 }
             },
             shoulders = {
-                bis = { id = 29060, name = "Soul-Mantle of the Incarnate", source = "High King Maulgar", sourceType = "raid" },
+                bis = { id = 21869, name = "Frozen Shadoweave Shoulders", source = "Shadoweave Tailoring (BoP)", sourceType = "crafted" },
                 alts = {
-                    { id = 21869, name = "Frozen Shadoweave Shoulders", source = "Shadoweave Tailoring", sourceType = "crafted" },
-                    { id = 27778, name = "Spaulders of Oblivion", source = "Ambassador Hellmaw", sourceType = "dungeon" },
+                    { id = 27778, name = "Spaulders of Oblivion", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
+                    { id = 27796, name = "Mana-Etched Spaulders", source = "Quagmirran (Heroic Slave Pens)", sourceType = "heroic" },
                 }
             },
             back = {
-                bis = { id = 28766, name = "Ruby Drape of the Mysticant", source = "Prince Malchezaar", sourceType = "raid" },
+                bis = { id = 27981, name = "Sethekk Oracle Cloak", source = "Talon King Ikiss (Sethekk Halls)", sourceType = "dungeon" },
                 alts = {
-                    { id = 28570, name = "Shadow-Cloak of Dalaran", source = "Moroes", sourceType = "raid" },
-                    { id = 27981, name = "Sethekk Oracle Cloak", source = "Talon King Ikiss", sourceType = "dungeon" },
+                    { id = 29369, name = "Shawl of Shifting Probabilities", source = "G'eras (25 Badges)", sourceType = "badge" },
+                    { id = 28269, name = "Baba's Cloak of Arcanistry", source = "Pathaleon the Calculator (Mechanar)", sourceType = "dungeon" },
                 }
             },
             chest = {
-                bis = { id = 21871, name = "Frozen Shadoweave Robe", source = "Shadoweave Tailoring", sourceType = "crafted" },
+                bis = { id = 21871, name = "Frozen Shadoweave Robe", source = "Shadoweave Tailoring (BoP)", sourceType = "crafted" },
                 alts = {
-                    { id = 28578, name = "Masquerade Gown", source = "Opera Event", sourceType = "raid" },
-                    { id = 29056, name = "Shroud of the Incarnate", source = "Magtheridon", sourceType = "raid" },
-                    { id = 28230, name = "Hallowed Garments", source = "Murmur", sourceType = "dungeon" },
+                    { id = 28232, name = "Robe of Oblivion", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
+                    { id = 28230, name = "Hallowed Garments", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
                 }
             },
             wrist = {
-                bis = { id = 24250, name = "Bracers of Havok", source = "Tailoring", sourceType = "crafted" },
+                bis = { id = 24250, name = "Bracers of Havok", source = "Tailoring (BoE)", sourceType = "crafted" },
                 alts = {
-                    { id = 28515, name = "Bands of Nefarious Deeds", source = "Terestian Illhoof", sourceType = "raid" },
-                    { id = 27462, name = "Crimson Bracers of Gloom", source = "Omor the Unscarred", sourceType = "heroic" },
+                    { id = 27462, name = "Crimson Bracers of Gloom", source = "Omor the Unscarred (Heroic Ramparts)", sourceType = "heroic" },
+                    { id = 28174, name = "Shattrath Wraps", source = "Quest: How to Break Into the Arcatraz", sourceType = "quest" },
                 }
             },
             hands = {
-                bis = { id = 28507, name = "Handwraps of Flowing Thought", source = "Attumen the Huntsman", sourceType = "raid" },
+                bis = { id = 27493, name = "Gloves of the Deadwatcher", source = "Shirrak the Dead Watcher (Auchenai Crypts)", sourceType = "dungeon" },
                 alts = {
-                    { id = 21847, name = "Spellfire Gloves", source = "Spellfire Tailoring", sourceType = "crafted" },
-                    { id = 27493, name = "Gloves of the Deadwatcher", source = "Shirrak the Dead Watcher", sourceType = "heroic" },
+                    { id = 27465, name = "Mana-Etched Gloves", source = "Omor the Unscarred (Heroic Ramparts)", sourceType = "heroic" },
+                    { id = 27764, name = "Hands of the Sun", source = "Swamplord Musel'ek (Underbog)", sourceType = "dungeon" },
                 }
             },
             waist = {
-                bis = { id = 24256, name = "Girdle of Ruination", source = "Tailoring", sourceType = "crafted" },
+                bis = { id = 24256, name = "Girdle of Ruination", source = "Tailoring (BoE)", sourceType = "crafted" },
                 alts = {
-                    { id = 28569, name = "Nethershard Girdle", source = "Moroes", sourceType = "raid" },
-                    { id = 28799, name = "Belt of Divine Inspiration", source = "Terestian Illhoof", sourceType = "raid" },
-                    { id = 28654, name = "Malefic Girdle", source = "Terestian Illhoof", sourceType = "raid" },
+                    { id = 27795, name = "Sash of Serpentra", source = "Warlord Kalithresh (Steamvault)", sourceType = "dungeon" },
+                    { id = 31461, name = "A'dal's Gift", source = "Quest: How to Break Into the Arcatraz", sourceType = "quest" },
                 }
             },
             legs = {
-                bis = { id = 24262, name = "Spellstrike Pants", source = "Tailoring", sourceType = "crafted" },
+                bis = { id = 24262, name = "Spellstrike Pants", source = "Tailoring (BoE)", sourceType = "crafted" },
                 alts = {
-                    { id = 29057, name = "Leggings of the Incarnate", source = "Gruul the Dragonkiller", sourceType = "raid" },
-                    { id = 27838, name = "Breeches of the Occultist", source = "Temporus", sourceType = "heroic" },
+                    { id = 30531, name = "Breeches of the Occultist", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                    { id = 27907, name = "Mana-Etched Pantaloons", source = "Talon King Ikiss (Heroic Sethekk Halls)", sourceType = "heroic" },
                 }
             },
             feet = {
-                bis = { id = 21870, name = "Frozen Shadoweave Boots", source = "Shadoweave Tailoring", sourceType = "crafted" },
+                bis = { id = 21870, name = "Frozen Shadoweave Boots", source = "Shadoweave Tailoring (BoP)", sourceType = "crafted" },
                 alts = {
-                    { id = 28517, name = "Boots of Foretelling", source = "Maiden of Virtue", sourceType = "raid" },
-                    { id = 28179, name = "Shattrath Jumpers", source = "Quest", sourceType = "quest" },
+                    { id = 27821, name = "Extravagant Boots of Malice", source = "Tavarok (Heroic Mana-Tombs)", sourceType = "heroic" },
+                    { id = 28179, name = "Shattrath Jumpers", source = "Quest: Into the Heart of the Labyrinth", sourceType = "quest" },
                 }
             },
             ring1 = {
-                bis = { id = 28793, name = "Band of Crimson Fury", source = "Magtheridon Quest", sourceType = "quest" },
+                bis = { id = 29126, name = "Seer's Signet", source = "Scryers Exalted", sourceType = "rep" },
                 alts = {
-                    { id = 28510, name = "Spectral Band of Innervation", source = "Attumen the Huntsman", sourceType = "raid" },
-                    { id = 29287, name = "Violet Signet of the Archmage", source = "Violet Eye Exalted", sourceType = "reputation" },
-                    { id = 28753, name = "Ring of Recurrence", source = "Chess Event", sourceType = "raid" },
+                    { id = 29367, name = "Ring of Cryptic Dreams", source = "G'eras (25 Badges)", sourceType = "badge" },
+                    { id = 28227, name = "Sparking Arcanite Ring", source = "Epoch Hunter (Heroic Old Hillsbrad)", sourceType = "heroic" },
                 }
             },
             ring2 = {
-                bis = { id = 28753, name = "Ring of Recurrence", source = "Chess Event", sourceType = "raid" },
+                bis = { id = 29367, name = "Ring of Cryptic Dreams", source = "G'eras (25 Badges)", sourceType = "badge" },
                 alts = {
-                    { id = 28510, name = "Spectral Band of Innervation", source = "Attumen the Huntsman", sourceType = "raid" },
-                    { id = 29126, name = "Seer's Signet", source = "Lower City Exalted", sourceType = "reputation" },
-                    { id = 28227, name = "Sparking Arcanite Ring", source = "Sunseeker Astromage", sourceType = "heroic" },
+                    { id = 28227, name = "Sparking Arcanite Ring", source = "Epoch Hunter (Heroic Old Hillsbrad)", sourceType = "heroic" },
+                    { id = 29172, name = "Ashyen's Gift", source = "Cenarion Expedition Exalted", sourceType = "rep" },
                 }
             },
             trinket1 = {
-                bis = { id = 28789, name = "Eye of Magtheridon", source = "Magtheridon", sourceType = "raid" },
+                bis = { id = 29370, name = "Icon of the Silver Crescent", source = "G'eras (41 Badges)", sourceType = "badge" },
                 alts = {
-                    { id = 29370, name = "Icon of the Silver Crescent", source = "G'eras (41 Badges)", sourceType = "badge" },
-                    { id = 27683, name = "Quagmirran's Eye", source = "Quagmirran", sourceType = "heroic" },
+                    { id = 27683, name = "Quagmirran's Eye", source = "Quagmirran (Heroic Slave Pens)", sourceType = "heroic" },
+                    { id = 29132, name = "Scryer's Bloodgem", source = "Scryers Revered", sourceType = "rep" },
                 }
             },
             trinket2 = {
-                bis = { id = 29370, name = "Icon of the Silver Crescent", source = "G'eras (41 Badges)", sourceType = "badge" },
+                bis = { id = 27683, name = "Quagmirran's Eye", source = "Quagmirran (Heroic Slave Pens)", sourceType = "heroic" },
                 alts = {
-                    { id = 27683, name = "Quagmirran's Eye", source = "Quagmirran", sourceType = "heroic" },
-                    { id = 29132, name = "Scryer's Bloodgem", source = "Scryers Revered", sourceType = "reputation" },
+                    { id = 29132, name = "Scryer's Bloodgem", source = "Scryers Revered", sourceType = "rep" },
+                    { id = 29179, name = "Xi'ri's Gift", source = "Sha'tar Revered", sourceType = "rep" },
                 }
             },
             mainhand = {
-                bis = { id = 28770, name = "Nathrezim Mindblade", source = "Prince Malchezaar", sourceType = "raid" },
+                bis = { id = 30832, name = "Gavel of Unearthed Secrets", source = "Lower City Exalted", sourceType = "rep" },
                 alts = {
-                    { id = 28633, name = "Staff of Infinite Mysteries", source = "The Curator", sourceType = "raid" },
-                    { id = 30723, name = "Talon of the Tempest", source = "Doomwalker", sourceType = "world" },
+                    { id = 29185, name = "Continuum Blade", source = "Keepers of Time Revered", sourceType = "rep" },
+                    { id = 27905, name = "Greatsword of Horrid Dreams", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
                 }
             },
             offhand = {
-                bis = { id = 28734, name = "Jewel of Infinite Possibilities", source = "Netherspite", sourceType = "raid" },
+                bis = { id = 29272, name = "Orb of the Soul-Eater", source = "G'eras (25 Badges)", sourceType = "badge" },
                 alts = {
-                    { id = 29271, name = "Talisman of Kalecgos", source = "G'eras (35 Badges)", sourceType = "badge" },
                     { id = 29273, name = "Khadgar's Knapsack", source = "G'eras (25 Badges)", sourceType = "badge" },
+                    { id = 28187, name = "Star-Heart Lamp", source = "Temporus (Black Morass)", sourceType = "dungeon" },
                 }
             },
             ranged = {
-                bis = { id = 28783, name = "Eredar Wand of Obliteration", source = "Magtheridon", sourceType = "raid" },
+                bis = { id = 28386, name = "Nether Core's Control Rod", source = "Dalliah the Doomsayer (Arcatraz)", sourceType = "dungeon" },
                 alts = {
-                    { id = 28673, name = "Tirisfal Wand of Ascendancy", source = "Shade of Aran", sourceType = "raid" },
-                    { id = 28386, name = "Nether Core's Control Rod", source = "Dalliah the Doomsayer (Heroic Arcatraz)", sourceType = "heroic" },
+                    { id = 27890, name = "Wand of the Netherwing", source = "Blackheart the Inciter (Shadow Labyrinth)", sourceType = "dungeon" },
+                    { id = 25939, name = "Voidfire Wand", source = "Pandemonius (Mana-Tombs)", sourceType = "dungeon" },
                 }
             },
         },
@@ -1605,124 +3543,120 @@ C.ARMORY_SPEC_BIS_DATABASE = {
         -------------------------------------------
         ["elemental-shaman-dps"] = {
             head = {
-                bis = { id = 29035, name = "Cyclone Faceguard", source = "Prince Malchezaar", sourceType = "raid" },
+                bis = { id = 24266, name = "Spellstrike Hood", source = "Tailoring (BoE)", sourceType = "crafted" },
                 alts = {
-                    { id = 24266, name = "Spellstrike Hood", source = "Tailoring", sourceType = "crafted" },
-                    { id = 28415, name = "Hood of Oblivion", source = "Harbinger Skyriss (Heroic Arcatraz)", sourceType = "heroic" },
+                    { id = 28349, name = "Tidefury Helm", source = "Warp Splinter (Botanica)", sourceType = "dungeon" },
+                    { id = 31104, name = "Evoker's Helmet of Second Sight", source = "Quest: Teron Gorefiend, I am...", sourceType = "quest" },
                 }
             },
             neck = {
-                bis = { id = 28762, name = "Adornment of Stolen Souls", source = "Prince Malchezaar", sourceType = "raid" },
+                bis = { id = 29368, name = "Manasurge Pendant", source = "G'eras (25 Badges)", sourceType = "badge" },
                 alts = {
-                    { id = 28530, name = "Brooch of Unquenchable Fury", source = "Attumen the Huntsman", sourceType = "raid" },
-                    { id = 28134, name = "Brooch of Heightened Potential", source = "Warchief Kargath", sourceType = "heroic" },
+                    { id = 28134, name = "Brooch of Heightened Potential", source = "Blackheart the Inciter (Shadow Labyrinth)", sourceType = "dungeon" },
+                    { id = 27758, name = "Hydra-fang Necklace", source = "Ghaz'an (Underbog)", sourceType = "dungeon" },
                 }
             },
             shoulders = {
-                bis = { id = 29037, name = "Cyclone Shoulderguards", source = "High King Maulgar", sourceType = "raid" },
+                bis = { id = 32078, name = "Pauldrons of Wild Magic", source = "Quagmirran (Heroic Slave Pens)", sourceType = "heroic" },
                 alts = {
-                    { id = 27778, name = "Spaulders of Oblivion", source = "Ambassador Hellmaw", sourceType = "dungeon" },
-                    { id = 27796, name = "Mana-Etched Spaulders", source = "Rokmar the Crackler", sourceType = "heroic" },
+                    { id = 27802, name = "Tidefury Shoulderguards", source = "Warbringer O'mrogg (Shattered Halls)", sourceType = "dungeon" },
+                    { id = 27796, name = "Mana-Etched Spaulders", source = "Quagmirran (Heroic Slave Pens)", sourceType = "heroic" },
                 }
             },
             back = {
-                bis = { id = 28766, name = "Ruby Drape of the Mysticant", source = "Prince Malchezaar", sourceType = "raid" },
+                bis = { id = 29369, name = "Shawl of Shifting Probabilities", source = "G'eras (25 Badges)", sourceType = "badge" },
                 alts = {
-                    { id = 28570, name = "Shadow-Cloak of Dalaran", source = "Moroes", sourceType = "raid" },
-                    { id = 27981, name = "Sethekk Oracle Cloak", source = "Talon King Ikiss", sourceType = "dungeon" },
+                    { id = 27981, name = "Sethekk Oracle Cloak", source = "Talon King Ikiss (Sethekk Halls)", sourceType = "dungeon" },
+                    { id = 28269, name = "Baba's Cloak of Arcanistry", source = "Pathaleon the Calculator (Mechanar)", sourceType = "dungeon" },
                 }
             },
             chest = {
-                bis = { id = 29033, name = "Cyclone Chestguard", source = "Magtheridon", sourceType = "raid" },
+                bis = { id = 29519, name = "Netherstrike Breastplate", source = "Dragonscale Leatherworking (BoP)", sourceType = "crafted" },
                 alts = {
-                    { id = 28578, name = "Masquerade Gown", source = "Opera Event", sourceType = "raid" },
-                    { id = 21848, name = "Spellfire Robe", source = "Spellfire Tailoring", sourceType = "crafted" },
-                    { id = 28230, name = "Hallowed Garments", source = "Murmur", sourceType = "dungeon" },
+                    { id = 28231, name = "Tidefury Chestpiece", source = "Warlord Kalithresh (Heroic Steamvault)", sourceType = "heroic" },
+                    { id = 28391, name = "Worldfire Chestguard", source = "Dalliah the Doomsayer (Arcatraz)", sourceType = "dungeon" },
                 }
             },
             wrist = {
-                bis = { id = 24250, name = "Bracers of Havok", source = "Tailoring", sourceType = "crafted" },
+                bis = { id = 29521, name = "Netherstrike Bracers", source = "Dragonscale Leatherworking (BoP)", sourceType = "crafted" },
                 alts = {
-                    { id = 27462, name = "Crimson Bracers of Gloom", source = "Omor the Unscarred", sourceType = "heroic" },
-                    { id = 28174, name = "Shattrath Wraps", source = "Quest", sourceType = "quest" },
+                    { id = 24250, name = "Bracers of Havok", source = "Tailoring (BoE)", sourceType = "crafted" },
+                    { id = 27462, name = "Crimson Bracers of Gloom", source = "Omor the Unscarred (Heroic Ramparts)", sourceType = "heroic" },
                 }
             },
             hands = {
-                bis = { id = 29034, name = "Cyclone Gloves", source = "The Curator", sourceType = "raid" },
+                bis = { id = 27465, name = "Mana-Etched Gloves", source = "Omor the Unscarred (Heroic Ramparts)", sourceType = "heroic" },
                 alts = {
-                    { id = 21847, name = "Spellfire Gloves", source = "Spellfire Tailoring", sourceType = "crafted" },
-                    { id = 27493, name = "Gloves of the Deadwatcher", source = "Shirrak the Dead Watcher", sourceType = "heroic" },
+                    { id = 27510, name = "Tidefury Gauntlets", source = "Warlord Kalithresh (Steamvault)", sourceType = "dungeon" },
+                    { id = 27493, name = "Gloves of the Deadwatcher", source = "Shirrak the Dead Watcher (Auchenai Crypts)", sourceType = "dungeon" },
                 }
             },
             waist = {
-                bis = { id = 21846, name = "Spellfire Belt", source = "Spellfire Tailoring", sourceType = "crafted" },
+                bis = { id = 29520, name = "Netherstrike Belt", source = "Dragonscale Leatherworking (BoP)", sourceType = "crafted" },
                 alts = {
-                    { id = 24256, name = "Girdle of Ruination", source = "Tailoring", sourceType = "crafted" },
-                    { id = 28799, name = "Belt of Divine Inspiration", source = "Terestian Illhoof", sourceType = "raid" },
+                    { id = 24256, name = "Girdle of Ruination", source = "Tailoring (BoE)", sourceType = "crafted" },
+                    { id = 27835, name = "Stillwater Girdle", source = "Nexus-Prince Shaffar (Mana-Tombs)", sourceType = "dungeon" },
                 }
             },
             legs = {
-                bis = { id = 24262, name = "Spellstrike Pants", source = "Tailoring", sourceType = "crafted" },
+                bis = { id = 24262, name = "Spellstrike Pants", source = "Tailoring (BoE)", sourceType = "crafted" },
                 alts = {
-                    { id = 29036, name = "Cyclone Legguards", source = "Gruul the Dragonkiller", sourceType = "raid" },
-                    { id = 27838, name = "Breeches of the Occultist", source = "Temporus", sourceType = "heroic" },
+                    { id = 27909, name = "Tidefury Kilt", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
+                    { id = 30531, name = "Breeches of the Occultist", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
                 }
             },
             feet = {
-                bis = { id = 28517, name = "Boots of Foretelling", source = "Maiden of Virtue", sourceType = "raid" },
+                bis = { id = 28406, name = "Sigil-Laced Boots", source = "Harbinger Skyriss (Arcatraz)", sourceType = "dungeon" },
                 alts = {
-                    { id = 28585, name = "Ruby Slippers", source = "Opera Event", sourceType = "raid" },
-                    { id = 28179, name = "Shattrath Jumpers", source = "Quest", sourceType = "quest" },
+                    { id = 28179, name = "Shattrath Jumpers", source = "Quest: Into the Heart of the Labyrinth", sourceType = "quest" },
+                    { id = 27821, name = "Extravagant Boots of Malice", source = "Tavarok (Heroic Mana-Tombs)", sourceType = "heroic" },
                 }
             },
             ring1 = {
-                bis = { id = 28793, name = "Band of Crimson Fury", source = "Magtheridon Quest", sourceType = "quest" },
+                bis = { id = 29126, name = "Seer's Signet", source = "Scryers Exalted", sourceType = "rep" },
                 alts = {
-                    { id = 28510, name = "Spectral Band of Innervation", source = "Attumen the Huntsman", sourceType = "raid" },
-                    { id = 29287, name = "Violet Signet of the Archmage", source = "Violet Eye Exalted", sourceType = "reputation" },
-                    { id = 28753, name = "Ring of Recurrence", source = "Chess Event", sourceType = "raid" },
+                    { id = 29367, name = "Ring of Cryptic Dreams", source = "G'eras (25 Badges)", sourceType = "badge" },
+                    { id = 28227, name = "Sparking Arcanite Ring", source = "Epoch Hunter (Heroic Old Hillsbrad)", sourceType = "heroic" },
                 }
             },
             ring2 = {
-                bis = { id = 28753, name = "Ring of Recurrence", source = "Chess Event", sourceType = "raid" },
+                bis = { id = 29367, name = "Ring of Cryptic Dreams", source = "G'eras (25 Badges)", sourceType = "badge" },
                 alts = {
-                    { id = 28510, name = "Spectral Band of Innervation", source = "Attumen the Huntsman", sourceType = "raid" },
-                    { id = 29126, name = "Seer's Signet", source = "Lower City Exalted", sourceType = "reputation" },
-                    { id = 28227, name = "Sparking Arcanite Ring", source = "Sunseeker Astromage", sourceType = "heroic" },
+                    { id = 28227, name = "Sparking Arcanite Ring", source = "Epoch Hunter (Heroic Old Hillsbrad)", sourceType = "heroic" },
+                    { id = 29172, name = "Ashyen's Gift", source = "Cenarion Expedition Exalted", sourceType = "rep" },
                 }
             },
             trinket1 = {
-                bis = { id = 28789, name = "Eye of Magtheridon", source = "Magtheridon", sourceType = "raid" },
+                bis = { id = 29370, name = "Icon of the Silver Crescent", source = "G'eras (41 Badges)", sourceType = "badge" },
                 alts = {
-                    { id = 29370, name = "Icon of the Silver Crescent", source = "G'eras (41 Badges)", sourceType = "badge" },
-                    { id = 27683, name = "Quagmirran's Eye", source = "Quagmirran", sourceType = "heroic" },
+                    { id = 27683, name = "Quagmirran's Eye", source = "Quagmirran (Heroic Slave Pens)", sourceType = "heroic" },
+                    { id = 29132, name = "Scryer's Bloodgem", source = "Scryers Revered", sourceType = "rep" },
                 }
             },
             trinket2 = {
-                bis = { id = 29370, name = "Icon of the Silver Crescent", source = "G'eras (41 Badges)", sourceType = "badge" },
+                bis = { id = 27683, name = "Quagmirran's Eye", source = "Quagmirran (Heroic Slave Pens)", sourceType = "heroic" },
                 alts = {
-                    { id = 27683, name = "Quagmirran's Eye", source = "Quagmirran", sourceType = "heroic" },
-                    { id = 29132, name = "Scryer's Bloodgem", source = "Scryers Revered", sourceType = "reputation" },
+                    { id = 29132, name = "Scryer's Bloodgem", source = "Scryers Revered", sourceType = "rep" },
+                    { id = 29179, name = "Xi'ri's Gift", source = "Sha'tar Revered", sourceType = "rep" },
                 }
             },
             mainhand = {
-                bis = { id = 28770, name = "Nathrezim Mindblade", source = "Prince Malchezaar", sourceType = "raid" },
+                bis = { id = 29155, name = "Stormcaller", source = "Honor Hold / Thrallmar Exalted", sourceType = "rep" },
                 alts = {
-                    { id = 28633, name = "Staff of Infinite Mysteries", source = "The Curator", sourceType = "raid" },
-                    { id = 30723, name = "Talon of the Tempest", source = "Doomwalker", sourceType = "world" },
+                    { id = 29185, name = "Continuum Blade", source = "Keepers of Time Revered", sourceType = "rep" },
+                    { id = 27905, name = "Greatsword of Horrid Dreams", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
                 }
             },
             offhand = {
-                bis = { id = 29270, name = "Flametongue Seal", source = "G'eras (25 Badges)", sourceType = "badge" },
+                bis = { id = 29268, name = "Mazthoril Honor Shield", source = "G'eras (33 Badges)", sourceType = "badge" },
                 alts = {
-                    { id = 28734, name = "Jewel of Infinite Possibilities", source = "Netherspite", sourceType = "raid" },
-                    { id = 29271, name = "Talisman of Kalecgos", source = "G'eras (35 Badges)", sourceType = "badge" },
+                    { id = 29273, name = "Khadgar's Knapsack", source = "G'eras (25 Badges)", sourceType = "badge" },
+                    { id = 28187, name = "Star-Heart Lamp", source = "Temporus (Black Morass)", sourceType = "dungeon" },
                 }
             },
             ranged = {
-                bis = { id = 28248, name = "Totem of the Void", source = "Cache of the Legion (Mechanar)", sourceType = "dungeon" },
+                bis = { id = 28248, name = "Totem of the Void", source = "Cache of the Legion (Botanica)", sourceType = "dungeon" },
                 alts = {
-                    { id = 23199, name = "Totem of the Storm", source = "Naxxramas Legacy", sourceType = "raid" },
                     { id = 28066, name = "Totem of Lightning", source = "Quest: Colossal Menace", sourceType = "quest" },
                 }
             },

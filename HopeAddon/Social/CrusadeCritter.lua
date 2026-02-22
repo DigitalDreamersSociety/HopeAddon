@@ -96,12 +96,6 @@ local DUNGEON_BOSS_NPCS = {
     [24744] = { name = "Vexallus", dungeon = "magisters_terrace" },
     [24560] = { name = "Priestess Delrissa", dungeon = "magisters_terrace" },
     [24664] = { name = "Kael'thas Sunstrider", dungeon = "magisters_terrace", isFinal = true },
-    -- Stockades (Test Dungeon)
-    [1666] = { name = "Kam Deepfury", dungeon = "stockades" },
-    [1696] = { name = "Targorr the Dread", dungeon = "stockades" },
-    [1717] = { name = "Hamhock", dungeon = "stockades" },
-    [1663] = { name = "Dextren Ward", dungeon = "stockades" },
-    [1716] = { name = "Bazil Thredd", dungeon = "stockades", isFinal = true },
 }
 
 -- Zone to dungeon hub mapping
@@ -152,11 +146,6 @@ local DB_DEFAULTS = {
     autoAdvanceTips = true,        -- Auto-progress tips
     tipDisplayTime = 3,            -- Seconds per tip
     statsDisplayTime = 10,         -- Post-combat stats duration
-    showPrePullTips = true,        -- Show "?" button for pre-pull
-
-    -- Boss guides on dungeon entry
-    showBossGuides = true,         -- Show floating bubble with boss guides on dungeon entry
-    hideGuideOnEntry = false,      -- "Don't show on entry" checkbox for combined guide panel
 }
 
 --============================================================
@@ -288,10 +277,6 @@ function CrusadeCritter:CheckZone()
     -- Not in a dungeon - clear current run if we left
     if self.currentRun then
         self.currentRun = nil
-        -- Hide pre-pull tips button since we left dungeon
-        if HopeAddon.CritterUI then
-            HopeAddon.CritterUI:UpdatePrePullButton()
-        end
     end
 
     -- Check if in a TBC zone
@@ -331,19 +316,6 @@ function CrusadeCritter:OnDungeonEnter(dungeonName, dungeonData)
 
     -- Trigger dungeon entry quip
     self:TriggerDungeonQuip(dungeonName, isFirstVisit)
-
-    -- Update pre-pull tips button visibility
-    if HopeAddon.CritterUI and db.showPrePullTips then
-        HopeAddon.CritterUI:UpdatePrePullButton()
-    end
-
-    -- Show combined guide panel on dungeon entry (replaces old floating bubble)
-    if db.showBossGuides and not db.hideGuideOnEntry and HopeAddon.CritterUI then
-        -- Set to in-dungeon mode and show guide panel
-        HopeAddon.CritterUI:SetInDungeonMode(true, dungeonData.key)
-        HopeAddon.CritterUI:ShowGuidePanel()
-        HopeAddon.CritterUI:SelectInstance(dungeonData.key)
-    end
 end
 
 --============================================================
@@ -852,26 +824,6 @@ function CrusadeCritter:GetCurrentCritterName()
     return critterId:sub(1, 1):upper() .. critterId:sub(2)
 end
 
---[[
-    Set whether boss guides are shown on dungeon entry
-    @param enabled boolean - True to enable, false to disable
-]]
-function CrusadeCritter:SetBossGuidesEnabled(enabled)
-    local db = HopeAddon.db and HopeAddon.db.crusadeCritter
-    if db then
-        db.showBossGuides = enabled
-    end
-end
-
---[[
-    Check if boss guides are enabled
-    @return boolean - True if enabled
-]]
-function CrusadeCritter:IsBossGuidesEnabled()
-    local db = HopeAddon.db and HopeAddon.db.crusadeCritter
-    return db and db.showBossGuides ~= false
-end
-
 --============================================================
 -- STATISTICS API
 --============================================================
@@ -948,7 +900,6 @@ local function PrintHelp()
     print("|cff9B30FF=== Crusade Critter Commands ===|r")
     print("|cffffff00/critter on|r|cffffffff/|r|cffffff00off|r  - Enable or disable")
     print("|cffffff00/critter select <name>|r - Select critter (chomp, snookimp, shred, emo, cosmo, boomer, diva)")
-    print("|cffffff00/critter guides on|r|cffffffff/|r|cffffff00off|r - Toggle boss guides on dungeon entry")
     print("|cffffff00/critter list|r - Show unlocked critters and progress")
 end
 
@@ -1036,6 +987,7 @@ end
 -- Note: ResetPosition removed - housing uses fixed tab-out positioning (not draggable)
 
 SLASH_CRITTER1 = "/critter"
+SLASH_CRITTER2 = "/hopecritter"  -- Non-conflicting alias
 SlashCmdList["CRITTER"] = function(msg)
     local cmd, arg = strsplit(" ", msg or "", 2)
     cmd = strlower(cmd or "")
@@ -1066,19 +1018,6 @@ SlashCmdList["CRITTER"] = function(msg)
 
     elseif cmd == "status" then
         PrintStatus()
-
-    elseif cmd == "guides" then
-        if arg == "on" then
-            CrusadeCritter:SetBossGuidesEnabled(true)
-            print("|cff00ff00Boss guides enabled.|r Guides will show on dungeon entry.")
-        elseif arg == "off" then
-            CrusadeCritter:SetBossGuidesEnabled(false)
-            print("|cffff0000Boss guides disabled.|r")
-        else
-            local enabled = CrusadeCritter:IsBossGuidesEnabled()
-            print("|cff9B30FFBoss guides:|r " .. (enabled and "|cff00ff00ON|r" or "|cffff0000OFF|r"))
-            print("  Use |cffffff00/critter guides on|r or |cffffff00/critter guides off|r to toggle")
-        end
 
     else
         print("|cffff0000Unknown command: " .. cmd .. "|r")
