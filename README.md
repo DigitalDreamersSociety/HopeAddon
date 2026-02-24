@@ -55,7 +55,6 @@ Progress bars and chapter-by-chapter tracking for all attunement chains.
 - **Death Roll**: Turn-based gambling with 3-player escrow system
 - **Tetris Battle**: Two-player competitive Tetris with garbage mechanic
 - **Pong**: Classic arcade game with physics and AI opponent
-- **Words with WoW**: Scrabble-style word game with WoW vocabulary and async multiplayer
 - **Battleship**: Classic naval battle game with AI or multiplayer
 - **WoW Wordle**: Word guessing game with WoW-themed vocabulary
 
@@ -63,17 +62,9 @@ Challenge other Fellow Travelers and track your win/loss records!
 
 ## Installation
 
-### From GitHub
-1. Download the latest release from [Releases](https://github.com/[username]/HopeAddon/releases)
+### From CurseForge
+1. Install from CurseForge or download the latest release
 2. Extract the `HopeAddon` folder to your `World of Warcraft\_classic_\Interface\AddOns\` directory
-3. Restart WoW or type `/reload` in-game
-
-### From Source
-1. Clone this repository:
-   ```bash
-   git clone https://github.com/[username]/HopeAddon.git
-   ```
-2. Copy the `HopeAddon` folder to your `World of Warcraft\_classic_\Interface\AddOns\` directory
 3. Restart WoW or type `/reload` in-game
 
 ## Usage
@@ -96,10 +87,6 @@ Challenge other Fellow Travelers and track your win/loss records!
 - `/hope tetris [player]` - Start Tetris Battle (local mode if no player specified)
 - `/hope pong [player]` - Start Pong (local mode if no player specified)
 - `/hope deathroll <player>` - Start Death Roll gambling game
-- `/hope words` - Start local practice Words game
-- `/hope words <player>` - Resume or start Words vs player
-- `/hope words list` - Show all active Words games
-- `/hope words forfeit <player>` - Forfeit a Words game
 - `/hope battleship [player]` - Start Battleship (local vs AI if no player)
 - `/hope wordle` - Start WoW Wordle (practice mode)
 - `/hope wordle <player>` - Challenge player to Wordle
@@ -109,8 +96,6 @@ Challenge other Fellow Travelers and track your win/loss records!
 - `/hope cancel` - Cancel current game
 
 ### In-Game Commands
-- `/word <word> <H/V> <row> <col>` - Place word in Words game
-- `/pass` - Pass turn in Words game
 - `/fire <coord>` - Fire in Battleship (e.g., `/fire A5`)
 - `/ready` - Signal ships placed in Battleship
 - `/surrender` - Forfeit Battleship game
@@ -134,10 +119,8 @@ HopeAddon/
 ├── Raids/          # Raid tracking (RaidData, Attunements, Karazhan, Gruul, Magtheridon)
 ├── Reputation/     # Faction tracking (ReputationData, Reputation)
 └── Social/         # Multiplayer features (Badges, FellowTravelers, TravelerIcons, Minigames, MapPins)
-    └── Games/      # Game system (GameCore, GameUI, GameComms, Tetris, DeathRoll, Pong, Words)
+    └── Games/      # Game system (GameCore, GameUI, GameComms, Tetris, DeathRoll, Pong, Battleship, Wordle)
 ```
-
-See [CLAUDE.md](CLAUDE.md) for detailed development documentation.
 
 ## Performance
 
@@ -146,15 +129,6 @@ HopeAddon is built with performance in mind:
 - **Event Filtering**: Early filtering of combat log events reduces CPU overhead
 - **Caching**: Strategic caching of computed values (stats, timeline, riding skill)
 - **Lazy Loading**: Modules initialize only when needed
-
-## Development
-
-See [CLAUDE.md](CLAUDE.md) for:
-- Complete feature status tracking
-- Architecture patterns and conventions
-- Data structures and SavedVariables layout
-- Frame pooling implementation details
-- Known issues and future roadmap
 
 ## SavedVariables
 
@@ -183,8 +157,8 @@ Contributions are welcome! Please feel free to submit issues or pull requests.
 ## Support
 
 If you encounter any issues or have suggestions:
-1. Check the [Issues](https://github.com/[username]/HopeAddon/issues) page
-2. Open a new issue with details about your problem or suggestion
+1. Open an issue on the project repository
+2. Include details about your problem or suggestion
 
 ---
 

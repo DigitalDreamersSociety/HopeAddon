@@ -16,6 +16,8 @@ Directory.SORT_OPTIONS = {
     { id = "level_desc", label = "Level (High-Low)" },
     { id = "level_asc", label = "Level (Low-High)" },
     { id = "last_seen", label = "Last Seen" },
+    { id = "ilvl_desc", label = "iLevel (High-Low)" },
+    { id = "ilvl_asc", label = "iLevel (Low-High)" },
 }
 
 Directory.currentSort = "last_seen"
@@ -71,6 +73,9 @@ function Directory:BuildEntry(name, data, isFellow)
         hasNote = note ~= nil,
         note = note,
         stats = data.stats,
+        avgILvl = data.avgILvl,
+        gearScore = data.gearScore,
+        avgILvlTime = data.avgILvlTime,
     }
 end
 
@@ -154,7 +159,34 @@ function Directory:SortEntries(entries, sortOption)
             end
             return (a.lastSeen or "") > (b.lastSeen or "")
         end)
+    elseif sortOption == "ilvl_desc" then
+        table.sort(entries, function(a, b)
+            if (a.avgILvl or 0) == (b.avgILvl or 0) then
+                return (a.name or "") < (b.name or "")
+            end
+            return (a.avgILvl or 0) > (b.avgILvl or 0)
+        end)
+    elseif sortOption == "ilvl_asc" then
+        table.sort(entries, function(a, b)
+            if (a.avgILvl or 0) == (b.avgILvl or 0) then
+                return (a.name or "") < (b.name or "")
+            end
+            return (a.avgILvl or 0) < (b.avgILvl or 0)
+        end)
     end
+end
+
+--[[
+    Get color hex for item level display based on gear quality tiers
+    @param ilvl number - Average item level
+    @return string - Hex color string (without |cFF prefix)
+]]
+function Directory:GetILvlColor(ilvl)
+    if not ilvl or ilvl <= 0 then return "555555" end
+    if ilvl >= 130 then return "a335ee" end  -- Epic (T5+)
+    if ilvl >= 115 then return "0070dd" end  -- Rare (T4+)
+    if ilvl >= 100 then return "1eff00" end  -- Uncommon (Pre-raid)
+    return "FFFFFF"                          -- White (Leveling)
 end
 
 --[[

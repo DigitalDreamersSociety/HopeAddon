@@ -565,7 +565,7 @@ function BattleshipGame:ShowUI(gameId)
     if not GameUI then return end
 
     -- Create game window
-    local window = GameUI:CreateGameWindow(gameId, "BATTLESHIP")
+    local window = GameUI:CreateGameWindow(gameId, "BATTLESHIP", "BATTLESHIP")
     gameData.data.ui.window = window
 
     -- Apply naval-themed styling to window (unique to Battleship)

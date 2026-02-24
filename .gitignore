@@ -38,3 +38,8 @@ Desktop.ini
 # Temporary files
 *.tmp
 *.temp
+
+# Removed from repo
+nul
+old/
+pacwow_example/

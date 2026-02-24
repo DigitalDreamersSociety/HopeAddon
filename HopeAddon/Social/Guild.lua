@@ -524,6 +524,22 @@ function Guild:GetSortedRoster(sortBy)
             end
             return (a.name or "") < (b.name or "")
         end)
+    elseif sortBy == "ilvl" then
+        local FT = HopeAddon.FellowTravelers
+        table.sort(roster, function(a, b)
+            local aIlvl = 0
+            local bIlvl = 0
+            if FT then
+                local aFellow = FT:GetFellow(a.name)
+                local bFellow = FT:GetFellow(b.name)
+                aIlvl = aFellow and aFellow.avgILvl or 0
+                bIlvl = bFellow and bFellow.avgILvl or 0
+            end
+            if aIlvl ~= bIlvl then
+                return aIlvl > bIlvl
+            end
+            return (a.name or "") < (b.name or "")
+        end)
     end
 
     return roster

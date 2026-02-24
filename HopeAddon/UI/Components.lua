@@ -2550,15 +2550,20 @@ end
 
 --[[
     SEGMENTED REPUTATION BAR
-    Shows Neutral → Exalted journey with 5 colored segments
+    Shows Neutral → Exalted journey as a clean 5-segment progress bar.
 
-    Features:
-    - 5 segments proportionally sized by rep required (Neutral=3k, Friendly=6k, Honored=12k, Revered=21k)
-    - Standing labels above segments
-    - Item icon containers above segments for reward previews
-    - Fill overlay showing overall progress
-    - Diamond marker at current position
-    - Standing highlight for current tier
+    Design:
+    - 5 segments with proportional widths based on rep required:
+      Neutral (3k), Friendly (6k), Honored (12k), Revered (21k), Exalted (12% endpoint)
+    - Standing labels above each segment (highlighted for current tier)
+    - Fill overlay showing overall progress through each completed/partial segment
+    - Diamond progress marker at current position
+    - Border color upgrades at Revered (gold) and Exalted (purple)
+
+    Cleanup note: Free-floating item icons above segments were removed in the
+    reputation tab cleanup. The bar is now progress-only. Items are accessed
+    via the "Rep Items" button on each faction card or by clicking the card,
+    which opens the organized loot popup catalog.
 
     @param parent Frame - Parent frame
     @param width number - Total bar width
@@ -2583,10 +2588,6 @@ function Components:CreateSegmentedReputationBar(parent, width, height, options)
         { standingId = 8, name = RepStandings[8] and RepStandings[8].name or "Exalted",  rep = 0,     color = RepStandings[8] and RepStandings[8].color or { r = 0.6, g = 0.2, b = 1.0 } },
     }
     local TOTAL_REP = 42000
-    local ICON_SIZE = 20
-    local ICON_SPACING = 4
-    local ICON_GAP = 4              -- Gap between multiple icons at same standing
-    local MAX_ICONS_PER_STANDING = 4 -- Prevent overflow on narrow bars
     local LABEL_HEIGHT = 12
     local BAR_MARGIN = 2
 
@@ -2603,8 +2604,8 @@ function Components:CreateSegmentedReputationBar(parent, width, height, options)
         end
     end
 
-    -- Container frame (includes space for icons and labels above bar)
-    local totalHeight = height + ICON_SIZE + ICON_SPACING + LABEL_HEIGHT + 4
+    -- Container frame (includes space for labels above bar)
+    local totalHeight = height + LABEL_HEIGHT + 4
     local container = CreateFrame("Frame", nil, parent)
     container:SetSize(width, totalHeight)
 
@@ -2613,7 +2614,6 @@ function Components:CreateSegmentedReputationBar(parent, width, height, options)
     container.currentProgress = 0
     container.totalCurrent = 0
     container.totalMax = TOTAL_REP
-    container.itemIcons = {}
     container._effects = {}
 
     -- Bar background (dark)
@@ -2629,7 +2629,6 @@ function Components:CreateSegmentedReputationBar(parent, width, height, options)
     container.segmentFills = {}
     container.segmentDividers = {}
     container.standingLabels = {}
-    container.itemContainers = {}
 
     local xOffset = 0
     for i, seg in ipairs(SEGMENT_DATA) do
@@ -2666,45 +2665,10 @@ function Components:CreateSegmentedReputationBar(parent, width, height, options)
         -- Standing label above segment
         local label = container:CreateFontString(nil, "OVERLAY")
         label:SetFont(HopeAddon.assets.fonts.SMALL, 8, "")
-        label:SetPoint("BOTTOM", segBg, "TOP", 0, ICON_SIZE + ICON_SPACING + 2)
+        label:SetPoint("BOTTOM", segBg, "TOP", 0, 2)
         label:SetText(seg.name)
         label:SetTextColor(seg.color.r, seg.color.g, seg.color.b, 0.8)
         container.standingLabels[i] = label
-
-        -- Phase 2: Multi-icon container above segment
-        -- Container holds up to MAX_ICONS_PER_STANDING icons, horizontally centered
-        local maxContainerWidth = (ICON_SIZE * MAX_ICONS_PER_STANDING) + (ICON_GAP * (MAX_ICONS_PER_STANDING - 1))
-        local iconContainer = CreateFrame("Frame", nil, container)
-        iconContainer:SetSize(maxContainerWidth, ICON_SIZE)
-        iconContainer:SetPoint("BOTTOM", segBg, "TOP", 0, 2)
-        iconContainer:Hide()
-
-        -- Pre-create pool of icon buttons within container
-        iconContainer.icons = {}
-        for j = 1, MAX_ICONS_PER_STANDING do
-            local iconBtn = CreateFrame("Button", nil, iconContainer)
-            iconBtn:SetSize(ICON_SIZE, ICON_SIZE)
-            iconBtn:Hide()
-
-            local iconTex = iconBtn:CreateTexture(nil, "ARTWORK")
-            iconTex:SetAllPoints()
-            iconBtn.icon = iconTex
-
-            -- Icon border (quality colored)
-            local iconBorder = iconBtn:CreateTexture(nil, "OVERLAY")
-            iconBorder:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
-            iconBorder:SetBlendMode("ADD")
-            iconBorder:SetPoint("CENTER", iconBtn, "CENTER", 0, 0)
-            iconBorder:SetSize(ICON_SIZE + 8, ICON_SIZE + 8)
-            iconBorder:SetAlpha(0.7)
-            iconBtn.border = iconBorder
-
-            iconContainer.icons[j] = iconBtn
-        end
-
-        iconContainer.standingId = seg.standingId
-        iconContainer.segmentIndex = i
-        container.itemContainers[i] = iconContainer
 
         xOffset = xOffset + segWidth
     end
@@ -2816,275 +2780,8 @@ function Components:CreateSegmentedReputationBar(parent, width, height, options)
         end
     end
 
-    --[[
-        Set item icons above a standing segment
-        Phase 2: Supports multiple items displayed horizontally, centered above divider
-
-        @param standingId number - Which standing segment (4=Neutral, 5=Friendly, 6=Honored, 7=Revered, 8=Exalted)
-        @param items table - Array of { itemId, icon, isObtainable, name, isBis } objects
-    ]]
-    function container:SetItemIcons(standingId, items)
-        -- Map standing to segment index: 4->1, 5->2, 6->3, 7->4, 8->5
-        local segmentIndex = standingId - 3
-        if segmentIndex < 1 or segmentIndex > 5 then return end
-
-        local iconContainer = self.itemContainers[segmentIndex]
-        if not iconContainer then return end
-
-        -- Handle legacy single-icon containers (pre-Phase 2 pooled bars)
-        -- These have .icon directly instead of .icons array
-        if not iconContainer.icons then
-            -- Fallback: use old single-icon behavior for first item only
-            if items and #items > 0 then
-                local item = items[1]
-                local fullPath = item.icon or HopeAddon.DEFAULT_ICON
-                if fullPath and not string.find(fullPath, "Interface") then
-                    fullPath = "Interface\\Icons\\" .. fullPath
-                end
-
-                -- Reposition above divider
-                local dividerIndex = standingId - 4
-                iconContainer:ClearAllPoints()
-                if dividerIndex >= 1 and dividerIndex <= 4 and self.segmentDividers[dividerIndex] then
-                    iconContainer:SetPoint("BOTTOM", self.segmentDividers[dividerIndex], "TOP", 0, 2)
-                else
-                    local segBg = self.segments[segmentIndex]
-                    if segBg then
-                        iconContainer:SetPoint("BOTTOM", segBg, "TOP", 0, 2)
-                    end
-                end
-
-                if iconContainer.icon then
-                    iconContainer.icon:SetTexture(fullPath)
-                    if item.isObtainable then
-                        iconContainer.icon:SetDesaturated(false)
-                        iconContainer.icon:SetVertexColor(1, 1, 1, 1)
-                        if iconContainer.border then
-                            iconContainer.border:SetVertexColor(1, 0.84, 0, item.isBis and 1.0 or 0.7)
-                        end
-                    else
-                        iconContainer.icon:SetDesaturated(true)
-                        iconContainer.icon:SetVertexColor(0.5, 0.5, 0.5, 0.8)
-                        if iconContainer.border then
-                            iconContainer.border:SetVertexColor(0.4, 0.4, 0.4, 0.5)
-                        end
-                    end
-                end
-
-                iconContainer.itemId = item.itemId
-                iconContainer.isObtainable = item.isObtainable
-                iconContainer.isBis = item.isBis
-                iconContainer.requiredStanding = standingId
-
-                iconContainer:SetScript("OnEnter", function(btn)
-                    GameTooltip:SetOwner(btn, "ANCHOR_TOP")
-                    if btn.itemId and btn.itemId > 0 then
-                        GameTooltip:SetHyperlink("item:" .. btn.itemId)
-                    end
-                    GameTooltip:Show()
-                end)
-                iconContainer:SetScript("OnLeave", function()
-                    GameTooltip:Hide()
-                end)
-
-                iconContainer:Show()
-                table.insert(self.itemIcons, { standingId = standingId, btn = iconContainer })
-            else
-                iconContainer:Hide()
-            end
-            return
-        end
-
-        -- Reset all icons in this container
-        for _, iconBtn in ipairs(iconContainer.icons) do
-            iconBtn:Hide()
-            iconBtn:SetScript("OnEnter", nil)
-            iconBtn:SetScript("OnLeave", nil)
-            iconBtn.itemId = nil
-            iconBtn.itemIcon = nil
-            iconBtn.isObtainable = nil
-            iconBtn.itemName = nil
-            iconBtn.isBis = nil
-            iconBtn.isTracked = nil
-            iconBtn.requiredStanding = nil
-        end
-
-        -- Nothing to display
-        if not items or #items == 0 then
-            iconContainer:Hide()
-            return
-        end
-
-        -- Clamp to maximum icons
-        local displayCount = math.min(#items, MAX_ICONS_PER_STANDING)
-
-        -- Calculate container width for proper centering
-        local totalWidth = (ICON_SIZE * displayCount) + (ICON_GAP * (displayCount - 1))
-
-        -- Reposition container above the correct divider
-        -- Standing 5 (Friendly) -> divider[1], 6 -> divider[2], etc.
-        local dividerIndex = standingId - 4
-        iconContainer:ClearAllPoints()
-
-        if dividerIndex >= 1 and dividerIndex <= 4 and self.segmentDividers[dividerIndex] then
-            iconContainer:SetPoint("BOTTOM", self.segmentDividers[dividerIndex], "TOP", 0, 2)
-        else
-            -- Neutral (standing 4) or fallback: center above segment
-            local segBg = self.segments[segmentIndex]
-            if segBg then
-                iconContainer:SetPoint("BOTTOM", segBg, "TOP", 0, 2)
-            end
-        end
-
-        -- Resize container to fit icons (enables proper centering via anchor)
-        iconContainer:SetSize(totalWidth, ICON_SIZE)
-
-        -- Configure each icon
-        local xOffset = 0
-        for i = 1, displayCount do
-            local item = items[i]
-            local iconBtn = iconContainer.icons[i]
-
-            -- Position within container
-            iconBtn:ClearAllPoints()
-            iconBtn:SetPoint("LEFT", iconContainer, "LEFT", xOffset, 0)
-
-            -- Set texture (handle path formats)
-            local texturePath = item.icon or HopeAddon.DEFAULT_ICON
-            if texturePath and not string.find(texturePath, "Interface") then
-                texturePath = "Interface\\Icons\\" .. texturePath
-            end
-            iconBtn.icon:SetTexture(texturePath)
-
-            -- Visual state based on obtainability, tracked status, and BiS status
-            if item.isObtainable then
-                iconBtn.icon:SetDesaturated(false)
-                iconBtn.icon:SetVertexColor(1, 1, 1, 1)
-                if item.isTracked then
-                    iconBtn.border:SetVertexColor(0.2, 1.0, 0.2, 1.0)  -- Green for tracked items
-                elseif item.isBis then
-                    iconBtn.border:SetVertexColor(1, 0.84, 0, 1.0)  -- Bright gold for BiS
-                else
-                    iconBtn.border:SetVertexColor(1, 0.84, 0, 0.7)  -- Standard gold
-                end
-            else
-                iconBtn.icon:SetDesaturated(true)
-                iconBtn.icon:SetVertexColor(0.5, 0.5, 0.5, 0.8)
-                if item.isTracked then
-                    iconBtn.border:SetVertexColor(0.1, 0.5, 0.1, 0.7)  -- Dim green for tracked but not obtainable
-                else
-                    iconBtn.border:SetVertexColor(0.4, 0.4, 0.4, 0.5)
-                end
-            end
-
-            -- Store data for tooltip
-            iconBtn.itemId = item.itemId
-            iconBtn.itemIcon = item.icon
-            iconBtn.isObtainable = item.isObtainable
-            iconBtn.itemName = item.name
-            iconBtn.isBis = item.isBis
-            iconBtn.isTracked = item.isTracked
-            iconBtn.requiredStanding = standingId
-
-            -- Enhanced tooltip (Phase 4)
-            iconBtn:SetScript("OnEnter", function(btn)
-                GameTooltip:SetOwner(btn, "ANCHOR_TOP")
-
-                -- Standard WoW item tooltip
-                if btn.itemId and btn.itemId > 0 then
-                    GameTooltip:SetHyperlink("item:" .. btn.itemId)
-
-                    -- Custom section separator
-                    GameTooltip:AddLine(" ")
-
-                    -- Standing requirement with color
-                    if btn.requiredStanding then
-                        local Data = HopeAddon.ReputationData
-                        local standingInfo = Data and Data:GetStandingInfo(btn.requiredStanding)
-                        if standingInfo then
-                            local c = standingInfo.color
-                            GameTooltip:AddLine("Requires: " .. standingInfo.name, c.r, c.g, c.b)
-                        end
-                    end
-
-                    -- Tracked indicator (green) - show first since it's user's explicit choice
-                    if btn.isTracked then
-                        GameTooltip:AddLine("Tracking this item!", 0.2, 1.0, 0.2)
-                    -- BiS indicator (gold)
-                    elseif btn.isBis then
-                        GameTooltip:AddLine("BiS for your spec!", 1, 0.84, 0)
-                    end
-
-                    -- Obtainability status
-                    if btn.isObtainable then
-                        GameTooltip:AddLine("Available now!", 0, 1, 0)
-                    else
-                        GameTooltip:AddLine("Keep grinding!", 0.6, 0.6, 0.6)
-                    end
-                end
-
-                GameTooltip:Show()
-            end)
-            iconBtn:SetScript("OnLeave", function()
-                GameTooltip:Hide()
-            end)
-
-            iconBtn:Show()
-            xOffset = xOffset + ICON_SIZE + ICON_GAP
-        end
-
-        iconContainer:Show()
-
-        -- Track for cleanup
-        table.insert(self.itemIcons, {
-            standingId = standingId,
-            container = iconContainer,
-            count = displayCount
-        })
-    end
-
-    -- Backward compatibility wrapper for single-item calls
-    function container:SetItemIcon(standingId, itemId, iconPath, isObtainable)
-        self:SetItemIcons(standingId, {{
-            itemId = itemId,
-            icon = iconPath,
-            isObtainable = isObtainable
-        }})
-    end
-
-    -- Clear all item icons (Phase 2: multi-icon container support)
-    function container:ClearItemIcons()
-        for _, iconContainer in ipairs(self.itemContainers) do
-            if iconContainer.icons then
-                -- Multi-icon container
-                iconContainer:Hide()
-                for _, iconBtn in ipairs(iconContainer.icons) do
-                    iconBtn:Hide()
-                    iconBtn:SetScript("OnEnter", nil)
-                    iconBtn:SetScript("OnLeave", nil)
-                    iconBtn.itemId = nil
-                    iconBtn.itemIcon = nil
-                    iconBtn.isObtainable = nil
-                    iconBtn.itemName = nil
-                    iconBtn.isBis = nil
-                    iconBtn.isTracked = nil
-                    iconBtn.requiredStanding = nil
-                end
-            else
-                -- Legacy single-icon (backward compat)
-                iconContainer:Hide()
-                iconContainer:SetScript("OnEnter", nil)
-                iconContainer:SetScript("OnLeave", nil)
-                iconContainer.itemId = nil
-            end
-        end
-        wipe(self.itemIcons)
-    end
-
     -- Cleanup the bar (for pooling)
     function container:Cleanup()
-        self:ClearItemIcons()
-
         -- Reset fills
         for _, fill in ipairs(self.segmentFills) do
             fill:SetWidth(0.01)

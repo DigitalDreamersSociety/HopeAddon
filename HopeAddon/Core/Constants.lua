@@ -6615,18 +6615,18 @@ C.LEVELING_ROLES = {
 
 C.LEVELING_DUNGEONS = {
     ["60-62"] = {
-        { name = "Hellfire Ramparts", level = "60-62", zone = "Hellfire Peninsula" },
-        { name = "Blood Furnace", level = "61-63", zone = "Hellfire Peninsula" },
+        { name = "Hellfire Ramparts", level = "60-62", zone = "Hellfire Peninsula", factionAlliance = "Honor Hold", factionHorde = "Thrallmar" },
+        { name = "Blood Furnace", level = "61-63", zone = "Hellfire Peninsula", factionAlliance = "Honor Hold", factionHorde = "Thrallmar" },
     },
     ["63-65"] = {
-        { name = "Slave Pens", level = "62-64", zone = "Zangarmarsh" },
-        { name = "Underbog", level = "63-65", zone = "Zangarmarsh" },
-        { name = "Mana-Tombs", level = "64-66", zone = "Terokkar Forest" },
+        { name = "Slave Pens", level = "62-64", zone = "Zangarmarsh", faction = "Cenarion Expedition" },
+        { name = "Underbog", level = "63-65", zone = "Zangarmarsh", faction = "Cenarion Expedition" },
+        { name = "Mana-Tombs", level = "64-66", zone = "Terokkar Forest", faction = "The Consortium" },
     },
     ["66-67"] = {
-        { name = "Auchenai Crypts", level = "65-67", zone = "Terokkar Forest" },
-        { name = "Old Hillsbrad", level = "66-68", zone = "Caverns of Time" },
-        { name = "Sethekk Halls", level = "67-69", zone = "Terokkar Forest" },
+        { name = "Auchenai Crypts", level = "65-67", zone = "Terokkar Forest", faction = "Lower City" },
+        { name = "Old Hillsbrad", level = "66-68", zone = "Caverns of Time", faction = "Keepers of Time" },
+        { name = "Sethekk Halls", level = "67-69", zone = "Terokkar Forest", faction = "Lower City" },
     },
 }
 
@@ -7588,37 +7588,30 @@ C.ARMORY_SLOTS_CONTAINER = {
 
 -- Gear popup (floating popup near clicked slot) - Redesigned Phase 61
 C.ARMORY_GEAR_POPUP = {
-    -- Dimensions (expanded for filter cards)
-    WIDTH = 640,
-    MAX_HEIGHT = 680,
-    MIN_HEIGHT = 480,  -- Increased from 360 to ensure scroll area of at least ~2.5 items visible
+    -- Dimensions (compact card stack)
+    WIDTH = 340,
+    MAX_HEIGHT = 400,
+    MIN_HEIGHT = 164,
 
     -- Section heights
-    HEADER_HEIGHT = 40,
-    BIS_SECTION_HEIGHT = 100,      -- BiS showcase card
-    FILTER_SECTION_HEIGHT = 120,   -- Compact: 3 rows @ 28px + header + minimal gaps
-    SCROLL_CONTENT_PADDING = 8,
-    FOOTER_HEIGHT = 36,
+    HEADER_HEIGHT = 32,
+    FOOTER_HEIGHT = 28,
+    PADDING = 12,
 
-    -- Filter card specifications (Phase 61, compacted Phase 66)
-    FILTER_CARD = {
-        WIDTH = 180,
-        HEIGHT = 28,               -- Reduced from 52 (single-line compact)
-        ICON_SIZE = 22,            -- Reduced from 36
-        COLUMNS = 3,
-        GAP = 4,                   -- Reduced from 12
-        ACTIVE_GLOW = 0.6,
+    -- Card dimensions
+    BIS_CARD_HEIGHT = 88,
+    ALT_CARD_HEIGHT = 72,
+    CARD_GAP = 6,
+
+    -- Source badge styling (colored tag on each card)
+    SOURCE_BADGE = {
+        HEIGHT = 16,
+        MIN_WIDTH = 44,
+        PADDING_H = 6,
+        PADDING_V = 2,
+        BG_ALPHA = 0.25,
+        BORDER_ALPHA = 0.6,
     },
-
-    -- Item row styling
-    ITEM_HEIGHT = 48,              -- Reduced from 54 to match smaller icons
-    COMPACT_ITEM_HEIGHT = 44,      -- For dense lists
-    ITEM_GAP = 4,                  -- Reduced from 6
-    PADDING = 16,                  -- Increased from 12
-    SECTION_GAP = 12,              -- Gap between grouped sections
-
-    -- Limits
-    MAX_ALTERNATIVES = 10,         -- Increased from 5
 
     -- Visual styling
     BACKDROP = {
@@ -7635,54 +7628,63 @@ C.ARMORY_GEAR_POPUP = {
         raid = {
             order = 1,
             label = "Raid Drops",
+            shortLabel = "Raid",
             color = "HELLFIRE_RED",
             icon = "Interface\\Icons\\INV_Helmet_06",
         },
         heroic = {
             order = 2,
             label = "Heroic Dungeon",
+            shortLabel = "Heroic",
             color = "ARCANE_PURPLE",
             icon = "Interface\\Icons\\Spell_Holy_ChampionsBond",
         },
         dungeon = {
             order = 3,
             label = "Normal Dungeon",
+            shortLabel = "Dungeon",
             color = "SKY_BLUE",
             icon = "Interface\\Icons\\INV_Misc_Key_10",
         },
         crafted = {
             order = 4,
             label = "Crafted",
+            shortLabel = "Crafted",
             color = "GOLD_BRIGHT",
             icon = "Interface\\Icons\\Trade_BlackSmithing",
         },
         badge = {
             order = 5,
             label = "Badge Vendor",
+            shortLabel = "Badge",
             color = "FEL_GREEN",
             icon = "Interface\\Icons\\Spell_Holy_ChampionsBond",
         },
         reputation = {
             order = 6,
             label = "Reputation",
+            shortLabel = "Rep",
             color = "GOLD_BRIGHT",
             icon = "Interface\\Icons\\INV_Misc_Note_02",
         },
         pvp = {
             order = 7,
             label = "PvP Rewards",
+            shortLabel = "PvP",
             color = "HELLFIRE_RED",
             icon = "Interface\\Icons\\INV_BannerPVP_01",
         },
         quest = {
             order = 8,
             label = "Quest Rewards",
+            shortLabel = "Quest",
             color = "GOLD_BRIGHT",
             icon = "Interface\\Icons\\INV_Misc_Note_01",
         },
         world = {
             order = 9,
             label = "World Drops",
+            shortLabel = "World",
             color = "FEL_GREEN",
             icon = "Interface\\Icons\\INV_Misc_Bag_10",
         },
@@ -7716,45 +7718,25 @@ C.ARMORY_GEAR_POPUP = {
 
     -- BiS card styling (featured item at top)
     BIS_CARD = {
-        HEIGHT = 90,
-        ICON_SIZE = 52,            -- Reduced from 56 to allow larger border
-        BORDER_OFFSET = 8,         -- 52 + 8 = 60px border (15% ratio for visible quality color)
+        HEIGHT = 88,
+        ICON_SIZE = 44,
+        BORDER_OFFSET = 8,
         BORDER_COLOR = { r = 1, g = 0.84, b = 0 },      -- Gold
         GLOW_COLOR = { r = 1, g = 0.84, b = 0, a = 0.3 },
-        NAME_FONT = "GameFontNormalLarge",
+        NAME_FONT = "GameFontNormal",
         STATS_FONT = "GameFontNormal",
     },
 
-    -- Compact item row styling (for alternatives list)
+    -- Compact item card styling (for alternatives list)
     ITEM = {
-        ICON_SIZE = 36,            -- Reduced from 40 to allow larger border
-        BORDER_OFFSET = 6,         -- 36 + 6 = 42px border (17% ratio for visible quality color)
-        BIS_INDICATOR_SIZE = 16,   -- Reduced from 18
+        ICON_SIZE = 36,
+        BORDER_OFFSET = 6,
+        BIS_INDICATOR_SIZE = 16,
         BIS_COLOR = { r = 1, g = 0.84, b = 0 },  -- Gold star for BiS
         NAME_FONT = "GameFontNormal",
         SOURCE_FONT = "GameFontNormalSmall",
         ILEVEL_FONT = "GameFontNormalSmall",
         HOVER_BG = { r = 0.3, g = 0.3, b = 0.3, a = 0.3 },
-    },
-
-    -- Filter card styling (Phase 61 redesign)
-    FILTER = {
-        -- Card appearance
-        ACTIVE_BORDER = { r = 0.8, g = 0.7, b = 0.2, a = 1 },     -- Gold border when active
-        INACTIVE_BORDER = { r = 0.3, g = 0.3, b = 0.3, a = 0.6 }, -- Grey border when inactive
-        ACTIVE_BG = { r = 0.2, g = 0.2, b = 0.15, a = 0.9 },      -- Slightly lit background
-        INACTIVE_BG = { r = 0.1, g = 0.1, b = 0.1, a = 0.8 },     -- Dark background
-        DIMMED_ALPHA = 0.4,                                        -- Alpha for zero-count cards
-        HOVER_ALPHA = 0.7,                                         -- Alpha for hover state on inactive
-    },
-
-    -- Group header styling (collapsible sections)
-    GROUP_HEADER = {
-        HEIGHT = 28,
-        FONT = "GameFontNormal",
-        EXPAND_ICON = "Interface\\Buttons\\UI-PlusButton-UP",
-        COLLAPSE_ICON = "Interface\\Buttons\\UI-MinusButton-UP",
-        ICON_SIZE = 16,
     },
 }
 
@@ -8027,7 +8009,7 @@ C.ARMORY_FOOTER = {
             width = 60,           -- Was 55
             height = 26,          -- Was 22
             position = "RIGHT",   -- Position hint for Journal.lua
-            tooltip = "Reset model to your current equipped gear",
+            tooltip = "Reset armory to defaults (Phase 1, current gear)",
             borderColor = { r = 0.5, g = 0.5, b = 0.5, a = 1 },  -- Grey
             bgColor = { r = 0.12, g = 0.12, b = 0.12, a = 0.95 },
             hoverColor = { r = 0.2, g = 0.2, b = 0.2, a = 1 },
@@ -8316,6 +8298,30 @@ C.ARMORY_SLOTS = {
     { id = "mainhand",  slotId = 16, label = "Main Hand", position = { anchor = "BOTTOM", x = 60, y = 80 } },
     { id = "offhand",   slotId = 17, label = "Off Hand",  position = { anchor = "BOTTOM", x = 120, y = 80 } },
     { id = "ranged",    slotId = 18, label = "Ranged",    position = { anchor = "BOTTOM", x = 180, y = 80 } },
+}
+
+-- Ordered slot list for BIS tooltip display (head-to-feet, accessories, weapons)
+C.BIS_TOOLTIP_SLOT_ORDER = {
+    -- Armor
+    { key = "head",      label = "Head",       section = "Armor" },
+    { key = "neck",      label = "Neck",       section = "Armor" },
+    { key = "shoulders", label = "Shoulders",  section = "Armor" },
+    { key = "back",      label = "Back",       section = "Armor" },
+    { key = "chest",     label = "Chest",      section = "Armor" },
+    { key = "wrist",     label = "Wrist",      section = "Armor" },
+    { key = "hands",     label = "Hands",      section = "Armor" },
+    { key = "waist",     label = "Waist",      section = "Armor" },
+    { key = "legs",      label = "Legs",       section = "Armor" },
+    { key = "feet",      label = "Feet",       section = "Armor" },
+    -- Accessories
+    { key = "ring1",     label = "Ring 1",     section = "Accessories" },
+    { key = "ring2",     label = "Ring 2",     section = "Accessories" },
+    { key = "trinket1",  label = "Trinket 1",  section = "Accessories" },
+    { key = "trinket2",  label = "Trinket 2",  section = "Accessories" },
+    -- Weapons
+    { key = "mainhand",  label = "Main Hand",  section = "Weapons" },
+    { key = "offhand",   label = "Off Hand",   section = "Weapons" },
+    { key = "ranged",    label = "Ranged",     section = "Weapons" },
 }
 
 -- Role definitions
@@ -9259,6 +9265,48 @@ C.SERVER_EVENTS = {
     --     permanent = false,
     -- },
 }
+
+-- Permanent recurring guild events (appear every matching day of the week)
+C.PERMANENT_GUILD_EVENTS = {
+    {
+        id = "weekly_gruul_mag_pug",
+        title = "Gruul's & Mag's Pugs",
+        eventType = "SERVER",
+        dayOfWeek = 7,  -- Saturday (wday: 1=Sun, 7=Sat)
+        startTime = "17:00",  -- 5 PM server (Mountain)
+        description = "Weekly Gruul's Lair & Magtheridon's Lair pug runs. All welcome!",
+        icon = "Interface\\LFGFRAME\\LFG-Eye",
+        themeColor = { r = 1.0, g = 0.5, b = 0.0 },  -- Orange (raid)
+    },
+    {
+        id = "weekly_arena_meetup",
+        title = "Arena Meetup Night",
+        eventType = "SERVER",
+        dayOfWeek = 2,  -- Monday (wday: 1=Sun, 2=Mon)
+        startTime = "19:00",  -- 7 PM server (Mountain)
+        description = "Weekly arena meetup night. Find partners and queue up!",
+        icon = "Interface\\Icons\\INV_Sword_48",
+        themeColor = { r = 0.8, g = 0.2, b = 0.2 },  -- Red (PvP)
+    },
+}
+
+-- Helper function to get permanent recurring events for a specific date
+function C:GetPermanentEventsForDate(dateStr)
+    local events = {}
+    local y, m, d = dateStr:match("(%d+)-(%d+)-(%d+)")
+    if not y then return events end
+    local t = date("*t", time({ year = tonumber(y), month = tonumber(m), day = tonumber(d), hour = 0 }))
+    for _, event in ipairs(C.PERMANENT_GUILD_EVENTS) do
+        if t.wday == event.dayOfWeek then
+            local copy = {}
+            for k, v in pairs(event) do copy[k] = v end
+            copy.date = dateStr
+            copy.permanent = true
+            table.insert(events, copy)
+        end
+    end
+    return events
+end
 
 -- Helper function to get server events for a specific date
 function C:GetServerEventsForDate(dateStr)

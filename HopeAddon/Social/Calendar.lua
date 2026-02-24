@@ -614,6 +614,10 @@ function Calendar:GetServerEventsForDate(dateStr)
             table.insert(events, event)
         end
     end
+    -- Add permanent recurring guild events for this date
+    for _, event in ipairs(C:GetPermanentEventsForDate(dateStr)) do
+        table.insert(events, event)
+    end
     return events
 end
 
@@ -901,6 +905,25 @@ function Calendar:GetEventsForMonth(year, month)
     for _, event in ipairs(C.SERVER_EVENTS or {}) do
         if event.date and event.date:sub(1, 7) == monthStr then
             addServerEventForDate(event, event.date)
+        end
+    end
+
+    -- Permanent recurring guild events - add for each matching day of the week in this month
+    for _, event in ipairs(C.PERMANENT_GUILD_EVENTS or {}) do
+        local y, m = monthStr:match("(%d+)-(%d+)")
+        if y and m then
+            local daysInMonth = date("*t", time({ year = tonumber(y), month = tonumber(m) + 1, day = 0 })).day
+            for d = 1, daysInMonth do
+                local t = date("*t", time({ year = tonumber(y), month = tonumber(m), day = d, hour = 0 }))
+                if t.wday == event.dayOfWeek then
+                    local dateStr = format("%s-%02d", monthStr, d)
+                    local copy = {}
+                    for k, v in pairs(event) do copy[k] = v end
+                    copy.date = dateStr
+                    copy.permanent = true
+                    addServerEventForDate(copy, dateStr)
+                end
+            end
         end
     end
 

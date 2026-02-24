@@ -116,14 +116,12 @@ CritterUI.floatingBubbleTypewriter = nil
 CritterUI.instanceGuidePanel = nil
 CritterUI.instanceGuideTierDropdown = nil
 CritterUI.instanceGuideInstanceDropdown = nil
-CritterUI.instanceGuidePlayButton = nil
 CritterUI.instanceGuideIsExpanded = true
 CritterUI.instanceGuideIsPlaying = false
 CritterUI.instanceGuideTicker = nil
 CritterUI.instanceGuideTipsQueue = {}
 CritterUI.instanceGuideCurrentTipIndex = 0
-CritterUI.selectedRaid = nil
-CritterUI.selectedBoss = nil
+CritterUI.instanceGuidePlayingBossKey = nil
 CritterUI.instanceGuideSelectedTier = nil
 CritterUI.instanceGuideSelectedInstance = nil
 CritterUI.instanceGuideIsRaid = false
@@ -134,6 +132,10 @@ local INSTANCE_GUIDE_HEADER_HEIGHT = 24
 local INSTANCE_GUIDE_COLLAPSED_HEIGHT = INSTANCE_GUIDE_HEADER_HEIGHT
 local INSTANCE_GUIDE_CONTENT_HEIGHT = 310
 local INSTANCE_GUIDE_ROW_HEIGHT = 18
+local INSTANCE_GUIDE_ROW_HEIGHT_COLLAPSED = 20
+local INSTANCE_GUIDE_ROW_HEIGHT_EXPANDED = 52
+local INSTANCE_GUIDE_PLAY_BTN_SIZE = 16
+local INSTANCE_GUIDE_BOSS_SCROLL_HEIGHT = 214
 local INSTANCE_GUIDE_TIP_DURATION = 8
 
 --============================================================
@@ -3294,80 +3296,26 @@ function CritterUI:CreateInstanceGuidePanel()
 
     yOffset = yOffset - 4
 
-    -- Column headers: Boss / Best / Kills
-    local colBoss = content:CreateFontString(nil, "OVERLAY")
-    colBoss:SetFont(HopeAddon.assets.fonts.BODY or "Fonts\\FRIZQT__.TTF", 9, "")
-    colBoss:SetPoint("TOPLEFT", content, "TOPLEFT", 5, yOffset)
-    colBoss:SetText("Boss")
-    colBoss:SetTextColor(unpack(COLOR_LABEL_GRAY))
+    -- Scroll container for boss list
+    local bossScrollFrame = CreateFrame("ScrollFrame", nil, content)
+    bossScrollFrame:SetSize(INSTANCE_GUIDE_WIDTH - 14, INSTANCE_GUIDE_BOSS_SCROLL_HEIGHT)
+    bossScrollFrame:SetPoint("TOPLEFT", content, "TOPLEFT", 2, yOffset)
 
-    local colKills = content:CreateFontString(nil, "OVERLAY")
-    colKills:SetFont(HopeAddon.assets.fonts.BODY or "Fonts\\FRIZQT__.TTF", 9, "")
-    colKills:SetPoint("TOPRIGHT", content, "TOPRIGHT", -5, yOffset)
-    colKills:SetText("Kills")
-    colKills:SetTextColor(unpack(COLOR_LABEL_GRAY))
-
-    local colBest = content:CreateFontString(nil, "OVERLAY")
-    colBest:SetFont(HopeAddon.assets.fonts.BODY or "Fonts\\FRIZQT__.TTF", 9, "")
-    colBest:SetPoint("TOPRIGHT", colKills, "TOPLEFT", -15, 0)
-    colBest:SetText("Best")
-    colBest:SetTextColor(unpack(COLOR_LABEL_GRAY))
-
-    yOffset = yOffset - 14
-
-    -- Boss rows container
-    local bossListFrame = CreateFrame("Frame", nil, content)
+    local bossListFrame = CreateFrame("Frame", nil, bossScrollFrame)
     bossListFrame:SetSize(INSTANCE_GUIDE_WIDTH - 20, 1) -- height set dynamically
-    bossListFrame:SetPoint("TOPLEFT", content, "TOPLEFT", 5, yOffset)
+    bossScrollFrame:SetScrollChild(bossListFrame)
+
+    -- Mouse wheel scrolling
+    bossScrollFrame:EnableMouseWheel(true)
+    bossScrollFrame:SetScript("OnMouseWheel", function(scrollFrame, delta)
+        CritterUI:ScrollBossList(delta)
+    end)
+
+    panel.bossScrollFrame = bossScrollFrame
     panel.bossListFrame = bossListFrame
     panel.bossRows = {}
     panel.bossListYOffset = yOffset -- remember where boss list starts
-
-    -- Play button (shown only for raids)
-    local playBtn = CreateFrame("Button", nil, content, "BackdropTemplate")
-    playBtn:SetSize(70, 22)
-    playBtn:SetPoint("BOTTOM", content, "BOTTOM", 0, 4)
-
-    playBtn:SetBackdrop({
-        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        edgeSize = 10,
-        insets = { left = 2, right = 2, top = 2, bottom = 2 },
-    })
-    playBtn:SetBackdropColor(0.2, 0.5, 0.2, 1)
-    playBtn:SetBackdropBorderColor(0.4, 0.8, 0.4, 1)
-
-    local playText = playBtn:CreateFontString(nil, "OVERLAY")
-    playText:SetFont(HopeAddon.assets.fonts.BODY or "Fonts\\FRIZQT__.TTF", 10, "")
-    playText:SetPoint("CENTER", playBtn, "CENTER", 0, 0)
-    playText:SetText("\226\150\182 Play")
-    playText:SetTextColor(0.9, 0.9, 0.9)
-    playBtn.text = playText
-
-    -- Hover effect
-    playBtn:SetScript("OnEnter", function(btn)
-        btn:SetBackdropBorderColor(0.5, 1, 0.5, 1)
-    end)
-    playBtn:SetScript("OnLeave", function(btn)
-        if CritterUI.instanceGuideIsPlaying then
-            btn:SetBackdropBorderColor(0.8, 0.4, 0.4, 1)
-        else
-            btn:SetBackdropBorderColor(0.4, 0.8, 0.4, 1)
-        end
-    end)
-
-    -- Click to play/stop
-    playBtn:SetScript("OnClick", function()
-        if self.instanceGuideIsPlaying then
-            self:StopInstanceGuideTips()
-        else
-            self:PlayInstanceGuideTips()
-        end
-    end)
-
-    self.instanceGuidePlayButton = playBtn
-    panel.playButton = playBtn
-    playBtn:Hide() -- hidden by default, shown when a raid is selected
+    panel.bossScrollOffset = 0
 
     -- Set initial size based on expanded state
     if self.instanceGuideIsExpanded then
@@ -3476,10 +3424,6 @@ function CritterUI:OnInstanceGuideTierSelect(key, data)
                 end
             end
         end
-        -- Hide play button when no instance
-        if self.instanceGuidePlayButton then
-            self.instanceGuidePlayButton:Hide()
-        end
     end
 end
 
@@ -3491,28 +3435,9 @@ end
 function CritterUI:OnInstanceGuideInstanceSelect(key, data)
     self.instanceGuideSelectedInstance = key
 
-    -- For raids, update selectedRaid for Play button compatibility
-    if self.instanceGuideIsRaid then
-        self.selectedRaid = key
-        -- Auto-select first boss for Play functionality
-        local bosses = self:GetRaidBosses(key)
-        if bosses and #bosses > 0 then
-            self.selectedBoss = bosses[1].key
-        else
-            self.selectedBoss = nil
-        end
-    else
-        self.selectedRaid = nil
-        self.selectedBoss = nil
-    end
-
-    -- Show/hide play button based on raid vs dungeon
-    if self.instanceGuidePlayButton then
-        if self.instanceGuideIsRaid then
-            self.instanceGuidePlayButton:Show()
-        else
-            self.instanceGuidePlayButton:Hide()
-        end
+    -- Stop any playing tips when switching instances
+    if self.instanceGuideIsPlaying then
+        self:StopInstanceGuideTips()
     end
 
     self:DisplayInstanceGuideStats(key, data)
@@ -3595,53 +3520,118 @@ function CritterUI:DisplayInstanceGuideStats(instanceKey, instanceData)
         end
     end
 
-    -- Create or reuse boss rows
-    local yOffset = 0
+    -- Create or reuse boss rows (expandable with per-boss play buttons)
     local contentWidth = INSTANCE_GUIDE_WIDTH - 20
+    panel.bossCount = #bosses
     for i, bossData in ipairs(bosses) do
         local row = panel.bossRows[i]
 
         if not row then
-            row = CreateFrame("Frame", nil, panel.bossListFrame)
-            row:SetSize(contentWidth, INSTANCE_GUIDE_ROW_HEIGHT)
+            row = CreateFrame("Button", nil, panel.bossListFrame)
+            row:SetSize(contentWidth, INSTANCE_GUIDE_ROW_HEIGHT_COLLAPSED)
+
+            -- Expand indicator
+            local expandInd = row:CreateFontString(nil, "OVERLAY")
+            expandInd:SetFont(HopeAddon.assets.fonts.BODY or "Fonts\\FRIZQT__.TTF", 9, "")
+            expandInd:SetPoint("LEFT", row, "LEFT", 0, 0)
+            expandInd:SetText(">")
+            expandInd:SetTextColor(unpack(COLOR_LABEL_GRAY))
+            row.expandInd = expandInd
 
             -- Boss name (left-aligned, truncated)
             local bossNameText = row:CreateFontString(nil, "OVERLAY")
             bossNameText:SetFont(HopeAddon.assets.fonts.BODY or "Fonts\\FRIZQT__.TTF", 9, "")
-            bossNameText:SetPoint("LEFT", row, "LEFT", 0, 0)
-            bossNameText:SetWidth(contentWidth - 90)
+            bossNameText:SetPoint("LEFT", expandInd, "RIGHT", 4, 0)
+            bossNameText:SetWidth(contentWidth - 110)
             bossNameText:SetJustifyH("LEFT")
             row.nameText = bossNameText
 
-            -- Best time (right area)
+            -- Best time (right area, before play button)
             local timeText = row:CreateFontString(nil, "OVERLAY")
             timeText:SetFont(HopeAddon.assets.fonts.BODY or "Fonts\\FRIZQT__.TTF", 9, "")
-            timeText:SetPoint("RIGHT", row, "RIGHT", -35, 0)
+            timeText:SetPoint("RIGHT", row, "RIGHT", -55, 0)
             row.timeText = timeText
 
-            -- Kill count (far right)
+            -- Kill count
             local killsText = row:CreateFontString(nil, "OVERLAY")
             killsText:SetFont(HopeAddon.assets.fonts.BODY or "Fonts\\FRIZQT__.TTF", 9, "")
-            killsText:SetPoint("RIGHT", row, "RIGHT", -5, 0)
+            killsText:SetPoint("RIGHT", row, "RIGHT", -25, 0)
             killsText:SetJustifyH("RIGHT")
             row.killsText = killsText
 
-            -- Enable mouse for hover tooltip
-            row:EnableMouse(true)
+            -- Per-boss play button (16x16)
+            local playBtn = CreateFrame("Button", nil, row)
+            playBtn:SetSize(INSTANCE_GUIDE_PLAY_BTN_SIZE, INSTANCE_GUIDE_PLAY_BTN_SIZE)
+            playBtn:SetPoint("RIGHT", row, "RIGHT", -2, 0)
+
+            local playBg = playBtn:CreateTexture(nil, "BACKGROUND")
+            playBg:SetAllPoints(playBtn)
+            playBg:SetTexture(TEX_WHITE8X8)
+            playBg:SetVertexColor(0.2, 0.5, 0.2, 0.8)
+            playBtn.bg = playBg
+
+            local playIcon = playBtn:CreateFontString(nil, "OVERLAY")
+            playIcon:SetFont(HopeAddon.assets.fonts.BODY or "Fonts\\FRIZQT__.TTF", 10, "")
+            playIcon:SetPoint("CENTER", playBtn, "CENTER", 0, 0)
+            playIcon:SetText("\226\150\182") -- play triangle
+            playIcon:SetTextColor(0.7, 1, 0.7)
+            playBtn.icon = playIcon
+
+            playBtn:SetScript("OnClick", function(btn)
+                local r = btn:GetParent()
+                CritterUI:PlayInstanceGuideTipsForBoss(r.bossKey, r.bossName)
+            end)
+            playBtn:SetScript("OnEnter", function(btn)
+                btn.bg:SetVertexColor(0.3, 0.7, 0.3, 1)
+            end)
+            playBtn:SetScript("OnLeave", function(btn)
+                if CritterUI.instanceGuidePlayingBossKey == btn:GetParent().bossKey then
+                    btn.bg:SetVertexColor(0.5, 0.2, 0.2, 0.8)
+                else
+                    btn.bg:SetVertexColor(0.2, 0.5, 0.2, 0.8)
+                end
+            end)
+            row.playBtn = playBtn
+
+            -- Detail frame (hidden by default, shown when expanded)
+            local detail = CreateFrame("Frame", nil, row)
+            detail:SetSize(contentWidth - 14, 28)
+            detail:SetPoint("TOPLEFT", row, "TOPLEFT", 14, -INSTANCE_GUIDE_ROW_HEIGHT_COLLAPSED + 2)
+
+            local tipPreview = detail:CreateFontString(nil, "OVERLAY")
+            tipPreview:SetFont(HopeAddon.assets.fonts.BODY or "Fonts\\FRIZQT__.TTF", 8, "")
+            tipPreview:SetPoint("TOPLEFT", detail, "TOPLEFT", 0, 0)
+            tipPreview:SetWidth(contentWidth - 18)
+            tipPreview:SetJustifyH("LEFT")
+            tipPreview:SetJustifyV("TOP")
+            tipPreview:SetMaxLines(2)
+            tipPreview:SetTextColor(0.6, 0.6, 0.6)
+            detail.tipPreview = tipPreview
+
+            detail:Hide()
+            row.detail = detail
+            row.isExpanded = false
+
+            -- Click row to expand/collapse
+            row:SetScript("OnClick", function(rowFrame)
+                CritterUI:ToggleBossRowExpanded(rowFrame)
+            end)
+
             row:SetScript("OnEnter", function(rowFrame)
                 rowFrame.nameText:SetTextColor(unpack(COLOR_GOLD))
-                CritterUI:ShowBossTipTooltip(rowFrame.bossKey, rowFrame.bossName, CritterUI.instanceGuidePanel)
             end)
             row:SetScript("OnLeave", function(rowFrame)
                 rowFrame.nameText:SetTextColor(0.9, 0.9, 0.9)
-                CritterUI:HideBossTipTooltip()
             end)
 
             panel.bossRows[i] = row
         end
 
-        -- Update row position
-        row:SetPoint("TOPLEFT", panel.bossListFrame, "TOPLEFT", 0, -yOffset)
+        -- Reset expansion state for this row
+        row.isExpanded = false
+        row.expandInd:SetText(">")
+        row.detail:Hide()
+        row:SetHeight(INSTANCE_GUIDE_ROW_HEIGHT_COLLAPSED)
 
         -- Update boss name
         row.nameText:SetText(bossData.name)
@@ -3692,13 +3682,49 @@ function CritterUI:DisplayInstanceGuideStats(instanceKey, instanceData)
             row.killsText:SetTextColor(0.5, 0.5, 0.5)
         end
 
-        -- Store boss info on row for tooltip and Play selection
+        -- Store boss info on row
         row.bossKey = bossData.key or bossData.name:lower():gsub(" ", "_")
         row.bossName = bossData.name
+        row.instanceKey = instanceKey
+
+        -- Load tip preview text
+        local Content = HopeAddon.CritterContent
+        if Content then
+            local critterId = "chomp"
+            if self.currentCritter and self.currentCritter.id then
+                critterId = self.currentCritter.id
+            elseif HopeAddon.db and HopeAddon.db.crusadeCritter then
+                critterId = HopeAddon.db.crusadeCritter.selectedCritter or "chomp"
+            end
+            local tips
+            if self.instanceGuideIsRaid then
+                tips = Content:GetRaidBossTips(critterId, instanceKey, row.bossKey)
+            else
+                tips = Content:GetBossTips(critterId, row.bossKey, false)
+            end
+            if tips and #tips > 0 and tips[1].text then
+                row.detail.tipPreview:SetText(tips[1].text)
+            else
+                row.detail.tipPreview:SetText("No tips available")
+            end
+        end
+
+        -- Update play button state
+        if self.instanceGuidePlayingBossKey == row.bossKey then
+            row.playBtn.icon:SetText("\226\150\160") -- stop square
+            row.playBtn.icon:SetTextColor(1, 0.5, 0.5)
+            row.playBtn.bg:SetVertexColor(0.5, 0.2, 0.2, 0.8)
+        else
+            row.playBtn.icon:SetText("\226\150\182") -- play triangle
+            row.playBtn.icon:SetTextColor(0.7, 1, 0.7)
+            row.playBtn.bg:SetVertexColor(0.2, 0.5, 0.2, 0.8)
+        end
 
         row:Show()
-        yOffset = yOffset + INSTANCE_GUIDE_ROW_HEIGHT
     end
+
+    -- Reflow rows and update scroll
+    self:ReflowBossRows()
 
     -- "No data" fallback
     if #bosses == 0 then
@@ -3720,18 +3746,20 @@ function CritterUI:DisplayInstanceGuideStats(instanceKey, instanceData)
 end
 
 --[[
-    Play boss tips in sequence in the speech bubble
+    Play boss tips for a specific boss (toggle: if already playing this boss, stop)
+    @param bossKey string - Boss key
+    @param bossName string - Boss display name
 ]]
-function CritterUI:PlayInstanceGuideTips()
-    if not self.selectedBoss then
-        -- Show error message
-        self:ShowSpeechBubble("Select a boss first!", 3)
+function CritterUI:PlayInstanceGuideTipsForBoss(bossKey, bossName)
+    -- Toggle: if already playing this boss, stop
+    if self.instanceGuideIsPlaying and self.instanceGuidePlayingBossKey == bossKey then
+        self:StopInstanceGuideTips()
         return
     end
 
-    if not self.selectedRaid then
-        self:ShowSpeechBubble("Select a raid first!", 3)
-        return
+    -- If playing a different boss, stop first
+    if self.instanceGuideIsPlaying then
+        self:StopInstanceGuideTips()
     end
 
     -- Get critter ID
@@ -3742,13 +3770,20 @@ function CritterUI:PlayInstanceGuideTips()
         critterId = HopeAddon.db.crusadeCritter.selectedCritter or "chomp"
     end
 
-    -- Get tips for this boss using the raid-aware function
+    -- Get tips for this boss (works for both dungeons and raids)
     local Content = HopeAddon.CritterContent
     if not Content then return end
 
-    local tips = Content:GetRaidBossTips(critterId, self.selectedRaid, self.selectedBoss)
+    local tips
+    local instanceKey = self.instanceGuideSelectedInstance
+    if self.instanceGuideIsRaid then
+        tips = Content:GetRaidBossTips(critterId, instanceKey, bossKey)
+    else
+        tips = Content:GetBossTips(critterId, bossKey, false)
+    end
+
     if not tips or #tips == 0 then
-        self:ShowSpeechBubble("No tips available for this boss!", 3)
+        self:ShowSpeechBubble("No tips for " .. (bossName or "this boss") .. "!", 3)
         return
     end
 
@@ -3756,9 +3791,10 @@ function CritterUI:PlayInstanceGuideTips()
     self.instanceGuideTipsQueue = tips
     self.instanceGuideCurrentTipIndex = 0
     self.instanceGuideIsPlaying = true
+    self.instanceGuidePlayingBossKey = bossKey
 
-    -- Update button appearance
-    self:UpdateInstanceGuidePlayButton()
+    -- Update this boss row's play button
+    self:UpdateBossRowPlayButton(bossKey, true)
 
     -- Show first tip
     self:ShowNextInstanceGuideTip()
@@ -3799,9 +3835,12 @@ end
     Stop playing raid guide tips
 ]]
 function CritterUI:StopInstanceGuideTips()
+    local prevBossKey = self.instanceGuidePlayingBossKey
+
     self.instanceGuideIsPlaying = false
     self.instanceGuideTipsQueue = {}
     self.instanceGuideCurrentTipIndex = 0
+    self.instanceGuidePlayingBossKey = nil
 
     -- Cancel any pending ticker
     if self.instanceGuideTicker then
@@ -3812,26 +3851,115 @@ function CritterUI:StopInstanceGuideTips()
     -- Hide speech bubble
     self:HideSpeechBubble()
 
-    -- Update button appearance
-    self:UpdateInstanceGuidePlayButton()
+    -- Reset the previously playing boss's button
+    if prevBossKey then
+        self:UpdateBossRowPlayButton(prevBossKey, false)
+    end
 end
 
 --[[
-    Update the play button appearance based on playing state
+    Update a specific boss row's play button appearance
+    @param bossKey string - Boss key to find the row
+    @param isPlaying boolean - Whether this boss is currently playing
 ]]
-function CritterUI:UpdateInstanceGuidePlayButton()
-    if not self.instanceGuidePlayButton then return end
+function CritterUI:UpdateBossRowPlayButton(bossKey, isPlaying)
+    if not self.instanceGuidePanel or not self.instanceGuidePanel.bossRows then return end
 
-    local btn = self.instanceGuidePlayButton
-    if self.instanceGuideIsPlaying then
-        btn.text:SetText("â–  Stop")
-        btn:SetBackdropColor(0.5, 0.2, 0.2, 1)
-        btn:SetBackdropBorderColor(0.8, 0.4, 0.4, 1)
-    else
-        btn.text:SetText("â–¶ Play")
-        btn:SetBackdropColor(0.2, 0.5, 0.2, 1)
-        btn:SetBackdropBorderColor(0.4, 0.8, 0.4, 1)
+    for _, row in ipairs(self.instanceGuidePanel.bossRows) do
+        if row.bossKey == bossKey and row:IsShown() then
+            if isPlaying then
+                row.playBtn.icon:SetText("\226\150\160") -- stop square
+                row.playBtn.icon:SetTextColor(1, 0.5, 0.5)
+                row.playBtn.bg:SetVertexColor(0.5, 0.2, 0.2, 0.8)
+            else
+                row.playBtn.icon:SetText("\226\150\182") -- play triangle
+                row.playBtn.icon:SetTextColor(0.7, 1, 0.7)
+                row.playBtn.bg:SetVertexColor(0.2, 0.5, 0.2, 0.8)
+            end
+            break
+        end
     end
+end
+
+--[[
+    Toggle a boss row between expanded and collapsed state
+    @param row Frame - The boss row to toggle
+]]
+function CritterUI:ToggleBossRowExpanded(row)
+    if not row then return end
+
+    row.isExpanded = not row.isExpanded
+
+    if row.isExpanded then
+        row:SetHeight(INSTANCE_GUIDE_ROW_HEIGHT_EXPANDED)
+        row.expandInd:SetText("v")
+        row.detail:Show()
+    else
+        row:SetHeight(INSTANCE_GUIDE_ROW_HEIGHT_COLLAPSED)
+        row.expandInd:SetText(">")
+        row.detail:Hide()
+    end
+
+    self:ReflowBossRows()
+end
+
+--[[
+    Reposition all visible boss rows after expand/collapse changes
+]]
+function CritterUI:ReflowBossRows()
+    if not self.instanceGuidePanel then return end
+    local panel = self.instanceGuidePanel
+    if not panel.bossRows then return end
+
+    local yOffset = 0
+    local count = panel.bossCount or 0
+    for i = 1, count do
+        local row = panel.bossRows[i]
+        if row and row:IsShown() then
+            row:ClearAllPoints()
+            row:SetPoint("TOPLEFT", panel.bossListFrame, "TOPLEFT", 0, -yOffset)
+            local rowH = row.isExpanded and INSTANCE_GUIDE_ROW_HEIGHT_EXPANDED or INSTANCE_GUIDE_ROW_HEIGHT_COLLAPSED
+            yOffset = yOffset + rowH
+        end
+    end
+
+    -- Update bossListFrame total height for scrolling
+    panel.bossListFrame:SetHeight(math.max(yOffset, 1))
+
+    -- Clamp scroll offset
+    local maxScroll = math.max(0, yOffset - INSTANCE_GUIDE_BOSS_SCROLL_HEIGHT)
+    panel.bossScrollOffset = panel.bossScrollOffset or 0
+    if panel.bossScrollOffset > maxScroll then
+        panel.bossScrollOffset = maxScroll
+    end
+    if panel.bossScrollFrame then
+        panel.bossScrollFrame:SetVerticalScroll(panel.bossScrollOffset)
+    end
+end
+
+--[[
+    Handle mouse wheel scrolling of the boss list
+    @param delta number - Scroll direction (+1 up, -1 down)
+]]
+function CritterUI:ScrollBossList(delta)
+    if not self.instanceGuidePanel then return end
+    local panel = self.instanceGuidePanel
+    if not panel.bossScrollFrame then return end
+
+    local scrollStep = INSTANCE_GUIDE_ROW_HEIGHT_COLLAPSED
+    panel.bossScrollOffset = panel.bossScrollOffset or 0
+    panel.bossScrollOffset = panel.bossScrollOffset - (delta * scrollStep)
+
+    -- Clamp
+    local totalHeight = panel.bossListFrame:GetHeight() or 0
+    local maxScroll = math.max(0, totalHeight - INSTANCE_GUIDE_BOSS_SCROLL_HEIGHT)
+    if panel.bossScrollOffset < 0 then
+        panel.bossScrollOffset = 0
+    elseif panel.bossScrollOffset > maxScroll then
+        panel.bossScrollOffset = maxScroll
+    end
+
+    panel.bossScrollFrame:SetVerticalScroll(panel.bossScrollOffset)
 end
 
 --[[
@@ -3991,11 +4119,7 @@ function CritterUI:OnDisable()
     if self.instanceGuideInstanceDropdown then
         self.instanceGuideInstanceDropdown:Hide()
     end
-    if self.instanceGuidePlayButton then
-        self.instanceGuidePlayButton:Hide()
-    end
-    self.selectedRaid = nil
-    self.selectedBoss = nil
+    self.instanceGuidePlayingBossKey = nil
 
     -- Clean up floating bubble
     if self.floatingBubbleTimer then

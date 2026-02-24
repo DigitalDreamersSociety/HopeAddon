@@ -96,7 +96,6 @@ Challenge your Fellow Travelers to epic battles!
 | 💀 **Death Roll** | Turn-based gambling with escrow system |
 | 🧱 **Tetris Battle** | Competitive 2-player Tetris |
 | 🏓 **Pong** | Classic arcade action |
-| 📝 **Words with WoW** | Scrabble-style with WoW vocabulary |
 | 🚢 **Battleship** | Naval combat (vs AI or players) |
 | 🔤 **WoW Wordle** | Word guessing with WoW-themed words |
 

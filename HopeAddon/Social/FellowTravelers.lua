@@ -294,7 +294,9 @@ function FellowTravelers:BroadcastPresence()
 
     local zone = GetZoneText() or ""
 
-    local msg = string.format("%s:%d:%s", MSG_PING, PROTOCOL_VERSION, zone)
+    -- Include gear score and average item level in broadcast
+    local gearScore, avgILvl = HopeAddon:GetGearScore()
+    local msg = string.format("%s:%d:%s||%d|%d", MSG_PING, PROTOCOL_VERSION, zone, avgILvl or 0, gearScore or 0)
 
     -- Send to different channels based on context
     -- Priority: INSTANCE_CHAT (for BGs/dungeons) > RAID > PARTY > GUILD > YELL
@@ -433,19 +435,23 @@ end
     Handle PING message - another addon user announced presence
 ]]
 function FellowTravelers:HandlePing(sender, zoneData, channel)
-    -- Parse zone and optional location from zoneData
-    -- Format: "ZoneName" or "ZoneName|x|y"
-    local zone, xStr, yStr = strsplit("|", zoneData, 3)
+    -- Parse zone and optional location + gear data from zoneData
+    -- Format: "ZoneName" or "ZoneName|x|y" or "ZoneName||avgILvl|gearScore"
+    local zone, xStr, yStr, avgILvlStr, gearScoreStr = strsplit("|", zoneData, 5)
     local x = xStr and tonumber(xStr) or nil
     local y = yStr and tonumber(yStr) or nil
+    local avgILvl = avgILvlStr and tonumber(avgILvlStr) or nil
+    local gearScore = gearScoreStr and tonumber(gearScoreStr) or nil
 
-    HopeAddon:Debug("Received PING from", sender, "in zone", zone, "loc:", x, y)
+    HopeAddon:Debug("Received PING from", sender, "in zone", zone, "loc:", x, y, "ilvl:", avgILvl)
 
-    -- Record as fellow traveler with location
+    -- Record as fellow traveler with location and gear data
     self:RegisterFellow(sender, {
         zone = zone,
         x = x,
         y = y,
+        avgILvl = avgILvl,
+        gearScore = gearScore,
     })
 
     -- Respond with PONG (if not on cooldown)
@@ -454,20 +460,23 @@ function FellowTravelers:HandlePing(sender, zoneData, channel)
     if now - cooldown >= PING_COOLDOWN then
         self:AddPingCooldown(sender)
 
-        -- Build PONG response with basic info and location
+        -- Build PONG response with basic info, location, and gear data
         local _, class = UnitClass("player")
         local level = UnitLevel("player")
         local color = HopeAddon.Badges and HopeAddon.Badges:GetSelectedColor() or nil
         local title = HopeAddon.Badges and HopeAddon.Badges:GetSelectedTitle() or nil
 
         local myZone = GetZoneText() or ""
+        local gs, il = HopeAddon:GetGearScore()
 
-        local responseData = string.format("%d|%s|%s|%s|%s||",
+        local responseData = string.format("%d|%s|%s|%s|%s||%d|%d",
             level,
             class or "",
             color or "",
             title or "",
-            myZone
+            myZone,
+            il or 0,
+            gs or 0
         )
 
         self:SendDirectMessage(sender, MSG_PONG, responseData)
@@ -480,12 +489,14 @@ end
 function FellowTravelers:HandlePong(sender, data)
     HopeAddon:Debug("Received PONG from", sender, "data:", data)
 
-    -- Parse response data (extended format with location)
-    -- Format: level|class|color|title|zone|x|y
-    local level, class, color, title, zone, xStr, yStr = strsplit("|", data, 7)
+    -- Parse response data (extended format with location and gear data)
+    -- Format: level|class|color|title|zone|x|y|avgILvl|gearScore
+    local level, class, color, title, zone, xStr, yStr, avgILvlStr, gearScoreStr = strsplit("|", data, 9)
     level = tonumber(level)
     local x = xStr and tonumber(xStr) or nil
     local y = yStr and tonumber(yStr) or nil
+    local avgILvl = avgILvlStr and tonumber(avgILvlStr) or nil
+    local gearScore = gearScoreStr and tonumber(gearScoreStr) or nil
 
     -- Register/update fellow
     self:RegisterFellow(sender, {
@@ -496,6 +507,8 @@ function FellowTravelers:HandlePong(sender, data)
         zone = zone ~= "" and zone or nil,
         x = x,
         y = y,
+        avgILvl = avgILvl,
+        gearScore = gearScore,
     })
 
     -- Request full profile if we don't have it cached
@@ -721,6 +734,15 @@ function FellowTravelers:RegisterFellow(name, info)
     if info.zone then fellow.lastSeenZone = info.zone end
     if info.selectedColor then fellow.selectedColor = info.selectedColor end
     if info.selectedTitle then fellow.selectedTitle = info.selectedTitle end
+
+    -- Update gear data
+    if info.avgILvl and info.avgILvl > 0 then
+        fellow.avgILvl = info.avgILvl
+        fellow.avgILvlTime = time()
+    end
+    if info.gearScore and info.gearScore > 0 then
+        fellow.gearScore = info.gearScore
+    end
 
     -- Update location data for map pins
     if info.x and info.y then
