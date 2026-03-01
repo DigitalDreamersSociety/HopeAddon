@@ -725,6 +725,32 @@ function Calendar:GetUpcomingEvents(limit)
         end
     end
 
+    -- Include hardcoded server/guild events
+    for _, event in ipairs(C.SERVER_EVENTS or {}) do
+        if event.date and event.date >= today then
+            table.insert(events, event)
+        end
+    end
+
+    -- Include permanent recurring guild events for the next 30 days
+    local UPCOMING_DAYS = 30
+    for _, event in ipairs(C.PERMANENT_GUILD_EVENTS or {}) do
+        for dayOffset = 0, UPCOMING_DAYS do
+            local futureTime = time() + (dayOffset * 86400)
+            local ft = date("*t", futureTime)
+            if ft.wday == event.dayOfWeek then
+                local dateStr = string.format("%04d-%02d-%02d", ft.year, ft.month, ft.day)
+                if dateStr >= today then
+                    local copy = {}
+                    for k, v in pairs(event) do copy[k] = v end
+                    copy.date = dateStr
+                    copy.permanent = true
+                    table.insert(events, copy)
+                end
+            end
+        end
+    end
+
     -- Sort by date and time
     table.sort(events, function(a, b)
         if a.date == b.date then

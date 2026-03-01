@@ -9252,45 +9252,53 @@ C.SERVER_EVENTS = {
         backgroundTexture = "Interface\\Icons\\INV_Misc_Key_07",
         themeColor = { r = 0.6, g = 0.2, b = 0.8 },  -- Purple (arcane/shadow theme)
     },
-    -- Add future server events here as needed
-    -- Example format for a future event:
-    -- {
-    --     id = "burning_legion_invasion",
-    --     title = "Burning Legion Assault",
-    --     eventType = "SERVER",
-    --     date = "2007-03-15",
-    --     startTime = "All Day",
-    --     description = "The Burning Legion has launched an assault on Outland! Defend Shattrath and the surrounding zones.",
-    --     icon = "Interface\\Icons\\Spell_Fire_FelFlameRing",
-    --     permanent = false,
-    -- },
 }
 
--- Permanent recurring guild events (appear every matching day of the week)
+-- ============================================================================
+-- PERMANENT RECURRING GUILD EVENTS
+-- ============================================================================
+--[[
+    Permanent recurring guild events defined by day of week.
+    These are expanded dynamically by Calendar.lua for any date range.
+    dayOfWeek uses Lua's wday: 1=Sunday, 2=Monday, ..., 7=Saturday
+]]
 C.PERMANENT_GUILD_EVENTS = {
     {
-        id = "weekly_gruul_mag_pug",
-        title = "Gruul's & Mag's Pugs",
+        id = "weekly_kara_meetup",
+        title = "Kara Meetup",
         eventType = "SERVER",
-        dayOfWeek = 7,  -- Saturday (wday: 1=Sun, 7=Sat)
-        startTime = "17:00",  -- 5 PM server (Mountain)
-        description = "Weekly Gruul's Lair & Magtheridon's Lair pug runs. All welcome!",
-        icon = "Interface\\LFGFRAME\\LFG-Eye",
-        themeColor = { r = 1.0, g = 0.5, b = 0.0 },  -- Orange (raid)
+        dayOfWeek = 3,  -- Tuesday (wday: 1=Sun...7=Sat)
+        startTime = "18:00",
+        description = "Weekly Karazhan meetup! Organize your 10-man groups with guildies. Sign up at hoperaider.com for group details.",
+        icon = "Interface\\Icons\\INV_Misc_Key_07",
+        backgroundTexture = "Interface\\Icons\\INV_Misc_Key_07",
+        themeColor = { r = 0.6, g = 0.2, b = 0.8 },
     },
     {
-        id = "weekly_arena_meetup",
-        title = "Arena Meetup Night",
+        id = "weekly_guild_hangout",
+        title = "Guild Hangout",
         eventType = "SERVER",
-        dayOfWeek = 2,  -- Monday (wday: 1=Sun, 2=Mon)
-        startTime = "19:00",  -- 7 PM server (Mountain)
-        description = "Weekly arena meetup night. Find partners and queue up!",
-        icon = "Interface\\Icons\\INV_Sword_48",
-        themeColor = { r = 0.8, g = 0.2, b = 0.2 },  -- Red (PvP)
+        dayOfWeek = 5,  -- Thursday
+        startTime = "18:00",
+        description = "Guild hangout night! Chat about attunements, heroics, and future fun. Visit hoperaider.com for details.",
+        icon = "Interface\\Icons\\INV_Misc_QuestionMark",
+        backgroundTexture = "Interface\\Icons\\INV_Misc_QuestionMark",
+        themeColor = { r = 0.2, g = 0.8, b = 0.8 },
+    },
+    {
+        id = "weekly_gruul_mag",
+        title = "Gruul's & Mag's Night",
+        eventType = "SERVER",
+        dayOfWeek = 7,  -- Saturday
+        startTime = "17:00",
+        description = "Weekly Gruul's Lair & Magtheridon's Lair runs. All guildies welcome - 25-man raids! Sign up at hoperaider.com",
+        icon = "Interface\\Icons\\INV_Misc_MonsterClaw_04",
+        backgroundTexture = "Interface\\Icons\\INV_Misc_MonsterClaw_04",
+        themeColor = { r = 1.0, g = 0.5, b = 0.0 },
     },
 }
 
--- Helper function to get permanent recurring events for a specific date
+-- Helper to generate permanent event instances for a specific date
 function C:GetPermanentEventsForDate(dateStr)
     local events = {}
     local y, m, d = dateStr:match("(%d+)-(%d+)-(%d+)")
@@ -9522,11 +9530,11 @@ C.JOURNEY_NEXT_EVENT = {
 
 -- Upcoming Event Card Configuration
 C.JOURNEY_UPCOMING_CARD = {
-    CONTAINER_HEIGHT = 85,    -- Same as NEXT EVENT
-    ICON_SIZE = 36,           -- Same as NEXT EVENT
+    CONTAINER_HEIGHT = 70,    -- Reduced from 85 to fit more events
+    ICON_SIZE = 32,           -- Slightly smaller icons
     BORDER_WIDTH = 2,
-    MAX_EVENTS = 3,           -- Max cards to show
-    CARD_SPACING = 8,
+    MAX_EVENTS = 8,           -- Increased from 3 to show a week's worth
+    CARD_SPACING = 6,         -- Tighter spacing
 }
 
 -- Raid-specific icons (mapped by raidKey)

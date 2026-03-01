@@ -9,7 +9,7 @@ local FellowTravelers = {}
 -- CONSTANTS
 --============================================================
 local ADDON_PREFIX = "HOPEADDON"
-local PROTOCOL_VERSION = 1
+local PROTOCOL_VERSION = 2
 
 -- Message types
 local MSG_PING = "PING"         -- Announce presence
@@ -296,7 +296,7 @@ function FellowTravelers:BroadcastPresence()
 
     -- Include gear score and average item level in broadcast
     local gearScore, avgILvl = HopeAddon:GetGearScore()
-    local msg = string.format("%s:%d:%s||%d|%d", MSG_PING, PROTOCOL_VERSION, zone, avgILvl or 0, gearScore or 0)
+    local msg = string.format("%s:%d:%s|%d|%d", MSG_PING, PROTOCOL_VERSION, zone, avgILvl or 0, gearScore or 0)
 
     -- Send to different channels based on context
     -- Priority: INSTANCE_CHAT (for BGs/dungeons) > RAID > PARTY > GUILD > YELL
@@ -435,21 +435,17 @@ end
     Handle PING message - another addon user announced presence
 ]]
 function FellowTravelers:HandlePing(sender, zoneData, channel)
-    -- Parse zone and optional location + gear data from zoneData
-    -- Format: "ZoneName" or "ZoneName|x|y" or "ZoneName||avgILvl|gearScore"
-    local zone, xStr, yStr, avgILvlStr, gearScoreStr = strsplit("|", zoneData, 5)
-    local x = xStr and tonumber(xStr) or nil
-    local y = yStr and tonumber(yStr) or nil
+    -- Parse zone and gear data from zoneData
+    -- Format: "ZoneName" or "ZoneName|avgILvl|gearScore"
+    local zone, avgILvlStr, gearScoreStr = strsplit("|", zoneData, 3)
     local avgILvl = avgILvlStr and tonumber(avgILvlStr) or nil
     local gearScore = gearScoreStr and tonumber(gearScoreStr) or nil
 
-    HopeAddon:Debug("Received PING from", sender, "in zone", zone, "loc:", x, y, "ilvl:", avgILvl)
+    HopeAddon:Debug("Received PING from", sender, "in zone", zone, "ilvl:", avgILvl, "gs:", gearScore)
 
-    -- Record as fellow traveler with location and gear data
+    -- Record as fellow traveler with gear data
     self:RegisterFellow(sender, {
         zone = zone,
-        x = x,
-        y = y,
         avgILvl = avgILvl,
         gearScore = gearScore,
     })
@@ -469,7 +465,7 @@ function FellowTravelers:HandlePing(sender, zoneData, channel)
         local myZone = GetZoneText() or ""
         local gs, il = HopeAddon:GetGearScore()
 
-        local responseData = string.format("%d|%s|%s|%s|%s||%d|%d",
+        local responseData = string.format("%d|%s|%s|%s|%s|%d|%d",
             level,
             class or "",
             color or "",
@@ -489,12 +485,10 @@ end
 function FellowTravelers:HandlePong(sender, data)
     HopeAddon:Debug("Received PONG from", sender, "data:", data)
 
-    -- Parse response data (extended format with location and gear data)
-    -- Format: level|class|color|title|zone|x|y|avgILvl|gearScore
-    local level, class, color, title, zone, xStr, yStr, avgILvlStr, gearScoreStr = strsplit("|", data, 9)
+    -- Parse response data (v2 format with gear data)
+    -- Format: level|class|color|title|zone|avgILvl|gearScore
+    local level, class, color, title, zone, avgILvlStr, gearScoreStr = strsplit("|", data, 7)
     level = tonumber(level)
-    local x = xStr and tonumber(xStr) or nil
-    local y = yStr and tonumber(yStr) or nil
     local avgILvl = avgILvlStr and tonumber(avgILvlStr) or nil
     local gearScore = gearScoreStr and tonumber(gearScoreStr) or nil
 
@@ -505,8 +499,6 @@ function FellowTravelers:HandlePong(sender, data)
         selectedColor = color ~= "" and color or nil,
         selectedTitle = title ~= "" and title or nil,
         zone = zone ~= "" and zone or nil,
-        x = x,
-        y = y,
         avgILvl = avgILvl,
         gearScore = gearScore,
     })
@@ -742,13 +734,6 @@ function FellowTravelers:RegisterFellow(name, info)
     end
     if info.gearScore and info.gearScore > 0 then
         fellow.gearScore = info.gearScore
-    end
-
-    -- Update location data for map pins
-    if info.x and info.y then
-        fellow.x = info.x
-        fellow.y = info.y
-        fellow.locationTime = GetTime()
     end
 
     -- Also update known travelers for compatibility

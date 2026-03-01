@@ -228,7 +228,7 @@ function SocialToasts:Show(toastType, playerName, customMessage)
     -- Play sound
     if HopeAddon.Sounds and typeInfo.sound then
         if typeInfo.sound == "notification" then
-            HopeAddon.Sounds:PlayNotification()
+            HopeAddon.Sounds:PlayBell()
         elseif typeInfo.sound == "click" then
             HopeAddon.Sounds:PlayClick()
         end

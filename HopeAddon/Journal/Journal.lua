@@ -214,6 +214,7 @@ function Journal:OnEnable()
     self:CreateReputationBarPool()
     self:CreateBossLootPool()
     self:CreateReputationLootPool()
+    self:CreateJourneyPools()
     self:CreateMainFrame()
     self:RegisterEvents()
 
@@ -342,6 +343,14 @@ function Journal:OnDisable()
     if self.reputationBarPool then
         self.reputationBarPool:Destroy()
         self.reputationBarPool = nil
+    end
+
+    -- Destroy journey pools
+    if self.journeyPools then
+        for _, pool in pairs(self.journeyPools) do
+            if pool and pool.Destroy then pool:Destroy() end
+        end
+        self.journeyPools = nil
     end
 
     -- Destroy armory pools
@@ -1291,6 +1300,316 @@ function Journal:CreateReputationLootPool()
 end
 
 --[[
+    Create journey-specific frame pools for tier cards, loot cards, event cards, etc.
+    These replace inline "if not card then" creation patterns with proper pool management.
+]]
+function Journal:CreateJourneyPools()
+    local FramePool = HopeAddon.FramePool
+    self.journeyPools = {}
+
+    -- Pool A: nextStepCard (max 1 active) - replaces self._nextStepFrame singleton
+    self.journeyPools.nextStepCard = FramePool:NewNamed("JourneyNextStep",
+        function()
+            local card = CreateBackdropFrame("Frame", nil, UIParent)
+            card:SetBackdrop({
+                bgFile = "Interface\\Buttons\\WHITE8X8",
+                edgeFile = "Interface\\Buttons\\WHITE8X8",
+                edgeSize = 2,
+                insets = { left = 2, right = 2, top = 2, bottom = 2 }
+            })
+            card:SetBackdropColor(0.08, 0.08, 0.08, 0.95)
+
+            card.phaseBadge = card:CreateFontString(nil, "OVERLAY")
+            card.stepHeader = card:CreateFontString(nil, "OVERLAY")
+            card.stepIcon = card:CreateTexture(nil, "ARTWORK")
+            card.stepIcon:SetSize(48, 48)
+            card.stepTitle = card:CreateFontString(nil, "OVERLAY")
+            card.stepSubtitle = card:CreateFontString(nil, "OVERLAY")
+            card.stepStory = card:CreateFontString(nil, "OVERLAY")
+
+            -- Progress bar sub-frame
+            local progressBar = CreateFrame("Frame", nil, card, "BackdropTemplate")
+            progressBar:SetSize(485 - 40, 16)
+            progressBar:SetBackdrop({
+                bgFile = "Interface\\Buttons\\WHITE8X8",
+                edgeFile = "Interface\\Buttons\\WHITE8X8",
+                edgeSize = 1,
+            })
+            progressBar:SetBackdropColor(0.1, 0.1, 0.1, 0.8)
+            progressBar:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
+            progressBar.fill = progressBar:CreateTexture(nil, "ARTWORK")
+            progressBar.fill:SetPoint("TOPLEFT", 2, -2)
+            progressBar.fill:SetPoint("BOTTOMLEFT", 2, 2)
+            progressBar.label = progressBar:CreateFontString(nil, "OVERLAY")
+            progressBar.label:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
+            progressBar.label:SetPoint("CENTER", progressBar, "CENTER", 0, 0)
+            card.stepProgressBar = progressBar
+
+            card.stepNextPreview = card:CreateFontString(nil, "OVERLAY")
+
+            card:Hide()
+            return card
+        end,
+        function(card)
+            card:Hide()
+            card:ClearAllPoints()
+            card:SetParent(nil)
+            card:SetBackdropColor(0.08, 0.08, 0.08, 0.95)
+            card:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
+            card.phaseBadge:SetText("")
+            card.stepHeader:SetText("")
+            card.stepIcon:SetTexture(nil)
+            card.stepIcon:Hide()
+            card.stepTitle:SetText("")
+            card.stepSubtitle:SetText("")
+            card.stepStory:SetText("")
+            card.stepProgressBar:Hide()
+            card.stepProgressBar.fill:SetWidth(1)
+            card.stepProgressBar.label:SetText("")
+            card.stepNextPreview:SetText("")
+        end
+    )
+
+    -- Pool B: eventCard (max 1 active) - replaces self._nextEventFrame singleton
+    self.journeyPools.eventCard = FramePool:NewNamed("JourneyEventCard",
+        function()
+            local card = CreateBackdropFrame("Frame", nil, UIParent)
+            card:SetBackdrop({
+                bgFile = "Interface\\Buttons\\WHITE8X8",
+                edgeFile = "Interface\\Buttons\\WHITE8X8",
+                edgeSize = 2,
+                insets = { left = 2, right = 2, top = 2, bottom = 2 }
+            })
+
+            card.sectionLabel = card:CreateFontString(nil, "OVERLAY")
+            card.eventIcon = card:CreateTexture(nil, "ARTWORK")
+            card.eventIcon:SetSize(36, 36)
+            card.eventTitle = card:CreateFontString(nil, "OVERLAY")
+            card.eventDateTime = card:CreateFontString(nil, "OVERLAY")
+            card.eventCountdown = card:CreateFontString(nil, "OVERLAY")
+            card.clickHint = card:CreateFontString(nil, "OVERLAY")
+            card.clickArea = CreateFrame("Button", nil, card)
+
+            card:Hide()
+            return card
+        end,
+        function(card)
+            card:Hide()
+            card:ClearAllPoints()
+            card:SetParent(nil)
+            card:SetBackdropColor(0.1, 0.1, 0.1, 0.8)
+            card:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
+            card.sectionLabel:SetText("")
+            card.eventIcon:SetTexture(nil)
+            card.eventIcon:SetDesaturated(false)
+            card.eventIcon:SetAlpha(1)
+            card.eventIcon:Hide()
+            card.eventTitle:SetText("")
+            card.eventDateTime:SetText("")
+            card.eventCountdown:SetText("")
+            card.eventCountdown:SetTextColor(1, 1, 1)
+            card.clickHint:SetText("")
+            card.clickHint:SetAlpha(0)
+            card.clickArea:SetScript("OnClick", nil)
+            card.clickArea:SetScript("OnEnter", nil)
+            card.clickArea:SetScript("OnLeave", nil)
+            card._event = nil
+            card._colorTheme = nil
+            card._isPast = nil
+            card._formattedDate = nil
+            card._formattedTime = nil
+            GameTooltip:Hide()
+        end
+    )
+
+    -- Pool C: tierCard (max 3 active)
+    self.journeyPools.tierCard = FramePool:NewNamed("JourneyTierCard",
+        function()
+            local card = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
+            card:SetSize(150, 100)
+            card:SetBackdrop(HopeAddon.Constants.BACKDROPS.SOLID_TOOLTIP)
+
+            card.tierName = card:CreateFontString(nil, "OVERLAY")
+            card.tierName:SetFont(HopeAddon.assets.fonts.HEADER, 13, "")
+            card.tierName:SetPoint("TOP", card, "TOP", 0, -8)
+
+            card.statusText = card:CreateFontString(nil, "OVERLAY")
+            card.statusText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
+            card.statusText:SetPoint("TOP", card.tierName, "BOTTOM", 0, -2)
+
+            card.progressText = card:CreateFontString(nil, "OVERLAY")
+            card.progressText:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
+            card.progressText:SetPoint("TOP", card.statusText, "BOTTOM", 0, -8)
+
+            card.raidList = card:CreateFontString(nil, "OVERLAY")
+            card.raidList:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
+            card.raidList:SetPoint("BOTTOM", card, "BOTTOM", 0, 8)
+            card.raidList:SetWidth(140)
+            card.raidList:SetJustifyH("CENTER")
+
+            card:Hide()
+            return card
+        end,
+        function(card)
+            card:Hide()
+            card:ClearAllPoints()
+            card:SetParent(nil)
+            card:SetBackdropColor(0.1, 0.1, 0.1, 0.8)
+            card:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
+            card.tierName:SetText("")
+            card.statusText:SetText("")
+            card.progressText:SetText("")
+            card.raidList:SetText("")
+        end
+    )
+
+    -- Pool D: lootCard (max ~9 active) - shared by CreateLootCard and CreateLevelingGearCard
+    self.journeyPools.lootCard = FramePool:NewNamed("JourneyLootCard",
+        function()
+            local card = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
+            card:SetHeight(72)
+            card:SetBackdrop({
+                bgFile = "Interface\\Buttons\\WHITE8X8",
+                edgeFile = "Interface\\Buttons\\WHITE8X8",
+                edgeSize = 1,
+                insets = { left = 1, right = 1, top = 1, bottom = 1 }
+            })
+            card:SetBackdropColor(0.06, 0.06, 0.08, 0.95)
+            card:EnableMouse(true)
+
+            card.sourceText = card:CreateFontString(nil, "OVERLAY")
+            card.sourceText:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
+            card.sourceText:SetPoint("TOPLEFT", card, "TOPLEFT", 8, -6)
+
+            card.itemIcon = card:CreateTexture(nil, "ARTWORK")
+            card.itemIcon:SetSize(32, 32)
+            card.itemIcon:SetPoint("TOPLEFT", card, "TOPLEFT", 8, -20)
+
+            card.iconBorder = card:CreateTexture(nil, "OVERLAY")
+            card.iconBorder:SetSize(36, 36)
+            card.iconBorder:SetPoint("CENTER", card.itemIcon, "CENTER", 0, 0)
+            card.iconBorder:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
+            card.iconBorder:SetBlendMode("ADD")
+
+            card.itemName = card:CreateFontString(nil, "OVERLAY")
+            card.itemName:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+            card.itemName:SetPoint("TOPLEFT", card.itemIcon, "TOPRIGHT", 8, 0)
+
+            card.slotText = card:CreateFontString(nil, "OVERLAY")
+            card.slotText:SetFont(HopeAddon.assets.fonts.SMALL, 8, "")
+            card.slotText:SetPoint("TOPLEFT", card.itemName, "BOTTOMLEFT", 0, -1)
+            card.slotText:SetTextColor(0.7, 0.7, 0.7)
+
+            card.statsText = card:CreateFontString(nil, "OVERLAY")
+            card.statsText:SetFont(HopeAddon.assets.fonts.SMALL, 8, "")
+            card.statsText:SetPoint("TOPLEFT", card.slotText, "BOTTOMLEFT", 0, -1)
+            card.statsText:SetTextColor(0.5, 0.75, 0.5)
+            card.statsText:SetJustifyH("LEFT")
+
+            card.progressBg = card:CreateTexture(nil, "BACKGROUND")
+            card.progressBg:SetColorTexture(0.08, 0.08, 0.1, 0.9)
+            card.progressBg:SetHeight(6)
+            card.progressBg:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 8, 6)
+            card.progressBg:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -8, 6)
+
+            card.progressFill = card:CreateTexture(nil, "ARTWORK")
+            card.progressFill:SetPoint("TOPLEFT", card.progressBg, "TOPLEFT", 1, -1)
+
+            card.progressText = card:CreateFontString(nil, "OVERLAY")
+            card.progressText:SetFont(HopeAddon.assets.fonts.SMALL, 8, "")
+            card.progressText:SetPoint("BOTTOM", card.progressBg, "TOP", 0, 2)
+            card.progressText:SetTextColor(0.8, 0.8, 0.8)
+
+            card:Hide()
+            return card
+        end,
+        function(card)
+            card:Hide()
+            card:ClearAllPoints()
+            card:SetParent(nil)
+            -- Reset to endgame defaults
+            card:SetHeight(72)
+            card:SetBackdropColor(0.06, 0.06, 0.08, 0.95)
+            card:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
+            card.sourceText:SetText("")
+            card.itemIcon:SetTexture(nil)
+            card.itemIcon:SetSize(32, 32)
+            card.itemIcon:ClearAllPoints()
+            card.itemIcon:SetPoint("TOPLEFT", card, "TOPLEFT", 8, -20)
+            card.itemIcon:Hide()
+            card.iconBorder:SetVertexColor(1, 1, 1)
+            card.iconBorder:SetSize(36, 36)
+            card.iconBorder:Hide()
+            card.itemName:SetText("")
+            card.itemName:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+            card.itemName:ClearAllPoints()
+            card.itemName:SetPoint("TOPLEFT", card.itemIcon, "TOPRIGHT", 8, 0)
+            card.slotText:SetText("")
+            card.slotText:SetFont(HopeAddon.assets.fonts.SMALL, 8, "")
+            card.slotText:SetTextColor(0.7, 0.7, 0.7)
+            card.statsText:SetText("")
+            card.statsText:SetFont(HopeAddon.assets.fonts.SMALL, 8, "")
+            card.statsText:SetTextColor(0.5, 0.75, 0.5)
+            card.statsText:SetWidth(0)
+            card.progressBg:Hide()
+            card.progressFill:SetColorTexture(0.5, 0.5, 0.5, 0.8)
+            card.progressFill:SetSize(1, 4)
+            card.progressFill:Hide()
+            card.progressText:SetText("")
+            card.progressText:ClearAllPoints()
+            card.progressText:SetPoint("BOTTOM", card.progressBg, "TOP", 0, 2)
+            card:SetScript("OnEnter", nil)
+            card:SetScript("OnLeave", nil)
+            GameTooltip:Hide()
+        end
+    )
+
+    -- Pool E: upcomingEventCard (max 3 active)
+    self.journeyPools.upcomingEventCard = FramePool:NewNamed("JourneyUpcomingEvent",
+        function()
+            local card = CreateFrame("Button", nil, UIParent, "BackdropTemplate")
+
+            card._icon = card:CreateTexture(nil, "ARTWORK")
+            card._icon:SetSize(36, 36)
+
+            card._title = card:CreateFontString(nil, "OVERLAY")
+            card._title:SetFont(HopeAddon.assets.fonts.HEADER, 12, "")
+
+            card._date = card:CreateFontString(nil, "OVERLAY")
+            card._date:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
+
+            card._leader = card:CreateFontString(nil, "OVERLAY")
+            card._leader:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+
+            card._countdown = card:CreateFontString(nil, "OVERLAY")
+            card._countdown:SetFont(HopeAddon.assets.fonts.HEADER, 11, "")
+
+            card:Hide()
+            return card
+        end,
+        function(card)
+            card:Hide()
+            card:ClearAllPoints()
+            card:SetParent(nil)
+            card:SetBackdropColor(0.1, 0.1, 0.1, 0.8)
+            card:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
+            card._icon:SetTexture(nil)
+            card._icon:Hide()
+            card._title:SetText("")
+            card._date:SetText("")
+            card._leader:SetText("")
+            card._countdown:SetText("")
+            card:SetScript("OnClick", nil)
+            card:SetScript("OnEnter", nil)
+            card:SetScript("OnLeave", nil)
+            card._colorTheme = nil
+            card._event = nil
+            GameTooltip:Hide()
+        end
+    )
+end
+
+--[[
     Acquire and configure an upgrade card from the pool
     @param parent Frame - Parent to attach to
     @param itemData table - Item data from CLASS_SPEC_LOOT_HOTLIST
@@ -1942,6 +2261,13 @@ function Journal:SelectTab(tabId)
     end
 
     -- Release pooled frames in correct order:
+    -- 0. Release journey-specific pools (leaf-level, no children to worry about)
+    if self.journeyPools then
+        for _, pool in pairs(self.journeyPools) do
+            pool:ReleaseAll()
+        end
+    end
+
     -- 1. Cards and nested items first (they're children of other frames)
     if self.cardPool then
         self.cardPool:ReleaseAll()
@@ -2644,37 +2970,8 @@ function Journal:CreateTierProgressSection()
     for i, tierKey in ipairs(tiers) do
         local tierStatus = self:GetTierStatus(tierKey)
         if tierStatus then
-            local cardKey = "tierCard" .. tierKey
-            local card = container[cardKey]
-
-            if not card then
-                card = CreateFrame("Frame", nil, container, "BackdropTemplate")
-                card:SetSize(cardWidth, cardHeight)
-                card:SetBackdrop(HopeAddon.Constants.BACKDROPS.SOLID_TOOLTIP)
-                container[cardKey] = card
-
-                -- Tier name
-                card.tierName = card:CreateFontString(nil, "OVERLAY")
-                card.tierName:SetFont(HopeAddon.assets.fonts.HEADER, 13, "")
-                card.tierName:SetPoint("TOP", card, "TOP", 0, -8)
-
-                -- Status text
-                card.statusText = card:CreateFontString(nil, "OVERLAY")
-                card.statusText:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
-                card.statusText:SetPoint("TOP", card.tierName, "BOTTOM", 0, -2)
-
-                -- Progress text
-                card.progressText = card:CreateFontString(nil, "OVERLAY")
-                card.progressText:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
-                card.progressText:SetPoint("TOP", card.statusText, "BOTTOM", 0, -8)
-
-                -- Raid list
-                card.raidList = card:CreateFontString(nil, "OVERLAY")
-                card.raidList:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
-                card.raidList:SetPoint("BOTTOM", card, "BOTTOM", 0, 8)
-                card.raidList:SetWidth(140)  -- cardWidth - 10
-                card.raidList:SetJustifyH("CENTER")
-            end
+            local card = self.journeyPools.tierCard:Acquire()
+            card:SetParent(container)
 
             -- Position card
             card:ClearAllPoints()
@@ -2700,7 +2997,7 @@ function Journal:CreateTierProgressSection()
 
             -- Set text
             card.tierName:SetText(HopeAddon:ColorText(tierStatus.name, tierStatus.color))
-            card.tierName:Show()  -- Explicit show for pooled children
+            card.tierName:Show()
 
             local statusColors = {
                 LOCKED = "CC4444",
@@ -2709,10 +3006,10 @@ function Journal:CreateTierProgressSection()
                 CLEARED = "44CC44",
             }
             card.statusText:SetText("|cFF" .. (statusColors[tierStatus.status] or "FFFFFF") .. tierStatus.status .. "|r")
-            card.statusText:Show()  -- Explicit show for pooled children
+            card.statusText:Show()
 
             card.progressText:SetText(tierStatus.bossesKilled .. " / " .. tierStatus.totalBosses .. " bosses")
-            card.progressText:Show()  -- Explicit show for pooled children
+            card.progressText:Show()
 
             -- Build raid list
             local raidLines = {}
@@ -2721,7 +3018,7 @@ function Journal:CreateTierProgressSection()
                 table.insert(raidLines, checkmark .. " " .. raid.name)
             end
             card.raidList:SetText(table.concat(raidLines, "\n"))
-            card.raidList:Show()  -- Explicit show for pooled children
+            card.raidList:Show()
 
             card:Show()
         end
@@ -2827,6 +3124,7 @@ function Journal:CreateAttunementSummary()
     sectionTitle:ClearAllPoints()
     sectionTitle:SetPoint("TOPLEFT", container, "TOPLEFT", 10, -5)
     sectionTitle:SetText(HopeAddon:ColorText("ATTUNEMENTS", "GOLD_BRIGHT"))
+    sectionTitle:Show()
 
     -- Attunement items
     local yOffset = -25
@@ -3025,8 +3323,7 @@ function Journal:CreateLootHotlist()
             -- Add item cards to section
             local itemYOffset = -30
             for i, item in ipairs(items) do
-                local cardKey = "lootCard_" .. category.key .. "_" .. i
-                local card = self:CreateLootCard(sectionFrame, item, cardKey)
+                local card = self:CreateLootCard(sectionFrame, item)
                 card:ClearAllPoints()
                 card:SetPoint("TOPLEFT", sectionFrame, "TOPLEFT", 5, itemYOffset)
                 card:SetPoint("RIGHT", sectionFrame, "RIGHT", -5, 0)
@@ -3117,76 +3414,23 @@ end
     - Stats summary
     - Progress bar (for rep items) or source tag (for drops/crafted)
 ]]
-function Journal:CreateLootCard(parent, item, cardKey)
-    local card = parent[cardKey]
+function Journal:CreateLootCard(parent, item)
+    local card = self.journeyPools.lootCard:Acquire()
+    card:SetParent(parent)
+    card:SetHeight(72)
+
+    -- Explicitly set endgame icon sizes (shared pool, leveling uses different sizes)
+    card.itemIcon:SetSize(32, 32)
+    card.iconBorder:SetSize(36, 36)
+
+    -- Set endgame-specific fonts
+    card.itemName:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+    card.slotText:SetFont(HopeAddon.assets.fonts.SMALL, 8, "")
+    card.slotText:SetTextColor(0.7, 0.7, 0.7)
+    card.statsText:SetFont(HopeAddon.assets.fonts.SMALL, 8, "")
+    card.statsText:SetTextColor(0.5, 0.75, 0.5)
     local cardWidth = parent:GetWidth() - 10
-
-    if not card then
-        card = CreateFrame("Frame", nil, parent, "BackdropTemplate")
-        card:SetHeight(72)
-        card:SetBackdrop({
-            bgFile = "Interface\\Buttons\\WHITE8X8",
-            edgeFile = "Interface\\Buttons\\WHITE8X8",
-            edgeSize = 1,
-            insets = { left = 1, right = 1, top = 1, bottom = 1 }
-        })
-        card:SetBackdropColor(0.06, 0.06, 0.08, 0.95)
-
-        -- Source text (faction/dungeon/profession)
-        card.sourceText = card:CreateFontString(nil, "OVERLAY")
-        card.sourceText:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
-        card.sourceText:SetPoint("TOPLEFT", card, "TOPLEFT", 8, -6)
-
-        -- Item icon
-        card.itemIcon = card:CreateTexture(nil, "ARTWORK")
-        card.itemIcon:SetSize(32, 32)
-        card.itemIcon:SetPoint("TOPLEFT", card, "TOPLEFT", 8, -20)
-
-        -- Icon border (quality colored)
-        card.iconBorder = card:CreateTexture(nil, "OVERLAY")
-        card.iconBorder:SetSize(36, 36)
-        card.iconBorder:SetPoint("CENTER", card.itemIcon, "CENTER", 0, 0)
-        card.iconBorder:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
-        card.iconBorder:SetBlendMode("ADD")
-
-        -- Item name
-        card.itemName = card:CreateFontString(nil, "OVERLAY")
-        card.itemName:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
-        card.itemName:SetPoint("TOPLEFT", card.itemIcon, "TOPRIGHT", 8, 0)
-
-        -- Slot text
-        card.slotText = card:CreateFontString(nil, "OVERLAY")
-        card.slotText:SetFont(HopeAddon.assets.fonts.SMALL, 8, "")
-        card.slotText:SetPoint("TOPLEFT", card.itemName, "BOTTOMLEFT", 0, -1)
-        card.slotText:SetTextColor(0.7, 0.7, 0.7)
-
-        -- Stats text
-        card.statsText = card:CreateFontString(nil, "OVERLAY")
-        card.statsText:SetFont(HopeAddon.assets.fonts.SMALL, 8, "")
-        card.statsText:SetPoint("TOPLEFT", card.slotText, "BOTTOMLEFT", 0, -1)
-        card.statsText:SetTextColor(0.5, 0.75, 0.5)
-        card.statsText:SetWidth(cardWidth - 60)
-        card.statsText:SetJustifyH("LEFT")
-
-        -- Progress bar background (for rep items)
-        card.progressBg = card:CreateTexture(nil, "BACKGROUND")
-        card.progressBg:SetColorTexture(0.08, 0.08, 0.1, 0.9)
-        card.progressBg:SetHeight(6)
-        card.progressBg:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 8, 6)
-        card.progressBg:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -8, 6)
-
-        -- Progress bar fill
-        card.progressFill = card:CreateTexture(nil, "ARTWORK")
-        card.progressFill:SetPoint("TOPLEFT", card.progressBg, "TOPLEFT", 1, -1)
-
-        -- Progress/source text
-        card.progressText = card:CreateFontString(nil, "OVERLAY")
-        card.progressText:SetFont(HopeAddon.assets.fonts.SMALL, 8, "")
-        card.progressText:SetPoint("BOTTOM", card.progressBg, "TOP", 0, 2)
-        card.progressText:SetTextColor(0.8, 0.8, 0.8)
-
-        parent[cardKey] = card
-    end
+    card.statsText:SetWidth(cardWidth - 60)
 
     -- Get quality color
     local qualityColors = HopeAddon.Constants.ITEM_QUALITY_COLORS
@@ -3293,8 +3537,7 @@ function Journal:CreateLootCard(parent, item, cardKey)
         card.progressText:Show()
     end
 
-    -- Enable mouse for tooltip
-    card:EnableMouse(true)
+    -- Tooltip
     card:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         if item.itemId then
@@ -3406,32 +3649,74 @@ function Journal:CreateNextStepBox()
     local c = HopeAddon.colors[phaseColor] or HopeAddon.colors.GOLD_BRIGHT
     local scrollContent = self.mainFrame.scrollContainer.content
 
-    -- Use persistent frame with BackdropTemplate for border color support
-    local container = self._nextStepFrame
-    if not container then
-        container = HopeAddon:CreateBackdropFrame("Frame", nil, scrollContent)
-        container:SetBackdrop({
-            bgFile = "Interface\\Buttons\\WHITE8X8",
-            edgeFile = "Interface\\Buttons\\WHITE8X8",
-            edgeSize = 2,
-            insets = { left = 2, right = 2, top = 2, bottom = 2 }
-        })
-        container:SetBackdropColor(0.08, 0.08, 0.08, 0.95)
-        self._nextStepFrame = container
-    end
+    -- Acquire from pool
+    local container = self.journeyPools.nextStepCard:Acquire()
     container:SetParent(scrollContent)
     container:SetSize(CONTAINER_WIDTH, 180)
-    container:Show()
-    local phaseBadge = container.phaseBadge or container:CreateFontString(nil, "OVERLAY") container.phaseBadge = phaseBadge phaseBadge:SetFont(HopeAddon.assets.fonts.SMALL, 9, "") phaseBadge:ClearAllPoints() phaseBadge:SetPoint("TOPRIGHT", container, "TOPRIGHT", -10, -8) phaseBadge:SetText(HopeAddon:ColorText(PHASE_NAMES[stepData.phase] or stepData.phase, phaseColor)) phaseBadge:Show()
-    local header = container.stepHeader or container:CreateFontString(nil, "OVERLAY") container.stepHeader = header header:SetFont(HopeAddon.assets.fonts.HEADER, 11, "") header:ClearAllPoints() header:SetPoint("TOPLEFT", container, "TOPLEFT", 10, -5) header:SetText(HopeAddon:ColorText("YOUR NEXT STEP", phaseColor)) header:Show()
-    local icon = container.stepIcon or container:CreateTexture(nil, "ARTWORK") container.stepIcon = icon icon:SetSize(48, 48) icon:ClearAllPoints() icon:SetPoint("TOPLEFT", container, "TOPLEFT", 15, -25) icon:SetTexture(stepData.icon or HopeAddon.DEFAULT_ICON_PATH) icon:Show()
-    local title = container.stepTitle or container:CreateFontString(nil, "OVERLAY") container.stepTitle = title title:SetFont(HopeAddon.assets.fonts.HEADER, 14, "") title:ClearAllPoints() title:SetPoint("TOPLEFT", icon, "TOPRIGHT", 12, 2) title:SetText(HopeAddon:ColorText(stepData.title, "BRIGHT_WHITE")) title:Show()
-    local subtitle = container.stepSubtitle or container:CreateFontString(nil, "OVERLAY") container.stepSubtitle = subtitle subtitle:SetFont(HopeAddon.assets.fonts.BODY, 11, "") subtitle:ClearAllPoints() subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -2) subtitle:SetText(HopeAddon:ColorText(stepData.subtitle, "SUBTLE")) subtitle:Show()
-    local story = container.stepStory or container:CreateFontString(nil, "OVERLAY") container.stepStory = story story:SetFont(HopeAddon.assets.fonts.BODY, 10, "") story:ClearAllPoints() story:SetPoint("TOPLEFT", container, "TOPLEFT", 15, -80) story:SetPoint("RIGHT", container, "RIGHT", -15, 0) story:SetJustifyH("LEFT") story:SetText("|cFFCCCCCC\"" .. (stepData.story or "") .. "\"|r") story:Show()
-    local progressBar = container.stepProgressBar if not progressBar then progressBar = CreateFrame("Frame", nil, container, "BackdropTemplate") progressBar:SetSize(CONTAINER_WIDTH - 40, 16) progressBar:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 }) progressBar:SetBackdropColor(0.1, 0.1, 0.1, 0.8) progressBar:SetBackdropBorderColor(0.3, 0.3, 0.3, 1) progressBar.fill = progressBar:CreateTexture(nil, "ARTWORK") progressBar.fill:SetPoint("TOPLEFT", 2, -2) progressBar.fill:SetPoint("BOTTOMLEFT", 2, 2) progressBar.label = progressBar:CreateFontString(nil, "OVERLAY") progressBar.label:SetFont(HopeAddon.assets.fonts.SMALL, 9, "") progressBar.label:SetPoint("CENTER", progressBar, "CENTER", 0, 0) container.stepProgressBar = progressBar end
-    progressBar:ClearAllPoints() progressBar:SetPoint("BOTTOMLEFT", container, "BOTTOMLEFT", 20, 35) local pct = stepData.progress.percentage or 0 progressBar.fill:SetWidth(math.max(1, (CONTAINER_WIDTH - 44) * (pct / 100))) progressBar.fill:SetColorTexture(c.r, c.g, c.b, 0.8) progressBar.label:SetText(stepData.progress.label or (pct .. "%")) progressBar:Show()
-    local nextPreview = container.stepNextPreview or container:CreateFontString(nil, "OVERLAY") container.stepNextPreview = nextPreview nextPreview:SetFont(HopeAddon.assets.fonts.SMALL, 9, "") nextPreview:ClearAllPoints() nextPreview:SetPoint("BOTTOMLEFT", container, "BOTTOMLEFT", 20, 12) nextPreview:SetText("") nextPreview:Show()
-    container:SetBackdropBorderColor(c.r, c.g, c.b, 1) return container
+
+    -- Phase badge
+    container.phaseBadge:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
+    container.phaseBadge:ClearAllPoints()
+    container.phaseBadge:SetPoint("TOPRIGHT", container, "TOPRIGHT", -10, -8)
+    container.phaseBadge:SetText(HopeAddon:ColorText(PHASE_NAMES[stepData.phase] or stepData.phase, phaseColor))
+    container.phaseBadge:Show()
+
+    -- Header
+    container.stepHeader:SetFont(HopeAddon.assets.fonts.HEADER, 11, "")
+    container.stepHeader:ClearAllPoints()
+    container.stepHeader:SetPoint("TOPLEFT", container, "TOPLEFT", 10, -5)
+    container.stepHeader:SetText(HopeAddon:ColorText("YOUR NEXT STEP", phaseColor))
+    container.stepHeader:Show()
+
+    -- Icon
+    container.stepIcon:ClearAllPoints()
+    container.stepIcon:SetPoint("TOPLEFT", container, "TOPLEFT", 15, -25)
+    container.stepIcon:SetTexture(stepData.icon or HopeAddon.DEFAULT_ICON_PATH)
+    container.stepIcon:Show()
+
+    -- Title
+    container.stepTitle:SetFont(HopeAddon.assets.fonts.HEADER, 14, "")
+    container.stepTitle:ClearAllPoints()
+    container.stepTitle:SetPoint("TOPLEFT", container.stepIcon, "TOPRIGHT", 12, 2)
+    container.stepTitle:SetText(HopeAddon:ColorText(stepData.title, "BRIGHT_WHITE"))
+    container.stepTitle:Show()
+
+    -- Subtitle
+    container.stepSubtitle:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
+    container.stepSubtitle:ClearAllPoints()
+    container.stepSubtitle:SetPoint("TOPLEFT", container.stepTitle, "BOTTOMLEFT", 0, -2)
+    container.stepSubtitle:SetText(HopeAddon:ColorText(stepData.subtitle, "SUBTLE"))
+    container.stepSubtitle:Show()
+
+    -- Story
+    container.stepStory:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+    container.stepStory:ClearAllPoints()
+    container.stepStory:SetPoint("TOPLEFT", container, "TOPLEFT", 15, -80)
+    container.stepStory:SetPoint("RIGHT", container, "RIGHT", -15, 0)
+    container.stepStory:SetJustifyH("LEFT")
+    container.stepStory:SetText("|cFFCCCCCC\"" .. (stepData.story or "") .. "\"|r")
+    container.stepStory:Show()
+
+    -- Progress bar
+    local progressBar = container.stepProgressBar
+    progressBar:ClearAllPoints()
+    progressBar:SetPoint("BOTTOMLEFT", container, "BOTTOMLEFT", 20, 35)
+    local pct = stepData.progress.percentage or 0
+    progressBar.fill:SetWidth(math.max(1, (CONTAINER_WIDTH - 44) * (pct / 100)))
+    progressBar.fill:SetColorTexture(c.r, c.g, c.b, 0.8)
+    progressBar.label:SetText(stepData.progress.label or (pct .. "%"))
+    progressBar:Show()
+
+    -- Next preview
+    container.stepNextPreview:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
+    container.stepNextPreview:ClearAllPoints()
+    container.stepNextPreview:SetPoint("BOTTOMLEFT", container, "BOTTOMLEFT", 20, 12)
+    container.stepNextPreview:SetText("")
+    container.stepNextPreview:Show()
+
+    -- Theme border
+    container:SetBackdropBorderColor(c.r, c.g, c.b, 1)
+    return container
 end
 
 --[[
@@ -3450,6 +3735,7 @@ function Journal:CreateTimelineSeparator()
     header:ClearAllPoints()
     header:SetPoint("LEFT", container, "LEFT", 10, 0)
     header:SetText(HopeAddon:ColorText("TIMELINE", "GOLD_BRIGHT"))
+    header:Show()
 
     -- Divider line
     local divider = container.timelineDivider
@@ -3582,6 +3868,7 @@ function Journal:PopulateJourneyPre60(playerLevel)
     awaitsTitle:ClearAllPoints()
     awaitsTitle:SetPoint("TOPLEFT", awaitsContainer, "TOPLEFT", 15, -12)
     awaitsTitle:SetText(HopeAddon:ColorText("WHAT AWAITS IN OUTLAND", "ARCANE_PURPLE"))
+    awaitsTitle:Show()
 
     -- Bullet points
     local bulletText = awaitsContainer.bulletText
@@ -3603,6 +3890,7 @@ function Journal:PopulateJourneyPre60(playerLevel)
         "  â€¢ Gear recommendations tailored to your spec\n" ..
         "  â€¢ Begin your journey through Outland's zones"
     )
+    bulletText:Show()
 
     scrollContainer:AddEntry(awaitsContainer)
 
@@ -3779,36 +4067,9 @@ end
     @param parent - The parent frame (collapsible section content container)
     @return Frame|nil - The card frame, or nil if no event found
 ]]
-function Journal:CreateNextEventCardContent(parent)
+function Journal:PopulateEventCard(container, parent, event, isPast, colorTheme)
     local C = HopeAddon.Constants
     local UI = C.JOURNEY_NEXT_EVENT
-
-    local event, isPast = C:GetNextAppWideEvent()
-    if not event then return nil end
-
-    local colorTheme = C.APP_WIDE_EVENT_COLORS[event.colorName] or C.APP_WIDE_EVENT_COLORS.GOLD
-
-    -- Create/reuse persistent frame (themed border needs per-instance styling)
-    local container = self._nextEventFrame
-    if not container then
-        container = HopeAddon:CreateBackdropFrame("Frame", nil, parent)
-        container:SetBackdrop({
-            bgFile = "Interface\\Buttons\\WHITE8X8",
-            edgeFile = "Interface\\Buttons\\WHITE8X8",
-            edgeSize = UI.BORDER_WIDTH,
-            insets = { left = UI.BORDER_WIDTH, right = UI.BORDER_WIDTH, top = UI.BORDER_WIDTH, bottom = UI.BORDER_WIDTH }
-        })
-        self._nextEventFrame = container
-
-        -- Create child elements once
-        container.sectionLabel = container:CreateFontString(nil, "OVERLAY")
-        container.eventIcon = container:CreateTexture(nil, "ARTWORK")
-        container.eventTitle = container:CreateFontString(nil, "OVERLAY")
-        container.eventDateTime = container:CreateFontString(nil, "OVERLAY")
-        container.eventCountdown = container:CreateFontString(nil, "OVERLAY")
-        container.clickHint = container:CreateFontString(nil, "OVERLAY")
-        container.clickArea = CreateFrame("Button", nil, container)
-    end
 
     container:SetParent(parent)
     container:SetSize(CONTAINER_WIDTH, UI.CONTAINER_HEIGHT)
@@ -3830,6 +4091,7 @@ function Journal:CreateNextEventCardContent(parent)
     container.sectionLabel:SetPoint("TOPLEFT", container, "TOPLEFT", 10, -6)
     container.sectionLabel:SetTextColor(labelColor.r, labelColor.g, labelColor.b)
     container.sectionLabel:SetText(isPast and "RECENTLY CONCLUDED" or "NEXT EVENT")
+    container.sectionLabel:Show()
 
     -- Icon
     container.eventIcon:SetSize(UI.ICON_SIZE, UI.ICON_SIZE)
@@ -3838,6 +4100,7 @@ function Journal:CreateNextEventCardContent(parent)
     container.eventIcon:SetTexture(event.icon or HopeAddon.DEFAULT_ICON_PATH)
     container.eventIcon:SetDesaturated(isPast)
     container.eventIcon:SetAlpha(isPast and 0.7 or 1)
+    container.eventIcon:Show()
 
     -- Title
     local titleColor = isPast and {r=0.7, g=0.7, b=0.7} or colorTheme.title
@@ -3846,6 +4109,7 @@ function Journal:CreateNextEventCardContent(parent)
     container.eventTitle:SetPoint("TOPLEFT", container.eventIcon, "TOPRIGHT", 10, 2)
     container.eventTitle:SetTextColor(titleColor.r, titleColor.g, titleColor.b)
     container.eventTitle:SetText(event.title)
+    container.eventTitle:Show()
 
     -- Date/time
     local formattedDate = C:FormatAppWideEventDate(event.startDate)
@@ -3856,6 +4120,7 @@ function Journal:CreateNextEventCardContent(parent)
     container.eventDateTime:SetPoint("TOPLEFT", container.eventTitle, "BOTTOMLEFT", 0, -3)
     container.eventDateTime:SetTextColor(textColor.r, textColor.g, textColor.b)
     container.eventDateTime:SetText(formattedDate .. (formattedTime ~= "" and (" at " .. formattedTime) or ""))
+    container.eventDateTime:Show()
 
     -- Countdown
     local timeUntil = C:GetTimeUntilAppWideEvent(event)
@@ -3876,6 +4141,7 @@ function Journal:CreateNextEventCardContent(parent)
     container.eventCountdown:ClearAllPoints()
     container.eventCountdown:SetPoint("TOPRIGHT", container, "TOPRIGHT", -12, -30)
     container.eventCountdown:SetText(countdownText)
+    container.eventCountdown:Show()
 
     -- Click hint
     container.clickHint:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
@@ -3884,6 +4150,7 @@ function Journal:CreateNextEventCardContent(parent)
     container.clickHint:SetTextColor(0.5, 0.5, 0.5)
     container.clickHint:SetText("Click to view Calendar")
     container.clickHint:SetAlpha(0)
+    container.clickHint:Show()
 
     -- Store event data for handlers
     container._event = event
@@ -3930,6 +4197,18 @@ function Journal:CreateNextEventCardContent(parent)
     end)
 
     container:Show()
+end
+
+function Journal:CreateNextEventCardContent(parent)
+    local C = HopeAddon.Constants
+
+    local event, isPast = C:GetNextAppWideEvent()
+    if not event then return nil end
+
+    local colorTheme = C.APP_WIDE_EVENT_COLORS[event.colorName] or C.APP_WIDE_EVENT_COLORS.GOLD
+
+    local container = self.journeyPools.eventCard:Acquire()
+    self:PopulateEventCard(container, parent, event, isPast, colorTheme)
     return container
 end
 
@@ -3942,155 +4221,14 @@ end
 ]]
 function Journal:CreateNextEventCard(scrollContainer)
     local C = HopeAddon.Constants
-    local UI = C.JOURNEY_NEXT_EVENT
 
     local event, isPast = C:GetNextAppWideEvent()
     if not event then return nil end
 
     local colorTheme = C.APP_WIDE_EVENT_COLORS[event.colorName] or C.APP_WIDE_EVENT_COLORS.GOLD
 
-    -- Create/reuse persistent frame (themed border needs per-instance styling)
-    local container = self._nextEventFrame
-    if not container then
-        container = HopeAddon:CreateBackdropFrame("Frame", nil, scrollContainer.content)
-        container:SetBackdrop({
-            bgFile = "Interface\\Buttons\\WHITE8X8",
-            edgeFile = "Interface\\Buttons\\WHITE8X8",
-            edgeSize = UI.BORDER_WIDTH,
-            insets = { left = UI.BORDER_WIDTH, right = UI.BORDER_WIDTH, top = UI.BORDER_WIDTH, bottom = UI.BORDER_WIDTH }
-        })
-        self._nextEventFrame = container
-
-        -- Create child elements once
-        container.sectionLabel = container:CreateFontString(nil, "OVERLAY")
-        container.eventIcon = container:CreateTexture(nil, "ARTWORK")
-        container.eventTitle = container:CreateFontString(nil, "OVERLAY")
-        container.eventDateTime = container:CreateFontString(nil, "OVERLAY")
-        container.eventCountdown = container:CreateFontString(nil, "OVERLAY")
-        container.clickHint = container:CreateFontString(nil, "OVERLAY")
-        container.clickArea = CreateFrame("Button", nil, container)
-    end
-
-    container:SetParent(scrollContainer.content)
-    container:SetSize(CONTAINER_WIDTH, UI.CONTAINER_HEIGHT)
-
-    -- Apply themed colors (muted if past)
-    local bg, border = colorTheme.bg, colorTheme.border
-    if isPast then
-        container:SetBackdropColor(bg.r * 0.6, bg.g * 0.6, bg.b * 0.6, bg.a * 0.8)
-        container:SetBackdropBorderColor(border.r * 0.6, border.g * 0.6, border.b * 0.6, 0.7)
-    else
-        container:SetBackdropColor(bg.r, bg.g, bg.b, bg.a)
-        container:SetBackdropBorderColor(border.r, border.g, border.b, border.a)
-    end
-
-    -- Section label
-    local labelColor = isPast and {r=0.5, g=0.5, b=0.5} or colorTheme.title
-    container.sectionLabel:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
-    container.sectionLabel:ClearAllPoints()
-    container.sectionLabel:SetPoint("TOPLEFT", container, "TOPLEFT", 10, -6)
-    container.sectionLabel:SetTextColor(labelColor.r, labelColor.g, labelColor.b)
-    container.sectionLabel:SetText(isPast and "RECENTLY CONCLUDED" or "NEXT EVENT")
-
-    -- Icon
-    container.eventIcon:SetSize(UI.ICON_SIZE, UI.ICON_SIZE)
-    container.eventIcon:ClearAllPoints()
-    container.eventIcon:SetPoint("TOPLEFT", container, "TOPLEFT", 12, -22)
-    container.eventIcon:SetTexture(event.icon or HopeAddon.DEFAULT_ICON_PATH)
-    container.eventIcon:SetDesaturated(isPast)
-    container.eventIcon:SetAlpha(isPast and 0.7 or 1)
-
-    -- Title
-    local titleColor = isPast and {r=0.7, g=0.7, b=0.7} or colorTheme.title
-    container.eventTitle:SetFont(HopeAddon.assets.fonts.HEADER, 13, "")
-    container.eventTitle:ClearAllPoints()
-    container.eventTitle:SetPoint("TOPLEFT", container.eventIcon, "TOPRIGHT", 10, 2)
-    container.eventTitle:SetTextColor(titleColor.r, titleColor.g, titleColor.b)
-    container.eventTitle:SetText(event.title)
-
-    -- Date/time
-    local formattedDate = C:FormatAppWideEventDate(event.startDate)
-    local formattedTime = C:FormatBannerTime(event.time)
-    local textColor = isPast and {r=0.5, g=0.5, b=0.5} or colorTheme.text
-    container.eventDateTime:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
-    container.eventDateTime:ClearAllPoints()
-    container.eventDateTime:SetPoint("TOPLEFT", container.eventTitle, "BOTTOMLEFT", 0, -3)
-    container.eventDateTime:SetTextColor(textColor.r, textColor.g, textColor.b)
-    container.eventDateTime:SetText(formattedDate .. (formattedTime ~= "" and (" at " .. formattedTime) or ""))
-
-    -- Countdown
-    local timeUntil = C:GetTimeUntilAppWideEvent(event)
-    local countdownText
-    if timeUntil < 0 then
-        local daysAgo = math.floor(-timeUntil / 86400)
-        countdownText = daysAgo == 0 and "Today" or (daysAgo == 1 and "Yesterday" or (daysAgo .. " days ago"))
-        container.eventCountdown:SetTextColor(0.5, 0.5, 0.5)
-    else
-        local days = math.floor(timeUntil / 86400)
-        local hours = math.floor((timeUntil % 86400) / 3600)
-        if days > 0 then countdownText = "in " .. days .. " day" .. (days > 1 and "s" or "")
-        elseif hours > 0 then countdownText = "in " .. hours .. " hour" .. (hours > 1 and "s" or "")
-        else countdownText = "in " .. math.floor(timeUntil / 60) .. " min" end
-        container.eventCountdown:SetTextColor(colorTheme.title.r, colorTheme.title.g, colorTheme.title.b)
-    end
-    container.eventCountdown:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
-    container.eventCountdown:ClearAllPoints()
-    container.eventCountdown:SetPoint("TOPRIGHT", container, "TOPRIGHT", -12, -30)
-    container.eventCountdown:SetText(countdownText)
-
-    -- Click hint
-    container.clickHint:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
-    container.clickHint:ClearAllPoints()
-    container.clickHint:SetPoint("BOTTOMRIGHT", container, "BOTTOMRIGHT", -10, 6)
-    container.clickHint:SetTextColor(0.5, 0.5, 0.5)
-    container.clickHint:SetText("Click to view Calendar")
-    container.clickHint:SetAlpha(0)
-
-    -- Store event data for handlers
-    container._event = event
-    container._colorTheme = colorTheme
-    container._isPast = isPast
-    container._formattedDate = formattedDate
-    container._formattedTime = formattedTime
-
-    -- Clickable overlay
-    container.clickArea:SetAllPoints(container)
-    container.clickArea:SetScript("OnClick", function()
-        if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
-        self:SelectTab("social")
-        self:ScheduleTimer(0.1, function()
-            self:SelectSocialSubTab("calendar")
-        end)
-    end)
-    container.clickArea:SetScript("OnEnter", function()
-        local c = container
-        c.clickHint:SetAlpha(1)
-        if not c._isPast then
-            local b = c._colorTheme.border
-            c:SetBackdropBorderColor(b.r * 1.2, b.g * 1.2, b.b * 1.2, 1)
-        end
-        GameTooltip:SetOwner(c, "ANCHOR_RIGHT")
-        GameTooltip:AddLine(c._event.title, c._colorTheme.title.r, c._colorTheme.title.g, c._colorTheme.title.b)
-        GameTooltip:AddLine(c._formattedDate .. (c._formattedTime ~= "" and (" at " .. c._formattedTime) or ""), 0.8, 0.8, 0.6)
-        if c._event.description then
-            GameTooltip:AddLine(" ")
-            GameTooltip:AddLine(c._event.description, 0.8, 0.8, 0.8, true)
-        end
-        GameTooltip:AddLine(" ")
-        GameTooltip:AddLine("Click to view in Calendar", 0.5, 0.8, 0.5)
-        GameTooltip:Show()
-    end)
-    container.clickArea:SetScript("OnLeave", function()
-        local c = container
-        c.clickHint:SetAlpha(0)
-        if not c._isPast then
-            local b = c._colorTheme.border
-            c:SetBackdropBorderColor(b.r, b.g, b.b, b.a)
-        end
-        GameTooltip:Hide()
-    end)
-
-    container:Show()
+    local container = self.journeyPools.eventCard:Acquire()
+    self:PopulateEventCard(container, scrollContainer.content, event, isPast, colorTheme)
     return container
 end
 
@@ -4184,15 +4322,12 @@ function Journal:CreateUpcomingEventCard(parent, event, index, yOffset)
     -- Get color theme for this event type
     local theme = C:GetCalendarEventTheme(event.eventType)
 
-    -- Frame pooling - reuse existing card frames
-    local frameName = "_upcomingEventCard" .. index
-    local card = parent[frameName]
-    if not card then
-        card = CreateFrame("Button", nil, parent, "BackdropTemplate")
-        parent[frameName] = card
-    end
+    -- Acquire from pool
+    local card = self.journeyPools.upcomingEventCard:Acquire()
+    card:SetParent(parent)
 
     card:SetSize(parent:GetWidth() - 16, UI.CONTAINER_HEIGHT)
+    card:ClearAllPoints()
     card:SetPoint("TOPLEFT", parent, "TOPLEFT", 8, yOffset)
     card:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8x8",
@@ -4210,69 +4345,58 @@ function Journal:CreateUpcomingEventCard(parent, event, index, yOffset)
     local iconPath = C:GetCalendarEventIcon(event)
 
     -- Icon (left side)
-    local iconFrame = card._icon
-    if not iconFrame then
-        iconFrame = card:CreateTexture(nil, "ARTWORK")
-        card._icon = iconFrame
-    end
-    iconFrame:SetSize(UI.ICON_SIZE, UI.ICON_SIZE)
-    iconFrame:SetPoint("LEFT", card, "LEFT", 12, 0)
-    iconFrame:SetTexture(iconPath)
-    iconFrame:SetTexCoord(0.08, 0.92, 0.08, 0.92)  -- Trim icon borders
+    card._icon:SetSize(UI.ICON_SIZE, UI.ICON_SIZE)
+    card._icon:ClearAllPoints()
+    card._icon:SetPoint("LEFT", card, "LEFT", 12, 0)
+    card._icon:SetTexture(iconPath)
+    card._icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    card._icon:Show()
 
     -- Event title (main text)
-    local titleText = card._title
-    if not titleText then
-        titleText = card:CreateFontString(nil, "OVERLAY")
-        card._title = titleText
-    end
-    titleText:SetFont(HopeAddon.assets.fonts.HEADER, 13, "")
-    titleText:SetPoint("TOPLEFT", iconFrame, "TOPRIGHT", 12, -2)
-    titleText:SetPoint("RIGHT", card, "RIGHT", -80, 0)
-    titleText:SetJustifyH("LEFT")
+    card._title:ClearAllPoints()
+    card._title:SetPoint("TOPLEFT", card._icon, "TOPRIGHT", 12, -2)
+    card._title:SetPoint("RIGHT", card, "RIGHT", -80, 0)
+    card._title:SetJustifyH("LEFT")
     local displayTitle = #event.title > 30 and (event.title:sub(1, 27) .. "...") or event.title
-    titleText:SetText(displayTitle)
-    titleText:SetTextColor(theme.title.r, theme.title.g, theme.title.b, theme.title.a)
+    card._title:SetText(displayTitle)
+    card._title:SetTextColor(theme.title.r, theme.title.g, theme.title.b, theme.title.a)
+    card._title:Show()
 
     -- Date/time info
-    local dateText = card._date
-    if not dateText then
-        dateText = card:CreateFontString(nil, "OVERLAY")
-        card._date = dateText
+    card._date:ClearAllPoints()
+    card._date:SetPoint("TOPLEFT", card._title, "BOTTOMLEFT", 0, -4)
+    card._date:SetJustifyH("LEFT")
+    local realmTime, localTime = Calendar:GetDualTimes(event.startTime)
+    local dateDisplay = event.date .. " at " .. (realmTime or "TBD")
+    if localTime then
+        dateDisplay = dateDisplay .. " (" .. localTime .. " local)"
     end
-    dateText:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
-    dateText:SetPoint("TOPLEFT", titleText, "BOTTOMLEFT", 0, -4)
-    dateText:SetJustifyH("LEFT")
-    local dateDisplay = event.date .. " at " .. (event.startTime or "TBD")
-    dateText:SetText(dateDisplay)
-    dateText:SetTextColor(theme.text.r, theme.text.g, theme.text.b, theme.text.a)
+    card._date:SetText(dateDisplay)
+    card._date:SetTextColor(theme.text.r, theme.text.g, theme.text.b, theme.text.a)
+    card._date:Show()
 
     -- Leader info (bottom)
-    local leaderText = card._leader
-    if not leaderText then
-        leaderText = card:CreateFontString(nil, "OVERLAY")
-        card._leader = leaderText
+    card._leader:ClearAllPoints()
+    card._leader:SetPoint("BOTTOMLEFT", card._icon, "BOTTOMRIGHT", 12, 2)
+    card._leader:SetJustifyH("LEFT")
+    if event.leader then
+        card._leader:SetText("Led by " .. event.leader)
+    else
+        card._leader:SetText("Guild Event")
     end
-    leaderText:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
-    leaderText:SetPoint("BOTTOMLEFT", iconFrame, "BOTTOMRIGHT", 12, 2)
-    leaderText:SetJustifyH("LEFT")
-    leaderText:SetText("Led by " .. (event.leader or "Unknown"))
-    leaderText:SetTextColor(theme.text.r * 0.8, theme.text.g * 0.8, theme.text.b * 0.8, theme.text.a)
+    card._leader:SetTextColor(theme.text.r * 0.8, theme.text.g * 0.8, theme.text.b * 0.8, theme.text.a)
+    card._leader:Show()
 
     -- Countdown timer (right side)
     local timeUntil = Calendar:GetTimeUntilEvent(event)
     local timeText = Calendar:FormatCountdown(timeUntil)
 
-    local countdownText = card._countdown
-    if not countdownText then
-        countdownText = card:CreateFontString(nil, "OVERLAY")
-        card._countdown = countdownText
-    end
-    countdownText:SetFont(HopeAddon.assets.fonts.HEADER, 12, "")
-    countdownText:SetPoint("RIGHT", card, "RIGHT", -12, 0)
-    countdownText:SetJustifyH("RIGHT")
-    countdownText:SetText(timeText)
-    countdownText:SetTextColor(theme.title.r, theme.title.g, theme.title.b, theme.title.a)
+    card._countdown:ClearAllPoints()
+    card._countdown:SetPoint("RIGHT", card, "RIGHT", -12, 0)
+    card._countdown:SetJustifyH("RIGHT")
+    card._countdown:SetText(timeText)
+    card._countdown:SetTextColor(theme.title.r, theme.title.g, theme.title.b, theme.title.a)
+    card._countdown:Show()
 
     -- Click handler - navigate to Calendar
     card:SetScript("OnClick", function()
@@ -4292,7 +4416,6 @@ function Journal:CreateUpcomingEventCard(parent, event, index, yOffset)
 
     -- Hover effects
     card:SetScript("OnEnter", function(c)
-        -- Brighten border on hover
         local b = c._colorTheme.border
         c:SetBackdropBorderColor(
             math.min(b.r * 1.3, 1),
@@ -4300,10 +4423,13 @@ function Journal:CreateUpcomingEventCard(parent, event, index, yOffset)
             math.min(b.b * 1.3, 1),
             b.a
         )
-        -- Tooltip
         GameTooltip:SetOwner(c, "ANCHOR_RIGHT")
         GameTooltip:AddLine(event.title, 1, 1, 1)
-        GameTooltip:AddLine(event.date .. " at " .. (event.startTime or "TBD"), 0.8, 0.8, 0.6)
+        local ttRealmTime, ttLocalTime = Calendar:GetDualTimes(event.startTime)
+        GameTooltip:AddLine(event.date .. " at " .. (ttRealmTime or "TBD"), 0.8, 0.8, 0.6)
+        if ttLocalTime then
+            GameTooltip:AddLine(ttLocalTime .. " (your local time)", 0.6, 0.8, 0.6)
+        end
         if event.description and event.description ~= "" then
             GameTooltip:AddLine(" ")
             GameTooltip:AddLine(event.description, 0.7, 0.7, 0.7, true)
@@ -4318,7 +4444,6 @@ function Journal:CreateUpcomingEventCard(parent, event, index, yOffset)
     end)
 
     card:SetScript("OnLeave", function(c)
-        -- Restore normal border
         local b = c._colorTheme.border
         c:SetBackdropBorderColor(b.r, b.g, b.b, b.a)
         GameTooltip:Hide()
@@ -4510,8 +4635,7 @@ function Journal:CreateLevelingGearSection(sectionTitle, colorName, items, sourc
     -- Item cards
     local yOffset = -40
     for i, item in ipairs(items) do
-        local cardKey = "levelGearCard_" .. sourceType .. "_" .. i
-        local card = self:CreateLevelingGearCard(container, item, cardKey, sourceType)
+        local card = self:CreateLevelingGearCard(container, item, sourceType)
         card:ClearAllPoints()
         card:SetPoint("TOPLEFT", container, "TOPLEFT", 15, yOffset)
         card:SetPoint("RIGHT", container, "RIGHT", -15, 0)
@@ -4525,55 +4649,34 @@ end
 --[[
     Create a single gear item card for leveling recommendations
 ]]
-function Journal:CreateLevelingGearCard(parent, item, cardKey, sourceType)
-    local card = parent[cardKey]
+function Journal:CreateLevelingGearCard(parent, item, sourceType)
+    local card = self.journeyPools.lootCard:Acquire()
+    card:SetParent(parent)
 
-    if not card then
-        card = CreateFrame("Frame", nil, parent, "BackdropTemplate")
-        card:SetHeight(70)
-        card:SetBackdrop({
-            bgFile = "Interface\\Buttons\\WHITE8X8",
-            edgeFile = "Interface\\Buttons\\WHITE8X8",
-            edgeSize = 1,
-            insets = { left = 1, right = 1, top = 1, bottom = 1 }
-        })
-        card:SetBackdropColor(0.06, 0.06, 0.08, 0.95)
-        card:SetBackdropBorderColor(0.3, 0.3, 0.35, 0.8)
+    -- Leveling-specific sizes (different from endgame defaults)
+    card:SetHeight(70)
+    card.itemIcon:SetSize(36, 36)
+    card.itemIcon:ClearAllPoints()
+    card.itemIcon:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -8)
+    card.iconBorder:SetSize(40, 40)
 
-        -- Item icon
-        card.itemIcon = card:CreateTexture(nil, "ARTWORK")
-        card.itemIcon:SetSize(36, 36)
-        card.itemIcon:SetPoint("TOPLEFT", card, "TOPLEFT", 10, -8)
+    -- Leveling-specific fonts (1pt larger than endgame)
+    card.itemName:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
+    card.itemName:ClearAllPoints()
+    card.itemName:SetPoint("TOPLEFT", card.itemIcon, "TOPRIGHT", 10, -2)
+    card.slotText:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
+    card.statsText:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
 
-        -- Icon border
-        card.iconBorder = card:CreateTexture(nil, "OVERLAY")
-        card.iconBorder:SetSize(40, 40)
-        card.iconBorder:SetPoint("CENTER", card.itemIcon, "CENTER", 0, 0)
-        card.iconBorder:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
-        card.iconBorder:SetBlendMode("ADD")
+    -- Source text positioned differently for leveling
+    card.sourceText:ClearAllPoints()
+    card.sourceText:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 56, 8)
 
-        -- Item name
-        card.itemName = card:CreateFontString(nil, "OVERLAY")
-        card.itemName:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
-        card.itemName:SetPoint("TOPLEFT", card.itemIcon, "TOPRIGHT", 10, -2)
+    -- Hide unused progress bar elements
+    card.progressBg:Hide()
+    card.progressFill:Hide()
+    card.progressText:SetText("")
 
-        -- Slot text
-        card.slotText = card:CreateFontString(nil, "OVERLAY")
-        card.slotText:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
-        card.slotText:SetPoint("TOPLEFT", card.itemName, "BOTTOMLEFT", 0, -2)
-
-        -- Stats text
-        card.statsText = card:CreateFontString(nil, "OVERLAY")
-        card.statsText:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
-        card.statsText:SetPoint("TOPLEFT", card.slotText, "BOTTOMLEFT", 0, -2)
-
-        -- Source text
-        card.sourceText = card:CreateFontString(nil, "OVERLAY")
-        card.sourceText:SetFont(HopeAddon.assets.fonts.SMALL, 9, "")
-        card.sourceText:SetPoint("BOTTOMLEFT", card, "BOTTOMLEFT", 56, 8)
-
-        parent[cardKey] = card
-    end
+    card:SetBackdropBorderColor(0.3, 0.3, 0.35, 0.8)
 
     -- Set item icon
     local iconPath = item.icon or HopeAddon.DEFAULT_ICON
@@ -4581,6 +4684,7 @@ function Journal:CreateLevelingGearCard(parent, item, cardKey, sourceType)
         iconPath = "Interface\\Icons\\" .. iconPath
     end
     card.itemIcon:SetTexture(iconPath)
+    card.itemIcon:Show()
 
     -- Quality color
     local qualityColors = {
@@ -4591,16 +4695,20 @@ function Journal:CreateLevelingGearCard(parent, item, cardKey, sourceType)
     }
     local qColor = qualityColors[item.quality or "uncommon"] or qualityColors.uncommon
     card.iconBorder:SetVertexColor(qColor.r, qColor.g, qColor.b, 0.8)
+    card.iconBorder:Show()
 
     -- Item name in quality color
     local qHex = string.format("%02x%02x%02x", qColor.r * 255, qColor.g * 255, qColor.b * 255)
     card.itemName:SetText("|cFF" .. qHex .. (item.name or "Unknown Item") .. "|r")
+    card.itemName:Show()
 
     -- Slot
     card.slotText:SetText("|cFFAAAAAA" .. (item.slot or "Gear") .. "|r")
+    card.slotText:Show()
 
     -- Stats
     card.statsText:SetText("|cFF88FF88" .. (item.stats or "") .. "|r")
+    card.statsText:Show()
 
     -- Source info
     local sourceColor = sourceType == "dungeon" and "FEL_GREEN" or "GOLD_BRIGHT"
@@ -4614,8 +4722,9 @@ function Journal:CreateLevelingGearCard(parent, item, cardKey, sourceType)
         sourceInfo = "Quest: " .. (item.source or "") .. " (" .. (item.zone or "") .. ")"
     end
     card.sourceText:SetText("|cFF" .. sourceHex .. sourceInfo .. "|r")
+    card.sourceText:Show()
 
-    -- Enable mouse for tooltip
+    -- Tooltip
     card:EnableMouse(true)
     card:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -6856,7 +6965,7 @@ function Journal:PopulateRaids()
 
                             -- ===== LOOT BUTTON =====
                             if not card._lootBtn then
-                                local lootBtn = CreateFrame("Button", nil, card)
+                                local lootBtn = CreateBackdropFrame("Button", nil, card)
                                 lootBtn:SetSize(40, 16)
                                 lootBtn:SetPoint("BOTTOMRIGHT", card, "BOTTOMRIGHT", -8, 6)
 
@@ -18450,6 +18559,11 @@ function Journal:SelectArmoryPhase(phase)
 
     -- Refresh slot indicators to reflect new phase
     self:RefreshArmorySlotData()
+
+    -- Auto-activate BiS preview mode for the new phase
+    self.armoryState.bisPreviewMode = true
+    self:ApplyBisPreviewIcons()
+    self:UpdateBisButtonActiveState(true)
 
     -- Refresh popup if visible
     if self.armoryState.popupVisible and self.armoryState.selectedSlot then

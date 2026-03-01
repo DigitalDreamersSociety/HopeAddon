@@ -14,7 +14,7 @@ A comprehensive TBC adventure journal addon for World of Warcraft with attunemen
 - **Raids**: Complete boss lists for all TBC raids with Phase 1-5 grouping
 - **Reputation**: Milestone tracking for 18 TBC factions
 - **Statistics**: Deaths by zone/boss, playtime, dungeon runs, combat stats
-- **Armory**: Phase-based BiS gear tracking for your class and spec
+- **Armory**: Phase-based BiS gear tracking with rich BiS tooltips, full state reset, and gear score display
 - **Social**: Fellow Travelers directory, RP profiles, and activity feed
 
 ### Attunement Tracking
@@ -37,6 +37,7 @@ Progress bars and chapter-by-chapter tracking for all attunement chains.
 - **Companions**: Track relationships with NPCs encountered in your journey
 - **Romance System**: Develop relationships with fellow travelers
 - **Rumors**: Share and discover rumors about other players
+- **iLevel Leaderboard**: Share and compare item levels with Fellow Travelers, sort by gear level
 - **Guild System**: Guild roster caching, activity tracking, and member insights
 
 ### Calendar System

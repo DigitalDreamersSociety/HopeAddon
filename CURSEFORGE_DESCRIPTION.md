@@ -23,7 +23,7 @@ A comprehensive TBC adventure journal that automatically tracks your milestones,
 | ⚔️ **Raids** | Complete boss lists for all TBC raids (Karazhan through Sunwell) |
 | 💎 **Reputation** | Track progress with all 18 TBC factions |
 | 📊 **Statistics** | Deaths, playtime, dungeon runs, and combat stats |
-| 🛡️ **Armory** | Phase-based BiS gear tracking for your class and spec |
+| 🛡️ **Armory** | Phase-based BiS gear tracking with hover BiS preview and full state reset |
 | 👥 **Social** | Fellow Travelers directory, profiles, and activity feed |
 
 ---
@@ -54,6 +54,7 @@ Never lose track of where you are in those long quest chains!
 | 🎖️ **Badges** | Unlock 20+ achievements based on your accomplishments |
 | 📍 **Map Pins** | See Fellow Travelers on your minimap |
 | 📰 **Activity Feed** | Notice board with guild activity and reactions |
+| 📊 **iLevel Leaderboard** | Share and compare gear levels with Fellow Travelers |
 | 🏛️ **Guild System** | Roster tracking and member insights |
 | 📅 **Calendar** | Event scheduling and raid signups with role selection |
 | 💰 **Soft Reserve** | Built-in SR system for raid loot |
