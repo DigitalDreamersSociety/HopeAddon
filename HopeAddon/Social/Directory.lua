@@ -10,14 +10,13 @@ HopeAddon.Directory = Directory
 -- SORT OPTIONS
 --============================================================
 Directory.SORT_OPTIONS = {
+    { id = "ilvl_desc", label = "iLevel" },
+    { id = "gearscore_desc", label = "Gear Score" },
+    { id = "level_desc", label = "Level" },
+    { id = "veteran", label = "Veteran" },
+    { id = "last_seen", label = "Recently Active" },
     { id = "name_asc", label = "Name (A-Z)" },
-    { id = "name_desc", label = "Name (Z-A)" },
-    { id = "class", label = "Class" },
-    { id = "level_desc", label = "Level (High-Low)" },
-    { id = "level_asc", label = "Level (Low-High)" },
-    { id = "last_seen", label = "Last Seen" },
-    { id = "ilvl_desc", label = "iLevel (High-Low)" },
-    { id = "ilvl_asc", label = "iLevel (Low-High)" },
+    { id = "class", label = "By Class" },
 }
 
 Directory.currentSort = "last_seen"
@@ -38,6 +37,12 @@ function Directory:GetAllEntries()
         return entries
     end
 
+    -- Insert self-entry (live data, not from fellows table)
+    local selfEntry = self:BuildSelfEntry()
+    if selfEntry then
+        table.insert(entries, selfEntry)
+    end
+
     -- Only show Fellow Travelers (addon users with RP profiles)
     local fellows = HopeAddon.charDb.travelers.fellows or {}
     for name, data in pairs(fellows) do
@@ -45,6 +50,51 @@ function Directory:GetAllEntries()
     end
 
     return entries
+end
+
+--[[
+    Build a self-entry for the local player using live data
+    @return table|nil - Standardized entry with isSelf=true
+]]
+function Directory:BuildSelfEntry()
+    local playerName = UnitName("player")
+    if not playerName then return nil end
+
+    local _, classToken = UnitClass("player")
+    local level = UnitLevel("player")
+    local gearScore, avgILvl = HopeAddon:GetGearScore()
+    local zone = GetZoneText() or "Unknown"
+
+    local Badges = HopeAddon.Badges
+    local selectedColor = Badges and Badges:GetSelectedColor() or nil
+    local selectedTitle = Badges and Badges:GetSelectedTitle() or nil
+
+    local profile = HopeAddon.charDb and HopeAddon.charDb.travelers
+        and HopeAddon.charDb.travelers.myProfile or nil
+
+    local Relationships = HopeAddon.Relationships
+    local note = Relationships and Relationships:GetNote(playerName) or nil
+
+    return {
+        name = playerName,
+        class = classToken,
+        level = level,
+        lastSeen = HopeAddon:GetDate(),
+        lastSeenZone = zone,
+        lastSeenTime = time(),
+        firstSeen = nil,
+        isFellow = true,
+        isSelf = true,
+        selectedColor = selectedColor,
+        selectedTitle = selectedTitle,
+        profile = profile,
+        hasNote = note ~= nil,
+        note = note,
+        stats = nil,
+        avgILvl = avgILvl,
+        gearScore = gearScore,
+        avgILvlTime = time(),
+    }
 end
 
 --[[
@@ -124,10 +174,6 @@ function Directory:SortEntries(entries, sortOption)
         table.sort(entries, function(a, b)
             return (a.name or "") < (b.name or "")
         end)
-    elseif sortOption == "name_desc" then
-        table.sort(entries, function(a, b)
-            return (a.name or "") > (b.name or "")
-        end)
     elseif sortOption == "class" then
         table.sort(entries, function(a, b)
             if (a.class or "") == (b.class or "") then
@@ -142,16 +188,8 @@ function Directory:SortEntries(entries, sortOption)
             end
             return (a.level or 0) > (b.level or 0)
         end)
-    elseif sortOption == "level_asc" then
-        table.sort(entries, function(a, b)
-            if (a.level or 0) == (b.level or 0) then
-                return (a.name or "") < (b.name or "")
-            end
-            return (a.level or 0) < (b.level or 0)
-        end)
     elseif sortOption == "last_seen" then
         table.sort(entries, function(a, b)
-            -- Sort by lastSeenTime (timestamp) if available, else lastSeen (date string)
             local aTime = a.lastSeenTime or 0
             local bTime = b.lastSeenTime or 0
             if aTime ~= bTime then
@@ -166,12 +204,22 @@ function Directory:SortEntries(entries, sortOption)
             end
             return (a.avgILvl or 0) > (b.avgILvl or 0)
         end)
-    elseif sortOption == "ilvl_asc" then
+    elseif sortOption == "gearscore_desc" then
         table.sort(entries, function(a, b)
-            if (a.avgILvl or 0) == (b.avgILvl or 0) then
+            if (a.gearScore or 0) == (b.gearScore or 0) then
                 return (a.name or "") < (b.name or "")
             end
-            return (a.avgILvl or 0) < (b.avgILvl or 0)
+            return (a.gearScore or 0) > (b.gearScore or 0)
+        end)
+    elseif sortOption == "veteran" then
+        table.sort(entries, function(a, b)
+            -- Oldest firstSeen first (lower timestamp = seen earlier = more veteran)
+            local aFirst = a.firstSeen and a.firstSeen or "9999"
+            local bFirst = b.firstSeen and b.firstSeen or "9999"
+            if aFirst == bFirst then
+                return (a.name or "") < (b.name or "")
+            end
+            return aFirst < bFirst
         end)
     end
 end
@@ -205,20 +253,6 @@ function Directory:GetEntryCount()
         count = count + 1
     end
 
-    return count
-end
-
---[[
-    Get fellow count (addon users only)
-    @return number
-]]
-function Directory:GetFellowCount()
-    local count = 0
-    if HopeAddon.charDb and HopeAddon.charDb.travelers and HopeAddon.charDb.travelers.fellows then
-        for _ in pairs(HopeAddon.charDb.travelers.fellows) do
-            count = count + 1
-        end
-    end
     return count
 end
 
@@ -291,6 +325,80 @@ function Directory:GetStats()
         if entry.lastSeenTime and entry.lastSeenTime >= sevenDaysAgo then
             stats.recentCount = stats.recentCount + 1
         end
+    end
+
+    return stats
+end
+
+--[[
+    Get leaderboard stats for the stats header
+    @param entries table - Sorted array of entries (already filtered and sorted)
+    @param sortOption string - Current sort option ID
+    @return table - { total, online, selfRank, avgValue, topValue, recentCount, maxLevel }
+]]
+function Directory:GetLeaderboardStats(entries, sortOption)
+    local stats = {
+        total = #entries,
+        online = 0,
+        selfRank = nil,
+        avgValue = 0,
+        topValue = 0,
+        recentCount = 0,
+        maxLevel = 0,
+    }
+
+    local C = HopeAddon.Constants
+    local sevenDaysAgo = time() - (7 * 24 * 60 * 60)
+    local valueSum = 0
+    local valueCount = 0
+
+    for i, entry in ipairs(entries) do
+        -- Find self rank
+        if entry.isSelf then
+            stats.selfRank = i
+        end
+
+        -- Count online
+        if entry.lastSeenTime then
+            local elapsed = time() - entry.lastSeenTime
+            if elapsed < C.SOCIAL_TAB.ONLINE_THRESHOLD then
+                stats.online = stats.online + 1
+            end
+        end
+        -- Count recent (7 days)
+        if entry.lastSeenTime and entry.lastSeenTime >= sevenDaysAgo then
+            stats.recentCount = stats.recentCount + 1
+        end
+
+        -- Track max level at 70
+        if entry.level and entry.level >= 70 then
+            stats.maxLevel = stats.maxLevel + 1
+        end
+
+        -- Accumulate values based on sort category
+        if sortOption == "ilvl_desc" then
+            if entry.avgILvl and entry.avgILvl > 0 then
+                valueSum = valueSum + entry.avgILvl
+                valueCount = valueCount + 1
+                if i == 1 then stats.topValue = entry.avgILvl end
+            end
+        elseif sortOption == "gearscore_desc" then
+            if entry.gearScore and entry.gearScore > 0 then
+                valueSum = valueSum + entry.gearScore
+                valueCount = valueCount + 1
+                if i == 1 then stats.topValue = entry.gearScore end
+            end
+        elseif sortOption == "level_desc" then
+            if entry.level and entry.level > 0 then
+                valueSum = valueSum + entry.level
+                valueCount = valueCount + 1
+                if i == 1 then stats.topValue = entry.level end
+            end
+        end
+    end
+
+    if valueCount > 0 then
+        stats.avgValue = math.floor(valueSum / valueCount)
     end
 
     return stats

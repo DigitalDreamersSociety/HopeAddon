@@ -22,7 +22,6 @@ GameUI.WINDOW_SIZES = {
     PONG = { width = 500, height = 400 },
     TETRIS = { width = 700, height = 550 },
     TETRIS_REMOTE = { width = 500, height = 560 },  -- Single board + opponent panel for Score Challenge
-    WORDS = { width = 700, height = 750 },  -- Larger for graphical tiles + tile rack + hint system
     BATTLESHIP = { width = 850, height = 760 },  -- Two 10x10 grids + side panels + instructions + announcements area
     PACMAN = { width = 420, height = 500 },
     PACMAN_CHALLENGE = { width = 540, height = 520 },  -- Pac-Man + opponent panel for Score Challenge
@@ -432,7 +431,6 @@ function GameUI:ShowInviteDialog(sender, gameType, betAmount)
         DEATH_ROLL = "Death Roll",
         PONG = "Pong of War",
         TETRIS = "Wowtris",
-        WORDS = "WoWdle",
     }
     local gameName = gameNames[gameType] or gameType
 

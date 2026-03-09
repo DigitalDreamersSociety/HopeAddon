@@ -16,8 +16,6 @@ local MSG_PING = "PING"         -- Announce presence
 local MSG_PONG = "PONG"         -- Response to ping
 local MSG_PROFILE_REQ = "PREQ"  -- Request profile
 local MSG_PROFILE = "PROF"      -- Profile data
-local MSG_LOCATION = "LOC"      -- Location update
-
 -- Throttling
 local BROADCAST_INTERVAL = 15   -- Seconds between broadcasts (faster detection)
 local PROFILE_CACHE_TIME = 3600 -- 1 hour cache for profiles
@@ -45,7 +43,6 @@ FellowTravelers.PERSONALITY_TRAITS = {
 FellowTravelers.lastBroadcast = 0
 FellowTravelers.pingCooldowns = {}  -- [playerName] = lastPingTime
 FellowTravelers.eventFrame = nil
-FellowTravelers.originalAddMessage = nil  -- For chat hook
 FellowTravelers.pendingBroadcast = nil  -- Timer deduplication
 FellowTravelers.profileRequestCooldowns = {}  -- [playerName] = lastRequestTime
 FellowTravelers.lastDiscoverySoundTime = 0  -- Cooldown tracking for Murloc sound
@@ -57,6 +54,7 @@ FellowTravelers.yellCounter = 0  -- Counter for throttle-aware YELL broadcasting
 
 -- Cleanup constants
 local MAX_PING_COOLDOWNS = 100
+local MAX_REQUEST_COOLDOWNS = 100
 local MAX_FELLOWS = 200
 local FELLOW_EXPIRY_DAYS = 30
 local PROFILE_REQUEST_COOLDOWN = 60  -- seconds between profile requests per player
@@ -216,6 +214,8 @@ function FellowTravelers:OnDisable()
         self.pendingBroadcast:Cancel()
         self.pendingBroadcast = nil
     end
+    -- Clear per-session sound tracking to free memory
+    self.soundPlayedForPlayer = {}
 end
 
 function FellowTravelers:Initialize()
@@ -247,6 +247,13 @@ function FellowTravelers:Initialize()
 
     -- Initial broadcast after short delay (uses deduplication)
     ScheduleBroadcast(5)
+
+    -- Verification broadcast at 15s: GetItemInfo cache is reliably populated by then,
+    -- fixing iLvl=0 that occurs when the 5s broadcast fires before items are cached
+    HopeAddon.Timer:After(15, function()
+        HopeAddon:InvalidateGearScoreCache()
+        FellowTravelers:BroadcastPresence()
+    end)
 
     -- Run initial table cleanup
     self:CleanupTables()
@@ -810,9 +817,21 @@ function FellowTravelers:CleanupTables()
     end
 
     -- Clean profileRequestCooldowns - remove expired entries
+    -- Pass 1: Remove expired entries
+    local validRequests = {}
     for name, timestamp in pairs(self.profileRequestCooldowns) do
         if now - timestamp > PROFILE_REQUEST_COOLDOWN then
             self.profileRequestCooldowns[name] = nil
+        else
+            table.insert(validRequests, { name = name, time = timestamp })
+        end
+    end
+
+    -- Pass 2: If still over limit, sort by timestamp and remove oldest
+    if #validRequests > MAX_REQUEST_COOLDOWNS then
+        table.sort(validRequests, function(a, b) return a.time < b.time end)
+        for i = 1, #validRequests - MAX_REQUEST_COOLDOWNS do
+            self.profileRequestCooldowns[validRequests[i].name] = nil
         end
     end
 
@@ -914,6 +933,57 @@ local function OnTooltipSetUnit(tooltip)
     if not name then return end
 
     local fellow = FellowTravelers:GetFellow(name)
+
+    -- Gear info (works for ALL players, not just fellows)
+    local gearSettings = HopeAddon.db and HopeAddon.db.settings
+    if not gearSettings or gearSettings.tooltipUnitGearEnabled ~= false then
+        local avgILvl, gearScore = nil, nil
+
+        if fellow and fellow.avgILvl and fellow.avgILvl > 0 then
+            -- Fellow Traveler: use cached broadcast data (instant)
+            avgILvl = fellow.avgILvl
+            gearScore = fellow.gearScore or 0
+        elseif HopeAddon.InspectCache then
+            -- Any player: try inspect cache
+            local info = HopeAddon.InspectCache:GetPlayerGearInfo(unit)
+            if info then
+                avgILvl = info.avgILvl
+                gearScore = info.gearScore
+            end
+        end
+
+        if avgILvl and avgILvl > 0 then
+            local C = HopeAddon.Constants
+            local Directory = HopeAddon.Directory
+
+            -- Color based on iLevel tier
+            local colorHex = Directory and Directory:GetILvlColor(avgILvl) or "FFFFFF"
+            local cr = tonumber(colorHex:sub(1, 2), 16) / 255
+            local cg = tonumber(colorHex:sub(3, 4), 16) / 255
+            local cb = tonumber(colorHex:sub(5, 6), 16) / 255
+
+            tooltip:AddLine(" ")
+            -- Line 1: iLvl + GS
+            tooltip:AddDoubleLine(
+                string.format("iLvl: %d", avgILvl),
+                gearScore and gearScore > 0 and string.format("GS: %d", gearScore) or "",
+                cr, cg, cb,
+                1, 0.84, 0
+            )
+
+            -- Line 2: Raid readiness with iLevel range
+            local readiness = C:GetRaidReadiness(avgILvl)
+            if readiness then
+                local maxDisplay = readiness.maxILvl == 999 and avgILvl or readiness.maxILvl
+                local rangeStr = string.format("(%d-%d)", readiness.minILvl, maxDisplay)
+                tooltip:AddLine("Ready for: " .. readiness.label .. " " .. rangeStr, 0.7, 0.7, 0.7)
+            end
+
+            tooltip:Show()
+        end
+    end
+
+    -- Stop here if not a Fellow Traveler (gear info above is for everyone)
     if not fellow then return end
 
     -- Add separator
@@ -1009,6 +1079,13 @@ function FellowTravelers:HookTooltip()
     end
 
     GameTooltip:HookScript("OnTooltipSetUnit", OnTooltipSetUnit)
+
+    -- Hook tooltip clear for inspect cache cleanup
+    GameTooltip:HookScript("OnTooltipCleared", function()
+        if HopeAddon.InspectCache then
+            HopeAddon.InspectCache:OnTooltipCleared()
+        end
+    end)
 end
 
 --============================================================
@@ -1043,6 +1120,8 @@ end
 
 function FellowTravelers:HookChatFrame(chatFrame)
     if chatFrame._hopeHooked then return end
+    -- Skip combat log frame — no player names in brackets, high message volume
+    if chatFrame == ChatFrame2 or chatFrame == COMBATLOG then return end
     chatFrame._hopeHooked = true
 
     -- Store original for proper unhooking (Issue #71.1: Memory leak on /reload)

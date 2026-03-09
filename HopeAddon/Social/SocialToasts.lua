@@ -42,11 +42,6 @@ local TOAST_TYPES = {
         color = { 1, 0.84, 0 },
         sound = "click",
     },
-    loot_shared = {
-        icon = "Interface\\Icons\\INV_Misc_Bag_10_Green",
-        color = { 0.5, 1, 0.5 },
-        sound = "notification",
-    },
     -- Romance toasts
     romance_proposal = {
         icon = "Interface\\Icons\\Spell_Holy_DivineIllumination",
@@ -78,6 +73,12 @@ local TOAST_TYPES = {
         icon = "Interface\\Icons\\Spell_Holy_ChampionsBond",  -- Person icon
         color = { 0.4, 0.8, 0.4 },  -- Green
         sound = "click",
+    },
+    -- Attunement completion
+    attunement_complete = {
+        icon = "Interface\\Icons\\INV_Misc_Key_03",
+        color = { 0.61, 0.19, 1 },  -- Purple (ARCANE_PURPLE)
+        sound = "notification",
     },
 }
 
@@ -204,8 +205,6 @@ function SocialToasts:Show(toastType, playerName, customMessage)
             message = "|cFFFFD700" .. playerName .. "|r wants to be companions!"
         elseif toastType == "mug_received" then
             message = "|cFFFFD700" .. playerName .. "|r raised a mug to you!"
-        elseif toastType == "loot_shared" then
-            message = customMessage or "Loot shared!"
         else
             message = playerName or customMessage or ""
         end

@@ -257,11 +257,6 @@ function Treasures:SetReserve(raidKey, itemName, itemIcon, bossId, bossName)
     -- Broadcast to guild/raid
     self:BroadcastSRUpdate(raidKey)
 
-    -- Post to activity feed
-    if ActivityFeed then
-        ActivityFeed:OnSoftReserve(raidKey, itemName)
-    end
-
     HopeAddon:Debug("Treasures: Set reserve for", raidKey, ":", itemName)
     return true
 end

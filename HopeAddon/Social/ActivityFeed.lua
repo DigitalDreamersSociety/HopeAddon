@@ -29,13 +29,14 @@ local ACTIVITY = {
     BADGE = "BADGE",      -- Badge earned
     RUMOR = "RUM",        -- Legacy manual post (treat as IC_POST)
     MUG = "MUG",          -- Mug reaction
-    LOOT = "LOOT",        -- Epic loot received (opt-in share)
     ROMANCE = "ROM",      -- Romance status change (proposed, dating, breakup)
     -- New post types (Phase 50)
     IC_POST = "IC",       -- In-character post (shows name + title)
     ANON = "ANON",        -- Anonymous tavern rumor (hidden identity)
     -- Calendar events (Phase 61)
     EVENT = "EVT",        -- Calendar event created/signup
+    -- Attunement completion
+    ATTUNE = "ATT",       -- Attunement completed
 }
 
 -- Activity icons (Interface\Icons\ prefix) - TBC 2.4.3 compatible
@@ -47,13 +48,14 @@ local ACTIVITY_ICONS = {
     [ACTIVITY.BADGE] = "INV_Jewelry_Talisman_07",     -- Badge/medal
     [ACTIVITY.RUMOR] = "INV_Scroll_03",               -- Legacy (treat as IC)
     [ACTIVITY.MUG] = "INV_Drink_10",
-    [ACTIVITY.LOOT] = "INV_Misc_Bag_10",             -- Loot bag
     [ACTIVITY.ROMANCE] = "Spell_Holy_SealOfRighteousness",  -- Holy oath
     -- New post types (Phase 50)
     [ACTIVITY.IC_POST] = "Spell_Holy_MindVision",    -- Speech/RP icon
     [ACTIVITY.ANON] = "INV_Scroll_01",               -- Anonymous scroll
     -- Calendar events (Phase 61)
     [ACTIVITY.EVENT] = "INV_Misc_Note_02",           -- Calendar/event scroll
+    -- Attunement completion
+    [ACTIVITY.ATTUNE] = "INV_Misc_Key_03",           -- Key icon for attunement
 }
 
 -- Activity display names
@@ -65,13 +67,14 @@ local ACTIVITY_NAMES = {
     [ACTIVITY.BADGE] = "Badge",
     [ACTIVITY.RUMOR] = "Post",                       -- Legacy
     [ACTIVITY.MUG] = "Raise a Mug",
-    [ACTIVITY.LOOT] = "Loot",
     [ACTIVITY.ROMANCE] = "Romance",
     -- New post types (Phase 50)
     [ACTIVITY.IC_POST] = "IC Post",
     [ACTIVITY.ANON] = "Tavern Rumor",
     -- Calendar events (Phase 61)
     [ACTIVITY.EVENT] = "Event",
+    -- Attunement completion
+    [ACTIVITY.ATTUNE] = "Attunement",
 }
 
 -- Status display strings
@@ -88,11 +91,6 @@ local MAX_LASTSEEN_ENTRIES = 1000   -- Limit lastSeen deduplication cache
 local FEED_RETENTION_HOURS = 48
 local FEED_RETENTION_SECONDS = FEED_RETENTION_HOURS * 3600
 
--- Loot Log limits (dedicated storage for guild loot visibility)
-local MAX_LOOT_LOG_ENTRIES = 100
-local LOOT_LOG_RETENTION_DAYS = 7
-local LOOT_LOG_RETENTION_SECONDS = LOOT_LOG_RETENTION_DAYS * 24 * 3600
-
 -- Broadcast settings
 local BROADCAST_BATCH_SIZE = 3  -- Max activities per broadcast
 local BROADCAST_COOLDOWN = 30   -- Seconds between activity broadcasts (separate from FellowTravelers)
@@ -102,14 +100,6 @@ local RUMOR_MAX_LENGTH = 100
 local RUMOR_COOLDOWN = 300  -- 5 minutes between rumors
 local RUMOR_EXPIRY_HOURS = 24
 local MUG_ICON = "Interface\\Icons\\INV_Drink_10"
-
--- Phase 3: Loot Sharing
-local LOOT_MIN_QUALITY = 4          -- Epic+ only
-local LOOT_PROMPT_EXPIRE = 300      -- 5 minutes to decide
-local LOOT_PROMPT_DELAY = 3         -- Seconds after combat to show prompt
-local LOOT_COMMENT_MAX = 100        -- Max comment length
-local LOOT_CONTEXT_TIMEOUT = 60     -- Seconds to keep encounter context after kill
-local LOOT_PATTERN = "You receive loot: (.+)"
 
 --============================================================
 -- MODULE STATE
@@ -130,17 +120,6 @@ ActivityFeed.originalHooks = {
     UnlockBadge = nil,
 }
 ActivityFeed.hooksInstalled = false  -- Guard against double-hooking
-
--- Phase 3: Loot sharing state
-ActivityFeed.pendingLootPrompts = {}  -- Queue of loot share prompts
-ActivityFeed.currentPromptFrame = nil -- Active prompt UI
-ActivityFeed.currentEncounter = {     -- Track current encounter context
-    bossName = nil,
-    raidName = nil,
-    dungeonName = nil,
-    startTime = nil,
-    clearTime = nil,                  -- Time to clear context
-}
 
 -- P1.4: Timer handle tracking (prevents closure leaks on module disable)
 ActivityFeed.pendingTimers = {}
@@ -234,20 +213,11 @@ local function GetSocialData()
                 showGame = true,
                 showBadge = true,
                 showStatus = true,
-                showLoot = true,        -- Phase 3: Show loot activities
-                promptForLoot = true,   -- Phase 3: Prompt to share loot
             },
             -- Phase 2
             myRumors = {},
             mugsGiven = {},
-            -- Guild Loot Log (Phase 62): dedicated storage for raid loot visibility
-            lootLog = {},
         }
-    end
-
-    -- Ensure lootLog exists for existing saved data
-    if not HopeAddon.charDb.social.lootLog then
-        HopeAddon.charDb.social.lootLog = {}
     end
 
     return HopeAddon.charDb.social
@@ -355,19 +325,6 @@ local function CleanupOldActivities()
                 social.mugsGiven[activityId] = nil
             end
         end
-    end
-
-    -- Phase 62: Clean up old loot log entries (7-day retention)
-    if social.lootLog then
-        local lootCutoff = now - LOOT_LOG_RETENTION_SECONDS
-        local newLootLog = {}
-        for _, entry in ipairs(social.lootLog) do
-            if entry.timestamp and entry.timestamp > lootCutoff then
-                table.insert(newLootLog, entry)
-            end
-        end
-        social.lootLog = newLootLog
-        HopeAddon:Debug("ActivityFeed cleanup: ", #social.lootLog, "loot log entries retained")
     end
 
     HopeAddon:Debug("ActivityFeed cleanup: ", #social.feed, "activities retained")
@@ -566,11 +523,6 @@ function ActivityFeed:HandleNetworkActivity(sender, data)
         return  -- Don't add MUG activities to the feed directly
     end
 
-    -- Phase 62: Add LOOT activities to dedicated loot log for guild visibility
-    if activity.type == ACTIVITY.LOOT then
-        self:ProcessIncomingLoot(activity)
-    end
-
     -- Check if activity type should be shown
     local social = GetSocialData()
     if social and social.settings then
@@ -678,12 +630,6 @@ function ActivityFeed:SetupEventHooks()
     -- Hook into level up events via PLAYER_LEVEL_UP
     self.eventFrame:RegisterEvent("PLAYER_LEVEL_UP")
 
-    -- Register loot event for loot share prompts (Phase 3)
-    self.eventFrame:RegisterEvent("CHAT_MSG_LOOT")
-
-    -- Register combat end event for delayed loot prompts (Phase 3)
-    self.eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
-
     -- Hook into RP status changes by watching profile updates
     -- (FellowTravelers:UpdateMyProfile calls happen on status change)
     if HopeAddon.FellowTravelers and HopeAddon.FellowTravelers.UpdateMyProfile then
@@ -736,15 +682,6 @@ function ActivityFeed:SetupEventHooks()
         if event == "PLAYER_LEVEL_UP" then
             local newLevel = ...
             self:OnLevelUp(newLevel)
-        elseif event == "CHAT_MSG_LOOT" then
-            local message = ...
-            -- Only process loot messages for the player ("You receive loot:")
-            if message and message:find("You receive loot:") then
-                self:OnLootReceived(message)
-            end
-        elseif event == "PLAYER_REGEN_ENABLED" then
-            -- Combat ended - show pending loot prompts
-            self:OnCombatEnd()
         end
     end)
 
@@ -804,19 +741,6 @@ function ActivityFeed:OnBossKill(bossName)
         bossName
     )
     self:QueueForBroadcast(activity)
-
-    -- Set encounter context for loot attribution (Phase 3)
-    -- Try to determine raid name from boss
-    local raidName = nil
-    if HopeAddon.Constants and HopeAddon.Constants.BOSS_BADGES then
-        for _, badge in ipairs(HopeAddon.Constants.BOSS_BADGES) do
-            if badge.name == bossName or (badge.trigger and badge.trigger.boss == bossName) then
-                raidName = badge.raid
-                break
-            end
-        end
-    end
-    self:SetEncounterContext(bossName, raidName)
 
     HopeAddon:Debug("ActivityFeed: Boss kill activity:", bossName)
 end
@@ -946,31 +870,20 @@ function ActivityFeed:OnCalendarSignup(event, playerName, role)
 end
 
 --[[
-    Called when a player sets a soft reserve
+    Called when player completes a raid attunement
     @param raidKey string - Raid identifier
-    @param itemName string - Item name reserved
+    @param raidName string - Display name of the raid
 ]]
-function ActivityFeed:OnSoftReserve(raidKey, itemName)
-    if not raidKey or not itemName then return end
+function ActivityFeed:OnAttunementCompleted(raidKey, raidName)
     local _, class = UnitClass("player")
-
-    -- Get raid display name
-    local raidNames = {
-        karazhan = "Karazhan",
-        gruul = "Gruul's Lair",
-        magtheridon = "Magtheridon's Lair",
-    }
-    local raidName = raidNames[raidKey] or raidKey
-
-    local data = "SR|" .. raidName .. "|" .. itemName
     local activity = self:CreateActivity(
-        ACTIVITY.LOOT,
+        ACTIVITY.ATTUNE,
         UnitName("player"),
         class,
-        data
+        raidKey .. "|" .. raidName
     )
     self:QueueForBroadcast(activity)
-    HopeAddon:Debug("ActivityFeed: Soft reserve:", itemName, "for", raidName)
+    HopeAddon:Debug("ActivityFeed: Attunement complete:", raidKey)
 end
 
 --============================================================
@@ -1127,22 +1040,6 @@ function ActivityFeed:FormatActivity(activity)
         end
         return string.format("%s: \"%s\"", attribution, data)
 
-    elseif actType == ACTIVITY.LOOT then
-        -- LOOT data format: itemLink|source|location|comment|isFirstKill
-        local itemLink, source, location, comment, isFirstKill = strsplit("|", data, 5)
-        -- Unescape item link (pipes were replaced with ~ for wire protocol)
-        if itemLink then
-            itemLink = itemLink:gsub("~", "|")
-        end
-        local firstKillTag = (isFirstKill == "1") and " |cFFFFD700(First Kill!)|r" or ""
-        local commentText = (comment and comment ~= "") and string.format("\n\"%s\"", comment) or ""
-        return string.format("|cFFA335EE%s|r received %s%s%s",
-            player,
-            itemLink or "[Unknown Item]",
-            firstKillTag,
-            commentText
-        )
-
     elseif actType == ACTIVITY.ROMANCE then
         -- ROMANCE data format: eventType|partnerName|reason
         local eventType, partnerName, reason = strsplit("|", data, 3)
@@ -1159,6 +1056,11 @@ function ActivityFeed:FormatActivity(activity)
         else
             return string.format("|cFFFFD700%s|r: Romance update", player)
         end
+
+    elseif actType == ACTIVITY.ATTUNE then
+        -- data format: "raidKey|raidName"
+        local _, raidName = strsplit("|", data, 2)
+        return string.format("|cFF9B30FF%s|r completed the |cFFFFD700%s|r attunement!", player, raidName or data)
 
     else
         return string.format("%s: %s", player, data)
@@ -1388,879 +1290,6 @@ function ActivityFeed:HandleIncomingMug(mugActivity)
     end
 end
 
---============================================================
--- PHASE 3: LOOT SHARING
---============================================================
-
---[[
-    Get current encounter context for loot attribution
-    @return table - { source, location, isFirstKill }
-]]
-function ActivityFeed:GetLootContext()
-    local now = GetTime()
-
-    -- Check if we have valid encounter context
-    if self.currentEncounter.bossName and self.currentEncounter.clearTime and now < self.currentEncounter.clearTime then
-        local isFirstKill = false
-        if HopeAddon.charDb and HopeAddon.charDb.journal and HopeAddon.charDb.journal.bossKills then
-            local bossKills = HopeAddon.charDb.journal.bossKills[self.currentEncounter.bossName]
-            -- First kill if count is 0 or 1 (just recorded)
-            isFirstKill = not bossKills or (bossKills.totalKills or 0) <= 1
-        end
-
-        return {
-            source = self.currentEncounter.bossName,
-            location = self.currentEncounter.raidName or self.currentEncounter.dungeonName or GetZoneText(),
-            isFirstKill = isFirstKill,
-        }
-    end
-
-    -- Fallback: use zone name
-    return {
-        source = "Unknown",
-        location = GetZoneText(),
-        isFirstKill = false,
-    }
-end
-
---[[
-    Set encounter context when boss is pulled/killed
-    @param bossName string - Boss name
-    @param raidName string|nil - Raid name if in raid
-]]
-function ActivityFeed:SetEncounterContext(bossName, raidName)
-    self.currentEncounter = {
-        bossName = bossName,
-        raidName = raidName,
-        dungeonName = not raidName and GetZoneText() or nil,
-        startTime = GetTime(),
-        clearTime = GetTime() + LOOT_CONTEXT_TIMEOUT,
-    }
-    HopeAddon:Debug("ActivityFeed: Set encounter context:", bossName, raidName or "dungeon")
-end
-
---[[
-    Clear encounter context
-]]
-function ActivityFeed:ClearEncounterContext()
-    self.currentEncounter = {
-        bossName = nil,
-        raidName = nil,
-        dungeonName = nil,
-        startTime = nil,
-        clearTime = nil,
-    }
-end
-
---[[
-    Queue a loot share prompt for display after combat
-    @param itemLink string - Item link
-]]
-function ActivityFeed:QueueLootSharePrompt(itemLink)
-    if not itemLink then return end
-
-    -- Check user settings
-    local social = GetSocialData()
-    if social and social.settings and social.settings.promptForLoot == false then
-        HopeAddon:Debug("ActivityFeed: Loot prompts disabled by user")
-        return
-    end
-
-    -- Get item info (may return nil if item cache not loaded yet)
-    local _, _, quality, _, _, itemType, itemSubType, _, equipLoc, icon = GetItemInfo(itemLink)
-
-    -- Guard against nil returns from GetItemInfo (item not cached)
-    if not quality then
-        HopeAddon:Debug("ActivityFeed: Item not in cache yet:", itemLink)
-        return
-    end
-
-    -- Only epic+ items
-    if quality < LOOT_MIN_QUALITY then
-        HopeAddon:Debug("ActivityFeed: Item quality too low:", quality)
-        return
-    end
-
-    local context = self:GetLootContext()
-
-    local prompt = {
-        id = "loot_" .. time() .. "_" .. math.random(1000, 9999),
-        type = "LOOT",
-        timestamp = time(),
-        expireAt = time() + LOOT_PROMPT_EXPIRE,
-        data = {
-            itemLink = itemLink,
-            itemIcon = icon,
-            itemQuality = quality,
-            itemType = itemType,
-            itemSubType = itemSubType,
-            equipLoc = equipLoc,
-            source = context.source,
-            location = context.location,
-            isFirstKill = context.isFirstKill,
-        },
-    }
-
-    -- Issue #TBD: Limit queue size to prevent memory growth during long raid sessions
-    local MAX_PENDING_LOOT_PROMPTS = 50
-    if #self.pendingLootPrompts >= MAX_PENDING_LOOT_PROMPTS then
-        table.remove(self.pendingLootPrompts, 1)
-    end
-    table.insert(self.pendingLootPrompts, prompt)
-    HopeAddon:Debug("ActivityFeed: Queued loot prompt for:", itemLink)
-
-    -- If not in combat, show immediately (after delay)
-    if not InCombatLockdown() then
-        local handle = HopeAddon.Timer:After(LOOT_PROMPT_DELAY, function()
-            self:ShowNextLootPrompt()
-        end)
-        table.insert(self.pendingTimers, handle)
-    end
-end
-
---[[
-    Clean up expired loot prompts
-]]
-function ActivityFeed:CleanupExpiredPrompts()
-    local now = time()
-    local newPrompts = {}
-
-    for _, prompt in ipairs(self.pendingLootPrompts) do
-        if prompt.expireAt > now then
-            table.insert(newPrompts, prompt)
-        end
-    end
-
-    self.pendingLootPrompts = newPrompts
-end
-
---[[
-    Show the next pending loot prompt
-]]
-function ActivityFeed:ShowNextLootPrompt()
-    -- Clean up expired first
-    self:CleanupExpiredPrompts()
-
-    -- Don't show if in combat
-    if InCombatLockdown() then return end
-
-    -- Get next prompt
-    if #self.pendingLootPrompts == 0 then return end
-
-    local prompt = self.pendingLootPrompts[1]
-    self:ShowLootSharePrompt(prompt)
-end
-
---[[
-    Show loot share prompt UI
-    @param prompt table - Prompt data
-]]
-function ActivityFeed:ShowLootSharePrompt(prompt)
-    -- Hide existing prompt if any
-    if self.currentPromptFrame then
-        self.currentPromptFrame:Hide()
-    end
-
-    -- Create prompt frame
-    local frame = CreateFrame("Frame", "HopeAddonLootSharePrompt", UIParent, "BackdropTemplate")
-    frame:SetSize(350, 220)
-    frame:SetPoint("CENTER", UIParent, "CENTER", 0, 100)
-    frame:SetFrameStrata("DIALOG")
-    frame:SetMovable(true)
-    frame:EnableMouse(true)
-    frame:RegisterForDrag("LeftButton")
-    frame:SetScript("OnDragStart", frame.StartMoving)
-    frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
-
-    -- Apply backdrop
-    if HopeAddon.Components and HopeAddon.Components.ApplyBackdrop then
-        HopeAddon.Components:ApplyBackdrop(frame, "DARK_FEL", "BLACK_SOLID", "FEL_GREEN")
-    else
-        frame:SetBackdrop({
-            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
-            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
-            tile = true, tileSize = 32, edgeSize = 32,
-            insets = { left = 8, right = 8, top = 8, bottom = 8 }
-        })
-    end
-
-    -- Title
-    local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("TOP", frame, "TOP", 0, -12)
-    title:SetText("|cFFFFD700Brag About Your Loot!|r")
-
-    -- Close button
-    local closeBtn = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
-    closeBtn:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -2, -2)
-    closeBtn:SetScript("OnClick", function()
-        self:SkipLootPrompt(prompt)
-    end)
-
-    -- Item display container
-    local itemBox = CreateFrame("Frame", nil, frame, "BackdropTemplate")
-    itemBox:SetSize(320, 60)
-    itemBox:SetPoint("TOP", frame, "TOP", 0, -45)
-    itemBox:SetBackdrop({
-        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 16,
-        insets = { left = 4, right = 4, top = 4, bottom = 4 }
-    })
-    itemBox:SetBackdropColor(0.1, 0.1, 0.1, 0.8)
-
-    -- Item icon
-    local icon = itemBox:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(40, 40)
-    icon:SetPoint("LEFT", itemBox, "LEFT", 10, 0)
-    if prompt.data.itemIcon then
-        icon:SetTexture(prompt.data.itemIcon)
-    else
-        icon:SetTexture(HopeAddon.DEFAULT_ICON_PATH)
-    end
-
-    -- Item link text
-    local itemText = itemBox:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    itemText:SetPoint("LEFT", icon, "RIGHT", 10, 10)
-    itemText:SetText(prompt.data.itemLink or "[Unknown Item]")
-
-    -- Source info
-    local sourceText = itemBox:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    sourceText:SetPoint("LEFT", icon, "RIGHT", 10, -8)
-    sourceText:SetTextColor(0.8, 0.8, 0.8)
-    local sourceStr = prompt.data.source ~= "Unknown" and ("From: " .. prompt.data.source) or ""
-    local locationStr = prompt.data.location and (" - " .. prompt.data.location) or ""
-    sourceText:SetText(sourceStr .. locationStr)
-
-    -- First kill badge
-    if prompt.data.isFirstKill then
-        local firstKill = itemBox:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        firstKill:SetPoint("TOPRIGHT", itemBox, "TOPRIGHT", -10, -8)
-        firstKill:SetText("|cFFFFD700★ First Kill!|r")
-    end
-
-    -- Comment editbox label
-    local commentLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    commentLabel:SetPoint("TOPLEFT", itemBox, "BOTTOMLEFT", 0, -10)
-    commentLabel:SetText("Add a comment (optional):")
-    commentLabel:SetTextColor(0.8, 0.8, 0.8)
-
-    -- Comment editbox
-    local editBox = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
-    editBox:SetSize(300, 24)
-    editBox:SetPoint("TOP", commentLabel, "BOTTOM", 0, -5)
-    editBox:SetAutoFocus(false)
-    editBox:SetMaxLetters(LOOT_COMMENT_MAX)
-    editBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-    editBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
-    frame.editBox = editBox
-
-    -- Character count
-    local charCount = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    charCount:SetPoint("TOPRIGHT", editBox, "BOTTOMRIGHT", 0, -2)
-    charCount:SetText("0/" .. LOOT_COMMENT_MAX)
-    charCount:SetTextColor(0.6, 0.6, 0.6)
-
-    editBox:SetScript("OnTextChanged", function(self)
-        local len = strlen(self:GetText())
-        charCount:SetText(len .. "/" .. LOOT_COMMENT_MAX)
-        if len >= LOOT_COMMENT_MAX then
-            charCount:SetTextColor(1, 0.3, 0.3)
-        else
-            charCount:SetTextColor(0.6, 0.6, 0.6)
-        end
-    end)
-
-    -- Share button
-    local shareBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    shareBtn:SetSize(130, 26)
-    shareBtn:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 30, 15)
-    shareBtn:SetText("Brag About It!")
-    shareBtn:SetScript("OnClick", function()
-        local comment = editBox:GetText() or ""
-        self:ShareLoot(prompt, comment)
-    end)
-
-    -- Skip button
-    local skipBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    skipBtn:SetSize(100, 26)
-    skipBtn:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -30, 15)
-    skipBtn:SetText("Skip")
-    skipBtn:SetScript("OnClick", function()
-        self:SkipLootPrompt(prompt)
-    end)
-
-    -- "Don't ask" checkbox
-    local dontAsk = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
-    dontAsk:SetSize(24, 24)
-    dontAsk:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 25, 45)
-    dontAsk.text = dontAsk:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    dontAsk.text:SetPoint("LEFT", dontAsk, "RIGHT", 2, 0)
-    dontAsk.text:SetText("Don't ask me about loot drops")
-    dontAsk.text:SetTextColor(0.7, 0.7, 0.7)
-    frame.dontAskCheckbox = dontAsk
-
-    frame:Show()
-    self.currentPromptFrame = frame
-
-    -- Play sound
-    if HopeAddon.Sounds then
-        HopeAddon.Sounds:PlayBell()
-    end
-end
-
---[[
-    Share loot to activity feed
-    @param prompt table - Prompt data
-    @param comment string - Optional comment
-]]
-function ActivityFeed:ShareLoot(prompt, comment)
-    -- Check "don't ask" checkbox
-    if self.currentPromptFrame and self.currentPromptFrame.dontAskCheckbox then
-        if self.currentPromptFrame.dontAskCheckbox:GetChecked() then
-            local social = GetSocialData()
-            if social and social.settings then
-                social.settings.promptForLoot = false
-                HopeAddon:Print("Loot share prompts disabled. Use '/hope settings' to re-enable.")
-            end
-        end
-    end
-
-    -- Remove from queue
-    for i, p in ipairs(self.pendingLootPrompts) do
-        if p.id == prompt.id then
-            table.remove(self.pendingLootPrompts, i)
-            break
-        end
-    end
-
-    -- Hide prompt
-    if self.currentPromptFrame then
-        self.currentPromptFrame:Hide()
-        self.currentPromptFrame = nil
-    end
-
-    -- Create activity
-    local _, class = UnitClass("player")
-
-    -- Encode data for wire: itemLink|source|location|comment|isFirstKill
-    -- Escape pipes in itemLink with ~
-    local escapedLink = prompt.data.itemLink:gsub("|", "~")
-    local encodedData = string.format("%s|%s|%s|%s|%s",
-        escapedLink,
-        prompt.data.source or "",
-        prompt.data.location or "",
-        (comment or ""):sub(1, LOOT_COMMENT_MAX),
-        prompt.data.isFirstKill and "1" or "0"
-    )
-
-    local activity = self:CreateActivity(
-        ACTIVITY.LOOT,
-        UnitName("player"),
-        class,
-        encodedData
-    )
-
-    self:QueueForBroadcast(activity)
-
-    -- Also add to loot log for persistent guild visibility
-    local itemName = GetItemInfo(prompt.data.itemLink)
-    self:AddToLootLog({
-        player = UnitName("player"),
-        class = class,
-        itemLink = prompt.data.itemLink,
-        itemName = itemName or "Unknown Item",
-        quality = prompt.data.itemQuality or 4,
-        source = prompt.data.source,
-        location = prompt.data.location,
-        timestamp = time(),
-        isFirstKill = prompt.data.isFirstKill,
-    })
-
-    -- Play celebration sound
-    if HopeAddon.Sounds then
-        HopeAddon.Sounds:PlayAchievement()
-    end
-
-    -- Show toast
-    if HopeAddon.SocialToasts then
-        HopeAddon.SocialToasts:Show("loot_shared", nil, "Shared to your Fellow Travelers!")
-    end
-
-    HopeAddon:Print("Loot shared with your Fellow Travelers!")
-
-    -- Show next prompt if any
-    local handle = HopeAddon.Timer:After(0.5, function()
-        self:ShowNextLootPrompt()
-    end)
-    table.insert(self.pendingTimers, handle)
-end
-
---[[
-    Skip a loot share prompt
-    @param prompt table - Prompt data
-]]
-function ActivityFeed:SkipLootPrompt(prompt)
-    -- Check "don't ask" checkbox
-    if self.currentPromptFrame and self.currentPromptFrame.dontAskCheckbox then
-        if self.currentPromptFrame.dontAskCheckbox:GetChecked() then
-            local social = GetSocialData()
-            if social and social.settings then
-                social.settings.promptForLoot = false
-                HopeAddon:Print("Loot share prompts disabled. Use '/hope settings' to re-enable.")
-            end
-        end
-    end
-
-    -- Remove from queue
-    for i, p in ipairs(self.pendingLootPrompts) do
-        if p.id == prompt.id then
-            table.remove(self.pendingLootPrompts, i)
-            break
-        end
-    end
-
-    -- Hide prompt
-    if self.currentPromptFrame then
-        self.currentPromptFrame:Hide()
-        self.currentPromptFrame = nil
-    end
-
-    -- Show next prompt if any
-    local handle = HopeAddon.Timer:After(0.5, function()
-        self:ShowNextLootPrompt()
-    end)
-    table.insert(self.pendingTimers, handle)
-end
-
---[[
-    Handle combat end - show pending loot prompts
-]]
-function ActivityFeed:OnCombatEnd()
-    -- Clean up expired prompts
-    self:CleanupExpiredPrompts()
-
-    -- Show next prompt if any (after delay)
-    if #self.pendingLootPrompts > 0 then
-        local handle = HopeAddon.Timer:After(LOOT_PROMPT_DELAY, function()
-            self:ShowNextLootPrompt()
-        end)
-        table.insert(self.pendingTimers, handle)
-    end
-end
-
---[[
-    Handle loot received event
-    @param message string - Loot message
-]]
-function ActivityFeed:OnLootReceived(message)
-    if not message then return end
-
-    -- Parse loot message
-    local itemLink = message:match(LOOT_PATTERN)
-    if not itemLink then return end
-
-    HopeAddon:Debug("ActivityFeed: Loot received:", itemLink)
-
-    -- Get item info (may return nil if item cache not loaded yet)
-    local _, _, quality = GetItemInfo(itemLink)
-
-    -- Guard against nil returns from GetItemInfo (item not cached)
-    if not quality then
-        HopeAddon:Debug("ActivityFeed: Item not in cache yet:", itemLink)
-        return
-    end
-
-    -- Only process epic+ items
-    if quality < LOOT_MIN_QUALITY then
-        HopeAddon:Debug("ActivityFeed: Item quality too low:", quality)
-        return
-    end
-
-    -- Check if in raid instance - auto-broadcast without prompt
-    local inInstance, instanceType = IsInInstance()
-    local isInRaid = inInstance and instanceType == "raid" and IsInRaid()
-
-    if isInRaid then
-        -- Auto-broadcast raid loot immediately (no prompt needed)
-        HopeAddon:Debug("ActivityFeed: In raid instance, auto-broadcasting loot")
-        self:AutoBroadcastRaidLoot(itemLink)
-    else
-        -- Non-raid: queue for opt-in prompt
-        self:QueueLootSharePrompt(itemLink)
-    end
-end
-
---[[
-    Auto-broadcast loot when in a raid instance (no prompt)
-    @param itemLink string - Item link
-]]
-function ActivityFeed:AutoBroadcastRaidLoot(itemLink)
-    if not itemLink then return end
-
-    -- Get item info
-    local _, _, quality, _, _, itemType, itemSubType, _, equipLoc, icon = GetItemInfo(itemLink)
-    if not quality or quality < LOOT_MIN_QUALITY then return end
-
-    local context = self:GetLootContext()
-
-    -- Create activity
-    local _, class = UnitClass("player")
-
-    -- Encode data for wire: itemLink|source|location|comment|isFirstKill
-    -- Escape pipes in itemLink with ~
-    local escapedLink = itemLink:gsub("|", "~")
-    local encodedData = string.format("%s|%s|%s|%s|%s",
-        escapedLink,
-        context.source or "",
-        context.location or "",
-        "",  -- No comment for auto-broadcast
-        context.isFirstKill and "1" or "0"
-    )
-
-    local activity = self:CreateActivity(
-        ACTIVITY.LOOT,
-        UnitName("player"),
-        class,
-        encodedData
-    )
-
-    self:QueueForBroadcast(activity)
-
-    -- Also add to loot log for persistent guild visibility
-    self:AddToLootLog({
-        player = UnitName("player"),
-        class = class,
-        itemLink = itemLink,
-        itemName = GetItemInfo(itemLink) or "Unknown Item",
-        quality = quality,
-        source = context.source,
-        location = context.location,
-        timestamp = time(),
-        isFirstKill = context.isFirstKill,
-    })
-
-    HopeAddon:Debug("ActivityFeed: Auto-broadcast raid loot:", itemLink)
-end
-
---============================================================
--- GUILD LOOT LOG (Phase 62)
--- Dedicated storage for raid loot with 7-day retention
---============================================================
-
---[[
-    Add a loot entry to the dedicated loot log
-    Called when:
-    - Player auto-broadcasts raid loot
-    - Receiving LOOT activity from guild via network
-
-    @param entry table - Loot entry with fields:
-        - player string - Player name
-        - class string - Player class
-        - itemLink string - Full item link
-        - itemName string - Item name (for display)
-        - quality number - Item quality (4=epic, 5=legendary)
-        - source string - Boss name or "Unknown"
-        - location string - Raid/zone name
-        - timestamp number - Unix timestamp
-        - isFirstKill boolean - First kill flag (optional)
-]]
-function ActivityFeed:AddToLootLog(entry)
-    if not entry or not entry.player or not entry.itemLink then
-        HopeAddon:Debug("ActivityFeed: Invalid loot log entry")
-        return false
-    end
-
-    local social = GetSocialData()
-    if not social then return false end
-
-    -- Ensure lootLog exists
-    if not social.lootLog then
-        social.lootLog = {}
-    end
-
-    -- Add timestamp if missing
-    if not entry.timestamp then
-        entry.timestamp = time()
-    end
-
-    -- Add to beginning (newest first)
-    table.insert(social.lootLog, 1, entry)
-
-    -- Trim to max size
-    while #social.lootLog > MAX_LOOT_LOG_ENTRIES do
-        table.remove(social.lootLog)
-    end
-
-    HopeAddon:Debug("ActivityFeed: Added to loot log:", entry.itemName or entry.itemLink, "from", entry.player)
-
-    -- Notify listeners (for UI refresh)
-    self:NotifyListeners(1)
-
-    return true
-end
-
---[[
-    Get all loot log entries
-    @return table - Array of loot entries (newest first)
-]]
-function ActivityFeed:GetLootLog()
-    local social = GetSocialData()
-    if not social or not social.lootLog then return {} end
-    return social.lootLog
-end
-
---[[
-    Get recent loot log entries
-    @param maxCount number - Maximum entries to return (default 10)
-    @return table - Array of loot entries
-]]
-function ActivityFeed:GetRecentLootLog(maxCount)
-    maxCount = maxCount or 10
-    local log = self:GetLootLog()
-    local result = {}
-
-    for i = 1, math.min(#log, maxCount) do
-        table.insert(result, log[i])
-    end
-
-    return result
-end
-
---[[
-    Parse incoming LOOT activity and add to loot log
-    Called from HandleNetworkActivity when activity type is LOOT
-
-    @param activity table - The parsed activity
-]]
-function ActivityFeed:ProcessIncomingLoot(activity)
-    if not activity or activity.type ~= ACTIVITY.LOOT then return end
-
-    -- Parse LOOT data format: itemLink|source|location|comment|isFirstKill
-    local data = activity.data or ""
-    local escapedLink, source, location, comment, isFirstKill = strsplit("|", data, 5)
-
-    -- Unescape item link (pipes were replaced with ~ for wire protocol)
-    local itemLink = escapedLink and escapedLink:gsub("~", "|") or nil
-    if not itemLink then return end
-
-    -- Get item name from link
-    local itemName = GetItemInfo(itemLink)
-    local _, _, quality = GetItemInfo(itemLink)
-
-    -- Add to loot log
-    self:AddToLootLog({
-        player = activity.player,
-        class = activity.class,
-        itemLink = itemLink,
-        itemName = itemName or "Unknown Item",
-        quality = quality or 4,  -- Default to epic
-        source = source or "Unknown",
-        location = location or "",
-        timestamp = activity.time or time(),
-        isFirstKill = (isFirstKill == "1"),
-    })
-end
-
---============================================================
--- DEMO DATA GENERATION
---============================================================
-
---[[
-    Generate sample activities for UI testing
-    Creates 10 varied activities with different types and timestamps
-]]
-function ActivityFeed:GenerateDemoData()
-    local social = GetSocialData()
-    if not social then
-        HopeAddon:Print("Cannot generate demo data: social data not available")
-        return false
-    end
-
-    -- Sample fellow travelers for variety
-    local demoPlayers = {
-        { name = "Thrall", class = "SHAMAN" },
-        { name = "Jaina", class = "MAGE" },
-        { name = "Sylvanas", class = "HUNTER" },
-        { name = "Arthas", class = "PALADIN" },
-    }
-
-    -- Get player info
-    local playerName = UnitName("player")
-    local _, playerClass = UnitClass("player")
-
-    local now = time()
-    local activities = {}
-
-    -- Activity 1: Player level up (recent - 5 min ago)
-    table.insert(activities, {
-        id = "demo_" .. now .. "_1",
-        type = ACTIVITY.LEVEL,
-        player = playerName,
-        class = playerClass,
-        data = "68",
-        time = now - 300,  -- 5 minutes ago
-        mugs = 2,
-    })
-
-    -- Activity 2: Fellow's boss kill (30 min ago)
-    table.insert(activities, {
-        id = "demo_" .. now .. "_2",
-        type = ACTIVITY.BOSS,
-        player = demoPlayers[1].name,
-        class = demoPlayers[1].class,
-        data = "Prince Malchezaar",
-        time = now - 1800,  -- 30 min ago
-        mugs = 5,
-    })
-
-    -- Activity 3: IC Post from fellow (1 hour ago)
-    table.insert(activities, {
-        id = "demo_" .. now .. "_3",
-        type = ACTIVITY.IC_POST,
-        player = demoPlayers[2].name,
-        class = demoPlayers[2].class,
-        data = "The mana here in Shattrath is so refreshing after Netherstorm.",
-        time = now - 3600,  -- 1 hour ago
-        mugs = 3,
-    })
-
-    -- Activity 4: Anonymous tavern rumor (2 hours ago)
-    table.insert(activities, {
-        id = "demo_" .. now .. "_4",
-        type = ACTIVITY.ANON,
-        player = demoPlayers[3].name,  -- Hidden in display
-        class = demoPlayers[3].class,
-        data = "I heard there's a secret passage in Karazhan that leads to an unfinished crypt...",
-        time = now - 7200,  -- 2 hours ago
-        mugs = 8,
-    })
-
-    -- Activity 5: Game win (3 hours ago)
-    table.insert(activities, {
-        id = "demo_" .. now .. "_5",
-        type = ACTIVITY.GAME,
-        player = playerName,
-        class = playerClass,
-        data = "Tetris Battle|W",
-        time = now - 10800,  -- 3 hours ago
-        mugs = 1,
-    })
-
-    -- Activity 6: Badge earned (4 hours ago)
-    table.insert(activities, {
-        id = "demo_" .. now .. "_6",
-        type = ACTIVITY.BADGE,
-        player = demoPlayers[4].name,
-        class = demoPlayers[4].class,
-        data = "karazhan_attuned",
-        time = now - 14400,  -- 4 hours ago
-        mugs = 4,
-    })
-
-    -- Activity 7: Status change (5 hours ago)
-    table.insert(activities, {
-        id = "demo_" .. now .. "_7",
-        type = ACTIVITY.STATUS,
-        player = demoPlayers[1].name,
-        class = demoPlayers[1].class,
-        data = "LF_RP",
-        time = now - 18000,  -- 5 hours ago
-        mugs = 0,
-    })
-
-    -- Activity 8: Romance event (yesterday)
-    table.insert(activities, {
-        id = "demo_" .. now .. "_8",
-        type = ACTIVITY.ROMANCE,
-        player = demoPlayers[2].name,
-        class = demoPlayers[2].class,
-        data = "DATING|" .. demoPlayers[4].name .. "|",
-        time = now - 90000,  -- ~25 hours ago (yesterday)
-        mugs = 12,
-    })
-
-    -- Activity 9: Player boss kill (yesterday)
-    table.insert(activities, {
-        id = "demo_" .. now .. "_9",
-        type = ACTIVITY.BOSS,
-        player = playerName,
-        class = playerClass,
-        data = "Gruul the Dragonkiller",
-        time = now - 100000,  -- ~28 hours ago
-        mugs = 3,
-    })
-
-    -- Activity 10: Fellow level up (2 days ago)
-    table.insert(activities, {
-        id = "demo_" .. now .. "_10",
-        type = ACTIVITY.LEVEL,
-        player = demoPlayers[3].name,
-        class = demoPlayers[3].class,
-        data = "70",
-        time = now - 180000,  -- ~50 hours ago
-        mugs = 7,
-    })
-
-    -- Add all activities to feed (without broadcast)
-    for _, activity in ipairs(activities) do
-        -- Mark as seen to prevent duplicates
-        MarkActivitySeen(activity.id)
-        -- Add to feed
-        table.insert(social.feed, activity)
-    end
-
-    -- Sort feed by time (newest first)
-    table.sort(social.feed, function(a, b)
-        return (a.time or 0) > (b.time or 0)
-    end)
-
-    -- Trim to max size
-    while #social.feed > MAX_FEED_ENTRIES do
-        table.remove(social.feed)
-    end
-
-    HopeAddon:Debug("ActivityFeed: Generated", #activities, "demo activities")
-
-    -- Notify listeners so UI updates
-    self:NotifyListeners(#activities)
-
-    return true
-end
-
---[[
-    Clear demo data from feed
-    Removes all activities with "demo_" prefix in their ID
-]]
-function ActivityFeed:ClearDemoData()
-    local social = GetSocialData()
-    if not social then return false end
-
-    local newFeed = {}
-    local removed = 0
-
-    for _, activity in ipairs(social.feed) do
-        if activity.id and activity.id:find("^demo_") then
-            removed = removed + 1
-            -- Also clear from lastSeen
-            if social.lastSeen then
-                social.lastSeen[activity.id] = nil
-            end
-        else
-            table.insert(newFeed, activity)
-        end
-    end
-
-    social.feed = newFeed
-
-    HopeAddon:Debug("ActivityFeed: Cleared", removed, "demo activities")
-
-    -- Notify listeners
-    if removed > 0 then
-        self:NotifyListeners(0)
-    end
-
-    return removed
-end
 
 --============================================================
 -- MODULE LIFECYCLE
@@ -2330,18 +1359,6 @@ function ActivityFeed:OnDisable()
         self.eventFrame:SetScript("OnEvent", nil)
         self.eventFrame = nil
     end
-
-    -- Clean up loot prompt frame (Phase 3)
-    if self.currentPromptFrame then
-        self.currentPromptFrame:Hide()
-        self.currentPromptFrame = nil
-    end
-
-    -- Clear pending loot prompts
-    self.pendingLootPrompts = {}
-
-    -- Clear encounter context
-    self:ClearEncounterContext()
 
     -- Clear all listeners
     self.listeners = {}

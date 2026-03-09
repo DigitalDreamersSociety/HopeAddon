@@ -458,7 +458,7 @@ end
 --[[
     Create a sub-tab button for Social tab's internal navigation
     @param parent Frame - Parent container
-    @param tabId string - Tab identifier (feed, travelers, companions)
+    @param tabId string - Tab identifier (guild, travelers, teams, calendar, critter, feed)
     @param label string - Display text
     @param isActive boolean - Whether this tab is currently active
     @param onClick function - Callback when clicked
@@ -755,6 +755,34 @@ function Components:CreateScrollFrame(parent, width, height)
     container.entries = {}
     container.currentYOffset = 0  -- Track cumulative height
 
+    -- Helper to resolve entry height with collapsible-aware fallback
+    local function ResolveEntryHeight(entry)
+        local entryHeight = entry:GetHeight()
+
+        -- For collapsible sections, use actual calculated height based on expansion state
+        if entry._componentType == Components.COMPONENT_TYPE.COLLAPSIBLE then
+            if entryHeight >= 1 then return entryHeight end
+            -- Fallback: compute from tracked state
+            if entry.isExpanded and entry.contentHeight and entry.contentHeight > 0 then
+                return 28 + entry.contentHeight + Components.MARGIN_SMALL
+            end
+            return 28  -- Collapsed fallback
+        end
+
+        if entryHeight < 1 then
+            -- Use stored component type for appropriate fallback, or check _spacerHeight for spacers
+            local componentType = entry._componentType
+            if componentType and Components.FALLBACK_HEIGHTS[componentType] then
+                entryHeight = Components.FALLBACK_HEIGHTS[componentType]
+            elseif entry._spacerHeight then
+                entryHeight = entry._spacerHeight
+            else
+                entryHeight = Components.FALLBACK_HEIGHTS.default  -- Default card height fallback
+            end
+        end
+        return entryHeight
+    end
+
     function container:AddEntry(entryFrame)
         entryFrame:SetParent(self.content)
         entryFrame:SetPoint("TOPLEFT", self.content, "TOPLEFT", 0, -self.currentYOffset)
@@ -764,18 +792,7 @@ function Components:CreateScrollFrame(parent, width, height)
         table.insert(self.entries, entryFrame)
 
         -- Get entry height - use component-type-aware fallback if not laid out yet (H1 fix)
-        local entryHeight = entryFrame:GetHeight()
-        if entryHeight < 1 then
-            -- Use stored component type for appropriate fallback, or check _spacerHeight for spacers
-            local componentType = entryFrame._componentType
-            if componentType and Components.FALLBACK_HEIGHTS[componentType] then
-                entryHeight = Components.FALLBACK_HEIGHTS[componentType]
-            elseif entryFrame._spacerHeight then
-                entryHeight = entryFrame._spacerHeight
-            else
-                entryHeight = Components.FALLBACK_HEIGHTS.default  -- Default card height fallback
-            end
-        end
+        local entryHeight = ResolveEntryHeight(entryFrame)
 
         -- Update cumulative offset and content height
         self.currentYOffset = self.currentYOffset + entryHeight + Components.MARGIN_SMALL
@@ -812,18 +829,8 @@ function Components:CreateScrollFrame(parent, width, height)
             entry:SetPoint("TOPLEFT", self.content, "TOPLEFT", 0, -yOffset)
             entry:SetPoint("RIGHT", self.content, "RIGHT", 0, 0)
 
-            -- Use same fallback logic as AddEntry for consistency (M1 fix)
-            local entryHeight = entry:GetHeight()
-            if entryHeight < 1 then
-                local componentType = entry._componentType
-                if componentType and Components.FALLBACK_HEIGHTS[componentType] then
-                    entryHeight = Components.FALLBACK_HEIGHTS[componentType]
-                elseif entry._spacerHeight then
-                    entryHeight = entry._spacerHeight
-                else
-                    entryHeight = Components.FALLBACK_HEIGHTS.default
-                end
-            end
+            -- Use shared collapsible-aware height resolver (M1 fix)
+            local entryHeight = ResolveEntryHeight(entry)
 
             yOffset = yOffset + entryHeight + Components.MARGIN_SMALL
         end
@@ -1569,43 +1576,78 @@ function Components:CreateCollapsibleSection(parent, title, colorName, startExpa
     end
 
     -- Toggle expansion with smooth animation
+    section._toggleAnimations = {}  -- Track in-flight animations for cancellation
+
     function section:Toggle()
+        -- Cancel any in-flight animations before starting new ones
+        for _, anim in ipairs(self._toggleAnimations) do
+            if anim and anim._hopeCancel then
+                anim._hopeCancel()
+            end
+        end
+        table.wipe(self._toggleAnimations)
+
         self.isExpanded = not self.isExpanded
         self.indicator:SetText(self.isExpanded and "[-]" or "[+]")
 
         if self.isExpanded then
-            -- Expanding: Show then fade in
+            -- Expanding: Update height first (show container), then fade children in
+            self:UpdateHeight()
+
             for _, child in ipairs(self.childEntries) do
                 child:SetAlpha(0)
                 child:Show()
                 if HopeAddon.Animations then
-                    HopeAddon.Animations:FadeTo(child, 1, 0.2)
+                    local anim = HopeAddon.Animations:FadeTo(child, 1, 0.2)
+                    if anim then table.insert(self._toggleAnimations, anim) end
                 else
                     child:SetAlpha(1)
                 end
             end
+
+            -- Notify parent scroll container to recalculate
+            if self.onToggle then
+                self.onToggle(self, self.isExpanded)
+            end
         else
-            -- Collapsing: Fade out then hide
-            for _, child in ipairs(self.childEntries) do
-                if HopeAddon.Animations then
-                    HopeAddon.Animations:FadeTo(child, 0, 0.2, function()
+            -- Collapsing: Fade children first, THEN update height in callback
+            local childCount = #self.childEntries
+            if childCount == 0 then
+                self:UpdateHeight()
+                if self.onToggle then
+                    self.onToggle(self, self.isExpanded)
+                end
+            else
+                local doneCount = 0
+                for _, child in ipairs(self.childEntries) do
+                    if HopeAddon.Animations then
+                        local anim = HopeAddon.Animations:FadeTo(child, 0, 0.2, function()
+                            child:Hide()
+                            child:SetAlpha(1)  -- Reset for next expand
+                            doneCount = doneCount + 1
+                            if doneCount >= childCount then
+                                self:UpdateHeight()
+                                if self.onToggle then
+                                    self.onToggle(self, self.isExpanded)
+                                end
+                            end
+                        end)
+                        if anim then table.insert(self._toggleAnimations, anim) end
+                    else
                         child:Hide()
-                        child:SetAlpha(1)  -- Reset for next expand
-                    end)
-                else
-                    child:Hide()
+                        doneCount = doneCount + 1
+                        if doneCount >= childCount then
+                            self:UpdateHeight()
+                            if self.onToggle then
+                                self.onToggle(self, self.isExpanded)
+                            end
+                        end
+                    end
                 end
             end
         end
 
-        self:UpdateHeight()
-
-        -- Notify parent scroll container to recalculate
-        if self.onToggle then
-            self.onToggle(self, self.isExpanded)
-        end
-
-        HopeAddon.Sounds:PlayClick()
+        if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
     end
 
     -- Set expansion state

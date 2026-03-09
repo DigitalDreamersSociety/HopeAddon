@@ -1,7 +1,7 @@
 # Reputation Tab - Component Reference
 
 > **Audience:** AI assistants modifying reputation code.
-> **Last updated:** 2026-03-01
+> **Last updated:** 2026-03-03
 
 ---
 
@@ -13,16 +13,16 @@ The Reputation tab is a TBC faction tracking system built into the HopeAddon gui
 
 | File | Lines | Content |
 |------|-------|---------|
-| `Reputation/Reputation.lua` | 1-526 | Event handling, standing cache, milestone entries, notifications |
-| `Reputation/ReputationData.lua` | 1-1177 | 18 faction definitions, 8 standings, 8 categories, lore/quips, rewards, hover data, helper functions |
-| `Journal/Journal.lua` | 4888-5452 | Reputation tab UI: `PopulateReputation`, `CreateRecommendedUpgradesSection`, `CreateReputationCard`, `BuildFactionTooltip` |
-| `Journal/Journal.lua` | 977-1296 | Reputation bar pool (`CreateReputationBarPool`, `AcquireReputationBar`) and loot pool (`CreateReputationLootPool`) |
-| `Journal/Journal.lua` | 7370-7875 | Reputation loot popup: `GetReputationLootPopup`, `ShowReputationLootPopup`, item tracking functions |
-| `Journal/Journal.lua` | 14782-14795 | Reputation loot state declarations (`reputationLootUI`, `reputationLootState`, `reputationLootPools`) |
-| `Journal/Journal.lua` | 1619-1765 | `AcquireUpgradeCard` (shared pool for upgrade item cards) |
+| `Reputation/Reputation.lua` | 1-525 | Event handling, standing cache, milestone entries, notifications |
+| `Reputation/ReputationData.lua` | 1-1176 | 18 faction definitions, 8 standings, 8 categories, lore/quips, rewards, hover data, helper functions |
+| `Journal/Journal.lua` | 5140-5704 | Reputation tab UI: `PopulateReputation`, `CreateRecommendedUpgradesSection`, `CreateReputationCard`, `BuildFactionTooltip` |
+| `Journal/Journal.lua` | 1022-1475 | Reputation bar pool (`CreateReputationBarPool`, `AcquireReputationBar`) and loot pool (`CreateReputationLootPool`) |
+| `Journal/Journal.lua` | 8154-8667 | Reputation loot popup: `GetReputationLootPopup`, `ShowReputationLootPopup`, item tracking functions |
+| `Journal/Journal.lua` | 15668-15681 | Reputation loot state declarations (`reputationLootUI`, `reputationLootState`, `reputationLootPools`) |
+| `Journal/Journal.lua` | 1794-1940 | `AcquireUpgradeCard` (shared pool for upgrade item cards) |
 | `Core/Constants.lua` | 4900-6594 | `CLASS_SPEC_LOOT_HOTLIST` - per-class/spec reputation item recommendations |
 | `Core/Constants.lua` | 8177-8212 | `C.REPUTATION_LOOT_POPUP` - loot popup dimensions, colors, backdrop |
-| `UI/Components.lua` | 2574-2815 | `CreateSegmentedReputationBar` - 5-segment visual bar |
+| `UI/Components.lua` | 2616-2857 | `CreateSegmentedReputationBar` - 5-segment visual bar |
 
 ### Visual Layout
 
@@ -158,11 +158,11 @@ Each category has: `name`, `icon`, `description`, `order`.
 }
 ```
 
-### 2d. Helper Functions (ReputationData.lua:1044-1177)
+### 2d. Helper Functions (ReputationData.lua:1044-1176)
 
 | Line | Function | Signature | Purpose |
 |------|----------|-----------|---------|
-| 1046 | `FACTION_ID_MAP` | (auto-built) | Reverse lookup: faction ID -> faction name |
+| 1045 | `FACTION_ID_MAP` | (auto-built) | Reverse lookup: faction ID -> faction name |
 | 1051 | `GetFactionById` | `(factionId)` -> `data, name` | Faction ID -> faction data + name |
 | 1060 | `IsFactionAvailable` | `(factionName)` -> `boolean` | Checks Alliance/Horde/Both against player faction |
 | 1073 | `GetOrderedCategories` | `()` -> `{ {id, data}, ... }` | Categories sorted by `order` field |
@@ -202,15 +202,15 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
 
 | Class | Line | [1] | [2] | [3] | [4] |
 |-------|------|-----|-----|-----|-----|
-| WARRIOR | 4902 | Arms (Melee DPS) | Fury (Melee DPS) | Protection (Tank) | - |
-| PALADIN | 5268 | Holy (Healer) | Protection (Tank) | Retribution (Melee DPS) | - |
-| PRIEST | 5584 | Discipline (Healer) | Holy (Healer) | Shadow (Caster DPS) | - |
-| DRUID | 5698 | Balance (Caster DPS) | Feral (Bear Tank) | Restoration (Healer) | Feral (Cat DPS) |
-| SHAMAN | 5867 | Elemental (Caster DPS) | Enhancement (Melee DPS) | Restoration (Healer) | - |
-| MAGE | 6006 | Arcane (Caster DPS) | Fire (Caster DPS) | Frost (Caster DPS) | - |
-| WARLOCK | 6128 | Affliction (Caster DPS) | Demonology (Caster DPS) | Destruction (Caster DPS) | - |
-| HUNTER | 6250 | Beast Mastery (Ranged DPS) | Marksmanship (Ranged DPS) | Survival (Ranged DPS) | - |
-| ROGUE | 6400 | Assassination (Melee DPS) | Combat (Melee DPS) | Subtlety (Melee DPS) | - |
+| WARRIOR | 4904 | Arms (Melee DPS) | Fury (Melee DPS) | Protection (Tank) | - |
+| PALADIN | 5270 | Holy (Healer) | Protection (Tank) | Retribution (Melee DPS) | - |
+| PRIEST | 5586 | Discipline (Healer) | Holy (Healer) | Shadow (Caster DPS) | - |
+| DRUID | 5700 | Balance (Caster DPS) | Feral (Bear Tank) | Restoration (Healer) | Feral (Cat DPS) |
+| SHAMAN | 5869 | Elemental (Caster DPS) | Enhancement (Melee DPS) | Restoration (Healer) | - |
+| MAGE | 6008 | Arcane (Caster DPS) | Fire (Caster DPS) | Frost (Caster DPS) | - |
+| WARLOCK | 6130 | Affliction (Caster DPS) | Demonology (Caster DPS) | Destruction (Caster DPS) | - |
+| HUNTER | 6252 | Beast Mastery (Ranged DPS) | Marksmanship (Ranged DPS) | Survival (Ranged DPS) | - |
+| ROGUE | 6402 | Assassination (Melee DPS) | Combat (Melee DPS) | Subtlety (Melee DPS) | - |
 
 **Total:** 9 classes, 28 spec tabs (Druid has 4 tabs for separate Bear/Cat, all others have 3).
 
@@ -256,17 +256,17 @@ Each entry in the `rep` array:
 
 ## 4. UI Components
 
-### 4a. Reputation Tab Layout (Journal.lua:4888-4972)
+### 4a. Reputation Tab Layout (Journal.lua:5140-5224)
 
 **`PopulateReputation()`** - Main entry point, called when the Reputation tab is selected.
 
 **Call flow:**
 
 ```
-PopulateReputation()                             -- :4888
+PopulateReputation()                             -- :5140
   -> EnsureBisLookupCurrent(guideKey, 1)         -- Pre-warm BiS cache for current spec
   -> CreateSectionHeader("FACTION STANDING")      -- Header
-  -> CreateRecommendedUpgradesSection()           -- :4978 (spec-specific items)
+  -> CreateRecommendedUpgradesSection()           -- :5230 (spec-specific items)
   -> [if Aldor/Scryer choice + Honored]:
        CreateReputationCard({ isSpecial })        -- Choice card
   -> GetOrderedCategories()                       -- 8 categories sorted by order
@@ -278,14 +278,14 @@ PopulateReputation()                             -- :4888
          CreateReputationCard({ name, data })     -- Faction card
 ```
 
-### 4b. Recommended Upgrades Section (Journal.lua:4978-5078)
+### 4b. Recommended Upgrades Section (Journal.lua:5230-5330)
 
 **`CreateRecommendedUpgradesSection()`** - Displays spec-specific rep items sorted by obtainability.
 
 **Call flow:**
 
 ```
-CreateRecommendedUpgradesSection()               -- :4978
+CreateRecommendedUpgradesSection()               -- :5230
   -> GetPlayerSpec() -> classToken, specTab
   -> CLASS_SPEC_LOOT_HOTLIST[classToken][specTab].rep
   -> for each item:
@@ -297,10 +297,10 @@ CreateRecommendedUpgradesSection()               -- :4978
          N = distance from requirement
   -> Sort by priority (obtainable first, closest next)
   -> CreateCategoryHeader("RECOMMENDED UPGRADES (specName)")
-  -> AcquireUpgradeCard(parent, item, factionProgress)  -- :1619
+  -> AcquireUpgradeCard(parent, item, factionProgress)  -- :1794
 ```
 
-### 4c. Faction Card (Journal.lua:5085-5344)
+### 4c. Faction Card (Journal.lua:5337-5596)
 
 **`CreateReputationCard(info)`** - Creates a card for a single faction.
 
@@ -334,7 +334,7 @@ CreateRecommendedUpgradesSection()               -- :4978
 - `OnMouseUp` (left) - Play click sound, open `ShowReputationLootPopup`
 - `repItemsBtn OnClick` - Same as OnMouseUp (opens loot popup)
 
-### 4d. Upgrade Card (Journal.lua:1619-1765)
+### 4d. Upgrade Card (Journal.lua:1794-1940)
 
 **`AcquireUpgradeCard(parent, itemData, factionProgress)`** - Shared pool card for recommended items.
 
@@ -364,7 +364,7 @@ CreateRecommendedUpgradesSection()               -- :4978
 
 **Greyed out:** Icon desaturated + grey vertex color when not obtainable.
 
-### 4e. Segmented Reputation Bar (Components.lua:2574-2815)
+### 4e. Segmented Reputation Bar (Components.lua:2616-2857)
 
 **`CreateSegmentedReputationBar(parent, width, height, options)`** - 5-segment visual bar showing Neutral through Exalted progress.
 
@@ -400,7 +400,7 @@ CreateRecommendedUpgradesSection()               -- :4978
 | `SetStandingHighlight(standingId)` | Highlights current standing label, updates border |
 | `Cleanup()` | Resets all fills, labels, border, marker, and effects for pooling |
 
-### 4f. Faction Tooltip (Journal.lua:5350-5452)
+### 4f. Faction Tooltip (Journal.lua:5602-5704)
 
 **`BuildFactionTooltip(factionName, factionData, currentStandingId, anchorFrame)`**
 
@@ -417,7 +417,7 @@ Builds a rich GameTooltip with 6 sections:
 | BiS for Your Spec | Gold (`1, 0.84, 0`) | BiS items from lookup cache (green if obtainable, grey if not) |
 | Requirements | Red (`0.9, 0.2, 0.1`) | `hoverData.prerequisites` list |
 
-### 4g. Item Tracking System (Journal.lua:7812-7875)
+### 4g. Item Tracking System (Journal.lua:8619-8667+)
 
 Allows players to track specific reputation vendor items and set a goal item. Tracked items are shown as green badges on faction cards and gold stars in the loot popup.
 
@@ -425,22 +425,22 @@ Allows players to track specific reputation vendor items and set a goal item. Tr
 
 | Line | Function | Signature | Purpose |
 |------|----------|-----------|---------|
-| 7812 | `ToggleReputationItemTracking` | `(itemId, factionName, standingId, itemName)` | Toggle tracking on/off for an item. Clears goal if tracked item is untracked |
-| 7847 | `SetReputationGoalItem` | `(itemId, factionName, standingId, itemName)` | Toggle goal status. Auto-tracks item if not yet tracked |
+| 8619 | `ToggleReputationItemTracking` | `(itemId, factionName, standingId, itemName)` | Toggle tracking on/off for an item. Clears goal if tracked item is untracked |
+| 8654 | `SetReputationGoalItem` | `(itemId, factionName, standingId, itemName)` | Toggle goal status. Auto-tracks item if not yet tracked |
 
-**Tracked badge on faction card** (Journal.lua:5231-5259):
+**Tracked badge on faction card** (Journal.lua:5471-5501):
 - Counts items in `charDb.reputation.trackedItems` matching the faction name
 - Displays `"|cFF88FF88{N} Tracked|r"` in green below the BiS badge (or below standing progress if no BiS badge)
 - Font: `SMALL` 9pt OUTLINE
 - Hidden when `trackedCount == 0`
 
-**Goal star in loot popup** (Journal.lua:1198-1204):
+**Goal star in loot popup** (Journal.lua:1374-1379):
 - Gold star icon (`Interface\COMMON\ReputationStar`) sized `C.TRACKED_STAR_SIZE` (14px)
 - Positioned left of the standing badge
 - Colored with `C.GOAL_COLOR` (`{ r = 1, g = 0.84, b = 0 }` - gold)
 - Shown only for the item matching `charDb.reputation.goalItem.itemId`
 
-**Tracking checkbox in loot popup** (Journal.lua:1164-1168):
+**Tracking checkbox in loot popup** (Journal.lua:1340-1343):
 - `UICheckButtonTemplate` sized `C.CHECKBOX_SIZE` (20px), leftmost element in each item row
 - `OnClick` handler calls `ToggleReputationItemTracking()` then `RefreshReputationLootPopup()`
 - Right-click on the row calls `SetReputationGoalItem()` then refreshes
@@ -462,7 +462,7 @@ charDb.reputation.goalItem = {           -- nil if no goal set; only one goal at
 }
 ```
 
-### 4h. Reputation Loot Popup (Journal.lua:7370-7790)
+### 4h. Reputation Loot Popup (Journal.lua:8154-8597)
 
 A modal popup showing all faction vendor rewards organized by standing tier (Friendly -> Honored -> Revered -> Exalted) with item tracking checkboxes.
 
@@ -489,36 +489,36 @@ A modal popup showing all faction vendor rewards organized by standing tier (Fri
 
 | Line | Function | Signature | Purpose |
 |------|----------|-----------|---------|
-| 7378 | `GetReputationLootPopup` | `()` -> `popup` | Lazy singleton, creates popup on first call. Frame strata DIALOG, level 100 |
-| 7563 | `ShowReputationLootPopup` | `(factionName, factionData)` | Release old frames, set header, populate tier-grouped items, position center, adjust height |
-| 7549 | `HideReputationLootPopup` | `()` | Hide popup, clear state (popupVisible, currentFaction, currentData) |
-| 7525 | `ReleaseReputationLootPopupFrames` | `()` | Release all pooled itemRows and tierHeaders back to pools |
-| 7796 | `RefreshReputationLootPopup` | `()` | Re-calls ShowReputationLootPopup with current faction if visible |
+| 8154 | `GetReputationLootPopup` | `()` -> `popup` | Lazy singleton, creates popup on first call. Frame strata DIALOG, level 100 |
+| 8339 | `ShowReputationLootPopup` | `(factionName, factionData)` | Release old frames, set header, populate tier-grouped items, position center, adjust height |
+| 8325 | `HideReputationLootPopup` | `()` | Hide popup, clear state (popupVisible, currentFaction, currentData) |
+| 8301 | `ReleaseReputationLootPopupFrames` | `()` | Release all pooled itemRows and tierHeaders back to pools |
+| 8603 | `RefreshReputationLootPopup` | `()` | Re-calls ShowReputationLootPopup with current faction if visible |
 
 **Popup frame elements** (created in GetReputationLootPopup):
 
 | Element | Line | Details |
 |---------|------|---------|
-| Header (draggable) | 7402-7415 | EnableMouse, RegisterForDrag("LeftButton"), OnDragStart/OnDragStop |
-| Faction icon | 7418-7422 | 32x32, left of title |
-| Title text | 7425-7428 | GameFontNormalLarge |
-| Standing text | 7431-7434 | GameFontNormalSmall, grey, below title |
-| Close button | 7437-7446 | 20x20, MinimizeButton textures, calls HideReputationLootPopup |
-| Header divider | 7449-7453 | 1px gold-brown line |
-| Scroll frame | 7460-7468 | UIPanelScrollFrameTemplate, between header and footer |
-| Footer divider | 7473-7477 | 1px gold-brown line |
-| Tracked count | 7486-7489 | Left side of footer, green text ("Tracking: N items") |
-| Hint text | 7492-7495 | Right side of footer, grey ("Check to track") |
+| Header (draggable) | 8178-8191 | EnableMouse, RegisterForDrag("LeftButton"), OnDragStart/OnDragStop |
+| Faction icon | 8194-8198 | 32x32, left of title |
+| Title text | 8201-8204 | GameFontNormalLarge |
+| Standing text | 8207-8210 | GameFontNormalSmall, grey, below title |
+| Close button | 8213-8222 | 20x20, MinimizeButton textures, calls HideReputationLootPopup |
+| Header divider | 8225-8229 | 1px gold-brown line |
+| Scroll frame | 8236-8244 | UIPanelScrollFrameTemplate, between header and footer |
+| Footer divider | 8249-8253 | 1px gold-brown line |
+| Tracked count | 8262-8265 | Left side of footer, green text ("Tracking: N items") |
+| Hint text | 8268-8271 | Right side of footer, grey ("Check to track") |
 
 **Event handlers:**
 
 | Line | Event | Handler |
 |------|-------|---------|
-| 7506 | `OnHide` | Calls `ReleaseReputationLootPopupFrames()` |
-| 7511 | `OnKeyDown` | ESC key -> `HideReputationLootPopup()` |
-| 7516 | `SetPropagateKeyboardInput(true)` | Allows ESC to pass through |
+| 8282 | `OnHide` | Calls `ReleaseReputationLootPopupFrames()` |
+| 8287 | `OnKeyDown` | ESC key -> `HideReputationLootPopup()` |
+| 8292 | `SetPropagateKeyboardInput(true)` | Allows ESC to pass through |
 
-**Population flow** (ShowReputationLootPopup:7563):
+**Population flow** (ShowReputationLootPopup:8339):
 
 ```
 ShowReputationLootPopup(factionName, factionData)
@@ -545,36 +545,36 @@ ShowReputationLootPopup(factionName, factionData)
   -> Clamp height between MIN_HEIGHT and MAX_HEIGHT
 ```
 
-### 4i. Reputation Bar & Loot Pool System (Journal.lua:977-1296)
+### 4i. Reputation Bar & Loot Pool System (Journal.lua:1022-1475)
 
-Frame pools for reputation bars and loot popup elements, initialized during Journal:OnEnable (line 214-216).
+Frame pools for reputation bars and loot popup elements, initialized during Journal:OnEnable (line 215-217).
 
-**Pool initialization calls** (Journal.lua:210-216):
+**Pool initialization calls** (Journal.lua:215-217):
 
 ```lua
-self:CreateReputationBarPool()    -- line 214
-self:CreateBossLootPool()         -- line 215 (raids tab, not reputation)
-self:CreateReputationLootPool()   -- line 216
+self:CreateReputationBarPool()    -- line 215
+self:CreateBossLootPool()         -- line 216 (raids tab, not reputation)
+self:CreateReputationLootPool()   -- line 217
 ```
 
 **Reputation Bar Pool:**
 
 | Line | Function | Signature | Purpose |
 |------|----------|-----------|---------|
-| 977 | `CreateReputationBarPool` | `()` | Creates pool named "ReputationBars" using `Components:CreateSegmentedReputationBar` |
-| 1006 | `AcquireReputationBar` | `(parent, width)` -> bar | Acquires bar from pool, sets parent and width |
+| 1022 | `CreateReputationBarPool` | `()` | Creates pool named "ReputationBars" using `Components:CreateSegmentedReputationBar` |
+| 1051 | `AcquireReputationBar` | `(parent, width)` -> bar | Acquires bar from pool, sets parent and width |
 
-- **Create function** (line 980): Creates a `CreateSegmentedReputationBar(UIParent, 300, 18)`, hides it
-- **Reset function** (line 987): Calls `bar:Cleanup()` (resets visual state), hides, unparents, clears points
+- **Create function** (line 1025): Creates a `CreateSegmentedReputationBar(UIParent, 300, 18)`, hides it
+- **Reset function** (line 1032): Calls `bar:Cleanup()` (resets visual state), hides, unparents, clears points
 - **Pool name**: `"ReputationBars"` via `FramePool:NewNamed()`
 
 **Reputation Loot Pool:**
 
 | Line | Function | Purpose |
 |------|----------|---------|
-| 1149 | `CreateReputationLootPool` | Creates both `itemRow` and `tierHeader` pools |
+| 1324 | `CreateReputationLootPool` | Creates both `itemRow` and `tierHeader` pools |
 
-**itemRow pool** (line 1154-1269):
+**itemRow pool** (line 1329-1444):
 
 Created as a `Button` with `BackdropTemplate`. Elements per row:
 
@@ -595,7 +595,7 @@ Row event handlers:
 
 Reset function clears: highlight, icon, texts, checkbox, goalStar, all click handlers, all per-row state (`itemId`, `itemName`, `itemType`, `qualityColor`, `factionName`, `standingId`, `isTracked`, `isGoal`)
 
-**tierHeader pool** (line 1272-1296):
+**tierHeader pool** (line 1447-1475):
 
 Simple frame with:
 
@@ -615,15 +615,15 @@ Height: `C.TIER_HEADER_HEIGHT` (24px). Format: `"-- HONORED (3 items) --"`
 ```lua
 Reputation.initialized = false           -- Set true in OnEnable() after setup
 Reputation.cachedStandings = {}          -- { [factionName] = { standingId, earnedValue, factionId } }
-Reputation.notificationPool = nil        -- FramePool for notification frames (created in OnEnable:28)
-Reputation.pendingTimers = {}            -- Timer handle tracking for cleanup (cancelled in OnDisable:37-42)
+Reputation.notificationPool = nil        -- FramePool for notification frames (created in OnEnable:27)
+Reputation.pendingTimers = {}            -- Timer handle tracking for cleanup (cancelled in OnDisable:35-42)
 ```
 
-**Journal-side state** (Journal.lua:14782-14795):
+**Journal-side state** (Journal.lua:15668-15681):
 
 ```lua
 Journal.reputationLootUI = {
-    popup = nil,               -- Singleton popup frame (lazy, created by GetReputationLootPopup:7378)
+    popup = nil,               -- Singleton popup frame (lazy, created by GetReputationLootPopup:8154)
 }
 Journal.reputationLootState = {
     currentFaction = nil,      -- Currently displayed faction name
@@ -631,8 +631,8 @@ Journal.reputationLootState = {
     popupVisible = false,      -- Whether loot popup is currently shown
 }
 Journal.reputationLootPools = {
-    itemRow = nil,             -- Pooled item rows with tracking checkboxes (created by CreateReputationLootPool:1149)
-    tierHeader = nil,          -- Pooled tier section headers (created by CreateReputationLootPool:1272)
+    itemRow = nil,             -- Pooled item rows with tracking checkboxes (created by CreateReputationLootPool:1324)
+    tierHeader = nil,          -- Pooled tier section headers (created by CreateReputationLootPool:1447)
 }
 ```
 
@@ -794,7 +794,7 @@ charDb.reputation = {
         ["The Sha'tar"] = 5,
     },
     trackedItems = {
-        -- [itemId] = trackData  (managed by ToggleReputationItemTracking:7812)
+        -- [itemId] = trackData  (managed by ToggleReputationItemTracking:8619)
         [29175] = {
             factionName = "The Sha'tar",     -- Faction this item belongs to
             standingId = 7,                   -- Required standing (5-8)
@@ -806,7 +806,7 @@ charDb.reputation = {
             dateAdded = "Mar 01, 2026",
         },
     },
-    goalItem = {                -- nil if no goal set (managed by SetReputationGoalItem:7847)
+    goalItem = {                -- nil if no goal set (managed by SetReputationGoalItem:8654)
         itemId = 29175,          -- Single goal item at a time (toggle on/off)
         factionName = "The Sha'tar",
         standingId = 7,
@@ -816,8 +816,8 @@ charDb.reputation = {
 
 **Schema notes:**
 - `trackedItems` is initialized lazily (`charDb.reputation.trackedItems = charDb.reputation.trackedItems or {}`) on first access
-- Untracking an item that is also the `goalItem` automatically clears the goal (ToggleReputationItemTracking:7826-7828)
-- Setting a goal item auto-tracks it if not already tracked (SetReputationGoalItem:7854-7861)
+- Untracking an item that is also the `goalItem` automatically clears the goal (ToggleReputationItemTracking:8632-8634)
+- Setting a goal item auto-tracks it if not already tracked (SetReputationGoalItem:8661-8667)
 
 ---
 
@@ -826,10 +826,10 @@ charDb.reputation = {
 ### Flow 1: Tab Display
 
 ```
-1. PopulateReputation()                          -- Journal.lua:4888
+1. PopulateReputation()                          -- Journal.lua:5140
 2.   EnsureBisLookupCurrent(guideKey, 1)         -- Warm BiS cache
 3.   CreateSectionHeader("FACTION STANDING")
-4.   CreateRecommendedUpgradesSection()           -- :4978
+4.   CreateRecommendedUpgradesSection()           -- :5230
 5.     GetPlayerSpec() -> classToken, specTab
 6.     CLASS_SPEC_LOOT_HOTLIST[classToken][specTab].rep
 7.     for each item:
@@ -837,7 +837,7 @@ charDb.reputation = {
 9.       GetProgressInStanding(item.faction)        -- :487
 10.      Calculate priority (obtainable=0, distance)
 11.    Sort by priority
-12.    AcquireUpgradeCard() x N                    -- :1619
+12.    AcquireUpgradeCard() x N                    -- :1794
 13.  [if aldorScryerChoice + Honored]:
 14.    CreateReputationCard({ isSpecial })
 15.  GetOrderedCategories()                        -- ReputationData.lua:1073
@@ -845,11 +845,11 @@ charDb.reputation = {
 17.    GetFactionsByCategory(catId)                 -- :1085
 18.    CreateCategoryHeader(catName)
 19.    for each faction:
-20.      CreateReputationCard({ name, data })       -- Journal.lua:5085
+20.      CreateReputationCard({ name, data })       -- Journal.lua:5337
 21.        GetFactionStanding(name)
 22.        GetStandingColor(standingId)
 23.        GetBisItemsForFaction(name)              -- BiS count badge
-24.        AcquireReputationBar(card, width)         -- Components.lua:2574
+24.        AcquireReputationBar(card, width)         -- Components.lua:2616
 25.          SetProgress(standingId, current, max)
 26.          SetStandingHighlight(standingId)
 ```
@@ -889,10 +889,10 @@ charDb.reputation = {
 ### Flow 3: Loot Popup Interaction
 
 ```
-1. User clicks faction card (OnMouseUp) or "Rep Items" btn   -- Journal.lua:5330-5331
-2.   ShowReputationLootPopup(factionName, factionData)         -- :7563
-3.     GetReputationLootPopup()                                -- :7378 (lazy singleton)
-4.     ReleaseReputationLootPopupFrames()                      -- :7525
+1. User clicks faction card (OnMouseUp) or "Rep Items" btn   -- Journal.lua:5581-5586
+2.   ShowReputationLootPopup(factionName, factionData)         -- :8339
+3.     GetReputationLootPopup()                                -- :8154 (lazy singleton)
+4.     ReleaseReputationLootPopupFrames()                      -- :8301
 5.     Update reputationLootState (faction, data, visible)
 6.     Set header: icon, title, standing text with color
 7.     Data:GetAllRewards(factionName)                         -- ReputationData.lua:1138
@@ -908,13 +908,13 @@ charDb.reputation = {
 17.    Update footer text
 18.    Position centered, clamp height (MIN_HEIGHT..MAX_HEIGHT)
 19.  [User checks checkbox]:
-20.    ToggleReputationItemTracking(itemId, ...)               -- :7812
-21.    RefreshReputationLootPopup()                            -- :7796
+20.    ToggleReputationItemTracking(itemId, ...)               -- :8619
+21.    RefreshReputationLootPopup()                            -- :8603
 22.  [User right-clicks row]:
-23.    SetReputationGoalItem(itemId, ...)                      -- :7847
+23.    SetReputationGoalItem(itemId, ...)                      -- :8654
 24.    RefreshReputationLootPopup()
 25.  [User clicks close or presses ESC]:
-26.    HideReputationLootPopup()                               -- :7549
+26.    HideReputationLootPopup()                               -- :8325
 27.      popup:Hide() -> OnHide -> ReleaseReputationLootPopupFrames()
 28.      Clear state (popupVisible, currentFaction, currentData)
 ```

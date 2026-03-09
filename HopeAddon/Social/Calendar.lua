@@ -112,6 +112,11 @@ function Calendar:EnsureCalendarData()
         end
     end
 
+    -- Ensure birthday fields exist (migration for existing data)
+    if social.calendar.knownBirthdays == nil then
+        social.calendar.knownBirthdays = {}
+    end
+
     return social.calendar
 end
 
@@ -618,6 +623,14 @@ function Calendar:GetServerEventsForDate(dateStr)
     for _, event in ipairs(C:GetPermanentEventsForDate(dateStr)) do
         table.insert(events, event)
     end
+    -- Add birthday events for this date
+    local cal = self:GetCalendarData()
+    if cal then
+        local myName = UnitName("player")
+        for _, event in ipairs(C:GetBirthdayEventsForDate(dateStr, cal.knownBirthdays, cal.myBirthday, myName)) do
+            table.insert(events, event)
+        end
+    end
     return events
 end
 
@@ -705,12 +718,26 @@ function Calendar:GetUpcomingEvents(limit)
     if not cal then return {} end
 
     local today = self:GetTodayString()
+    local now = time()
     local events = {}
+
+    -- Check if an event is still upcoming (not yet started)
+    local function isUpcoming(event)
+        if not event.date then return false end
+        if event.date > today then return true end       -- future date: always include
+        if event.date < today then return false end       -- past date: exclude
+        -- Same day: check if start time hasn't passed yet
+        if event.startTime then
+            local eventTime = Calendar:GetEventTimestamp(event)
+            return eventTime > now
+        end
+        return true  -- no startTime specified: include for today
+    end
 
     -- Collect future events from my events (check auto-lock)
     if cal.myEvents then
         for _, event in pairs(cal.myEvents) do
-            if event.date >= today then
+            if isUpcoming(event) then
                 self:CheckAutoLock(event)  -- Check and apply auto-lock if needed
                 table.insert(events, event)
             end
@@ -719,7 +746,7 @@ function Calendar:GetUpcomingEvents(limit)
     -- Collect future events from fellow events
     if cal.fellowEvents then
         for _, event in pairs(cal.fellowEvents) do
-            if event.date >= today then
+            if isUpcoming(event) then
                 table.insert(events, event)
             end
         end
@@ -727,25 +754,30 @@ function Calendar:GetUpcomingEvents(limit)
 
     -- Include hardcoded server/guild events
     for _, event in ipairs(C.SERVER_EVENTS or {}) do
-        if event.date and event.date >= today then
+        if isUpcoming(event) then
             table.insert(events, event)
         end
     end
 
-    -- Include permanent recurring guild events for the next 30 days
+    -- Include permanent recurring guild events (next occurrence only per template)
     local UPCOMING_DAYS = 30
+    local seenPermanent = {}
     for _, event in ipairs(C.PERMANENT_GUILD_EVENTS or {}) do
-        for dayOffset = 0, UPCOMING_DAYS do
-            local futureTime = time() + (dayOffset * 86400)
-            local ft = date("*t", futureTime)
-            if ft.wday == event.dayOfWeek then
-                local dateStr = string.format("%04d-%02d-%02d", ft.year, ft.month, ft.day)
-                if dateStr >= today then
+        if not seenPermanent[event.id] then
+            for dayOffset = 0, UPCOMING_DAYS do
+                local futureTime = now + (dayOffset * 86400)
+                local ft = date("*t", futureTime)
+                if ft.wday == event.dayOfWeek then
+                    local dateStr = string.format("%04d-%02d-%02d", ft.year, ft.month, ft.day)
                     local copy = {}
                     for k, v in pairs(event) do copy[k] = v end
                     copy.date = dateStr
                     copy.permanent = true
-                    table.insert(events, copy)
+                    if isUpcoming(copy) then
+                        table.insert(events, copy)
+                        seenPermanent[event.id] = true
+                        break  -- Only take the first (next) occurrence
+                    end
                 end
             end
         end
@@ -857,6 +889,15 @@ function Calendar:GetEventsForMonth(year, month)
             eventType = event.eventType or "OTHER",
             title = event.title,
             spanPosition = spanPosition,
+            startTime = event.startTime,
+            themeColor = event.themeColor,
+            icon = event.icon,
+            raidKey = event.raidKey,
+            eventColor = event.eventColor,
+            locked = event.locked,
+            permanent = event.permanent,
+            id = event.id,
+            date = dateStr,
         })
     end
 
@@ -947,7 +988,44 @@ function Calendar:GetEventsForMonth(year, month)
                     for k, v in pairs(event) do copy[k] = v end
                     copy.date = dateStr
                     copy.permanent = true
+                    addEventForDate(copy, dateStr, "single")
                     addServerEventForDate(copy, dateStr)
+                end
+            end
+        end
+    end
+
+    -- Birthday events - add for matching month/day
+    if cal then
+        local myName = UnitName("player")
+        local y, m = monthStr:match("(%d+)-(%d+)")
+        if y and m then
+            local monthNum = tonumber(m)
+            local daysInMonth = date("*t", time({ year = tonumber(y), month = tonumber(m) + 1, day = 0 })).day
+            local function addBirthdayForMonth(name, bday)
+                if bday and bday.month == monthNum and bday.day >= 1 and bday.day <= daysInMonth then
+                    local dateStr = format("%s-%02d", monthStr, bday.day)
+                    local bdayEvent = {
+                        id = "birthday_" .. name,
+                        title = string.format(C.CALENDAR_BIRTHDAY.EVENT_TITLE_FORMAT, name),
+                        eventType = "SERVER",
+                        date = dateStr,
+                        startTime = "All Day",
+                        icon = C.CALENDAR_BIRTHDAY.ICON,
+                        permanent = true,
+                        themeColor = C.CALENDAR_BIRTHDAY.THEME_COLOR,
+                        isBirthday = true,
+                    }
+                    addEventForDate(bdayEvent, dateStr, "single")
+                    addServerEventForDate(bdayEvent, dateStr)
+                end
+            end
+            if cal.myBirthday then
+                addBirthdayForMonth(myName, cal.myBirthday)
+            end
+            if cal.knownBirthdays then
+                for name, bday in pairs(cal.knownBirthdays) do
+                    addBirthdayForMonth(name, bday)
                 end
             end
         end
@@ -1450,29 +1528,45 @@ function Calendar:CheckNotifications()
 
     local now = time()
 
-    -- Check events I'm signed up for
-    if not cal.mySignups then return end
-    for eventId, signup in pairs(cal.mySignups) do
-        local event = self:GetEvent(eventId)
-        if event then
-            local timeUntil = self:GetTimeUntilEvent(event)
+    -- Check events I'm signed up for (existing toast notifications)
+    if cal.mySignups then
+        for eventId, signup in pairs(cal.mySignups) do
+            local event = self:GetEvent(eventId)
+            if event then
+                local timeUntil = self:GetTimeUntilEvent(event)
 
-            -- 1 hour notification
-            if signup.notify1hr and timeUntil > 0 and timeUntil <= C.CALENDAR_TIMINGS.NOTIFICATION_1HR then
-                local notifyKey = eventId .. "_1hr"
-                if not cal.notifiedEvents[notifyKey] then
-                    cal.notifiedEvents[notifyKey] = true
-                    self:ShowEventNotification(event, "1 hour")
+                -- 1 hour notification
+                if signup.notify1hr and timeUntil > 0 and timeUntil <= C.CALENDAR_TIMINGS.NOTIFICATION_1HR then
+                    local notifyKey = eventId .. "_1hr"
+                    if not cal.notifiedEvents[notifyKey] then
+                        cal.notifiedEvents[notifyKey] = true
+                        self:ShowEventNotification(event, "1 hour")
+                    end
+                end
+
+                -- 15 minute notification
+                if signup.notify15min and timeUntil > 0 and timeUntil <= C.CALENDAR_TIMINGS.NOTIFICATION_15MIN then
+                    local notifyKey = eventId .. "_15min"
+                    if not cal.notifiedEvents[notifyKey] then
+                        cal.notifiedEvents[notifyKey] = true
+                        self:ShowEventNotification(event, "15 minutes")
+                    end
                 end
             end
+        end
+    end
 
-            -- 15 minute notification
-            if signup.notify15min and timeUntil > 0 and timeUntil <= C.CALENDAR_TIMINGS.NOTIFICATION_15MIN then
-                local notifyKey = eventId .. "_15min"
-                if not cal.notifiedEvents[notifyKey] then
-                    cal.notifiedEvents[notifyKey] = true
-                    self:ShowEventNotification(event, "15 minutes")
-                end
+    -- Cinematic notification for ALL guild events ~1hr before
+    local cinematicLeadTime = C.CINEMATIC_EVENT_NOTIFICATION.LEAD_TIME
+    local allEvents = self:GetUpcomingEvents(20)
+    for _, event in ipairs(allEvents) do
+        local timeUntil = self:GetTimeUntilEvent(event)
+        if timeUntil > 0 and timeUntil <= cinematicLeadTime then
+            local eventId = event.id or (event.title .. "_" .. event.date)
+            local notifyKey = eventId .. "_cinematic_1hr"
+            if not cal.notifiedEvents[notifyKey] then
+                cal.notifiedEvents[notifyKey] = true
+                self:ShowCinematicEventNotification(event)
             end
         end
     end
@@ -1500,6 +1594,26 @@ function Calendar:ShowEventNotification(event, timeFrame)
     if HopeAddon.Sounds then
         HopeAddon.Sounds:PlayNotification()
     end
+end
+
+--[[
+    Show cinematic event notification for any guild event ~1hr before
+    Routes to Journal's cinematic notification system
+    @param event table - Calendar event data
+]]
+function Calendar:ShowCinematicEventNotification(event)
+    if not event then return end
+
+    -- Route to Journal cinematic notification
+    local Journal = HopeAddon:GetModule("Journal")
+    if Journal then
+        Journal:ShowCinematicEventNotification(event)
+    end
+
+    -- Chat backup message
+    local timeUntil = self:GetTimeUntilEvent(event)
+    local timeText = self:FormatCountdown(timeUntil)
+    HopeAddon:Print("|cFFFFD700[Guild Event]|r " .. event.title .. " starts in " .. timeText .. "!")
 end
 
 --============================================================
@@ -1589,6 +1703,13 @@ function Calendar:RegisterNetworkHandlers()
         return msgType == C.CALENDAR_MSG.SIGNUP or msgType == C.CALENDAR_MSG.SIGNUP_UPDATE
     end, function(msgType, sender, data)
         self:HandleSignupMessage(sender, data)
+    end)
+
+    -- Birthday
+    FellowTravelers:RegisterMessageCallback("calendar_birthday", function(msgType)
+        return msgType == C.CALENDAR_MSG.BIRTHDAY
+    end, function(msgType, sender, data)
+        self:HandleBirthdayMessage(sender, data)
     end)
 
     HopeAddon:Debug("Calendar: Network handlers registered")
@@ -2155,6 +2276,89 @@ function Calendar:ShowExportPopup(text)
     exportPopup.editBox:HighlightText()  -- Select all for easy copy
     exportPopup.editBox:SetFocus()
     exportPopup:Show()
+end
+
+--============================================================
+-- BIRTHDAY SYSTEM
+--============================================================
+
+--[[
+    Set the player's birthday and broadcast it
+    @param month number - 1-12
+    @param day number - 1-31
+]]
+function Calendar:SetMyBirthday(month, day)
+    local cal = self:EnsureCalendarData()
+    if not cal then return end
+
+    if not month or not day then
+        cal.myBirthday = nil
+        return
+    end
+
+    cal.myBirthday = { month = month, day = day }
+    self:BroadcastBirthday(month, day)
+    HopeAddon:Debug("Calendar: Set my birthday to", month, day)
+end
+
+--[[
+    Get the player's birthday
+    @return table|nil - { month = N, day = N }
+]]
+function Calendar:GetMyBirthday()
+    local cal = self:GetCalendarData()
+    return cal and cal.myBirthday
+end
+
+--[[
+    Get all known birthdays
+    @return table - { [playerName] = { month = N, day = N } }
+]]
+function Calendar:GetKnownBirthdays()
+    local cal = self:GetCalendarData()
+    return cal and cal.knownBirthdays or {}
+end
+
+--[[
+    Broadcast birthday to guild via FellowTravelers
+    @param month number
+    @param day number
+]]
+function Calendar:BroadcastBirthday(month, day)
+    if not FellowTravelers then return end
+
+    local msg = string.format("%s:%d:%d|%d", C.CALENDAR_MSG.BIRTHDAY, PROTOCOL_VERSION, month, day)
+    FellowTravelers:BroadcastMessage(msg)
+    HopeAddon:Debug("Calendar: Broadcast birthday", month, day)
+end
+
+--[[
+    Handle incoming birthday message from network
+    @param sender string - Player name
+    @param data string - "month|day"
+]]
+function Calendar:HandleBirthdayMessage(sender, data)
+    local cal = self:EnsureCalendarData()
+    if not cal then return end
+
+    -- Don't store our own birthday from network
+    if sender == UnitName("player") then return end
+
+    local month, day = strsplit("|", data)
+    month = tonumber(month)
+    day = tonumber(day)
+
+    if not month or not day or month < 1 or month > 12 or day < 1 or day > 31 then
+        HopeAddon:Debug("Calendar: Invalid birthday data from", sender)
+        return
+    end
+
+    if not cal.knownBirthdays then
+        cal.knownBirthdays = {}
+    end
+
+    cal.knownBirthdays[sender] = { month = month, day = day }
+    HopeAddon:Debug("Calendar: Received birthday from", sender, month, day)
 end
 
 --============================================================

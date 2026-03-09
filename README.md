@@ -57,7 +57,6 @@ Progress bars and chapter-by-chapter tracking for all attunement chains.
 - **Tetris Battle**: Two-player competitive Tetris with garbage mechanic
 - **Pong**: Classic arcade game with physics and AI opponent
 - **Battleship**: Classic naval battle game with AI or multiplayer
-- **WoW Wordle**: Word guessing game with WoW-themed vocabulary
 
 Challenge other Fellow Travelers and track your win/loss records!
 
@@ -79,8 +78,6 @@ Challenge other Fellow Travelers and track your win/loss records!
 - `/hope minimap` - Toggle minimap button visibility
 - `/hope nameplates` - Toggle Fellow nameplate coloring
 - `/hope pins` - Toggle minimap pin RP status coloring
-- `/hope demo` - Populate sample data for UI testing
-- `/hope reset demo` - Clear demo data
 - `/hope reset confirm` - Reset all character data
 
 ### Minigame Commands
@@ -89,9 +86,6 @@ Challenge other Fellow Travelers and track your win/loss records!
 - `/hope pong [player]` - Start Pong (local mode if no player specified)
 - `/hope deathroll <player>` - Start Death Roll gambling game
 - `/hope battleship [player]` - Start Battleship (local vs AI if no player)
-- `/hope wordle` - Start WoW Wordle (practice mode)
-- `/hope wordle <player>` - Challenge player to Wordle
-- `/hope wordle stats` - Show Wordle statistics
 - `/hope accept` - Accept a pending challenge
 - `/hope decline` - Decline a pending challenge
 - `/hope cancel` - Cancel current game
@@ -120,7 +114,7 @@ HopeAddon/
 ├── Raids/          # Raid tracking (RaidData, Attunements, Karazhan, Gruul, Magtheridon)
 ├── Reputation/     # Faction tracking (ReputationData, Reputation)
 └── Social/         # Multiplayer features (Badges, FellowTravelers, TravelerIcons, Minigames, MapPins)
-    └── Games/      # Game system (GameCore, GameUI, GameComms, Tetris, DeathRoll, Pong, Battleship, Wordle)
+    └── Games/      # Game system (GameCore, GameUI, GameComms, Tetris, DeathRoll, Pong, Battleship, PacMan)
 ```
 
 ## Performance

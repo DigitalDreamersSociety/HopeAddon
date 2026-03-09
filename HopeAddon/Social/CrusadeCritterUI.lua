@@ -105,13 +105,6 @@ CritterUI.tipsTypewriterTicker = nil
 CritterUI.idleQuipTimer = nil
 CritterUI.bubbleBounceAnim = nil
 
--- Floating bubble system (DEPRECATED - replaced by combined guide panel)
-CritterUI.floatingBubble = nil
-CritterUI.floatingBubbleQueue = {} -- Queue of messages to display
-CritterUI.isShowingQueue = false
-CritterUI.floatingBubbleTimer = nil
-CritterUI.floatingBubbleTypewriter = nil
-
 -- Instance Guide panel system (replaces old Raid Guide)
 CritterUI.instanceGuidePanel = nil
 CritterUI.instanceGuideTierDropdown = nil
@@ -672,14 +665,10 @@ function CritterUI:PopulateCritterSelector()
 
     if not Content then return end
 
-    -- Clear existing icons
-    if grid.icons then
-        for _, icon in ipairs(grid.icons) do
-            icon:Hide()
-            icon:SetParent(nil)
-        end
+    -- Initialize icons table once (reused across calls)
+    if not grid.icons then
+        grid.icons = {}
     end
-    grid.icons = {}
 
     local critterOrder = { "chomp", "snookimp", "shred", "emo", "cosmo", "boomer", "diva" }
     local iconSize = 40
@@ -688,14 +677,55 @@ function CritterUI:PopulateCritterSelector()
     local startX = 8
     local startY = -5
 
+    local btnIndex = 0
     for i, critterId in ipairs(critterOrder) do
         local critterData = Content.CRITTERS[critterId]
         if critterData then
+            btnIndex = btnIndex + 1
             local row = math.floor((i - 1) / cols)
             local col = (i - 1) % cols
 
-            local btn = CreateFrame("Button", nil, grid)
+            -- Reuse existing button or create a new one
+            local btn = grid.icons[btnIndex]
+            if not btn then
+                btn = CreateFrame("Button", nil, grid)
+                -- Create all sub-regions once (reused via Show/Hide)
+                local tex = btn:CreateTexture(nil, "ARTWORK")
+                tex:SetAllPoints(btn)
+                tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+                btn.icon = tex
+
+                local highlight = btn:CreateTexture(nil, "OVERLAY")
+                highlight:SetAllPoints(btn)
+                highlight:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
+                highlight:SetBlendMode("ADD")
+                btn.selectedHighlight = highlight
+
+                local hover = btn:CreateTexture(nil, "HIGHLIGHT")
+                hover:SetAllPoints(btn)
+                hover:SetTexture("Interface\\Buttons\\ButtonHilight-Square")
+                hover:SetBlendMode("ADD")
+
+                local bg = btn:CreateTexture(nil, "BACKGROUND")
+                bg:SetAllPoints(btn)
+                btn.lockedBg = bg
+
+                local mystery = btn:CreateFontString(nil, "ARTWORK")
+                mystery:SetFont("Fonts\\FRIZQT__.TTF", 24, "OUTLINE")
+                mystery:SetPoint("CENTER", btn, "CENTER", 0, 0)
+                btn.mystery = mystery
+
+                local lock = btn:CreateTexture(nil, "OVERLAY")
+                lock:SetSize(14, 14)
+                lock:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", -2, 2)
+                lock:SetTexture("Interface\\LFGFRAME\\LFG-Eye")
+                btn.lock = lock
+
+                grid.icons[btnIndex] = btn
+            end
+
             btn:SetSize(iconSize, iconSize)
+            btn:ClearAllPoints()
             btn:SetPoint("TOPLEFT", grid, "TOPLEFT", startX + col * (iconSize + spacing), startY - row * (iconSize + spacing))
 
             -- Check if unlocked
@@ -704,55 +734,41 @@ function CritterUI:PopulateCritterSelector()
                                HopeAddon.db.crusadeCritter.selectedCritter == critterId
 
             if isUnlocked then
-                -- Icon texture (shown for unlocked critters)
-                local tex = btn:CreateTexture(nil, "ARTWORK")
-                tex:SetAllPoints(btn)
-                tex:SetTexture(CRITTER_ICONS[critterId] or CRITTER_ICONS.chomp)
-                tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-                tex:SetDesaturated(false)
-                tex:SetVertexColor(1, 1, 1, 1)
-                btn.icon = tex
+                -- Show icon, hide locked elements
+                btn.icon:SetTexture(CRITTER_ICONS[critterId] or CRITTER_ICONS.chomp)
+                btn.icon:SetDesaturated(false)
+                btn.icon:SetVertexColor(1, 1, 1, 1)
+                btn.icon:Show()
+                btn.lockedBg:Hide()
+                btn.mystery:Hide()
+                btn.lock:Hide()
 
                 -- Selection highlight
                 if isSelected then
-                    local highlight = btn:CreateTexture(nil, "OVERLAY")
-                    highlight:SetAllPoints(btn)
-                    highlight:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
-                    highlight:SetBlendMode("ADD")
-                    highlight:SetVertexColor(1, 0.84, 0, 0.8)
-                    btn.selectedHighlight = highlight
+                    btn.selectedHighlight:SetVertexColor(1, 0.84, 0, 0.8)
+                    btn.selectedHighlight:Show()
+                else
+                    btn.selectedHighlight:Hide()
                 end
 
                 -- Click to select
                 btn:SetScript("OnClick", function()
                     self:SelectCritter(critterId)
                 end)
-
-                -- Hover highlight
-                local hover = btn:CreateTexture(nil, "HIGHLIGHT")
-                hover:SetAllPoints(btn)
-                hover:SetTexture("Interface\\Buttons\\ButtonHilight-Square")
-                hover:SetBlendMode("ADD")
             else
-                -- Mystery display for locked critters - show "?" instead of icon
-                local bg = btn:CreateTexture(nil, "BACKGROUND")
-                bg:SetAllPoints(btn)
-                bg:SetColorTexture(0.15, 0.15, 0.15, 0.9)
+                -- Hide unlocked elements, show locked elements
+                btn.icon:Hide()
+                btn.selectedHighlight:Hide()
+                btn.lockedBg:SetColorTexture(0.15, 0.15, 0.15, 0.9)
+                btn.lockedBg:Show()
+                btn.mystery:SetText("?")
+                btn.mystery:SetTextColor(0.6, 0.6, 0.6)
+                btn.mystery:Show()
+                btn.lock:SetVertexColor(0.8, 0.2, 0.2, 1)
+                btn.lock:Show()
 
-                local mystery = btn:CreateFontString(nil, "ARTWORK")
-                mystery:SetFont("Fonts\\FRIZQT__.TTF", 24, "OUTLINE")
-                mystery:SetPoint("CENTER", btn, "CENTER", 0, 0)
-                mystery:SetText("?")
-                mystery:SetTextColor(0.6, 0.6, 0.6)
-                btn.mystery = mystery
-
-                -- Lock overlay
-                local lock = btn:CreateTexture(nil, "OVERLAY")
-                lock:SetSize(14, 14)
-                lock:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", -2, 2)
-                lock:SetTexture("Interface\\LFGFRAME\\LFG-Eye")
-                lock:SetVertexColor(0.8, 0.2, 0.2, 1)
-                btn.lock = lock
+                -- No click action for locked critters
+                btn:SetScript("OnClick", nil)
             end
 
             -- Tooltip
@@ -779,8 +795,13 @@ function CritterUI:PopulateCritterSelector()
                 GameTooltip:Hide()
             end)
 
-            table.insert(grid.icons, btn)
+            btn:Show()
         end
+    end
+
+    -- Hide any excess buttons from a previous population (in case critterOrder shrinks)
+    for j = btnIndex + 1, #grid.icons do
+        grid.icons[j]:Hide()
     end
 end
 
@@ -1773,7 +1794,12 @@ end
 ]]
 function CritterUI:ShowCombinedStats(bossData, killTime, bestTime, quip, nextBossKey)
     if not self.combinedStatsWindow then
-        self:CreateCombinedStatsWindow()
+        -- Defer first-time UI creation to next frame to avoid execution limit
+        C_Timer.After(0, function()
+            self:CreateCombinedStatsWindow()
+            self:ShowCombinedStats(bossData, killTime, bestTime, quip, nextBossKey)
+        end)
+        return
     end
 
     local window = self.combinedStatsWindow
@@ -2342,13 +2368,13 @@ function CritterUI:CreateStatsButton()
     btn:SetBackdropColor(0.2, 0.2, 0.2, 0.9)
     btn:SetBackdropBorderColor(unpack(COLOR_GOLD_BORDER_80))
 
-    -- Chart icon (using bars symbol)
-    local text = btn:CreateFontString(nil, "OVERLAY")
-    text:SetFont(HopeAddon.assets.fonts.HEADER, 10, "")
-    text:SetPoint("CENTER", btn, "CENTER", 0, 0)
-    text:SetText("\226\150\136") -- Unicode block element (like bars)
-    text:SetTextColor(unpack(COLOR_GOLD))
-    btn.text = text
+    -- Chart icon
+    local icon = btn:CreateTexture(nil, "OVERLAY")
+    icon:SetSize(16, 16)
+    icon:SetPoint("CENTER", btn, "CENTER", 0, 0)
+    icon:SetTexture("Interface\\Icons\\INV_Misc_Note_06")
+    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    btn.icon = icon
 
     -- Hover highlight
     local highlight = btn:CreateTexture(nil, "HIGHLIGHT")
@@ -2376,276 +2402,6 @@ function CritterUI:CreateStatsButton()
     self.statsButton = btn
     return btn
 end
-
---============================================================
--- FLOATING SPEECH BUBBLE (DEPRECATED)
--- Replaced by combined guide panel - kept for backwards compatibility
---============================================================
-
-local FLOATING_BUBBLE_WIDTH = 320
-local FLOATING_BUBBLE_HEIGHT = 140
-local FLOATING_BUBBLE_AUTO_ADVANCE = 8 -- Seconds before auto-advancing
-
--- NOTE: Floating bubble functions below are DEPRECATED
--- The combined guide panel now handles boss tips via hover tooltips
--- These functions remain for backwards compatibility but are not called
-
---[[
-    Create the floating speech bubble frame (independent of housing)
-    @return Frame - The floating bubble
-]]
-function CritterUI:CreateFloatingBubble()
-    if self.floatingBubble then
-        return self.floatingBubble
-    end
-
-    local bubble = CreateFrame("Frame", "HopeCrusadeCritterFloatingBubble", UIParent, "BackdropTemplate")
-    bubble:SetSize(FLOATING_BUBBLE_WIDTH, FLOATING_BUBBLE_HEIGHT)
-    bubble:SetFrameStrata("HIGH")
-    bubble:SetFrameLevel(200)
-
-    -- Position in lower-right area of screen
-    bubble:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -100, 180)
-    bubble:SetClampedToScreen(true)
-
-    -- Comic-style: white background, black border
-    bubble:SetBackdrop({
-        bgFile = TEX_WHITE8X8,
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true,
-        tileSize = 16,
-        edgeSize = 14,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 }
-    })
-    bubble:SetBackdropColor(1, 1, 1, 0.95)
-    bubble:SetBackdropBorderColor(0, 0, 0, 1)
-
-    -- Close button
-    local closeBtn = CreateFrame("Button", nil, bubble)
-    closeBtn:SetSize(18, 18)
-    closeBtn:SetPoint("TOPRIGHT", bubble, "TOPRIGHT", -5, -5)
-    closeBtn:SetNormalTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Up")
-    closeBtn:SetHighlightTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight")
-    closeBtn:SetScript("OnClick", function()
-        self:HideFloatingBubble()
-    end)
-    bubble.closeBtn = closeBtn
-
-    -- Boss name header
-    local bossName = bubble:CreateFontString(nil, "OVERLAY")
-    bossName:SetFont(HopeAddon.assets.fonts.HEADER, 12, "")
-    bossName:SetPoint("TOP", bubble, "TOP", 0, -12)
-    bossName:SetTextColor(0.1, 0.1, 0.1)
-    bubble.bossName = bossName
-
-    -- Separator line
-    local line = bubble:CreateTexture(nil, "ARTWORK")
-    line:SetTexture(TEX_WHITE8X8)
-    line:SetSize(FLOATING_BUBBLE_WIDTH - 30, 1)
-    line:SetPoint("TOP", bossName, "BOTTOM", 0, -4)
-    line:SetVertexColor(0.3, 0.3, 0.3, 0.5)
-    bubble.line = line
-
-    -- Tip text
-    local tipText = bubble:CreateFontString(nil, "OVERLAY")
-    tipText:SetFont(HopeAddon.assets.fonts.BODY, 11, "")
-    tipText:SetPoint("TOPLEFT", bubble, "TOPLEFT", 15, -38)
-    tipText:SetPoint("TOPRIGHT", bubble, "TOPRIGHT", -15, -38)
-    tipText:SetJustifyH("CENTER")
-    tipText:SetJustifyV("TOP")
-    tipText:SetWordWrap(true)
-    tipText:SetTextColor(0.15, 0.15, 0.15)
-    bubble.tipText = tipText
-
-    -- Page indicator (e.g., "1/3")
-    local pageIndicator = bubble:CreateFontString(nil, "OVERLAY")
-    pageIndicator:SetFont(HopeAddon.assets.fonts.SMALL, 10, "")
-    pageIndicator:SetPoint("BOTTOMLEFT", bubble, "BOTTOMLEFT", 15, 12)
-    pageIndicator:SetTextColor(0.4, 0.4, 0.4)
-    bubble.pageIndicator = pageIndicator
-
-    -- Next button
-    local nextBtn = CreateFrame("Button", nil, bubble, "UIPanelButtonTemplate")
-    nextBtn:SetSize(70, 22)
-    nextBtn:SetPoint("BOTTOMRIGHT", bubble, "BOTTOMRIGHT", -12, 10)
-    nextBtn:SetText("Next >")
-    nextBtn:SetScript("OnClick", function()
-        self:AdvanceFloatingBubble()
-    end)
-    bubble.nextBtn = nextBtn
-
-    -- Speech bubble tail (pointing to bottom-right corner where critter icon might be)
-    local tail = bubble:CreateTexture(nil, "ARTWORK")
-    tail:SetTexture(TEX_WHITE8X8)
-    tail:SetVertexColor(1, 1, 1, 0.95)
-    tail:SetSize(16, 12)
-    tail:SetPoint("TOPLEFT", bubble, "BOTTOMRIGHT", -40, 2)
-    bubble.tail = tail
-
-    -- Critter icon (small, in corner)
-    local critterIcon = bubble:CreateTexture(nil, "ARTWORK")
-    critterIcon:SetSize(28, 28)
-    critterIcon:SetPoint("BOTTOMRIGHT", bubble, "BOTTOMRIGHT", 5, -30)
-    critterIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    bubble.critterIcon = critterIcon
-
-    bubble:Hide()
-    self.floatingBubble = bubble
-    return bubble
-end
-
---[[
-    Show boss guide queue in floating bubble (called on dungeon entry)
-    @param guides table - Array of { boss, tip } from CritterContent:GetBossGuides
-    @param critterName string - Name of current critter for attribution
-]]
-function CritterUI:ShowBossGuideQueue(guides, critterName)
-    if not guides or #guides == 0 then return end
-
-    if not self.floatingBubble then
-        self:CreateFloatingBubble()
-    end
-
-    -- Store queue
-    self.floatingBubbleQueue = guides
-    self.floatingBubbleQueueIndex = 1
-    self.floatingBubbleCritterName = critterName or "Critter"
-    self.isShowingQueue = true
-
-    -- Update critter icon (use lowercase key for case-insensitivity)
-    local icon = CRITTER_ICONS[critterName:lower()] or CRITTER_ICONS.chomp
-    self.floatingBubble.critterIcon:SetTexture(icon)
-
-    -- Show first guide
-    self:ShowCurrentFloatingBubbleGuide()
-end
-
---[[
-    Show the current guide in the floating bubble
-]]
-function CritterUI:ShowCurrentFloatingBubbleGuide()
-    if not self.floatingBubble or not self.floatingBubbleQueue then return end
-
-    local idx = self.floatingBubbleQueueIndex or 1
-    local guide = self.floatingBubbleQueue[idx]
-
-    if not guide then
-        self:HideFloatingBubble()
-        return
-    end
-
-    local bubble = self.floatingBubble
-
-    -- Cancel any existing timer
-    if self.floatingBubbleTimer then
-        self.floatingBubbleTimer:Cancel()
-        self.floatingBubbleTimer = nil
-    end
-
-    -- Cancel any existing typewriter
-    if self.floatingBubbleTypewriter then
-        self.floatingBubbleTypewriter:Cancel()
-        self.floatingBubbleTypewriter = nil
-    end
-
-    -- Update boss name
-    bubble.bossName:SetText(string.upper(guide.boss))
-
-    -- Update page indicator
-    bubble.pageIndicator:SetText(string.format("%d/%d", idx, #self.floatingBubbleQueue))
-
-    -- Update next button text
-    if idx >= #self.floatingBubbleQueue then
-        bubble.nextBtn:SetText("Close")
-    else
-        bubble.nextBtn:SetText("Next >")
-    end
-
-    -- Clear tip text and show with typewriter effect
-    bubble.tipText:SetText("")
-
-    -- Show the bubble
-    bubble:Show()
-    if HopeAddon.Effects then
-        HopeAddon.Effects:FadeIn(bubble, 0.3)
-    end
-
-    -- Typewriter effect for tip
-    local tipText = '"' .. guide.tip .. '"'
-    if HopeAddon.Effects then
-        HopeAddon.Effects:TypewriterText(bubble.tipText, tipText, 0.025, function()
-            -- Set auto-advance timer after typewriter completes
-            if HopeAddon.Timer then
-                self.floatingBubbleTimer = HopeAddon.Timer:After(FLOATING_BUBBLE_AUTO_ADVANCE, function()
-                    self.floatingBubbleTimer = nil
-                    self:AdvanceFloatingBubble()
-                end)
-            end
-        end)
-    else
-        bubble.tipText:SetText(tipText)
-        -- Set auto-advance timer
-        if HopeAddon.Timer then
-            self.floatingBubbleTimer = HopeAddon.Timer:After(FLOATING_BUBBLE_AUTO_ADVANCE, function()
-                self.floatingBubbleTimer = nil
-                self:AdvanceFloatingBubble()
-            end)
-        end
-    end
-end
-
---[[
-    Advance to the next guide in the queue
-]]
-function CritterUI:AdvanceFloatingBubble()
-    if not self.floatingBubbleQueue then return end
-
-    -- Cancel timer if manually advancing
-    if self.floatingBubbleTimer then
-        self.floatingBubbleTimer:Cancel()
-        self.floatingBubbleTimer = nil
-    end
-
-    self.floatingBubbleQueueIndex = (self.floatingBubbleQueueIndex or 1) + 1
-
-    if self.floatingBubbleQueueIndex > #self.floatingBubbleQueue then
-        -- Queue complete
-        self:HideFloatingBubble()
-    else
-        -- Show next guide
-        self:ShowCurrentFloatingBubbleGuide()
-    end
-end
-
---[[
-    Hide the floating bubble and clear the queue
-]]
-function CritterUI:HideFloatingBubble()
-    -- Cancel timers
-    if self.floatingBubbleTimer then
-        self.floatingBubbleTimer:Cancel()
-        self.floatingBubbleTimer = nil
-    end
-    if self.floatingBubbleTypewriter then
-        self.floatingBubbleTypewriter:Cancel()
-        self.floatingBubbleTypewriter = nil
-    end
-
-    -- Clear queue
-    self.floatingBubbleQueue = {}
-    self.floatingBubbleQueueIndex = 1
-    self.isShowingQueue = false
-
-    if not self.floatingBubble then return end
-
-    if HopeAddon.Effects then
-        HopeAddon.Effects:FadeOut(self.floatingBubble, 0.3)
-    else
-        self.floatingBubble:Hide()
-    end
-end
-
--- End of DEPRECATED floating bubble functions
 
 --============================================================
 -- UNLOCK CELEBRATION
@@ -2830,11 +2586,12 @@ function CritterUI:CreateStatsDropdown(parent, width, onChange)
     dropdown.text:SetJustifyH("LEFT")
     dropdown.text:SetTextColor(0.9, 0.9, 0.9)
 
-    local arrow = dropdown:CreateFontString(nil, "OVERLAY")
-    arrow:SetFont(HopeAddon.assets.fonts.BODY, 10, "")
+    local arrow = dropdown:CreateTexture(nil, "OVERLAY")
+    arrow:SetSize(10, 10)
     arrow:SetPoint("RIGHT", dropdown, "RIGHT", -6, 0)
-    arrow:SetText("\226\150\188") -- Downward triangle
-    arrow:SetTextColor(0.6, 0.6, 0.6)
+    arrow:SetTexture("Interface\\Buttons\\UI-SortArrow")
+    arrow:SetTexCoord(0, 1, 1, 0)
+    arrow:SetVertexColor(0.6, 0.6, 0.6)
 
     dropdown.options = {}
     dropdown.selectedIndex = 1
@@ -3191,11 +2948,16 @@ function CritterUI:CreateInstanceGuidePanel()
     panel.headerText = headerText
 
     -- Expand/Collapse indicator
-    local indicator = header:CreateFontString(nil, "OVERLAY")
-    indicator:SetFont(HopeAddon.assets.fonts.BODY or "Fonts\\FRIZQT__.TTF", 12, "")
+    local indicator = header:CreateTexture(nil, "OVERLAY")
+    indicator:SetSize(10, 10)
     indicator:SetPoint("RIGHT", header, "RIGHT", -8, 0)
-    indicator:SetText(self.instanceGuideIsExpanded and "\226\150\188" or "\226\150\182")
-    indicator:SetTextColor(unpack(COLOR_LABEL_GRAY))
+    indicator:SetTexture("Interface\\Buttons\\UI-SortArrow")
+    if self.instanceGuideIsExpanded then
+        indicator:SetTexCoord(0, 1, 1, 0) -- down arrow
+    else
+        indicator:SetTexCoord(1, 0, 0, 0, 1, 1, 0, 1) -- right arrow
+    end
+    indicator:SetVertexColor(unpack(COLOR_LABEL_GRAY))
     panel.indicator = indicator
 
     -- Hover highlight
@@ -3353,11 +3115,11 @@ function CritterUI:ToggleInstanceGuideExpanded()
     if self.instanceGuideIsExpanded then
         panel:SetHeight(INSTANCE_GUIDE_HEADER_HEIGHT + INSTANCE_GUIDE_CONTENT_HEIGHT)
         content:Show()
-        indicator:SetText("\226\150\188")
+        indicator:SetTexCoord(0, 1, 1, 0) -- down arrow
     else
         panel:SetHeight(INSTANCE_GUIDE_COLLAPSED_HEIGHT)
         content:Hide()
-        indicator:SetText("\226\150\182")
+        indicator:SetTexCoord(1, 0, 0, 0, 1, 1, 0, 1) -- right arrow
     end
 
     -- Save state
@@ -3570,11 +3332,11 @@ function CritterUI:DisplayInstanceGuideStats(instanceKey, instanceData)
             playBg:SetVertexColor(0.2, 0.5, 0.2, 0.8)
             playBtn.bg = playBg
 
-            local playIcon = playBtn:CreateFontString(nil, "OVERLAY")
-            playIcon:SetFont(HopeAddon.assets.fonts.BODY or "Fonts\\FRIZQT__.TTF", 10, "")
-            playIcon:SetPoint("CENTER", playBtn, "CENTER", 0, 0)
-            playIcon:SetText("\226\150\182") -- play triangle
-            playIcon:SetTextColor(0.7, 1, 0.7)
+            local playIcon = playBtn:CreateTexture(nil, "OVERLAY")
+            playIcon:SetSize(12, 12)
+            playIcon:SetPoint("CENTER", playBtn, "CENTER", 1, 0)
+            playIcon:SetTexture("Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up")
+            playIcon:SetVertexColor(0.7, 1, 0.7)
             playBtn.icon = playIcon
 
             playBtn:SetScript("OnClick", function(btn)
@@ -3711,12 +3473,12 @@ function CritterUI:DisplayInstanceGuideStats(instanceKey, instanceData)
 
         -- Update play button state
         if self.instanceGuidePlayingBossKey == row.bossKey then
-            row.playBtn.icon:SetText("\226\150\160") -- stop square
-            row.playBtn.icon:SetTextColor(1, 0.5, 0.5)
+            row.playBtn.icon:SetTexture(TEX_WHITE8X8) -- stop square
+            row.playBtn.icon:SetVertexColor(1, 0.5, 0.5)
             row.playBtn.bg:SetVertexColor(0.5, 0.2, 0.2, 0.8)
         else
-            row.playBtn.icon:SetText("\226\150\182") -- play triangle
-            row.playBtn.icon:SetTextColor(0.7, 1, 0.7)
+            row.playBtn.icon:SetTexture("Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up") -- play triangle
+            row.playBtn.icon:SetVertexColor(0.7, 1, 0.7)
             row.playBtn.bg:SetVertexColor(0.2, 0.5, 0.2, 0.8)
         end
 
@@ -3868,12 +3630,12 @@ function CritterUI:UpdateBossRowPlayButton(bossKey, isPlaying)
     for _, row in ipairs(self.instanceGuidePanel.bossRows) do
         if row.bossKey == bossKey and row:IsShown() then
             if isPlaying then
-                row.playBtn.icon:SetText("\226\150\160") -- stop square
-                row.playBtn.icon:SetTextColor(1, 0.5, 0.5)
+                row.playBtn.icon:SetTexture(TEX_WHITE8X8) -- stop square
+                row.playBtn.icon:SetVertexColor(1, 0.5, 0.5)
                 row.playBtn.bg:SetVertexColor(0.5, 0.2, 0.2, 0.8)
             else
-                row.playBtn.icon:SetText("\226\150\182") -- play triangle
-                row.playBtn.icon:SetTextColor(0.7, 1, 0.7)
+                row.playBtn.icon:SetTexture("Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up") -- play triangle
+                row.playBtn.icon:SetVertexColor(0.7, 1, 0.7)
                 row.playBtn.bg:SetVertexColor(0.2, 0.5, 0.2, 0.8)
             end
             break
@@ -3982,11 +3744,11 @@ function CritterUI:ShowInstanceGuidePanel()
         if self.instanceGuideIsExpanded then
             panel:SetHeight(INSTANCE_GUIDE_HEADER_HEIGHT + INSTANCE_GUIDE_CONTENT_HEIGHT)
             if content then content:Show() end
-            if indicator then indicator:SetText("\226\150\188") end
+            if indicator then indicator:SetTexCoord(0, 1, 1, 0) end -- down arrow
         else
             panel:SetHeight(INSTANCE_GUIDE_COLLAPSED_HEIGHT)
             if content then content:Hide() end
-            if indicator then indicator:SetText("\226\150\182") end
+            if indicator then indicator:SetTexCoord(1, 0, 0, 0, 1, 1, 0, 1) end -- right arrow
         end
 
         panel:Show()
@@ -4120,21 +3882,6 @@ function CritterUI:OnDisable()
         self.instanceGuideInstanceDropdown:Hide()
     end
     self.instanceGuidePlayingBossKey = nil
-
-    -- Clean up floating bubble
-    if self.floatingBubbleTimer then
-        self.floatingBubbleTimer:Cancel()
-        self.floatingBubbleTimer = nil
-    end
-    if self.floatingBubbleTypewriter then
-        self.floatingBubbleTypewriter:Cancel()
-        self.floatingBubbleTypewriter = nil
-    end
-    if self.floatingBubble then
-        self.floatingBubble:Hide()
-    end
-    self.floatingBubbleQueue = {}
-    self.isShowingQueue = false
 
     if self.statsButton then
         self.statsButton:Hide()

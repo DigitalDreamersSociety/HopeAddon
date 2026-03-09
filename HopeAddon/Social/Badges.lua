@@ -151,7 +151,7 @@ Badges.DEFINITIONS = {
         id = "epic_flying",
         name = "Swift as the Wind",
         description = "Learn epic flying",
-        icon = "Ability_Mount_Netherdrakepurple",
+        icon = "Ability_Mount_NetherdrakePurple",
         unlock = { type = "spell", value = 34091 }, -- Artisan Riding
         reward = { colorHex = "4169E1", colorName = "Royal Blue", title = "Swiftwind" },  -- Royal Blue
     },

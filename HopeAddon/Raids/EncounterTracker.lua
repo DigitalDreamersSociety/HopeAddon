@@ -233,6 +233,75 @@ end
 
     @return table|nil - Summary data, or nil if no data
 ]]
+--[[
+    Get a specific player's raw stats
+    Must be called after FinishEncounter, before AbortTracking
+    @param guid string - Player GUID
+    @return table|nil - Player stats
+]]
+function EncounterTracker:GetPlayerStats(guid)
+    local player = encounterState.players[guid]
+    if not player then return nil end
+    local duration = (encounterState.endTime or GetTime()) - (encounterState.startTime or GetTime())
+    if duration <= 0 then duration = 1 end
+    return {
+        name = player.name,
+        class = player.class,
+        damage = player.damage,
+        healing = player.healing,
+        damageTaken = player.damageTaken,
+        deaths = player.deaths,
+        dps = player.damage / duration,
+        hps = player.healing / duration,
+        duration = duration,
+    }
+end
+
+--[[
+    Get player's DPS rank (1 = top)
+    @param guid string - Player GUID
+    @return number - Rank (1-based)
+]]
+function EncounterTracker:GetPlayerDPSRank(guid)
+    local myDmg = encounterState.players[guid] and encounterState.players[guid].damage or 0
+    local rank = 1
+    for g, p in pairs(encounterState.players) do
+        if g ~= guid and p.damage > myDmg then
+            rank = rank + 1
+        end
+    end
+    return rank
+end
+
+--[[
+    Get player's HPS rank (1 = top), nil if player did no healing
+    @param guid string - Player GUID
+    @return number|nil - Rank (1-based) or nil
+]]
+function EncounterTracker:GetPlayerHPSRank(guid)
+    local myHeal = encounterState.players[guid] and encounterState.players[guid].healing or 0
+    if myHeal == 0 then return nil end
+    local rank = 1
+    for g, p in pairs(encounterState.players) do
+        if g ~= guid and p.healing > myHeal then
+            rank = rank + 1
+        end
+    end
+    return rank
+end
+
+--[[
+    Get raid size (number of tracked players)
+    @return number
+]]
+function EncounterTracker:GetRaidSize()
+    local count = 0
+    for _ in pairs(encounterState.players) do
+        count = count + 1
+    end
+    return count
+end
+
 function EncounterTracker:GetEncounterSummary()
     if not encounterState.startTime then return nil end
 

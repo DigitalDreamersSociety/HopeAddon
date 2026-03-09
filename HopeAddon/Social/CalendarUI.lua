@@ -11,6 +11,10 @@ local Calendar = nil
 local Components = nil
 local FramePool = HopeAddon.FramePool
 
+-- Fallback colors for nil-safe card rendering
+local FALLBACK_COLOR = { r = 0.5, g = 0.5, b = 0.5 }
+local FALLBACK_CLASS_COLOR = { r = 0.8, g = 0.8, b = 0.8 }
+
 -- Safe function caller - errors don't crash the module
 local function safecall(func, ...)
     if type(func) == "function" then
@@ -412,7 +416,7 @@ function CalendarUI:CreateMiniEventCard(parent)
 
     -- Time text (abbreviated, e.g., "7:30p")
     card.timeText = card:CreateFontString(nil, "OVERLAY")
-    card.timeText:SetFont(HopeAddon.assets.fonts.BODY, 8, "")
+    card.timeText:SetFont(HopeAddon.assets.fonts.BODY, MC.TIME_FONT_SIZE or 9, "")
     card.timeText:SetPoint("LEFT", card.icon, "RIGHT", 2, 0)
     card.timeText:SetWidth(MC.TIME_WIDTH)
     card.timeText:SetJustifyH("LEFT")
@@ -420,7 +424,7 @@ function CalendarUI:CreateMiniEventCard(parent)
 
     -- Title text (truncated)
     card.titleText = card:CreateFontString(nil, "OVERLAY")
-    card.titleText:SetFont(HopeAddon.assets.fonts.BODY, 8, "")
+    card.titleText:SetFont(HopeAddon.assets.fonts.BODY, MC.TITLE_FONT_SIZE or 9, "")
     card.titleText:SetPoint("LEFT", card.timeText, "RIGHT", 1, 0)
     card.titleText:SetPoint("RIGHT", card, "RIGHT", -2, 0)
     card.titleText:SetJustifyH("LEFT")
@@ -451,11 +455,15 @@ function CalendarUI:CreateMiniEventCard(parent)
         GameTooltip:Hide()
     end)
 
-    -- Click opens unified day popup with this event selected
+    -- Click opens event detail (SERVER events get read-only popup, others get unified day popup)
     card:SetScript("OnClick", function(self)
         if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
         if self.event then
-            CalendarUI:ShowUnifiedDayPopup(self.event.date, self.event.id)
+            if self.event.eventType == "SERVER" then
+                CalendarUI:ShowServerEventDetail(self.event)
+            else
+                CalendarUI:ShowUnifiedDayPopup(self.event.date, self.event.id)
+            end
         end
     end)
 
@@ -473,7 +481,7 @@ function CalendarUI:ShowMiniCardTooltip(card, event)
     GameTooltip:ClearLines()
 
     -- Title with event type color
-    local color = C.CALENDAR_EVENT_COLORS[event.eventType] or C.CALENDAR_EVENT_COLORS.OTHER
+    local color = C.CALENDAR_EVENT_COLORS[event.eventType] or C.CALENDAR_EVENT_COLORS.OTHER or FALLBACK_COLOR
     GameTooltip:AddLine(event.title or "Event", color.r, color.g, color.b)
 
     -- Event type
@@ -703,8 +711,13 @@ function CalendarUI:ConfigureMiniCard(card, event)
     -- Store event reference for click/tooltip
     card.event = event
 
-    -- Set color stripe based on event type or custom color
-    local color = C.CALENDAR_EVENT_COLORS[event.eventType] or C.CALENDAR_EVENT_COLORS.OTHER
+    -- Set color stripe based on event's theme color, event type, or custom color
+    local color
+    if event.themeColor then
+        color = event.themeColor
+    else
+        color = C.CALENDAR_EVENT_COLORS[event.eventType] or C.CALENDAR_EVENT_COLORS.OTHER
+    end
 
     -- Check for custom event color override
     if event.eventColor then
@@ -716,11 +729,12 @@ function CalendarUI:ConfigureMiniCard(card, event)
         end
     end
 
+    color = color or FALLBACK_COLOR
     card.colorStripe:SetColorTexture(color.r, color.g, color.b, 1)
 
-    -- Set icon
-    local eventType = C.CALENDAR_EVENT_TYPES[event.eventType] or C.CALENDAR_EVENT_TYPES.OTHER
-    card.icon:SetTexture(eventType.icon)
+    -- Set icon (uses event.icon > raidKey > eventType fallback)
+    local iconPath = C:GetCalendarEventIcon(event)
+    card.icon:SetTexture(iconPath)
     card.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)  -- Trim icon borders
 
     -- Set time (abbreviated)
@@ -1722,10 +1736,10 @@ function CalendarUI:CreateCalendarHeader(parent)
     local title = header:CreateFontString(nil, "OVERLAY")
     title:SetFont(HopeAddon.assets.fonts.TITLE, 16, "")
     title:SetPoint("LEFT", header, "LEFT", 10, 0)
-    title:SetText("RAID CALENDAR")
+    title:SetText("CALENDAR")
     title:SetTextColor(1, 0.84, 0)
 
-    -- Create Event button
+    -- Create Event button (right-aligned)
     local createBtn = CreateFrame("Button", nil, header, "BackdropTemplate")
     createBtn:SetSize(100, 26)
     createBtn:SetPoint("RIGHT", header, "RIGHT", -10, 0)
@@ -1750,12 +1764,291 @@ function CalendarUI:CreateCalendarHeader(parent)
         local todayStr = date("%Y-%m-%d")
         self:ShowUnifiedDayPopup(todayStr, nil, true)
     end)
-    createBtn:SetScript("OnEnter", function(self)
-        self:SetBackdropBorderColor(1, 0.84, 0, 1)
+    createBtn:SetScript("OnEnter", function(btn)
+        btn:SetBackdropBorderColor(1, 0.84, 0, 1)
     end)
-    createBtn:SetScript("OnLeave", function(self)
-        self:SetBackdropBorderColor(0.4, 0.8, 0.4, 1)
+    createBtn:SetScript("OnLeave", function(btn)
+        btn:SetBackdropBorderColor(0.4, 0.8, 0.4, 1)
     end)
+
+    -- Birthday section (between title and create button)
+    local BC = C.CALENDAR_BIRTHDAY
+    local monthNames = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" }
+    local daysInMonthTable = { 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
+
+    -- Cake icon
+    local cakeIcon = header:CreateTexture(nil, "ARTWORK")
+    cakeIcon:SetSize(BC.ICON_SIZE, BC.ICON_SIZE)
+    cakeIcon:SetPoint("LEFT", title, "RIGHT", 16, 0)
+    cakeIcon:SetTexture(BC.ICON)
+
+    -- "My Birthday:" label
+    local bdayLabel = header:CreateFontString(nil, "OVERLAY")
+    bdayLabel:SetFont(HopeAddon.assets.fonts.BODY, 9, "")
+    bdayLabel:SetPoint("LEFT", cakeIcon, "RIGHT", 4, 0)
+    bdayLabel:SetTextColor(0.7, 0.7, 0.7)
+    bdayLabel:SetText("My Birthday:")
+
+    -- Birthday display/edit state
+    local selectedMonth = nil
+    local selectedDay = nil
+    local itemHeight = 16
+
+    -- Create persistent month dropdown menu (once, stored on self)
+    if not self.birthdayMonthMenu then
+        local monthMenu = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
+        monthMenu:SetBackdrop({
+            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            edgeSize = 10,
+            insets = { left = 2, right = 2, top = 2, bottom = 2 },
+        })
+        monthMenu:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
+        monthMenu:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+        monthMenu:SetFrameStrata("DIALOG")
+        monthMenu:Hide()
+        monthMenu:SetWidth(50)
+        monthMenu:SetHeight(12 * itemHeight + 8)
+
+        local scrollFrame = CreateFrame("ScrollFrame", nil, monthMenu, "UIPanelScrollFrameTemplate")
+        scrollFrame:SetPoint("TOPLEFT", 4, -4)
+        scrollFrame:SetPoint("BOTTOMRIGHT", -22, 4)
+
+        local scrollChild = CreateFrame("Frame", nil, scrollFrame)
+        scrollChild:SetWidth(scrollFrame:GetWidth())
+        scrollChild:SetHeight(12 * itemHeight)
+        scrollFrame:SetScrollChild(scrollChild)
+
+        monthMenu.buttons = {}
+        local monthNames_ = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" }
+        for i = 1, 12 do
+            local btn = CreateFrame("Button", nil, scrollChild)
+            btn:SetSize(scrollChild:GetWidth(), itemHeight)
+            btn:SetPoint("TOPLEFT", 0, -(i - 1) * itemHeight)
+
+            local text = btn:CreateFontString(nil, "OVERLAY")
+            text:SetFont(HopeAddon.assets.fonts.BODY, 9, "")
+            text:SetPoint("CENTER")
+            text:SetText(monthNames_[i])
+            text:SetTextColor(0.9, 0.9, 0.9)
+
+            btn:SetScript("OnEnter", function()
+                text:SetTextColor(BC.THEME_COLOR.r, BC.THEME_COLOR.g, BC.THEME_COLOR.b)
+            end)
+            btn:SetScript("OnLeave", function()
+                text:SetTextColor(0.9, 0.9, 0.9)
+            end)
+            monthMenu.buttons[i] = btn
+        end
+        self.birthdayMonthMenu = monthMenu
+    end
+
+    -- Create persistent day dropdown menu (once, stored on self) with 31 pre-allocated buttons
+    if not self.birthdayDayMenu then
+        local dayMenu = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
+        dayMenu:SetBackdrop({
+            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            edgeSize = 10,
+            insets = { left = 2, right = 2, top = 2, bottom = 2 },
+        })
+        dayMenu:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
+        dayMenu:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+        dayMenu:SetFrameStrata("DIALOG")
+        dayMenu:Hide()
+        dayMenu:SetWidth(50)
+
+        local scrollFrame = CreateFrame("ScrollFrame", nil, dayMenu, "UIPanelScrollFrameTemplate")
+        scrollFrame:SetPoint("TOPLEFT", 4, -4)
+        scrollFrame:SetPoint("BOTTOMRIGHT", -22, 4)
+
+        local scrollChild = CreateFrame("Frame", nil, scrollFrame)
+        scrollChild:SetWidth(scrollFrame:GetWidth())
+        scrollFrame:SetScrollChild(scrollChild)
+
+        dayMenu.scrollChild = scrollChild
+        dayMenu.buttons = {}
+        for i = 1, 31 do
+            local btn = CreateFrame("Button", nil, scrollChild)
+            btn:SetSize(scrollChild:GetWidth(), itemHeight)
+            btn:SetPoint("TOPLEFT", 0, -(i - 1) * itemHeight)
+
+            local text = btn:CreateFontString(nil, "OVERLAY")
+            text:SetFont(HopeAddon.assets.fonts.BODY, 9, "")
+            text:SetPoint("CENTER")
+            text:SetText(tostring(i))
+            text:SetTextColor(0.9, 0.9, 0.9)
+
+            btn:SetScript("OnEnter", function()
+                text:SetTextColor(BC.THEME_COLOR.r, BC.THEME_COLOR.g, BC.THEME_COLOR.b)
+            end)
+            btn:SetScript("OnLeave", function()
+                text:SetTextColor(0.9, 0.9, 0.9)
+            end)
+            dayMenu.buttons[i] = btn
+        end
+        self.birthdayDayMenu = dayMenu
+    end
+
+    local monthMenu = self.birthdayMonthMenu
+    local dayMenu = self.birthdayDayMenu
+
+    -- Month button
+    local monthBtn = CreateFrame("Button", nil, header, "BackdropTemplate")
+    monthBtn:SetSize(36, 20)
+    monthBtn:SetPoint("LEFT", bdayLabel, "RIGHT", 4, 0)
+    monthBtn:SetBackdrop({
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 8,
+        insets = { left = 1, right = 1, top = 1, bottom = 1 },
+    })
+    monthBtn:SetBackdropColor(0.15, 0.15, 0.15, 1)
+    monthBtn:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+
+    local monthBtnText = monthBtn:CreateFontString(nil, "OVERLAY")
+    monthBtnText:SetFont(HopeAddon.assets.fonts.BODY, 9, "")
+    monthBtnText:SetPoint("CENTER")
+    monthBtnText:SetTextColor(0.7, 0.7, 0.7)
+    monthBtnText:SetText("---")
+
+    -- Day button
+    local dayBtn = CreateFrame("Button", nil, header, "BackdropTemplate")
+    dayBtn:SetSize(28, 20)
+    dayBtn:SetPoint("LEFT", monthBtn, "RIGHT", 2, 0)
+    dayBtn:SetBackdrop({
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 8,
+        insets = { left = 1, right = 1, top = 1, bottom = 1 },
+    })
+    dayBtn:SetBackdropColor(0.15, 0.15, 0.15, 1)
+    dayBtn:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+
+    local dayBtnText = dayBtn:CreateFontString(nil, "OVERLAY")
+    dayBtnText:SetFont(HopeAddon.assets.fonts.BODY, 9, "")
+    dayBtnText:SetPoint("CENTER")
+    dayBtnText:SetTextColor(0.7, 0.7, 0.7)
+    dayBtnText:SetText("--")
+
+    -- Re-parent persistent menus to current buttons so they position correctly
+    monthMenu:ClearAllPoints()
+    monthMenu:SetParent(monthBtn)
+    monthMenu:SetPoint("TOP", monthBtn, "BOTTOM", 0, -2)
+
+    dayMenu:ClearAllPoints()
+    dayMenu:SetParent(dayBtn)
+    dayMenu:SetPoint("TOP", dayBtn, "BOTTOM", 0, -2)
+
+    -- Update display based on current birthday
+    local function UpdateBirthdayDisplay()
+        if selectedMonth and selectedDay then
+            monthBtnText:SetText(monthNames[selectedMonth])
+            monthBtnText:SetTextColor(BC.THEME_COLOR.r, BC.THEME_COLOR.g, BC.THEME_COLOR.b)
+            dayBtnText:SetText(tostring(selectedDay))
+            dayBtnText:SetTextColor(BC.THEME_COLOR.r, BC.THEME_COLOR.g, BC.THEME_COLOR.b)
+        else
+            monthBtnText:SetText("---")
+            monthBtnText:SetTextColor(0.7, 0.7, 0.7)
+            dayBtnText:SetText("--")
+            dayBtnText:SetTextColor(0.7, 0.7, 0.7)
+        end
+    end
+
+    -- Update day menu buttons for a given month (show/hide + update click handlers)
+    local function UpdateDayMenu(maxDays, onDaySelect)
+        for i = 1, 31 do
+            local btn = dayMenu.buttons[i]
+            if i <= maxDays then
+                btn:SetScript("OnClick", function()
+                    if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+                    onDaySelect(i)
+                    dayMenu:Hide()
+                end)
+                btn:Show()
+            else
+                btn:Hide()
+            end
+        end
+        local visibleCount = math.min(maxDays, 12)
+        dayMenu:SetHeight(visibleCount * itemHeight + 8)
+        dayMenu.scrollChild:SetHeight(maxDays * itemHeight)
+    end
+
+    -- Day selection callback
+    local function OnDaySelected(value)
+        selectedDay = value
+        UpdateBirthdayDisplay()
+        if selectedMonth and selectedDay and Calendar then
+            Calendar:SetMyBirthday(selectedMonth, selectedDay)
+        end
+    end
+
+    -- Show the day menu for the current month
+    local function ShowDayMenu()
+        local maxDays = selectedMonth and daysInMonthTable[selectedMonth] or 31
+        UpdateDayMenu(maxDays, OnDaySelected)
+        dayMenu:Show()
+    end
+
+    -- Update month menu button click handlers for current context
+    for i = 1, 12 do
+        monthMenu.buttons[i]:SetScript("OnClick", function()
+            if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+            selectedMonth = i
+            -- Reset day if it exceeds new month's days
+            local maxDays = daysInMonthTable[i]
+            if selectedDay and selectedDay > maxDays then
+                selectedDay = nil
+            end
+            UpdateBirthdayDisplay()
+            monthMenu:Hide()
+            -- Auto-open day menu after selecting month
+            ShowDayMenu()
+        end)
+    end
+
+    monthBtn:SetScript("OnClick", function()
+        if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+        if monthMenu:IsShown() then
+            monthMenu:Hide()
+        else
+            dayMenu:Hide()
+            monthMenu:Show()
+        end
+    end)
+    monthBtn:SetScript("OnEnter", function(btn)
+        btn:SetBackdropBorderColor(BC.THEME_COLOR.r, BC.THEME_COLOR.g, BC.THEME_COLOR.b, 1)
+    end)
+    monthBtn:SetScript("OnLeave", function(btn)
+        btn:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+    end)
+
+    dayBtn:SetScript("OnClick", function()
+        if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
+        if dayMenu:IsShown() then
+            dayMenu:Hide()
+        else
+            monthMenu:Hide()
+            ShowDayMenu()
+        end
+    end)
+    dayBtn:SetScript("OnEnter", function(btn)
+        btn:SetBackdropBorderColor(BC.THEME_COLOR.r, BC.THEME_COLOR.g, BC.THEME_COLOR.b, 1)
+    end)
+    dayBtn:SetScript("OnLeave", function(btn)
+        btn:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+    end)
+
+    -- Load existing birthday on header creation
+    if Calendar then
+        local bday = Calendar:GetMyBirthday()
+        if bday then
+            selectedMonth = bday.month
+            selectedDay = bday.day
+            UpdateBirthdayDisplay()
+        end
+    end
 
     return header
 end
@@ -2244,8 +2537,8 @@ function CalendarUI:PopulateWeekCalendar(weekContainer)
                 cell.dayNumber:SetTextColor(0.9, 0.9, 0.9)
             end
 
-            -- Get events for this day (exclude server events from mini-cards)
-            local events = Calendar and Calendar:GetEventsForDate(dateStr, false) or {}
+            -- Get events for this day (include server events as mini-cards)
+            local events = Calendar and Calendar:GetEventsForDate(dateStr) or {}
             if #events > 0 then
                 self:PopulateMiniCards(cell, events, dateStr)
             else
@@ -2308,23 +2601,28 @@ function CalendarUI:AcquireEventCard(event)
     -- Check if this is a server event (read-only, no signups)
     local isServerEvent = Calendar:IsServerEvent(event)
 
-    -- Icon based on event type
-    local eventType = C.CALENDAR_EVENT_TYPES[event.eventType] or C.CALENDAR_EVENT_TYPES.OTHER
-    card.icon:SetTexture(eventType.icon)
+    -- Icon: prefer per-event icon (themeColor events), then type-based fallback
+    local iconPath = C:GetCalendarEventIcon(event)
+    card.icon:SetTexture(iconPath)
 
-    -- Color stripe based on event type or custom color
-    local eventColor = C.CALENDAR_EVENT_COLORS[event.eventType] or C.CALENDAR_EVENT_COLORS.OTHER
-
-    -- Check for custom event color override
-    if event.eventColor then
-        for _, preset in ipairs(C.CALENDAR_EVENT_COLOR_PRESETS) do
-            if preset.key == event.eventColor and preset.color then
-                eventColor = preset.color
-                break
+    -- Color stripe: prefer themeColor, then eventColor preset, then type-based fallback
+    local eventColor
+    if event.themeColor then
+        eventColor = event.themeColor
+    else
+        eventColor = C.CALENDAR_EVENT_COLORS[event.eventType] or C.CALENDAR_EVENT_COLORS.OTHER
+        -- Check for custom event color override
+        if event.eventColor then
+            for _, preset in ipairs(C.CALENDAR_EVENT_COLOR_PRESETS) do
+                if preset.key == event.eventColor and preset.color then
+                    eventColor = preset.color
+                    break
+                end
             end
         end
     end
 
+    eventColor = eventColor or FALLBACK_COLOR
     card.colorStripe:SetColorTexture(eventColor.r, eventColor.g, eventColor.b, 1)
 
     -- Title with lock indicator if locked
@@ -2360,31 +2658,32 @@ function CalendarUI:AcquireEventCard(event)
         -- Subtitle (time and leader) - show dual time
         local subtitle = Calendar:FormatDualTime(event.startTime) or "TBD"
         if event.leader then
-            local classColor = RAID_CLASS_COLORS[event.leaderClass] or { r = 0.8, g = 0.8, b = 0.8 }
+            local classColor = RAID_CLASS_COLORS[event.leaderClass] or FALLBACK_CLASS_COLOR
             subtitle = subtitle .. " | |cFF" .. string.format("%02x%02x%02x", classColor.r * 255, classColor.g * 255, classColor.b * 255) .. event.leader .. "|r"
         end
         card.subtitle:SetText(subtitle)
 
-        -- Looking For roles display
-        local lfParts = {}
-        local maxTanks = event.maxTanks or 2
-        local maxHealers = event.maxHealers or 3
-        local maxDPS = event.maxDPS or 5
+        -- Looking For roles display - show remaining needs
+        local counts = Calendar:GetSignupCounts(event)
+        local needTanks = math.max(0, counts.tank.max - counts.tank.current)
+        local needHealers = math.max(0, counts.healer.max - counts.healer.current)
+        local needDPS = math.max(0, counts.dps.max - counts.dps.current)
 
-        if maxTanks > 0 then
-            table.insert(lfParts, "|cFF4169E1" .. maxTanks .. "T|r")
+        local lfParts = {}
+        if needTanks > 0 then
+            table.insert(lfParts, "|cFF4169E1" .. needTanks .. "T|r")
         end
-        if maxHealers > 0 then
-            table.insert(lfParts, "|cFF00FF00" .. maxHealers .. "H|r")
+        if needHealers > 0 then
+            table.insert(lfParts, "|cFF00FF00" .. needHealers .. "H|r")
         end
-        if maxDPS > 0 then
-            table.insert(lfParts, "|cFFFF4444" .. maxDPS .. "D|r")
+        if needDPS > 0 then
+            table.insert(lfParts, "|cFFFF4444" .. needDPS .. "D|r")
         end
 
         if #lfParts > 0 then
             card.signups:SetText("LF: " .. table.concat(lfParts, " "))
         else
-            card.signups:SetText("")
+            card.signups:SetText("|cFF00FF00Full|r")
         end
 
         -- Show view button for guild events
@@ -3266,6 +3565,16 @@ function CalendarUI:ShowServerEventDetail(event)
         popup.dateTime:SetText(event.date .. " | " .. timeStr)
     end
 
+    -- Apply event's theme color to popup border and title if available
+    if event.themeColor then
+        local tc = event.themeColor
+        popup:SetBackdropBorderColor(tc.r, tc.g, tc.b, 1)
+        popup.title:SetTextColor(tc.r, tc.g, tc.b)
+    else
+        popup:SetBackdropBorderColor(1, 0.84, 0, 1)
+        popup.title:SetTextColor(1, 0.84, 0)
+    end
+
     -- Description
     if event.description and event.description ~= "" then
         popup.description:SetText(event.description)
@@ -3598,17 +3907,23 @@ function CalendarUI:CreateUnifiedEventCard(parent, event, isSelected)
         card:SetBackdropBorderColor(0.3, 0.3, 0.3, 0.6)
     end
 
-    -- Color stripe on left
-    local eventColor = C.CALENDAR_EVENT_COLORS[event.eventType] or C.CALENDAR_EVENT_COLORS.OTHER
-    if event.eventColor then
-        for _, preset in ipairs(C.CALENDAR_EVENT_COLOR_PRESETS) do
-            if preset.key == event.eventColor and preset.color then
-                eventColor = preset.color
-                break
+    -- Color stripe on left: prefer themeColor, then eventColor preset, then type-based fallback
+    local eventColor
+    if event.themeColor then
+        eventColor = event.themeColor
+    else
+        eventColor = C.CALENDAR_EVENT_COLORS[event.eventType] or C.CALENDAR_EVENT_COLORS.OTHER
+        if event.eventColor then
+            for _, preset in ipairs(C.CALENDAR_EVENT_COLOR_PRESETS) do
+                if preset.key == event.eventColor and preset.color then
+                    eventColor = preset.color
+                    break
+                end
             end
         end
     end
 
+    eventColor = eventColor or FALLBACK_COLOR
     local stripe = card:CreateTexture(nil, "ARTWORK")
     stripe:SetColorTexture(eventColor.r, eventColor.g, eventColor.b, 1)
     stripe:SetSize(3, UNIFIED.EVENT_CARD_HEIGHT - 8)
@@ -3980,7 +4295,7 @@ function CalendarUI:PopulateUnifiedRightPanel(popup, event)
         leaderName:SetFont(HopeAddon.assets.fonts.HEADER, 12, "")
         leaderName:SetPoint("TOPLEFT", orgLabel, "BOTTOMLEFT", 0, -6)
         if event.leader then
-            local classColor = RAID_CLASS_COLORS[event.leaderClass] or { r = 0.9, g = 0.9, b = 0.9 }
+            local classColor = RAID_CLASS_COLORS[event.leaderClass] or FALLBACK_CLASS_COLOR
             local colorHex = string.format("%02x%02x%02x", classColor.r * 255, classColor.g * 255, classColor.b * 255)
             leaderName:SetText("|cFF" .. colorHex .. event.leader .. "|r")
         else

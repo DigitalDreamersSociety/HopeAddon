@@ -2,8 +2,9 @@
 ## Title: |cff9B30FFHope Is Here|r
 ## Notes: Your TBC Journey Journal
 ## Author: Philfestive
-## Version: 0.9.0
+## Version: 1.0.0
 ## IconTexture: Interface\Icons\INV_Misc_Book_09
+## X-Curse-Project-ID: 1442625
 ## SavedVariables: HopeAddonDB
 ## SavedVariablesPerCharacter: HopeAddonCharDB
 
@@ -11,8 +12,11 @@
 Core\FramePool.lua
 Core\Constants.lua
 Core\ArmoryBisData.lua
+Core\ArmoryAcquisitionData.lua
 Core\Timer.lua
 Core\Core.lua
+Core\TooltipEnhancer.lua
+Core\InspectCache.lua
 Core\Sounds.lua
 Core\Effects.lua
 Core\Charts.lua
@@ -32,7 +36,9 @@ Journal\ProfileEditor.lua
 # Raid Data
 Raids\RaidData.lua
 Raids\EncounterTracker.lua
+Raids\CombatRecords.lua
 Raids\BossBreakdown.lua
+Raids\KillFlash.lua
 Raids\Attunements.lua
 Raids\Karazhan.lua
 Raids\Gruul.lua
@@ -83,9 +89,6 @@ Social\Games\Battleship\BattleshipBoard.lua
 Social\Games\Battleship\BattleshipAI.lua
 Social\Games\Battleship\BattleshipUI.lua
 Social\Games\Battleship\BattleshipGame.lua
-Social\Games\Wordle\WordleWords.lua
-Social\Games\Wordle\WordleGame.lua
-Social\Games\Wordle\WordleUI.lua
 Social\Games\PacMan\PacManMaps.lua
 Social\Games\PacMan\PacManGhostAI.lua
 Social\Games\PacMan\PacManGame.lua

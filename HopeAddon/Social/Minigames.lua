@@ -364,10 +364,10 @@ end
     @return boolean - Success
 ]]
 function Minigames:SendChallenge(targetName, gameType)
-    gameType = gameType or Minigames.GAME_DICE
+    gameType = gameType or Minigames.GAME_RPS
 
     -- Validate game type
-    if gameType ~= Minigames.GAME_DICE and gameType ~= Minigames.GAME_RPS then
+    if gameType ~= Minigames.GAME_RPS then
         HopeAddon:Print("Invalid game type. Use 'rps'.")
         return false
     end
@@ -502,7 +502,7 @@ function Minigames:AcceptChallenge()
 
     -- Create session as non-challenger
     local session = self:CreateSession(challenge.gameType, challenge.challenger, false, challenge.sessionId)
-    session.state = STATE_WAITING_ROLLS  -- Move to in-game state
+    session.state = STATE_COMMITTED  -- Move to in-game state
     self.activeGame = session
 
     -- Send accept
@@ -572,7 +572,7 @@ function Minigames:HandleAccept(sender, data)
     end
 
     -- Update state
-    self.activeGame.state = STATE_WAITING_ROLLS
+    self.activeGame.state = STATE_COMMITTED
 
     HopeAddon:Print(accepterName .. " accepted your challenge! Starting Rock-Paper-Scissors")
 
@@ -931,7 +931,6 @@ function Minigames:EnsureStatsStructure(playerName)
             deathroll = { wins = 0, losses = 0, ties = 0, highestBet = 0, lastPlayed = nil },
             pong = { wins = 0, losses = 0, ties = 0, highestScore = 0, lastPlayed = nil },
             tetris = { wins = 0, losses = 0, ties = 0, highestScore = 0, lastPlayed = nil },
-            words = { wins = 0, losses = 0, ties = 0, highestScore = 0, lastPlayed = nil },
             battleship = { wins = 0, losses = 0, ties = 0, lastPlayed = nil },
         }
     end
@@ -947,9 +946,6 @@ function Minigames:EnsureStatsStructure(playerName)
         end
         if not stats.minigames.tetris then
             stats.minigames.tetris = { wins = 0, losses = 0, ties = 0, highestScore = 0, lastPlayed = nil }
-        end
-        if not stats.minigames.words then
-            stats.minigames.words = { wins = 0, losses = 0, ties = 0, highestScore = 0, lastPlayed = nil }
         end
         if not stats.minigames.battleship then
             stats.minigames.battleship = { wins = 0, losses = 0, ties = 0, lastPlayed = nil }
@@ -998,7 +994,7 @@ function Minigames:RecordGameResult(opponent, gameType, result, myMove, theirMov
         if myMove > (stats.highestBet or 0) then
             stats.highestBet = myMove
         end
-    elseif (gameType == "pong" or gameType == "tetris" or gameType == "words") and type(myMove) == "number" then
+    elseif (gameType == "pong" or gameType == "tetris") and type(myMove) == "number" then
         -- Track highest score
         if myMove > (stats.highestScore or 0) then
             stats.highestScore = myMove

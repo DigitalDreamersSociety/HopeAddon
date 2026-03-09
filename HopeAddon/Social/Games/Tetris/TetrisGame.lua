@@ -15,12 +15,11 @@ local TetrisGame = {}
 
 TetrisGame.SETTINGS = {
     -- Timing (in seconds)
-    INITIAL_DROP_INTERVAL = 1.0,    -- Time between automatic drops
-    MIN_DROP_INTERVAL = 0.1,        -- Fastest drop speed
-    SOFT_DROP_INTERVAL = 0.05,      -- Speed when holding down
-    LOCK_DELAY = 0.25,              -- Time before piece locks after landing (competitive standard)
+    INITIAL_DROP_INTERVAL = 1.0,    -- Time between automatic drops (Level 1)
+    MIN_DROP_INTERVAL = 0.02,       -- Fastest drop speed (1 cell/frame at 60fps)
+    LOCK_DELAY = 0.5,               -- Time before piece locks after landing (Guideline: 30 frames @ 60fps)
     LINE_CLEAR_DELAY = 0.3,         -- Animation time for clearing lines
-    MAX_LOCK_MOVES = 10,            -- Max moves/rotations before forced lock
+    MAX_LOCK_MOVES = 15,            -- Max moves/rotations before forced lock (Guideline standard)
     DAS_DELAY = 0.167,              -- Delayed Auto Shift initial delay (10 frames @ 60fps)
     ARR_INTERVAL = 0.033,           -- Auto Repeat Rate interval (2 frames @ 60fps)
     ENTRY_DELAY = 0.1,              -- Auto Repeat Enable (ARE) spawn delay
@@ -41,14 +40,12 @@ TetrisGame.SETTINGS = {
     GARBAGE_TRIPLE = 2,
     GARBAGE_TETRIS = 4,
 
-    -- Level progression
+    -- Level progression (Tetris Guideline gravity formula)
     LINES_PER_LEVEL = 10,
-    SPEED_MULTIPLIER = 0.85,        -- Drop interval *= this per level
 
     -- Blitz mode settings (used in SCORE_CHALLENGE)
     BLITZ_TIME_LIMIT = 120,             -- 2-minute games
-    BLITZ_INITIAL_DROP_INTERVAL = 0.5,  -- Start 2x faster
-    BLITZ_SPEED_MULTIPLIER = 0.80,      -- More aggressive speed curve
+    BLITZ_STARTING_LEVEL = 5,           -- Start at Level 5 speed
     BLITZ_LINES_PER_LEVEL = 5,          -- Level up twice as fast
 }
 
@@ -203,8 +200,9 @@ function TetrisGame:CreateBoard(playerNum, isBlitz)
     local TetrisBlocks = HopeAddon.TetrisBlocks
     local S = self.SETTINGS
 
-    -- Use blitz settings for SCORE_CHALLENGE mode
-    local initialDropInterval = isBlitz and S.BLITZ_INITIAL_DROP_INTERVAL or S.INITIAL_DROP_INTERVAL
+    -- Use Guideline gravity formula; Blitz starts at a higher level
+    local startLevel = isBlitz and S.BLITZ_STARTING_LEVEL or 1
+    local initialDropInterval = math.max(math.pow(0.8 - ((startLevel - 1) * 0.007), startLevel - 1), S.MIN_DROP_INTERVAL)
 
     return {
         -- Grid
@@ -245,7 +243,7 @@ function TetrisGame:CreateBoard(playerNum, isBlitz)
         },
 
         -- Stats
-        level = 1,
+        level = startLevel,
         lines = 0,
         score = 0,
 
@@ -428,7 +426,10 @@ function TetrisGame:UpdateBoard(gameId, playerNum, dt)
     end
 
     -- Automatic drop
-    local dropInterval = board.softDropping and self.SETTINGS.SOFT_DROP_INTERVAL or board.dropInterval
+    local dropInterval = board.dropInterval
+    if board.softDropping then
+        dropInterval = math.max(board.dropInterval / 20, 0.01)
+    end
     board.dropTimer = board.dropTimer + dt
 
     if board.dropTimer >= dropInterval then
@@ -1158,15 +1159,15 @@ function TetrisGame:CheckLineClears(gameId, playerNum, isTSpin, isMini)
         board.outgoingGarbage = board.outgoingGarbage + garbage
     end
 
-    -- Level up check (use blitz settings if in blitz mode)
+    -- Level up check (Tetris Guideline gravity formula)
     local linesPerLevel = board.isBlitz and S.BLITZ_LINES_PER_LEVEL or S.LINES_PER_LEVEL
-    local speedMult = board.isBlitz and S.BLITZ_SPEED_MULTIPLIER or S.SPEED_MULTIPLIER
-    local initialDrop = board.isBlitz and S.BLITZ_INITIAL_DROP_INTERVAL or S.INITIAL_DROP_INTERVAL
-
     local newLevel = math.floor(board.lines / linesPerLevel) + 1
+    if board.isBlitz then
+        newLevel = newLevel + (S.BLITZ_STARTING_LEVEL - 1)
+    end
     if newLevel > board.level then
         board.level = newLevel
-        board.dropInterval = initialDrop * math.pow(speedMult, newLevel - 1)
+        board.dropInterval = math.pow(0.8 - ((newLevel - 1) * 0.007), newLevel - 1)
         board.dropInterval = math.max(board.dropInterval, S.MIN_DROP_INTERVAL)
     end
 
@@ -2079,7 +2080,7 @@ function TetrisGame:UpdateBoardUI(gameId, playerNum)
         if board.isBlitz then
             -- Show speed percentage in blitz mode
             local S = self.SETTINGS
-            local speedPercent = math.floor((board.dropInterval / S.BLITZ_INITIAL_DROP_INTERVAL) * 100)
+            local speedPercent = math.floor((board.dropInterval / S.INITIAL_DROP_INTERVAL) * 100)
             levelText = string.format("Lvl: %d (%d%%)", board.level, speedPercent)
         else
             levelText = "Lvl: " .. board.level

@@ -38,7 +38,6 @@ local ACTIVITY_MESSAGES = {
 local MAX_ACTIVITY_ENTRIES = 100
 local ACTIVITY_RETENTION_DAYS = 7
 local ROSTER_REFRESH_INTERVAL = 30  -- seconds between auto-refresh
-local ONLINE_CHECK_INTERVAL = 60    -- seconds between online status broadcasts
 
 --============================================================
 -- API COMPATIBILITY
@@ -60,11 +59,8 @@ end
 Guild.eventFrame = nil
 Guild.listeners = {}  -- Registered UI listeners
 Guild.listenerCount = 0
-Guild.previousRoster = {}  -- For change detection
-Guild.lastRosterUpdate = 0
 Guild.refreshTicker = nil
 Guild.isInitialized = false
-Guild.pendingRefresh = nil  -- Timer deduplication
 
 --============================================================
 -- LIFECYCLE
@@ -90,11 +86,6 @@ function Guild:OnDisable()
         self.refreshTicker = nil
     end
 
-    if self.pendingRefresh then
-        self.pendingRefresh:Cancel()
-        self.pendingRefresh = nil
-    end
-
     -- Issue #20: Clear listeners to prevent callback accumulation
     wipe(self.listeners)
     self.listenerCount = 0
@@ -115,7 +106,6 @@ function Guild:Initialize()
     self.eventFrame:RegisterEvent("GUILD_ROSTER_UPDATE")
     self.eventFrame:RegisterEvent("PLAYER_GUILD_UPDATE")
     self.eventFrame:RegisterEvent("GUILD_MOTD")
-    self.eventFrame:RegisterEvent("CHAT_MSG_GUILD")  -- For activity tracking
 
     self.eventFrame:SetScript("OnEvent", function(_, event, ...)
         if event == "GUILD_ROSTER_UPDATE" then
@@ -124,9 +114,6 @@ function Guild:Initialize()
             self:OnPlayerGuildUpdate()
         elseif event == "GUILD_MOTD" then
             self:OnGuildMOTD(...)
-        elseif event == "CHAT_MSG_GUILD" then
-            -- Could parse for level up announcements, etc.
-            self:OnGuildChat(...)
         end
     end)
 
@@ -330,16 +317,6 @@ function Guild:OnGuildMOTD(motd)
         guildData.motd = motd or ""
         self:NotifyListeners("motd")
     end
-end
-
---[[
-    Handle guild chat messages for activity detection
-    @param message string - Chat message
-    @param sender string - Sender name
-]]
-function Guild:OnGuildChat(message, sender)
-    -- Could parse for specific patterns like level-up announcements
-    -- For now, this is a placeholder for future enhancement
 end
 
 --[[

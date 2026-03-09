@@ -16,6 +16,9 @@ end
     Module lifecycle: OnEnable
 ]]
 function Attunements:OnEnable()
+    self:CatchUpAttunements()
+    self:RegisterSurveyHandler()
+    self:CleanupSurveyData()
 end
 
 --[[
@@ -32,6 +35,17 @@ Attunements.STATE = {
     IN_PROGRESS = 1,
     COMPLETED = 2,
 }
+
+-- Survey protocol constants
+local SURVEY_MSG_REQ = "ASRQ"
+local SURVEY_MSG_RSP = "ASRP"
+local SURVEY_COOLDOWN = 60
+local SURVEY_MAX_RESPONSES = 100
+local SURVEY_EXPIRY = 86400  -- 24 hours
+local SURVEY_RAID_KEYS = { "karazhan", "ssc", "cipher", "tk", "hyjal", "bt" }
+
+-- Survey listener system
+Attunements.surveyListeners = {}
 
 -- Cached attunement map (lazy initialized on first use)
 local attunementMapCache = nil
@@ -311,6 +325,9 @@ function Attunements:CompleteChapter(raidKey, chapterIndex)
         if HopeAddon.Badges then
             HopeAddon.Badges:OnAttunementCompleted(raidKey)
         end
+
+        -- Announce to guild chat and activity feed
+        self:AnnounceCompletion(raidKey, attunement)
     end
 end
 
@@ -348,6 +365,34 @@ function Attunements:RecordAttunementMilestone(raidKey)
     table.insert(HopeAddon.charDb.journal.entries, entry)
 
     HopeAddon:Debug("Recorded attunement milestone:", milestoneData.title)
+end
+
+--[[
+    Announce attunement completion to guild chat and activity feed
+    @param raidKey string - Raid identifier
+    @param attunement table - Attunement data
+]]
+function Attunements:AnnounceCompletion(raidKey, attunement)
+    -- Guild chat announcement (visible text, not addon channel)
+    if IsInGuild() then
+        local raidName = attunement.raidName or attunement.zone or attunement.name
+        SendChatMessage(
+            UnitName("player") .. " has completed the " .. raidName .. " attunement!",
+            "GUILD"
+        )
+    end
+
+    -- ActivityFeed broadcast (addon comms to other HopeAddon users)
+    if HopeAddon.ActivityFeed then
+        HopeAddon.ActivityFeed:OnAttunementCompleted(raidKey,
+            attunement.raidName or attunement.zone or attunement.name)
+    end
+
+    -- Local toast notification
+    if HopeAddon.SocialToasts then
+        HopeAddon.SocialToasts:Show("attunement_complete", nil,
+            "Attuned to " .. (attunement.raidName or attunement.zone) .. "!")
+    end
 end
 
 --[[
@@ -505,6 +550,269 @@ function Attunements:GetSummary(raidKey)
         hasFactionStart = attunement.hasFactionStart,
         title = attunement.title,
     }
+end
+
+--[[
+    Get dependency status for a cross-chain dependency
+    @param dep table - Dependency entry with type, raidKey fields
+    @return string - "completed", "progress", "pending", or "unknown"
+]]
+function Attunements:GetDependencyStatus(dep)
+    if dep.type == "chain" and dep.raidKey then
+        local state = self:GetState(dep.raidKey)
+        if state == self.STATE.COMPLETED then return "completed"
+        elseif state == self.STATE.IN_PROGRESS then return "progress"
+        else return "pending" end
+    end
+    return "unknown"  -- raid_kill type: can't auto-detect
+end
+
+--[[
+    Retroactively catch up attunement progress for quests completed before the addon tracked them.
+    Uses IsQuestFlaggedCompleted() to check all known attunement quests.
+    Called on PLAYER_LOGIN via OnEnable().
+]]
+function Attunements:CatchUpAttunements()
+    local C = HopeAddon.Constants
+    local lookup = C.ATTUNEMENT_QUEST_LOOKUP
+    if not lookup then return end
+
+    local caughtUp = 0
+
+    for questId, info in pairs(lookup) do
+        -- TBC Classic: try both API variants
+        local isComplete = false
+        if C_QuestLog and C_QuestLog.IsQuestFlaggedCompleted then
+            isComplete = C_QuestLog.IsQuestFlaggedCompleted(questId)
+        elseif IsQuestFlaggedCompleted then
+            isComplete = IsQuestFlaggedCompleted(questId)
+        end
+
+        if isComplete then
+            local raidKey = info.raid
+            local chapterIndex = info.chapter
+            local progress = self:GetProgress(raidKey)
+
+            -- Only fill in missing chapters (don't overwrite existing data with real dates)
+            if not progress.chapters[chapterIndex] or not progress.chapters[chapterIndex].complete then
+                if not progress.chapters then
+                    progress.chapters = {}
+                end
+                progress.started = true
+                progress.chapters[chapterIndex] = {
+                    complete = true,
+                    date = "Retroactive",
+                    timestamp = HopeAddon:GetTimestamp(),
+                }
+                caughtUp = caughtUp + 1
+            end
+
+            -- Check if now fully complete
+            local totalChapters = self:GetTotalChapters(raidKey)
+            local allComplete = true
+            for i = 1, totalChapters do
+                if not progress.chapters[i] or not progress.chapters[i].complete then
+                    allComplete = false
+                    break
+                end
+            end
+
+            if allComplete and not progress.completed then
+                progress.completed = true
+                progress.completedDate = "Retroactive"
+                self:RecordAttunementMilestone(raidKey)
+            end
+        end
+    end
+
+    if caughtUp > 0 then
+        HopeAddon:Debug("Attunements catch-up: filled in", caughtUp, "chapters retroactively")
+    end
+end
+
+--============================================================
+-- GUILD ATTUNEMENT SURVEY
+--============================================================
+
+function Attunements:RegisterSurveyListener(id, callback)
+    self.surveyListeners[id] = callback
+end
+
+function Attunements:UnregisterSurveyListener(id)
+    self.surveyListeners[id] = nil
+end
+
+local function NotifySurveyListeners(self)
+    for _, callback in pairs(self.surveyListeners) do
+        pcall(callback)
+    end
+end
+
+--[[
+    Register message callback with FellowTravelers for survey protocol
+]]
+function Attunements:RegisterSurveyHandler()
+    local FT = HopeAddon.FellowTravelers
+    if not FT then return end
+
+    FT:RegisterMessageCallback("AttunementSurvey",
+        function(msgType)
+            return msgType == SURVEY_MSG_REQ or msgType == SURVEY_MSG_RSP
+        end,
+        function(msgType, sender, data)
+            if msgType == SURVEY_MSG_REQ then
+                self:HandleSurveyRequest(sender)
+            elseif msgType == SURVEY_MSG_RSP then
+                self:HandleSurveyResponse(sender, data)
+            end
+        end
+    )
+end
+
+--[[
+    Broadcast a survey request to guild
+    @return boolean - True if request was sent
+]]
+function Attunements:RequestGuildSurvey()
+    local now = GetTime()
+    local survey = self:GetSurveyData()
+
+    if now - (survey.lastRequested or 0) < SURVEY_COOLDOWN then
+        local remaining = math.ceil(SURVEY_COOLDOWN - (now - survey.lastRequested))
+        HopeAddon:Print("Survey on cooldown (" .. remaining .. "s)")
+        return false
+    end
+
+    if not IsInGuild() then
+        HopeAddon:Print("You must be in a guild to survey.")
+        return false
+    end
+
+    survey.lastRequested = now
+    survey.responses = {}
+
+    -- Send request to GUILD channel only
+    local send = (C_ChatInfo and C_ChatInfo.SendAddonMessage) or SendAddonMessage
+    pcall(send, "HOPEADDON", SURVEY_MSG_REQ .. ":2:", "GUILD")
+
+    -- Add own data immediately
+    local _, myClass = UnitClass("player")
+    self:HandleSurveyResponse(UnitName("player"),
+        myClass .. "|" .. self:EncodeProgress())
+
+    HopeAddon:Print("Requesting attunement data from guild...")
+    return true
+end
+
+--[[
+    Encode local attunement progress into compact wire format
+    @return string - "karazhan:7/7;ssc:1/1;cipher:7/7;tk:3/5;hyjal:0/1;bt:5/15"
+]]
+function Attunements:EncodeProgress()
+    local parts = {}
+    for _, key in ipairs(SURVEY_RAID_KEYS) do
+        local total = self:GetTotalChapters(key)
+        local pct = self:GetPercentage(key)
+        local completed = math.floor(pct / 100 * total)
+        parts[#parts + 1] = key .. ":" .. completed .. "/" .. total
+    end
+    return table.concat(parts, ";")
+end
+
+--[[
+    Decode wire format progress string
+    @param str string - Encoded progress
+    @return table - { [raidKey] = { completed = N, total = N }, ... }
+]]
+function Attunements:DecodeProgress(str)
+    local result = {}
+    for entry in str:gmatch("[^;]+") do
+        local key, completed, total = entry:match("^(%a+):(%d+)/(%d+)$")
+        if key then
+            result[key] = {
+                completed = tonumber(completed),
+                total = tonumber(total),
+            }
+        end
+    end
+    return result
+end
+
+--[[
+    Handle incoming survey request - respond with our progress
+    @param sender string - Player who requested the survey
+]]
+function Attunements:HandleSurveyRequest(sender)
+    local FT = HopeAddon.FellowTravelers
+    if not FT then return end
+
+    local _, class = UnitClass("player")
+    local payload = class .. "|" .. self:EncodeProgress()
+    FT:SendDirectMessage(sender, SURVEY_MSG_RSP, payload)
+end
+
+--[[
+    Handle incoming survey response
+    @param sender string - Player who responded
+    @param data string - "CLASS|karazhan:7/7;ssc:1/1;..."
+]]
+function Attunements:HandleSurveyResponse(sender, data)
+    if not data then return end
+
+    local class, encoded = data:match("^(%a+)|(.+)$")
+    if not class or not encoded then return end
+
+    local progress = self:DecodeProgress(encoded)
+    if not next(progress) then return end
+
+    local survey = self:GetSurveyData()
+
+    -- Cap responses
+    if not survey.responses[sender] then
+        local count = 0
+        for _ in pairs(survey.responses) do count = count + 1 end
+        if count >= SURVEY_MAX_RESPONSES then return end
+    end
+
+    survey.responses[sender] = {
+        class = class,
+        data = progress,
+        timestamp = time(),
+    }
+
+    NotifySurveyListeners(self)
+end
+
+--[[
+    Get or initialize survey data storage
+    @return table - Survey data
+]]
+function Attunements:GetSurveyData()
+    if not HopeAddon.charDb.attunements.guildSurvey then
+        HopeAddon.charDb.attunements.guildSurvey = {
+            lastRequested = 0,
+            responses = {},
+        }
+    end
+    return HopeAddon.charDb.attunements.guildSurvey
+end
+
+--[[
+    Clean up expired survey responses (older than 24 hours)
+]]
+function Attunements:CleanupSurveyData()
+    local survey = self:GetSurveyData()
+    local now = time()
+    local cleaned = 0
+    for name, resp in pairs(survey.responses) do
+        if now - (resp.timestamp or 0) > SURVEY_EXPIRY then
+            survey.responses[name] = nil
+            cleaned = cleaned + 1
+        end
+    end
+    if cleaned > 0 then
+        HopeAddon:Debug("Cleaned " .. cleaned .. " expired survey responses")
+    end
 end
 
 -- Register with addon

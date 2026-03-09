@@ -91,7 +91,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             neck = {
                 bis = { id = 29381, name = "Choker of Vile Intent", source = "G'eras (25 Badges)", sourceType = "badge" },
                 alts = {
-                    { id = 27779, name = "Strength of the Untamed", source = "The Black Stalker (Heroic Underbog)", sourceType = "heroic" },
+                    { id = 29173, name = "Strength of the Untamed", source = "The Black Stalker (Heroic Underbog)", sourceType = "heroic" },
                 }
             },
             shoulders = {
@@ -107,7 +107,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             chest = {
-                bis = { id = 29517, name = "Ebon Netherscale Breastplate", source = "Dragonscale Leatherworking", sourceType = "crafted" },
+                bis = { id = 29515, name = "Ebon Netherscale Breastplate", source = "Dragonscale Leatherworking", sourceType = "crafted" },
                 alts = {
                     { id = 28403, name = "Doomplate Chestguard", source = "Harbinger Skyriss (Arcatraz)", sourceType = "dungeon" },
                 }
@@ -127,7 +127,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             waist = {
                 bis = { id = 29247, name = "Girdle of the Deathdealer", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
                 alts = {
-                    { id = 27911, name = "Dunewind Sash", source = "Nexus-Prince Shaffar (Mana-Tombs)", sourceType = "dungeon" },
+                    { id = 27760, name = "Dunewind Sash", source = "Nexus-Prince Shaffar (Mana-Tombs)", sourceType = "dungeon" },
                 }
             },
             legs = {
@@ -139,7 +139,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             feet = {
                 bis = { id = 25686, name = "Fel Leather Boots", source = "Leatherworking", sourceType = "crafted" },
                 alts = {
-                    { id = 27867, name = "Moonstrider Boots", source = "Botanica", sourceType = "dungeon" },
+                    { id = 27914, name = "Moonstrider Boots", source = "Botanica", sourceType = "dungeon" },
                 }
             },
             ring1 = {
@@ -199,17 +199,17 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             neck = {
                 bis = { id = 29386, name = "Necklace of the Juggernaut", source = "G'eras (25 Badges)", sourceType = "badge" },
                 alts = {
-                    { id = 27792, name = "Mark of the Ravenguard", source = "Anzu (Heroic Sethekk Halls)", sourceType = "heroic" },
+                    { id = 29336, name = "Mark of the Ravenguard", source = "Anzu (Heroic Sethekk Halls)", sourceType = "heroic" },
                 }
             },
             shoulders = {
-                bis = { id = 27847, name = "Spaulders of the Righteous", source = "Laj (Heroic Botanica)", sourceType = "heroic" },
+                bis = { id = 27739, name = "Spaulders of the Righteous", source = "Laj (Heroic Botanica)", sourceType = "heroic" },
                 alts = {
                     { id = 27434, name = "Mantle of Perenolde", source = "Epoch Hunter (Old Hillsbrad)", sourceType = "dungeon" },
                 }
             },
             back = {
-                bis = { id = 27518, name = "Devilshark Cape", source = "Warlord Kalithresh (The Steamvault)", sourceType = "dungeon" },
+                bis = { id = 27804, name = "Devilshark Cape", source = "Warlord Kalithresh (The Steamvault)", sourceType = "dungeon" },
                 alts = {
                     { id = 24253, name = "Cloak of Eternity", source = "Tailoring", sourceType = "crafted" },
                 }
@@ -235,7 +235,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             waist = {
                 bis = { id = 29247, name = "Girdle of the Deathdealer", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
                 alts = {
-                    { id = 27911, name = "Dunewind Sash", source = "Nexus-Prince Shaffar (Mana-Tombs)", sourceType = "dungeon" },
+                    { id = 27760, name = "Dunewind Sash", source = "Nexus-Prince Shaffar (Mana-Tombs)", sourceType = "dungeon" },
                 }
             },
             legs = {
@@ -259,7 +259,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             ring2 = {
                 bis = { id = 28323, name = "Ring of Umbral Doom", source = "Thorngrin the Tender (Heroic Botanica)", sourceType = "heroic" },
                 alts = {
-                    { id = 27436, name = "Ring of the Stalwart Protector", source = "Quest (Old Hillsbrad)", sourceType = "quest" },
+                    { id = 34888, name = "Ring of the Stalwart Protector", source = "Quest (Old Hillsbrad)", sourceType = "quest" },
                 }
             },
             trinket1 = {
@@ -415,17 +415,17 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             neck = {
                 bis = { id = 29386, name = "Necklace of the Juggernaut", source = "G'eras (25 Badges)", sourceType = "badge" },
                 alts = {
-                    { id = 27792, name = "Mark of the Ravenguard", source = "Anzu (Heroic Sethekk Halls)", sourceType = "heroic" },
+                    { id = 29336, name = "Mark of the Ravenguard", source = "Anzu (Heroic Sethekk Halls)", sourceType = "heroic" },
                 }
             },
             shoulders = {
-                bis = { id = 27847, name = "Spaulders of the Righteous", source = "Laj (Heroic Botanica)", sourceType = "heroic" },
+                bis = { id = 27739, name = "Spaulders of the Righteous", source = "Laj (Heroic Botanica)", sourceType = "heroic" },
                 alts = {
                     { id = 27434, name = "Mantle of Perenolde", source = "Epoch Hunter (Old Hillsbrad)", sourceType = "dungeon" },
                 }
             },
             back = {
-                bis = { id = 27518, name = "Devilshark Cape", source = "Warlord Kalithresh (The Steamvault)", sourceType = "dungeon" },
+                bis = { id = 27804, name = "Devilshark Cape", source = "Warlord Kalithresh (The Steamvault)", sourceType = "dungeon" },
                 alts = {
                     { id = 24253, name = "Cloak of Eternity", source = "Tailoring", sourceType = "crafted" },
                 }
@@ -445,13 +445,13 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             hands = {
                 bis = { id = 23517, name = "Felsteel Gloves", source = "Blacksmithing", sourceType = "crafted" },
                 alts = {
-                    { id = 27535, name = "Gauntlets of Dissension", source = "Grandmaster Vorpil (Shadow Labyrinth)", sourceType = "dungeon" },
+                    { id = 32072, name = "Gauntlets of Dissension", source = "Grandmaster Vorpil (Shadow Labyrinth)", sourceType = "dungeon" },
                 }
             },
             waist = {
                 bis = { id = 29247, name = "Girdle of the Deathdealer", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
                 alts = {
-                    { id = 27911, name = "Dunewind Sash", source = "Nexus-Prince Shaffar (Mana-Tombs)", sourceType = "dungeon" },
+                    { id = 27760, name = "Dunewind Sash", source = "Nexus-Prince Shaffar (Mana-Tombs)", sourceType = "dungeon" },
                 }
             },
             legs = {
@@ -475,7 +475,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             ring2 = {
                 bis = { id = 28323, name = "Ring of Umbral Doom", source = "Thorngrin the Tender (Heroic Botanica)", sourceType = "heroic" },
                 alts = {
-                    { id = 27436, name = "Ring of the Stalwart Protector", source = "Quest (Old Hillsbrad)", sourceType = "quest" },
+                    { id = 34888, name = "Ring of the Stalwart Protector", source = "Quest (Old Hillsbrad)", sourceType = "quest" },
                 }
             },
             trinket1 = {
@@ -523,7 +523,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             neck = {
                 bis = { id = 29381, name = "Choker of Vile Intent", source = "G'eras (25 Badges)", sourceType = "badge" },
                 alts = {
-                    { id = 27779, name = "Strength of the Untamed", source = "The Black Stalker (Heroic Underbog)", sourceType = "heroic" },
+                    { id = 29173, name = "Strength of the Untamed", source = "The Black Stalker (Heroic Underbog)", sourceType = "heroic" },
                 }
             },
             shoulders = {
@@ -539,7 +539,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             chest = {
-                bis = { id = 29517, name = "Ebon Netherscale Breastplate", source = "Dragonscale Leatherworking", sourceType = "crafted" },
+                bis = { id = 29515, name = "Ebon Netherscale Breastplate", source = "Dragonscale Leatherworking", sourceType = "crafted" },
                 alts = {
                     { id = 28403, name = "Doomplate Chestguard", source = "Harbinger Skyriss (Arcatraz)", sourceType = "dungeon" },
                 }
@@ -559,7 +559,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             waist = {
                 bis = { id = 29247, name = "Girdle of the Deathdealer", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
                 alts = {
-                    { id = 27911, name = "Dunewind Sash", source = "Nexus-Prince Shaffar (Mana-Tombs)", sourceType = "dungeon" },
+                    { id = 27760, name = "Dunewind Sash", source = "Nexus-Prince Shaffar (Mana-Tombs)", sourceType = "dungeon" },
                 }
             },
             legs = {
@@ -571,7 +571,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             feet = {
                 bis = { id = 25686, name = "Fel Leather Boots", source = "Leatherworking", sourceType = "crafted" },
                 alts = {
-                    { id = 27867, name = "Moonstrider Boots", source = "Botanica", sourceType = "dungeon" },
+                    { id = 27914, name = "Moonstrider Boots", source = "Botanica", sourceType = "dungeon" },
                 }
             },
             ring1 = {
@@ -611,7 +611,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             ranged = {
-                bis = { id = 27917, name = "Libram of Divine Purpose", source = "The Mechanar", sourceType = "dungeon" },
+                bis = { id = 33504, name = "Libram of Divine Purpose", source = "The Mechanar", sourceType = "dungeon" },
                 alts = {
                     { id = 27484, name = "Libram of Avengement", source = "Lower City Revered", sourceType = "rep" },
                 }
@@ -631,7 +631,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             neck = {
                 bis = { id = 29381, name = "Choker of Vile Intent", source = "G'eras (25 Badges)", sourceType = "badge" },
                 alts = {
-                    { id = 27779, name = "Strength of the Untamed", source = "The Black Stalker (Heroic Underbog)", sourceType = "heroic" },
+                    { id = 29173, name = "Strength of the Untamed", source = "The Black Stalker (Heroic Underbog)", sourceType = "heroic" },
                 }
             },
             shoulders = {
@@ -649,7 +649,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             chest = {
                 bis = { id = 28228, name = "Beast Lord Cuirass", source = "Murmur (Heroic Shadow Labyrinth)", sourceType = "heroic" },
                 alts = {
-                    { id = 29517, name = "Ebon Netherscale Breastplate", source = "Dragonscale Leatherworking", sourceType = "crafted" },
+                    { id = 29515, name = "Ebon Netherscale Breastplate", source = "Dragonscale Leatherworking", sourceType = "crafted" },
                 }
             },
             wrist = {
@@ -667,7 +667,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             waist = {
                 bis = { id = 29247, name = "Girdle of the Deathdealer", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
                 alts = {
-                    { id = 27911, name = "Dunewind Sash", source = "Nexus-Prince Shaffar (Mana-Tombs)", sourceType = "dungeon" },
+                    { id = 27760, name = "Dunewind Sash", source = "Nexus-Prince Shaffar (Mana-Tombs)", sourceType = "dungeon" },
                 }
             },
             legs = {
@@ -679,7 +679,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             feet = {
                 bis = { id = 25686, name = "Fel Leather Boots", source = "Leatherworking", sourceType = "crafted" },
                 alts = {
-                    { id = 27867, name = "Moonstrider Boots", source = "Botanica", sourceType = "dungeon" },
+                    { id = 27914, name = "Moonstrider Boots", source = "Botanica", sourceType = "dungeon" },
                 }
             },
             ring1 = {
@@ -709,7 +709,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             mainhand = {
                 bis = { id = 29348, name = "The Bladefist", source = "Warchief Kargath (Heroic Shattered Halls)", sourceType = "heroic" },
                 alts = {
-                    { id = 28189, name = "Latros' Shifting Sword", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                    { id = 28189, name = "Latro's Shifting Sword", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
                 }
             },
             offhand = {
@@ -719,7 +719,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             ranged = {
-                bis = { id = 29351, name = "Valanos' Longbow", source = "Warp Splinter (Heroic Botanica)", sourceType = "heroic" },
+                bis = { id = 31303, name = "Valanos' Longbow", source = "Warp Splinter (Heroic Botanica)", sourceType = "heroic" },
                 alts = {
                     { id = 29115, name = "Consortium Blaster", source = "Consortium Exalted", sourceType = "rep" },
                 }
@@ -739,7 +739,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             neck = {
                 bis = { id = 29381, name = "Choker of Vile Intent", source = "G'eras (25 Badges)", sourceType = "badge" },
                 alts = {
-                    { id = 27779, name = "Strength of the Untamed", source = "The Black Stalker (Heroic Underbog)", sourceType = "heroic" },
+                    { id = 29173, name = "Strength of the Untamed", source = "The Black Stalker (Heroic Underbog)", sourceType = "heroic" },
                 }
             },
             shoulders = {
@@ -761,7 +761,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             wrist = {
-                bis = { id = 29526, name = "Primalstrike Bracers", source = "Tribal Leatherworking", sourceType = "crafted" },
+                bis = { id = 29527, name = "Primalstrike Bracers", source = "Tribal Leatherworking", sourceType = "crafted" },
                 alts = {
                     { id = 28171, name = "Spymistress's Wristguards", source = "Quest (Shadowmoon Valley)", sourceType = "quest" },
                 }
@@ -775,7 +775,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             waist = {
                 bis = { id = 29247, name = "Girdle of the Deathdealer", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
                 alts = {
-                    { id = 29527, name = "Primalstrike Belt", source = "Tribal Leatherworking", sourceType = "crafted" },
+                    { id = 29526, name = "Primalstrike Belt", source = "Tribal Leatherworking", sourceType = "crafted" },
                 }
             },
             legs = {
@@ -787,7 +787,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             feet = {
                 bis = { id = 25686, name = "Fel Leather Boots", source = "Leatherworking", sourceType = "crafted" },
                 alts = {
-                    { id = 27867, name = "Moonstrider Boots", source = "Botanica", sourceType = "dungeon" },
+                    { id = 27914, name = "Moonstrider Boots", source = "Botanica", sourceType = "dungeon" },
                 }
             },
             ring1 = {
@@ -815,7 +815,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             mainhand = {
-                bis = { id = 28189, name = "Latros' Shifting Sword", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                bis = { id = 28189, name = "Latro's Shifting Sword", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
                 alts = {
                     { id = 23540, name = "Felsteel Longblade", source = "Blacksmithing", sourceType = "crafted" },
                 }
@@ -949,11 +949,11 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             head = {
                 bis = { id = 24266, name = "Spellstrike Hood", source = "Tailoring", sourceType = "crafted" },
                 alts = {
-                    { id = 32089, name = "Cowl of Naaru Blessings", source = "G'eras (50 Badges)", sourceType = "badge" },
+                    { id = 32090, name = "Cowl of Naaru Blessings", source = "G'eras (50 Badges)", sourceType = "badge" },
                 }
             },
             neck = {
-                bis = { id = 29368, name = "Mantle of the Elven Kings", source = "G'eras (25 Badges)", sourceType = "badge" },
+                bis = { id = 30024, name = "Mantle of the Elven Kings", source = "G'eras (25 Badges)", sourceType = "badge" },
                 alts = {
                     { id = 28134, name = "Brooch of Heightened Potential", source = "Warp Splinter (Heroic Botanica)", sourceType = "heroic" },
                 }
@@ -965,7 +965,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             back = {
-                bis = { id = 28570, name = "Cloak of the Necropolis", source = "Quest (Netherstorm)", sourceType = "quest" },
+                bis = { id = 23050, name = "Cloak of the Necropolis", source = "Quest (Netherstorm)", sourceType = "quest" },
                 alts = {
                     { id = 27981, name = "Sethekk Oracle Cloak", source = "Darkweaver Syth (Heroic Sethekk Halls)", sourceType = "heroic" },
                 }
@@ -1003,7 +1003,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             feet = {
                 bis = { id = 21870, name = "Frozen Shadoweave Boots", source = "Tailoring (Shadoweave)", sourceType = "crafted" },
                 alts = {
-                    { id = 27821, name = "Sigil-Laced Boots", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
+                    { id = 28406, name = "Sigil-Laced Boots", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
                 }
             },
             ring1 = {
@@ -1057,11 +1057,11 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             head = {
                 bis = { id = 24266, name = "Spellstrike Hood", source = "Tailoring", sourceType = "crafted" },
                 alts = {
-                    { id = 32089, name = "Cowl of Naaru Blessings", source = "G'eras (50 Badges)", sourceType = "badge" },
+                    { id = 32090, name = "Cowl of Naaru Blessings", source = "G'eras (50 Badges)", sourceType = "badge" },
                 }
             },
             neck = {
-                bis = { id = 29368, name = "Mantle of the Elven Kings", source = "G'eras (25 Badges)", sourceType = "badge" },
+                bis = { id = 30024, name = "Mantle of the Elven Kings", source = "G'eras (25 Badges)", sourceType = "badge" },
                 alts = {
                     { id = 28134, name = "Brooch of Heightened Potential", source = "Warp Splinter (Heroic Botanica)", sourceType = "heroic" },
                 }
@@ -1073,7 +1073,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             back = {
-                bis = { id = 28570, name = "Cloak of the Necropolis", source = "Quest (Netherstorm)", sourceType = "quest" },
+                bis = { id = 23050, name = "Cloak of the Necropolis", source = "Quest (Netherstorm)", sourceType = "quest" },
                 alts = {
                     { id = 27981, name = "Sethekk Oracle Cloak", source = "Darkweaver Syth (Heroic Sethekk Halls)", sourceType = "heroic" },
                 }
@@ -1111,7 +1111,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             feet = {
                 bis = { id = 21870, name = "Frozen Shadoweave Boots", source = "Tailoring (Shadoweave)", sourceType = "crafted" },
                 alts = {
-                    { id = 27821, name = "Sigil-Laced Boots", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
+                    { id = 28406, name = "Sigil-Laced Boots", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
                 }
             },
             ring1 = {
@@ -1171,7 +1171,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             neck = {
                 bis = { id = 29381, name = "Choker of Vile Intent", source = "G'eras (25 Badges)", sourceType = "badge" },
                 alts = {
-                    { id = 27779, name = "Strength of the Untamed", source = "The Black Stalker (Heroic Underbog)", sourceType = "heroic" },
+                    { id = 29173, name = "Strength of the Untamed", source = "The Black Stalker (Heroic Underbog)", sourceType = "heroic" },
                 }
             },
             shoulders = {
@@ -1187,7 +1187,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             chest = {
-                bis = { id = 29517, name = "Ebon Netherscale Breastplate", source = "Dragonscale Leatherworking", sourceType = "crafted" },
+                bis = { id = 29515, name = "Ebon Netherscale Breastplate", source = "Dragonscale Leatherworking", sourceType = "crafted" },
                 alts = {
                     { id = 28264, name = "Wastewalker Tunic", source = "Epoch Hunter (Heroic Old Hillsbrad)", sourceType = "heroic" },
                 }
@@ -1207,7 +1207,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             waist = {
                 bis = { id = 29247, name = "Girdle of the Deathdealer", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
                 alts = {
-                    { id = 27911, name = "Dunewind Sash", source = "Nexus-Prince Shaffar (Mana-Tombs)", sourceType = "dungeon" },
+                    { id = 27760, name = "Dunewind Sash", source = "Nexus-Prince Shaffar (Mana-Tombs)", sourceType = "dungeon" },
                 }
             },
             legs = {
@@ -1219,7 +1219,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             feet = {
                 bis = { id = 25686, name = "Fel Leather Boots", source = "Leatherworking", sourceType = "crafted" },
                 alts = {
-                    { id = 27867, name = "Moonstrider Boots", source = "Botanica", sourceType = "dungeon" },
+                    { id = 27914, name = "Moonstrider Boots", source = "Botanica", sourceType = "dungeon" },
                 }
             },
             ring1 = {
@@ -1247,7 +1247,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             mainhand = {
-                bis = { id = 28189, name = "Latros' Shifting Sword", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
+                bis = { id = 28189, name = "Latro's Shifting Sword", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
                 alts = {
                     { id = 23540, name = "Felsteel Longblade", source = "Blacksmithing", sourceType = "crafted" },
                 }
@@ -1259,7 +1259,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             ranged = {
-                bis = { id = 27815, name = "Totem of Impact", source = "The Steamvault", sourceType = "dungeon" },
+                bis = { id = 27947, name = "Totem of Impact", source = "The Steamvault", sourceType = "dungeon" },
                 alts = {
                     { id = 25645, name = "Totem of the Plains", source = "Quest (Nagrand)", sourceType = "quest" },
                 }
@@ -1381,11 +1381,11 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             head = {
                 bis = { id = 24266, name = "Spellstrike Hood", source = "Tailoring", sourceType = "crafted" },
                 alts = {
-                    { id = 32089, name = "Cowl of Naaru Blessings", source = "G'eras (50 Badges)", sourceType = "badge" },
+                    { id = 32090, name = "Cowl of Naaru Blessings", source = "G'eras (50 Badges)", sourceType = "badge" },
                 }
             },
             neck = {
-                bis = { id = 29368, name = "Mantle of the Elven Kings", source = "G'eras (25 Badges)", sourceType = "badge" },
+                bis = { id = 30024, name = "Mantle of the Elven Kings", source = "G'eras (25 Badges)", sourceType = "badge" },
                 alts = {
                     { id = 28134, name = "Brooch of Heightened Potential", source = "Warp Splinter (Heroic Botanica)", sourceType = "heroic" },
                 }
@@ -1397,7 +1397,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             back = {
-                bis = { id = 28570, name = "Cloak of the Necropolis", source = "Quest (Netherstorm)", sourceType = "quest" },
+                bis = { id = 23050, name = "Cloak of the Necropolis", source = "Quest (Netherstorm)", sourceType = "quest" },
                 alts = {
                     { id = 27981, name = "Sethekk Oracle Cloak", source = "Darkweaver Syth (Heroic Sethekk Halls)", sourceType = "heroic" },
                 }
@@ -1435,7 +1435,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             feet = {
                 bis = { id = 21870, name = "Frozen Shadoweave Boots", source = "Tailoring (Shadoweave)", sourceType = "crafted" },
                 alts = {
-                    { id = 27821, name = "Sigil-Laced Boots", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
+                    { id = 28406, name = "Sigil-Laced Boots", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
                 }
             },
             ring1 = {
@@ -1489,11 +1489,11 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             head = {
                 bis = { id = 24266, name = "Spellstrike Hood", source = "Tailoring", sourceType = "crafted" },
                 alts = {
-                    { id = 32089, name = "Cowl of Naaru Blessings", source = "G'eras (50 Badges)", sourceType = "badge" },
+                    { id = 32090, name = "Cowl of Naaru Blessings", source = "G'eras (50 Badges)", sourceType = "badge" },
                 }
             },
             neck = {
-                bis = { id = 29368, name = "Mantle of the Elven Kings", source = "G'eras (25 Badges)", sourceType = "badge" },
+                bis = { id = 30024, name = "Mantle of the Elven Kings", source = "G'eras (25 Badges)", sourceType = "badge" },
                 alts = {
                     { id = 28134, name = "Brooch of Heightened Potential", source = "Warp Splinter (Heroic Botanica)", sourceType = "heroic" },
                 }
@@ -1505,7 +1505,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             back = {
-                bis = { id = 28570, name = "Cloak of the Necropolis", source = "Quest (Netherstorm)", sourceType = "quest" },
+                bis = { id = 23050, name = "Cloak of the Necropolis", source = "Quest (Netherstorm)", sourceType = "quest" },
                 alts = {
                     { id = 27981, name = "Sethekk Oracle Cloak", source = "Darkweaver Syth (Heroic Sethekk Halls)", sourceType = "heroic" },
                 }
@@ -1543,7 +1543,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             feet = {
                 bis = { id = 21870, name = "Frozen Shadoweave Boots", source = "Tailoring (Shadoweave)", sourceType = "crafted" },
                 alts = {
-                    { id = 27821, name = "Sigil-Laced Boots", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
+                    { id = 28406, name = "Sigil-Laced Boots", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
                 }
             },
             ring1 = {
@@ -1597,11 +1597,11 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             head = {
                 bis = { id = 24266, name = "Spellstrike Hood", source = "Tailoring", sourceType = "crafted" },
                 alts = {
-                    { id = 32089, name = "Cowl of Naaru Blessings", source = "G'eras (50 Badges)", sourceType = "badge" },
+                    { id = 32090, name = "Cowl of Naaru Blessings", source = "G'eras (50 Badges)", sourceType = "badge" },
                 }
             },
             neck = {
-                bis = { id = 29368, name = "Mantle of the Elven Kings", source = "G'eras (25 Badges)", sourceType = "badge" },
+                bis = { id = 30024, name = "Mantle of the Elven Kings", source = "G'eras (25 Badges)", sourceType = "badge" },
                 alts = {
                     { id = 28134, name = "Brooch of Heightened Potential", source = "Warp Splinter (Heroic Botanica)", sourceType = "heroic" },
                 }
@@ -1613,7 +1613,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             back = {
-                bis = { id = 28570, name = "Cloak of the Necropolis", source = "Quest (Netherstorm)", sourceType = "quest" },
+                bis = { id = 23050, name = "Cloak of the Necropolis", source = "Quest (Netherstorm)", sourceType = "quest" },
                 alts = {
                     { id = 27981, name = "Sethekk Oracle Cloak", source = "Darkweaver Syth (Heroic Sethekk Halls)", sourceType = "heroic" },
                 }
@@ -1651,7 +1651,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             feet = {
                 bis = { id = 21870, name = "Frozen Shadoweave Boots", source = "Tailoring (Shadoweave)", sourceType = "crafted" },
                 alts = {
-                    { id = 27821, name = "Sigil-Laced Boots", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
+                    { id = 28406, name = "Sigil-Laced Boots", source = "Murmur (Shadow Labyrinth)", sourceType = "dungeon" },
                 }
             },
             ring1 = {
@@ -1711,7 +1711,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             neck = {
                 bis = { id = 29381, name = "Choker of Vile Intent", source = "G'eras (25 Badges)", sourceType = "badge" },
                 alts = {
-                    { id = 27779, name = "Strength of the Untamed", source = "The Black Stalker (Heroic Underbog)", sourceType = "heroic" },
+                    { id = 29173, name = "Strength of the Untamed", source = "The Black Stalker (Heroic Underbog)", sourceType = "heroic" },
                 }
             },
             shoulders = {
@@ -1733,7 +1733,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             wrist = {
-                bis = { id = 29526, name = "Primalstrike Bracers", source = "Tribal Leatherworking", sourceType = "crafted" },
+                bis = { id = 29527, name = "Primalstrike Bracers", source = "Tribal Leatherworking", sourceType = "crafted" },
                 alts = {
                     { id = 28171, name = "Spymistress's Wristguards", source = "Quest (Shadowmoon Valley)", sourceType = "quest" },
                 }
@@ -1747,7 +1747,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             waist = {
                 bis = { id = 29247, name = "Girdle of the Deathdealer", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
                 alts = {
-                    { id = 29527, name = "Primalstrike Belt", source = "Tribal Leatherworking", sourceType = "crafted" },
+                    { id = 29526, name = "Primalstrike Belt", source = "Tribal Leatherworking", sourceType = "crafted" },
                 }
             },
             legs = {
@@ -1759,7 +1759,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             feet = {
                 bis = { id = 25686, name = "Fel Leather Boots", source = "Leatherworking", sourceType = "crafted" },
                 alts = {
-                    { id = 27867, name = "Moonstrider Boots", source = "Botanica", sourceType = "dungeon" },
+                    { id = 27914, name = "Moonstrider Boots", source = "Botanica", sourceType = "dungeon" },
                 }
             },
             ring1 = {
@@ -1787,13 +1787,13 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             mainhand = {
-                bis = { id = 28476, name = "Braxxis' Staff of Slumber", source = "Warp Splinter (Heroic Botanica)", sourceType = "heroic" },
+                bis = { id = 31186, name = "Braxxis' Staff of Slumber", source = "Warp Splinter (Heroic Botanica)", sourceType = "heroic" },
                 alts = {
                     { id = 29171, name = "Earthwarden", source = "Cenarion Expedition Exalted", sourceType = "rep" },
                 }
             },
             offhand = {
-                bis = { id = 28476, name = "Braxxis' Staff of Slumber", source = "Warp Splinter (Heroic Botanica)", sourceType = "heroic" },
+                bis = { id = 31186, name = "Braxxis' Staff of Slumber", source = "Warp Splinter (Heroic Botanica)", sourceType = "heroic" },
                 alts = {
                     { id = 29171, name = "Earthwarden", source = "Cenarion Expedition Exalted", sourceType = "rep" },
                 }
@@ -1819,7 +1819,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             neck = {
                 bis = { id = 29386, name = "Necklace of the Juggernaut", source = "G'eras (25 Badges)", sourceType = "badge" },
                 alts = {
-                    { id = 27779, name = "Strength of the Untamed", source = "The Black Stalker (Heroic Underbog)", sourceType = "heroic" },
+                    { id = 29173, name = "Strength of the Untamed", source = "The Black Stalker (Heroic Underbog)", sourceType = "heroic" },
                 }
             },
             shoulders = {
@@ -1829,7 +1829,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             back = {
-                bis = { id = 27518, name = "Devilshark Cape", source = "Warlord Kalithresh (The Steamvault)", sourceType = "dungeon" },
+                bis = { id = 27804, name = "Devilshark Cape", source = "Warlord Kalithresh (The Steamvault)", sourceType = "dungeon" },
                 alts = {
                     { id = 24253, name = "Cloak of Eternity", source = "Tailoring", sourceType = "crafted" },
                 }
@@ -1841,7 +1841,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             wrist = {
-                bis = { id = 25690, name = "Heavy Clefthoof Bracers", source = "Leatherworking", sourceType = "crafted" },
+                bis = { id = 25690, name = "Heavy Clefthoof Leggings", source = "Leatherworking", sourceType = "crafted" },
                 alts = {
                     { id = 28171, name = "Spymistress's Wristguards", source = "Quest (Shadowmoon Valley)", sourceType = "quest" },
                 }
@@ -1855,11 +1855,11 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             waist = {
                 bis = { id = 29247, name = "Girdle of the Deathdealer", source = "Aeonus (Heroic Black Morass)", sourceType = "heroic" },
                 alts = {
-                    { id = 27911, name = "Dunewind Sash", source = "Nexus-Prince Shaffar (Mana-Tombs)", sourceType = "dungeon" },
+                    { id = 27760, name = "Dunewind Sash", source = "Nexus-Prince Shaffar (Mana-Tombs)", sourceType = "dungeon" },
                 }
             },
             legs = {
-                bis = { id = 25691, name = "Heavy Clefthoof Leggings", source = "Leatherworking", sourceType = "crafted" },
+                bis = { id = 25690, name = "Heavy Clefthoof Leggings", source = "Leatherworking", sourceType = "crafted" },
                 alts = {
                     { id = 30257, name = "Shattrath Leggings", source = "Quest (Shattrath)", sourceType = "quest" },
                 }
@@ -1867,7 +1867,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             feet = {
                 bis = { id = 25686, name = "Fel Leather Boots", source = "Leatherworking", sourceType = "crafted" },
                 alts = {
-                    { id = 27867, name = "Moonstrider Boots", source = "Botanica", sourceType = "dungeon" },
+                    { id = 27914, name = "Moonstrider Boots", source = "Botanica", sourceType = "dungeon" },
                 }
             },
             ring1 = {
@@ -1879,7 +1879,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             ring2 = {
                 bis = { id = 28323, name = "Ring of Umbral Doom", source = "Thorngrin the Tender (Heroic Botanica)", sourceType = "heroic" },
                 alts = {
-                    { id = 27436, name = "Ring of the Stalwart Protector", source = "Quest (Old Hillsbrad)", sourceType = "quest" },
+                    { id = 34888, name = "Ring of the Stalwart Protector", source = "Quest (Old Hillsbrad)", sourceType = "quest" },
                 }
             },
             trinket1 = {
@@ -1897,13 +1897,13 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             mainhand = {
                 bis = { id = 29171, name = "Earthwarden", source = "Cenarion Expedition Exalted", sourceType = "rep" },
                 alts = {
-                    { id = 28476, name = "Braxxis' Staff of Slumber", source = "Warp Splinter (Heroic Botanica)", sourceType = "heroic" },
+                    { id = 31186, name = "Braxxis' Staff of Slumber", source = "Warp Splinter (Heroic Botanica)", sourceType = "heroic" },
                 }
             },
             offhand = {
                 bis = { id = 29171, name = "Earthwarden", source = "Cenarion Expedition Exalted", sourceType = "rep" },
                 alts = {
-                    { id = 28476, name = "Braxxis' Staff of Slumber", source = "Warp Splinter (Heroic Botanica)", sourceType = "heroic" },
+                    { id = 31186, name = "Braxxis' Staff of Slumber", source = "Warp Splinter (Heroic Botanica)", sourceType = "heroic" },
                 }
             },
             ranged = {
@@ -2078,7 +2078,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             hands = {
                 bis = { id = 30644, name = "Grips of Deftness", source = "Karazhan Trash", sourceType = "raid" },
                 alts = {
-                    { id = 29020, name = "Warbringer Handguards", source = "The Curator", sourceType = "raid" },
+                    { id = 29020, name = "Warbringer Gauntlets", source = "The Curator", sourceType = "raid" },
                     { id = 27531, name = "Wastewalker Gloves", source = "Warchief Kargath", sourceType = "heroic" },
                 }
             },
@@ -2086,7 +2086,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 28828, name = "Gronn-Stitched Girdle", source = "Gruul the Dragonkiller", sourceType = "raid" },
                 alts = {
                     { id = 29247, name = "Girdle of the Deathdealer", source = "Aeonus", sourceType = "heroic" },
-                    { id = 27911, name = "Dunewind Sash", source = "Nexus-Prince Shaffar", sourceType = "dungeon" },
+                    { id = 27760, name = "Dunewind Sash", source = "Nexus-Prince Shaffar", sourceType = "dungeon" },
                 }
             },
             legs = {
@@ -2135,7 +2135,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 28438, name = "Dragonmaw", source = "Master Hammersmith", sourceType = "crafted" },
                 alts = {
                     { id = 28773, name = "Gorehowl", source = "Prince Malchezaar", sourceType = "raid" },
-                    { id = 28572, name = "Despair", source = "Opera Event", sourceType = "raid" },
+                    { id = 28573, name = "Despair", source = "Opera Event", sourceType = "raid" },
                     { id = 28767, name = "The Decapitator", source = "Prince Malchezaar", sourceType = "raid" },
                     { id = 28429, name = "Lionheart Champion", source = "Master Swordsmith", sourceType = "crafted" },
                 }
@@ -2171,7 +2171,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 28516, name = "Barbed Choker of Discipline", source = "Maiden of Virtue", sourceType = "raid" },
                 alts = {
                     { id = 29386, name = "Necklace of the Juggernaut", source = "G'eras (25 Badges)", sourceType = "badge" },
-                    { id = 27792, name = "Mark of the Ravenguard", source = "Anzu", sourceType = "heroic" },
+                    { id = 29336, name = "Mark of the Ravenguard", source = "Anzu", sourceType = "heroic" },
                 }
             },
             shoulders = {
@@ -2184,7 +2184,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             back = {
                 bis = { id = 28660, name = "Gilded Thorium Cloak", source = "Moroes", sourceType = "raid" },
                 alts = {
-                    { id = 29385, name = "Slikk's Cloak of Placation", source = "G'eras (25 Badges)", sourceType = "badge" },
+                    { id = 33593, name = "Slikk's Cloak of Placation", source = "G'eras (25 Badges)", sourceType = "badge" },
                     { id = 27804, name = "Devilshark Cape", source = "Warlord Kalithresh", sourceType = "heroic" },
                 }
             },
@@ -2198,7 +2198,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             wrist = {
                 bis = { id = 23538, name = "Bracers of the Green Fortress", source = "Blacksmithing", sourceType = "crafted" },
                 alts = {
-                    { id = 29463, name = "Sha'tari Wrought Armguards", source = "Sha'tar Exalted", sourceType = "reputation" },
+                    { id = 28167, name = "Sha'tari Wrought Armguards", source = "Sha'tar Exalted", sourceType = "reputation" },
                     { id = 28502, name = "Vambraces of Courage", source = "Attumen the Huntsman", sourceType = "raid" },
                 }
             },
@@ -2213,7 +2213,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 27672, name = "Girdle of the Immovable", source = "Quagmirran (Slave Pens)", sourceType = "dungeon" },
                 alts = {
                     { id = 28566, name = "Crimson Girdle of the Indomitable", source = "Moroes", sourceType = "raid" },
-                    { id = 27460, name = "Girdle of Many Blessings", source = "Warlord Kalithresh", sourceType = "heroic" },
+                    { id = 27548, name = "Girdle of Many Blessings", source = "Warlord Kalithresh", sourceType = "heroic" },
                 }
             },
             legs = {
@@ -2227,7 +2227,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 28747, name = "Battlescar Boots", source = "Chess Event", sourceType = "raid" },
                 alts = {
                     { id = 27813, name = "Boots of the Colossus", source = "Pandemonius", sourceType = "heroic" },
-                    { id = 25690, name = "Heavy Clefthoof Boots", source = "Leatherworking", sourceType = "crafted" },
+                    { id = 25691, name = "Heavy Clefthoof Boots", source = "Leatherworking", sourceType = "crafted" },
                 }
             },
             ring1 = {
@@ -2248,7 +2248,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 28528, name = "Moroes' Lucky Pocket Watch", source = "Moroes", sourceType = "raid" },
                 alts = {
                     { id = 27891, name = "Adamantine Figurine", source = "Blackheart the Inciter", sourceType = "heroic" },
-                    { id = 29181, name = "Dabiri's Enigma", source = "Dimensius the All-Devouring", sourceType = "quest" },
+                    { id = 30300, name = "Dabiri's Enigma", source = "Dimensius the All-Devouring", sourceType = "quest" },
                 }
             },
             trinket2 = {
@@ -2330,7 +2330,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             hands = {
                 bis = { id = 28505, name = "Gauntlets of Renewed Hope", source = "Attumen the Huntsman", sourceType = "raid" },
                 alts = {
-                    { id = 29063, name = "Justicar Handguards", source = "The Curator", sourceType = "raid" },
+                    { id = 29067, name = "Justicar Handguards", source = "The Curator", sourceType = "raid" },
                     { id = 28304, name = "Prismatic Mittens of Mending", source = "Commander Sarannis (Botanica)", sourceType = "dungeon" },
                 }
             },
@@ -2344,7 +2344,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             legs = {
                 bis = { id = 28748, name = "Legplates of the Innocent", source = "Chess Event", sourceType = "raid" },
                 alts = {
-                    { id = 29065, name = "Justicar Leggings", source = "Gruul the Dragonkiller", sourceType = "raid" },
+                    { id = 29063, name = "Justicar Leggings", source = "Gruul the Dragonkiller", sourceType = "raid" },
                     { id = 30543, name = "Pontifex Kilt", source = "Warlord Kalithresh", sourceType = "heroic" },
                 }
             },
@@ -2452,13 +2452,13 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 29246, name = "Nightfall Wristguards", source = "Epoch Hunter", sourceType = "heroic" },
                 alts = {
                     { id = 28171, name = "Spymistress's Wristguards", source = "Quest", sourceType = "quest" },
-                    { id = 27430, name = "Dreghood Bands", source = "Omor the Unscarred", sourceType = "dungeon" },
+                    { id = 24724, name = "Dreghood Bands", source = "Omor the Unscarred", sourceType = "dungeon" },
                 }
             },
             hands = {
                 bis = { id = 28506, name = "Gloves of Dexterous Manipulation", source = "Attumen the Huntsman", sourceType = "raid" },
                 alts = {
-                    { id = 29046, name = "Netherblade Gloves", source = "The Curator", sourceType = "raid" },
+                    { id = 29048, name = "Netherblade Gloves", source = "The Curator", sourceType = "raid" },
                     { id = 27531, name = "Wastewalker Gloves", source = "Warchief Kargath", sourceType = "heroic" },
                 }
             },
@@ -2466,14 +2466,14 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 29247, name = "Girdle of the Deathdealer", source = "Aeonus", sourceType = "heroic" },
                 alts = {
                     { id = 28750, name = "Girdle of Treachery", source = "Moroes", sourceType = "raid" },
-                    { id = 27911, name = "Dunewind Sash", source = "Nexus-Prince Shaffar", sourceType = "dungeon" },
+                    { id = 27760, name = "Dunewind Sash", source = "Nexus-Prince Shaffar", sourceType = "dungeon" },
                 }
             },
             legs = {
                 bis = { id = 28741, name = "Skulker's Greaves", source = "Netherspite", sourceType = "raid" },
                 alts = {
-                    { id = 29048, name = "Netherblade Breeches", source = "Gruul the Dragonkiller", sourceType = "raid" },
-                    { id = 28221, name = "Wastewalker Leggings", source = "Murmur", sourceType = "dungeon" },
+                    { id = 29046, name = "Netherblade Breeches", source = "Gruul the Dragonkiller", sourceType = "raid" },
+                    { id = 27837, name = "Wastewalker Leggings", source = "Murmur", sourceType = "dungeon" },
                 }
             },
             feet = {
@@ -2487,7 +2487,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 30834, name = "Shapeshifter's Signet", source = "Lower City Exalted", sourceType = "reputation" },
                 alts = {
                     { id = 28757, name = "Ring of a Thousand Marks", source = "Prince Malchezaar", sourceType = "raid" },
-                    { id = 29384, name = "Ring of Arathi Warlords", source = "G'eras (25 Badges)", sourceType = "badge" },
+                    { id = 29379, name = "Ring of Arathi Warlords", source = "G'eras (25 Badges)", sourceType = "badge" },
                 }
             },
             ring2 = {
@@ -2516,15 +2516,15 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             mainhand = {
                 bis = { id = 28768, name = "Malchazeen", source = "Prince Malchezaar", sourceType = "raid" },
                 alts = {
-                    { id = 28573, name = "Blade of the Unrequited", source = "Opera Event", sourceType = "raid" },
-                    { id = 28295, name = "Gladiator's Shiv", source = "Arena Season 1", sourceType = "pvp" },
+                    { id = 28572, name = "Blade of the Unrequited", source = "Opera Event", sourceType = "raid" },
+                    { id = 28310, name = "Gladiator's Shiv", source = "Arena Season 1", sourceType = "pvp" },
                     { id = 28438, name = "Dragonmaw", source = "Master Hammersmith", sourceType = "crafted" },
                 }
             },
             offhand = {
                 bis = { id = 28768, name = "Malchazeen", source = "Prince Malchezaar", sourceType = "raid" },
                 alts = {
-                    { id = 28573, name = "Blade of the Unrequited", source = "Opera Event", sourceType = "raid" },
+                    { id = 28572, name = "Blade of the Unrequited", source = "Opera Event", sourceType = "raid" },
                     { id = 28657, name = "Fool's Bane", source = "Terestian Illhoof", sourceType = "raid" },
                     { id = 27872, name = "The Harvester of Souls", source = "Avatar of the Martyred", sourceType = "heroic" },
                 }
@@ -2533,7 +2533,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 30724, name = "Barrel-Blade Longrifle", source = "Doomwalker", sourceType = "world" },
                 alts = {
                     { id = 28504, name = "Steelhawk Crossbow", source = "Attumen the Huntsman", sourceType = "raid" },
-                    { id = 30278, name = "Lightsworn Hammer", source = "Quest", sourceType = "quest" },
+                    { id = 27538, name = "Lightsworn Hammer", source = "Quest", sourceType = "quest" },
                 }
             },
         },
@@ -2547,7 +2547,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 alts = {
                     { id = 28583, name = "Big Bad Wolf's Head", source = "Opera Event", sourceType = "raid" },
                     { id = 32087, name = "Mask of the Deceiver", source = "G'eras (50 Badges)", sourceType = "badge" },
-                    { id = 27516, name = "Malefic Mask of the Shadows", source = "High King Maulgar", sourceType = "raid" },
+                    { id = 28796, name = "Malefic Mask of the Shadows", source = "High King Maulgar", sourceType = "raid" },
                 }
             },
             neck = {
@@ -2587,7 +2587,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             hands = {
-                bis = { id = 29083, name = "Demon Stalker Gauntlets", source = "The Curator", sourceType = "raid" },
+                bis = { id = 29085, name = "Demon Stalker Gauntlets", source = "The Curator", sourceType = "raid" },
                 alts = {
                     { id = 27474, name = "Beast Lord Handguards", source = "Warchief Kargath", sourceType = "dungeon" },
                     { id = 28506, name = "Gloves of Dexterous Manipulation", source = "Attumen the Huntsman", sourceType = "raid" },
@@ -2605,21 +2605,21 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 30739, name = "Scaled Greaves of the Marksman", source = "Doom Lord Kazzak", sourceType = "world" },
                 alts = {
                     { id = 28741, name = "Skulker's Greaves", source = "Netherspite", sourceType = "raid" },
-                    { id = 28348, name = "Beast Lord Leggings", source = "Aeonus", sourceType = "heroic" },
+                    { id = 27874, name = "Beast Lord Leggings", source = "Aeonus", sourceType = "heroic" },
                 }
             },
             feet = {
                 bis = { id = 28545, name = "Edgewalker Longboots", source = "Moroes", sourceType = "raid" },
                 alts = {
                     { id = 28746, name = "Fiend Slayer Boots", source = "Karazhan Trash", sourceType = "raid" },
-                    { id = 27915, name = "Beast Lord Boots", source = "Nethekurse", sourceType = "dungeon" },
+                    { id = 27915, name = "Sky-Hunter Swift Boots", source = "Nethekurse", sourceType = "dungeon" },
                 }
             },
             ring1 = {
                 bis = { id = 30834, name = "Shapeshifter's Signet", source = "Lower City Exalted", sourceType = "reputation" },
                 alts = {
                     { id = 28757, name = "Ring of a Thousand Marks", source = "Prince Malchezaar", sourceType = "raid" },
-                    { id = 29384, name = "Ring of Arathi Warlords", source = "G'eras (25 Badges)", sourceType = "badge" },
+                    { id = 29379, name = "Ring of Arathi Warlords", source = "G'eras (25 Badges)", sourceType = "badge" },
                 }
             },
             ring2 = {
@@ -2657,7 +2657,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             ranged = {
                 bis = { id = 28772, name = "Sunfury Bow of the Phoenix", source = "Prince Malchezaar", sourceType = "raid" },
                 alts = {
-                    { id = 28435, name = "Gladiator's Longbow", source = "Arena Season 1", sourceType = "pvp" },
+                    { id = 28294, name = "Gladiator's Heavy Crossbow", source = "Arena Season 1", sourceType = "pvp" },
                     { id = 28504, name = "Steelhawk Crossbow", source = "Attumen the Huntsman", sourceType = "raid" },
                 }
             },
@@ -3102,8 +3102,8 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             legs = {
                 bis = { id = 24262, name = "Spellstrike Pants", source = "Tailoring", sourceType = "crafted" },
                 alts = {
-                    { id = 30531, name = "Leggings of the Seventh Circle", source = "Doomwalker", sourceType = "world" },
-                    { id = 27838, name = "Breeches of the Occultist", source = "Temporus", sourceType = "heroic" },
+                    { id = 30734, name = "Leggings of the Seventh Circle", source = "Doomwalker", sourceType = "world" },
+                    { id = 30531, name = "Breeches of the Occultist", source = "Temporus", sourceType = "heroic" },
                 }
             },
             feet = {
@@ -3215,7 +3215,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             hands = {
                 bis = { id = 28506, name = "Gloves of Dexterous Manipulation", source = "Attumen the Huntsman", sourceType = "raid" },
                 alts = {
-                    { id = 29097, name = "Gloves of Malorne", source = "The Curator", sourceType = "raid" },
+                    { id = 29097, name = "Gauntlets of Malorne", source = "The Curator", sourceType = "raid" },
                     { id = 27531, name = "Wastewalker Gloves", source = "Warchief Kargath", sourceType = "heroic" },
                 }
             },
@@ -3230,7 +3230,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 28741, name = "Skulker's Greaves", source = "Netherspite", sourceType = "raid" },
                 alts = {
                     { id = 29099, name = "Greaves of Malorne", source = "Gruul the Dragonkiller", sourceType = "raid" },
-                    { id = 28221, name = "Wastewalker Leggings", source = "Murmur", sourceType = "dungeon" },
+                    { id = 27837, name = "Wastewalker Leggings", source = "Murmur", sourceType = "dungeon" },
                 }
             },
             feet = {
@@ -3244,7 +3244,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 30834, name = "Shapeshifter's Signet", source = "Lower City Exalted", sourceType = "reputation" },
                 alts = {
                     { id = 28757, name = "Ring of a Thousand Marks", source = "Prince Malchezaar", sourceType = "raid" },
-                    { id = 29384, name = "Ring of Arathi Warlords", source = "G'eras (25 Badges)", sourceType = "badge" },
+                    { id = 29379, name = "Ring of Arathi Warlords", source = "G'eras (25 Badges)", sourceType = "badge" },
                 }
             },
             ring2 = {
@@ -3296,7 +3296,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 29098, name = "Stag-Helm of Malorne", source = "Prince Malchezaar", sourceType = "raid" },
                 alts = {
                     { id = 28224, name = "Wastewalker Helm", source = "Epoch Hunter", sourceType = "heroic" },
-                    { id = 29503, name = "Warhelm of the Bold", source = "Consortium Exalted", sourceType = "reputation" },
+                    { id = 28350, name = "Warhelm of the Bold", source = "Consortium Exalted", sourceType = "reputation" },
                 }
             },
             neck = {
@@ -3316,7 +3316,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             back = {
                 bis = { id = 28660, name = "Gilded Thorium Cloak", source = "Moroes", sourceType = "raid" },
                 alts = {
-                    { id = 29385, name = "Slikk's Cloak of Placation", source = "G'eras (25 Badges)", sourceType = "badge" },
+                    { id = 33593, name = "Slikk's Cloak of Placation", source = "G'eras (25 Badges)", sourceType = "badge" },
                     { id = 27878, name = "Auchenai Death Shroud", source = "Avatar of the Martyred", sourceType = "heroic" },
                 }
             },
@@ -3335,7 +3335,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             hands = {
-                bis = { id = 29097, name = "Gloves of Malorne", source = "The Curator", sourceType = "raid" },
+                bis = { id = 29097, name = "Gauntlets of Malorne", source = "The Curator", sourceType = "raid" },
                 alts = {
                     { id = 27531, name = "Wastewalker Gloves", source = "Warchief Kargath", sourceType = "heroic" },
                     { id = 28506, name = "Gloves of Dexterous Manipulation", source = "Attumen the Huntsman", sourceType = "raid" },
@@ -3345,7 +3345,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 28828, name = "Gronn-Stitched Girdle", source = "Gruul the Dragonkiller", sourceType = "raid" },
                 alts = {
                     { id = 29247, name = "Girdle of the Deathdealer", source = "Aeonus", sourceType = "heroic" },
-                    { id = 25691, name = "Heavy Clefthoof Belt", source = "Leatherworking", sourceType = "crafted" },
+                    { id = 25691, name = "Heavy Clefthoof Boots", source = "Leatherworking", sourceType = "crafted" },
                 }
             },
             legs = {
@@ -3359,7 +3359,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 28545, name = "Edgewalker Longboots", source = "Moroes", sourceType = "raid" },
                 alts = {
                     { id = 28746, name = "Fiend Slayer Boots", source = "Karazhan Trash", sourceType = "raid" },
-                    { id = 25692, name = "Heavy Clefthoof Boots", source = "Leatherworking", sourceType = "crafted" },
+                    { id = 25691, name = "Heavy Clefthoof Boots", source = "Leatherworking", sourceType = "crafted" },
                 }
             },
             ring1 = {
@@ -3457,10 +3457,10 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             hands = {
-                bis = { id = 29088, name = "Gloves of Malorne", source = "The Curator", sourceType = "raid" },
+                bis = { id = 29090, name = "Handguards of Malorne", source = "The Curator", sourceType = "raid" },
                 alts = {
                     { id = 28304, name = "Prismatic Mittens of Mending", source = "Commander Sarannis (Botanica)", sourceType = "dungeon" },
-                    { id = 28521, name = "Gloves of Centering", source = "Maiden of Virtue", sourceType = "raid" },
+                    { id = 28520, name = "Gloves of Centering", source = "Maiden of Virtue", sourceType = "raid" },
                 }
             },
             waist = {
@@ -3471,11 +3471,11 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             legs = {
-                bis = { id = 29090, name = "Legguards of Malorne", source = "Gruul the Dragonkiller", sourceType = "raid" },
+                bis = { id = 29088, name = "Legguards of Malorne", source = "Gruul the Dragonkiller", sourceType = "raid" },
                 alts = {
                     { id = 28591, name = "Earthsoul Leggings", source = "Opera Event", sourceType = "raid" },
                     { id = 30543, name = "Pontifex Kilt", source = "Warlord Kalithresh", sourceType = "heroic" },
-                    { id = 27875, name = "Kirin Tor Master's Trousers", source = "Epoch Hunter", sourceType = "heroic" },
+                    { id = 30532, name = "Kirin Tor Master's Trousers", source = "Epoch Hunter", sourceType = "heroic" },
                 }
             },
             feet = {
@@ -3684,7 +3684,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             shoulders = {
                 bis = { id = 29043, name = "Cyclone Shoulderplates", source = "High King Maulgar", sourceType = "raid" },
                 alts = {
-                    { id = 28593, name = "Beastmaw Pauldrons", source = "Opera Event", sourceType = "raid" },
+                    { id = 28589, name = "Beastmaw Pauldrons", source = "Opera Event", sourceType = "raid" },
                     { id = 27797, name = "Wastewalker Shoulderpads", source = "Avatar of the Martyred", sourceType = "heroic" },
                     { id = 27434, name = "Mantle of Perenolde", source = "Epoch Hunter", sourceType = "heroic" },
                 }
@@ -3730,7 +3730,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 30739, name = "Scaled Greaves of the Marksman", source = "Doom Lord Kazzak", sourceType = "world" },
                 alts = {
                     { id = 29042, name = "Cyclone War-Kilt", source = "Gruul the Dragonkiller", sourceType = "raid" },
-                    { id = 28221, name = "Wastewalker Leggings", source = "Murmur", sourceType = "dungeon" },
+                    { id = 27837, name = "Wastewalker Leggings", source = "Murmur", sourceType = "dungeon" },
                 }
             },
             feet = {
@@ -3744,7 +3744,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 30834, name = "Shapeshifter's Signet", source = "Lower City Exalted", sourceType = "reputation" },
                 alts = {
                     { id = 28757, name = "Ring of a Thousand Marks", source = "Prince Malchezaar", sourceType = "raid" },
-                    { id = 29384, name = "Ring of Arathi Warlords", source = "G'eras (25 Badges)", sourceType = "badge" },
+                    { id = 29379, name = "Ring of Arathi Warlords", source = "G'eras (25 Badges)", sourceType = "badge" },
                 }
             },
             ring2 = {
@@ -3785,8 +3785,8 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             ranged = {
                 bis = { id = 27815, name = "Totem of the Astral Winds", source = "Pandemonius (Heroic Mana-Tombs)", sourceType = "heroic" },
                 alts = {
-                    { id = 23200, name = "Totem of Rage", source = "Naxxramas Legacy", sourceType = "raid" },
-                    { id = 22395, name = "Totem of the Maelstrom", source = "Naxxramas Legacy", sourceType = "raid" },
+                    { id = 22395, name = "Totem of Rage", source = "Naxxramas Legacy", sourceType = "raid" },
+                    { id = 30023, name = "Totem of the Maelstrom", source = "Naxxramas Legacy", sourceType = "raid" },
                 }
             },
         },
@@ -3838,10 +3838,10 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 }
             },
             hands = {
-                bis = { id = 29030, name = "Cyclone Handguards", source = "The Curator", sourceType = "raid" },
+                bis = { id = 29034, name = "Cyclone Handguards", source = "The Curator", sourceType = "raid" },
                 alts = {
                     { id = 28304, name = "Prismatic Mittens of Mending", source = "Commander Sarannis (Botanica)", sourceType = "dungeon" },
-                    { id = 28521, name = "Gloves of Centering", source = "Maiden of Virtue", sourceType = "raid" },
+                    { id = 28520, name = "Gloves of Centering", source = "Maiden of Virtue", sourceType = "raid" },
                 }
             },
             waist = {
@@ -3855,7 +3855,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 29032, name = "Cyclone Kilt", source = "Gruul the Dragonkiller", sourceType = "raid" },
                 alts = {
                     { id = 30543, name = "Pontifex Kilt", source = "Warlord Kalithresh", sourceType = "heroic" },
-                    { id = 27875, name = "Kirin Tor Master's Trousers", source = "Epoch Hunter", sourceType = "heroic" },
+                    { id = 30532, name = "Kirin Tor Master's Trousers", source = "Epoch Hunter", sourceType = "heroic" },
                 }
             },
             feet = {
@@ -3912,8 +3912,8 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             ranged = {
                 bis = { id = 28523, name = "Totem of Healing Rains", source = "Maiden of Virtue", sourceType = "raid" },
                 alts = {
-                    { id = 22396, name = "Totem of Sustaining", source = "Naxxramas Legacy", sourceType = "raid" },
-                    { id = 23198, name = "Totem of Life", source = "Naxxramas Legacy", sourceType = "raid" },
+                    { id = 23200, name = "Totem of Sustaining", source = "Naxxramas Legacy", sourceType = "raid" },
+                    { id = 22396, name = "Totem of Life", source = "Naxxramas Legacy", sourceType = "raid" },
                 }
             },
         },
@@ -3975,14 +3975,14 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 28828, name = "Gronn-Stitched Girdle", source = "Gruul the Dragonkiller", sourceType = "raid" },
                 alts = {
                     { id = 29247, name = "Girdle of the Deathdealer", source = "Aeonus", sourceType = "heroic" },
-                    { id = 27911, name = "Dunewind Sash", source = "Nexus-Prince Shaffar", sourceType = "dungeon" },
+                    { id = 27760, name = "Dunewind Sash", source = "Nexus-Prince Shaffar", sourceType = "dungeon" },
                 }
             },
             legs = {
                 bis = { id = 28741, name = "Skulker's Greaves", source = "Netherspite", sourceType = "raid" },
                 alts = {
-                    { id = 29074, name = "Justicar Legguards", source = "Gruul the Dragonkiller", sourceType = "raid" },
-                    { id = 28221, name = "Wastewalker Leggings", source = "Murmur", sourceType = "dungeon" },
+                    { id = 29069, name = "Justicar Legguards", source = "Gruul the Dragonkiller", sourceType = "raid" },
+                    { id = 27837, name = "Wastewalker Leggings", source = "Murmur", sourceType = "dungeon" },
                 }
             },
             feet = {
@@ -3996,7 +3996,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 30834, name = "Shapeshifter's Signet", source = "Lower City Exalted", sourceType = "reputation" },
                 alts = {
                     { id = 28757, name = "Ring of a Thousand Marks", source = "Prince Malchezaar", sourceType = "raid" },
-                    { id = 29384, name = "Ring of Arathi Warlords", source = "G'eras (25 Badges)", sourceType = "badge" },
+                    { id = 29379, name = "Ring of Arathi Warlords", source = "G'eras (25 Badges)", sourceType = "badge" },
                 }
             },
             ring2 = {
@@ -4055,7 +4055,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 28516, name = "Barbed Choker of Discipline", source = "Maiden of Virtue", sourceType = "raid" },
                 alts = {
                     { id = 29386, name = "Necklace of the Juggernaut", source = "G'eras (25 Badges)", sourceType = "badge" },
-                    { id = 27792, name = "Mark of the Ravenguard", source = "Anzu", sourceType = "heroic" },
+                    { id = 29336, name = "Mark of the Ravenguard", source = "Anzu", sourceType = "heroic" },
                 }
             },
             shoulders = {
@@ -4068,7 +4068,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             back = {
                 bis = { id = 28660, name = "Gilded Thorium Cloak", source = "Moroes", sourceType = "raid" },
                 alts = {
-                    { id = 29385, name = "Slikk's Cloak of Placation", source = "G'eras (25 Badges)", sourceType = "badge" },
+                    { id = 33593, name = "Slikk's Cloak of Placation", source = "G'eras (25 Badges)", sourceType = "badge" },
                     { id = 27804, name = "Devilshark Cape", source = "Warlord Kalithresh", sourceType = "heroic" },
                 }
             },
@@ -4082,7 +4082,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
             wrist = {
                 bis = { id = 23538, name = "Bracers of the Green Fortress", source = "Blacksmithing", sourceType = "crafted" },
                 alts = {
-                    { id = 29463, name = "Sha'tari Wrought Armguards", source = "Sha'tar Exalted", sourceType = "reputation" },
+                    { id = 28167, name = "Sha'tari Wrought Armguards", source = "Sha'tar Exalted", sourceType = "reputation" },
                     { id = 28502, name = "Vambraces of Courage", source = "Attumen the Huntsman", sourceType = "raid" },
                 }
             },
@@ -4097,7 +4097,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 27672, name = "Girdle of the Immovable", source = "Quagmirran (Slave Pens)", sourceType = "dungeon" },
                 alts = {
                     { id = 28566, name = "Crimson Girdle of the Indomitable", source = "Moroes", sourceType = "raid" },
-                    { id = 27460, name = "Girdle of Many Blessings", source = "Warlord Kalithresh", sourceType = "heroic" },
+                    { id = 27548, name = "Girdle of Many Blessings", source = "Warlord Kalithresh", sourceType = "heroic" },
                 }
             },
             legs = {
@@ -4111,7 +4111,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 28747, name = "Battlescar Boots", source = "Chess Event", sourceType = "raid" },
                 alts = {
                     { id = 27813, name = "Boots of the Colossus", source = "Pandemonius", sourceType = "heroic" },
-                    { id = 25690, name = "Heavy Clefthoof Boots", source = "Leatherworking", sourceType = "crafted" },
+                    { id = 25691, name = "Heavy Clefthoof Boots", source = "Leatherworking", sourceType = "crafted" },
                 }
             },
             ring1 = {
@@ -4132,7 +4132,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 28528, name = "Moroes' Lucky Pocket Watch", source = "Moroes", sourceType = "raid" },
                 alts = {
                     { id = 27891, name = "Adamantine Figurine", source = "Blackheart the Inciter", sourceType = "heroic" },
-                    { id = 29181, name = "Dabiri's Enigma", source = "Dimensius the All-Devouring", sourceType = "quest" },
+                    { id = 30300, name = "Dabiri's Enigma", source = "Dimensius the All-Devouring", sourceType = "quest" },
                 }
             },
             trinket2 = {
@@ -4215,7 +4215,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 29055, name = "Handwraps of the Incarnate", source = "The Curator", sourceType = "raid" },
                 alts = {
                     { id = 28304, name = "Prismatic Mittens of Mending", source = "Commander Sarannis (Botanica)", sourceType = "dungeon" },
-                    { id = 28521, name = "Gloves of Centering", source = "Maiden of Virtue", sourceType = "raid" },
+                    { id = 28520, name = "Gloves of Centering", source = "Maiden of Virtue", sourceType = "raid" },
                 }
             },
             waist = {
@@ -4229,7 +4229,7 @@ C.ARMORY_SPEC_BIS_DATABASE = {
                 bis = { id = 29053, name = "Trousers of the Incarnate", source = "Gruul the Dragonkiller", sourceType = "raid" },
                 alts = {
                     { id = 30543, name = "Pontifex Kilt", source = "Warlord Kalithresh", sourceType = "heroic" },
-                    { id = 27875, name = "Kirin Tor Master's Trousers", source = "Epoch Hunter", sourceType = "heroic" },
+                    { id = 30532, name = "Kirin Tor Master's Trousers", source = "Epoch Hunter", sourceType = "heroic" },
                 }
             },
             feet = {
@@ -4552,57 +4552,6 @@ function C:ParseReputationSource(source)
     end
     return nil
 end
-
--- Get all reputation BiS items for a spec organized by faction and standing
--- @param guideKey string - Spec guide key like "WARRIOR_TANK"
--- @param phase number - Raid phase (default 1)
--- @return table - { [factionName] = { [standingId] = { items... } } }
-function C:GetSpecReputationBisItems(guideKey, phase)
-    phase = phase or 1
-    local result = {}
-
-    local specData = C.ARMORY_SPEC_BIS_DATABASE[phase] and C.ARMORY_SPEC_BIS_DATABASE[phase][guideKey]
-    if not specData then return result end
-
-    for slot, slotData in pairs(specData) do
-        -- Check BiS item
-        if slotData.bis and slotData.bis.sourceType == "reputation" then
-            local repInfo = C:ParseReputationSource(slotData.bis.source)
-            if repInfo then
-                result[repInfo.faction] = result[repInfo.faction] or {}
-                result[repInfo.faction][repInfo.standing] = result[repInfo.faction][repInfo.standing] or {}
-                table.insert(result[repInfo.faction][repInfo.standing], {
-                    itemId = slotData.bis.id,
-                    name = slotData.bis.name,
-                    slot = slot,
-                    isBis = true,
-                })
-            end
-        end
-
-        -- Check alts array
-        if slotData.alts then
-            for _, altItem in ipairs(slotData.alts) do
-                if altItem.sourceType == "reputation" then
-                    local repInfo = C:ParseReputationSource(altItem.source)
-                    if repInfo then
-                        result[repInfo.faction] = result[repInfo.faction] or {}
-                        result[repInfo.faction][repInfo.standing] = result[repInfo.faction][repInfo.standing] or {}
-                        table.insert(result[repInfo.faction][repInfo.standing], {
-                            itemId = altItem.id,
-                            name = altItem.name,
-                            slot = slot,
-                            isBis = false,
-                        })
-                    end
-                end
-            end
-        end
-    end
-
-    return result
-end
-
 -- =====================================================
 -- BiS LOOKUP TABLES (Inverted Indexes for O(1) Queries)
 -- =====================================================

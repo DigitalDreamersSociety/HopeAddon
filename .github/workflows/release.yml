@@ -26,7 +26,8 @@ jobs:
             -x "*WTF/*" \
             -x "*.DS_Store" \
             -x "*Thumbs.db" \
-            -x "*.log"
+            -x "*.log" \
+            -x "*.md"
           cd ..
 
       - name: Extract changelog for this version

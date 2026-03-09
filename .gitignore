@@ -39,6 +39,9 @@ Desktop.ini
 *.tmp
 *.temp
 
+# Dev spec files
+RLTBC_FUN_INTEGRATION.md
+
 # Removed from repo
 nul
 old/

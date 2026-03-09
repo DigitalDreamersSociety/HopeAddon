@@ -1,82 +1,66 @@
-# ✨ Hope Is Here ✨
+# Hope Is Here - A Journey Through Outland
 
-**🎉 I'm Phil-ing festive for TBC and I HOPE you are too! 🎉**
-
-This addon is your personal adventure journal for The Burning Crusade - a companion that grows with your character, tracks your journey through Outland, and connects you with fellow travelers along the way.
+An immersive journal and social addon for World of Warcraft: The Burning Crusade Classic that transforms your leveling experience into a personal adventure chronicle.
 
 ---
 
-## 📖 What Is Hope Is Here?
+## 📖 Personal Journal
 
-A comprehensive TBC adventure journal that automatically tracks your milestones, attunements, reputation, and social connections. Whether you're grinding through Karazhan attunement, hitting Exalted with Netherwing, or just want to remember that epic wipe on Gruul - Hope Is Here captures it all.
+Your journey through Outland, automatically captured.
 
----
-
-## 🌟 Features
-
-### 📚 Journal System (7 Tabs)
-
-| Tab | Description |
-|-----|-------------|
-| 📜 **Timeline** | Chronological view of your entire journey through Outland |
-| 🏆 **Milestones** | Automatic level achievements from 1-70 with personalized stories |
-| ⚔️ **Raids** | Complete boss lists for all TBC raids (Karazhan through Sunwell) |
-| 💎 **Reputation** | Track progress with all 18 TBC factions |
-| 📊 **Statistics** | Deaths, playtime, dungeon runs, and combat stats |
-| 🛡️ **Armory** | Phase-based BiS gear tracking with hover BiS preview and full state reset |
+| Tab | What It Tracks |
+|-----|----------------|
+| 📜 **Journey** | Your TBC progression timeline - level ups, boss kills, rep gains, discoveries |
+| 🔑 **Attunements** | Visual progress for all 6 TBC raid attunement chains |
+| 💎 **Reputation** | Progress with all 18 TBC factions and heroic key tracking |
+| ⚔️ **Raids** | Complete boss lists for all TBC raids, Karazhan through Sunwell |
+| 🎮 **Games** | Multiplayer minigames and challenges |
 | 👥 **Social** | Fellow Travelers directory, profiles, and activity feed |
+| 🛡️ **Armory** | Phase-based BiS gear tracking with hover previews and gear score |
 
 ---
 
-### 🔑 Attunement Tracking
+## 🔑 Attunement Tracker
 
-Never lose track of where you are in those long quest chains!
+Visual progress bars and chapter-by-chapter tracking for all 6 TBC raid attunement chains:
 
-| Raid | Chain |
-|------|-------|
-| 🏰 Karazhan | Master's Key |
-| 🐍 Serpentshrine Cavern | Vashj Attunement |
-| ⚡ Tempest Keep | Kael'thas Attunement |
-| 🌲 Mount Hyjal | Battle for Hyjal |
-| 😈 Black Temple | Medallion of Karabor |
-| 🔥 Cipher of Damnation | Three Fragment Chain |
+- 🏰 **Karazhan** - The Master's Key
+- 🐍 **Serpentshrine Cavern** - The Cudgel of Kar'desh
+- ⚡ **Tempest Keep** - The Tempest Key
+- 🌲 **Mount Hyjal** - The Vials of Eternity
+- 😈 **Black Temple** - Medallion of Karabor
+- 🔥 **Cipher of Damnation** - The Cipher of Damnation
 
-✅ Progress bars and chapter-by-chapter tracking for every chain!
+Never lose track of where you are in those long quest chains again.
 
 ---
 
-### 👫 Social Features
+## 👥 Fellow Travelers
+
+Discover and connect with other addon users across your server.
 
 | Feature | Description |
 |---------|-------------|
-| 🧭 **Fellow Travelers** | Automatically detect other addon users with colored nameplates |
-| 📝 **RP Profiles** | Create and share your character's backstory and personality |
-| 🎖️ **Badges** | Unlock 20+ achievements based on your accomplishments |
-| 📍 **Map Pins** | See Fellow Travelers on your minimap |
-| 📰 **Activity Feed** | Notice board with guild activity and reactions |
+| 🧭 **Auto-Detection** | Automatically find other players using the addon nearby |
+| 📝 **RP Profiles** | Create and share your character's backstory, personality, and appearance |
+| 🎖️ **Badges** | 17 unlockable achievements with custom titles like "Prince Slayer" or "Dragonkiller" |
+| 📍 **Minimap Pins** | See Fellow Travelers on your minimap with RP status coloring |
+| 📰 **Activity Feed** | Notice board showing boss kills, level ups, and rumors from your community |
+| 🎨 **Colored Nameplates** | Fellow Travelers glow based on RP status (IC / OOC / Looking for RP) |
+| 💕 **Romance System** | Relationship status for RP immersion |
 | 📊 **iLevel Leaderboard** | Share and compare gear levels with Fellow Travelers |
-| 🏛️ **Guild System** | Roster tracking and member insights |
 | 📅 **Calendar** | Event scheduling and raid signups with role selection |
-| 💰 **Soft Reserve** | Built-in SR system for raid loot |
+| 💰 **Soft Reserve** | Built-in SR system for raid loot distribution |
 
 ---
 
-### 🐾 Crusade Critter - Your Dungeon Mascot
+## 🐾 Crusade Critter - Your Dungeon Mascot
 
-A companion mascot system that joins you on your TBC dungeon adventures!
+A companion mascot that joins you on your TBC dungeon adventures! Your critter lives in a cozy tab-out panel, comments on boss kills and deaths, and tracks your dungeon run statistics with built-in boss guides.
 
-| Feature | Description |
-|---------|-------------|
-| 🏠 **Tab-out Housing** | Your critter lives in a cozy panel on your screen edge |
-| 💬 **Quips & Reactions** | Mascots comment on boss kills, deaths, zone changes |
-| 🔓 **Unlock System** | Start with Chomp, unlock 6 more by defeating dungeon bosses |
-| 📊 **Run Statistics** | Track boss kill times and dungeon completion speeds |
-| 📖 **Boss Guides** | Built-in tips for every TBC dungeon boss |
-
-**Unlock Your Collection:**
-| Critter | Unlock Location |
-|---------|-----------------|
-| 🦴 Chomp | Always available (starter) |
+| Critter | How to Unlock |
+|---------|---------------|
+| 🦴 Chomp | Always available (starter mascot) |
 | 😈 Snookimp | Hellfire Citadel dungeons |
 | 🌿 Shred | Coilfang Reservoir dungeons |
 | 🦇 Emo | Auchindoun dungeons |
@@ -86,54 +70,49 @@ A companion mascot system that joins you on your TBC dungeon adventures!
 
 ---
 
-### 🎮 Multiplayer Minigames
+## 🎮 Multiplayer Minigames
 
-Challenge your Fellow Travelers to epic battles!
+Challenge your Fellow Travelers to games - or practice solo against the AI.
 
 | Game | Description |
 |------|-------------|
-| 🎲 **Dice Roll** | Classic high-roll using real /roll |
-| ✊ **Rock-Paper-Scissors** | Best of 3 showdown |
-| 💀 **Death Roll** | Turn-based gambling with escrow system |
-| 🧱 **Tetris Battle** | Competitive 2-player Tetris |
-| 🏓 **Pong** | Classic arcade action |
-| 🚢 **Battleship** | Naval combat (vs AI or players) |
-| 🔤 **WoW Wordle** | Word guessing with WoW-themed words |
+| 🧱 **Wowtris** | Competitive 2-player Tetris with garbage line mechanics |
+| 🏓 **Pong of War** | Classic arcade paddle action with physics |
+| 🚢 **Battleship** | Naval combat strategy vs AI or other players |
+| 👻 **Pac-Wow** | Arcade maze game with ghost AI and score challenges |
+| 💀 **Death Roll** | Turn-based gambling using real /roll with optional escrow system |
+| ✊ **Rock-Paper-Scissors** | Best of 3 with anti-cheat commit-reveal protocol |
+
+Most games support practice mode (vs AI) and multiplayer challenges with win/loss tracking.
 
 ---
 
 ## ⌨️ Commands
 
-### 📌 Basic Commands
 ```
-/hope or /journal    → Open the journal
-/hope stats          → Show your statistics
-/hope minimap        → Toggle minimap button
-```
+/hope or /journal         Open the journal
+/hope stats               Show your statistics
+/hope minimap             Toggle minimap button
+/hope nameplates          Toggle Fellow nameplate coloring
 
-### 🎮 Game Commands
-```
-/hope challenge <player>  → Challenge someone to a game
-/hope tetris              → Start Tetris
-/hope pong                → Start Pong
-/hope battleship          → Start Battleship
-/hope wordle              → Start Wordle
-```
+/hope challenge <player>  Challenge someone to a game
+/hope tetris [player]     Start Wowtris
+/hope pong [player]       Start Pong
+/hope battleship [player] Start Battleship
+/hope deathroll <player>  Start Death Roll
 
-### 💰 Soft Reserve Commands
-```
-/hope sr <raid> <item>    → Set your soft reserve
-/hope sr list             → View your reserves
-/hope sr guild            → See guild reserves
+/hope sr <raid> <item>    Set your soft reserve
+/hope sr list             View your reserves
+/hope sr guild            See guild reserves
 ```
 
 ---
 
 ## 📥 Installation
 
-1. 📦 Download and extract to `World of Warcraft\_classic_\Interface\AddOns\`
-2. 📁 Make sure the folder is named `HopeAddon`
-3. 🔄 Restart WoW or type `/reload`
+1. Download and extract to `World of Warcraft\_classic_\Interface\AddOns\`
+2. Make sure the folder is named `HopeAddon`
+3. Restart WoW or type `/reload`
 
 ---
 
@@ -141,16 +120,16 @@ Challenge your Fellow Travelers to epic battles!
 
 | | |
 |--|--|
-| **Author** | 🎭 Philfestive |
-| **License** | 📜 MIT |
-| **Game Version** | 🔥 TBC Classic (2.4.3) |
+| **Author** | Philfestive |
+| **License** | MIT |
+| **Game Version** | TBC Classic (2.4.3) |
 
-Built with ❤️ for the Burning Crusade Classic community.
+Built with love for the Burning Crusade Classic community.
 
-🤖 *This addon was crafted entirely with AI assistance - a collaboration between human creativity and artificial intelligence.*
+*This addon was crafted with AI assistance - a collaboration between human creativity and artificial intelligence.*
 
-💬 **Questions or suggestions?** Find me as **Philfestive** on CurseForge, GitHub, or in-game!
+Questions or suggestions? Find me as **Philfestive** on CurseForge, GitHub, or in-game!
 
 ---
 
-## ⭐ May your journey through Outland be legendary. Hope is here! ⭐
+**May your journey through Outland be legendary. Hope is here!**

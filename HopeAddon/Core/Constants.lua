@@ -314,7 +314,7 @@ C.BOSS_ICONS = {
     murmur = "Spell_Shadow_ShadeTrueSight",
     -- Mechanar
     mechano_lord_capacitus = "INV_Misc_Gear_08",
-    nethermancer_sepethrea = "Spell_Fire_FelFlamering",
+    nethermancer_sepethrea = "Spell_Fire_FelFlameRing",
     pathaleon_the_calculator = "INV_Misc_Gear_06",
     -- Botanica
     commander_sarannis = "Ability_Warrior_BattleShout",
@@ -368,6 +368,43 @@ C.PREREQUISITE_STATUS_COLORS = {
     completed = { bg = { 0.1, 0.3, 0.1, 0.8 }, border = "FEL_GREEN" },
     progress = { bg = { 0.3, 0.25, 0.1, 0.8 }, border = "GOLD_BRIGHT" },
     pending = { bg = { 0.15, 0.15, 0.15, 0.8 }, border = "SHADOW_GREY" },  -- Use SHADOW_GREY from HopeAddon.colors
+}
+
+-- Dependency badge dimensions (cross-chain prerequisite badges)
+C.DEPENDENCY_BADGE = {
+    HEIGHT = 22,
+    ICON_SIZE = 16,
+    PADDING = 6,
+    SPACING = 4,
+}
+
+-- Flowchart layout constants (visual attunement tree)
+C.ATTUNEMENT_FLOWCHART = {
+    NODE_WIDTH = 150,
+    NODE_HEIGHT = 72,
+    COL_SPACING = 60,
+    ROW_SPACING = 25,
+    COL_HEADER_HEIGHT = 20,
+    LINE_THICKNESS = 2,
+    PADDING = 20,
+    NODES = {
+        { key = "karazhan", col = 0, row = 0 },
+        { key = "cipher",   col = 1, row = 0 },
+        { key = "ssc",      col = 1, row = 1 },
+        { key = "tk",       col = 1, row = 2 },
+        { key = "hyjal",    col = 2, row = 0 },
+        { key = "bt",       col = 2, row = 1 },
+    },
+    EDGES = {
+        { from = "cipher", to = "tk" },
+        { from = "ssc",    to = "hyjal" },
+        { from = "tk",     to = "hyjal" },
+        { from = "ssc",    to = "bt" },
+        { from = "tk",     to = "bt" },
+        { from = "hyjal",  to = "bt" },
+    },
+    COL_LABELS = { "Phase 1: T4", "Phase 2: T5", "Phase 3: T6" },
+    COL_COLORS = { "KARA_PURPLE", "SSC_BLUE", "FEL_GREEN" },
 }
 
 --============================================================
@@ -1134,11 +1171,28 @@ C.BT_QUEST_IDS = {
 -- ALL ATTUNEMENTS LIST
 --============================================================
 C.ALL_ATTUNEMENTS = {
-    { key = "karazhan", data = C.KARAZHAN_ATTUNEMENT, tier = "T4", phase = 1, order = 1 },
-    { key = "ssc", data = C.SSC_ATTUNEMENT, tier = "T5", phase = 2, order = 2 },
-    { key = "tk", data = C.TK_ATTUNEMENT, tier = "T5", phase = 2, order = 3, prerequisite = "cipher" },
-    { key = "hyjal", data = C.HYJAL_ATTUNEMENT, tier = "T6", phase = 3, order = 4 },
-    { key = "bt", data = C.BT_ATTUNEMENT, tier = "T6", phase = 3, order = 5 },
+    { key = "karazhan", data = C.KARAZHAN_ATTUNEMENT, tier = "T4", phase = 1, order = 1,
+      dependencies = {} },
+    { key = "ssc", data = C.SSC_ATTUNEMENT, tier = "T5", phase = 2, order = 2,
+      dependencies = {
+          { type = "raid_kill", label = "Gruul (Gruul's Lair)", icon = "Spell_Shadow_DeathPact" },
+          { type = "raid_kill", label = "Nightbane (Karazhan)", icon = "Spell_Shadow_DeathPact" },
+      }},
+    { key = "tk", data = C.TK_ATTUNEMENT, tier = "T5", phase = 2, order = 3, prerequisite = "cipher",
+      dependencies = {
+          { type = "chain", raidKey = "cipher", label = "Cipher of Damnation" },
+      }},
+    { key = "hyjal", data = C.HYJAL_ATTUNEMENT, tier = "T6", phase = 3, order = 4,
+      dependencies = {
+          { type = "chain", raidKey = "ssc", label = "Lady Vashj (SSC)" },
+          { type = "chain", raidKey = "tk", label = "Kael'thas (TK)" },
+      }},
+    { key = "bt", data = C.BT_ATTUNEMENT, tier = "T6", phase = 3, order = 5,
+      dependencies = {
+          { type = "chain", raidKey = "ssc", label = "SSC raid kills" },
+          { type = "chain", raidKey = "tk", label = "TK raid kills" },
+          { type = "chain", raidKey = "hyjal", label = "Hyjal raid kills" },
+      }},
 }
 
 -- Helper to get attunement phase by raid key
@@ -1984,7 +2038,7 @@ C.GRUUL_BOSSES = {
         },
         strategy = "Kill order: Blindeye > Olm > Kiggler > Krosh > Maulgar",
         notableLoot = {
-            { name = "Pauldrons of the Fallen Hero", type = "Tier Token", itemId = 29763 },
+            { name = "Pauldrons of the Fallen Hero", type = "Tier Token", itemId = 29762 },
             { name = "Hammer of the Naaru", type = "2H Mace (Healer)", itemId = 28800 },
         },
     },
@@ -2005,7 +2059,7 @@ C.GRUUL_BOSSES = {
             "Ground Slam + Shatter - SPREAD OUT!",
         },
         notableLoot = {
-            { name = "Leggings of the Fallen Hero", type = "Tier Token", itemId = 29766 },
+            { name = "Leggings of the Fallen Hero", type = "Tier Token", itemId = 29765 },
             { name = "Dragonspine Trophy", type = "Trinket (Physical DPS)", itemId = 28830 },
             { name = "Eye of Gruul", type = "Trinket (Caster)", itemId = 28823 },
         },
@@ -2043,8 +2097,8 @@ C.MAGTHERIDON_BOSSES = {
             },
         },
         notableLoot = {
-            { name = "Chestguard of the Fallen Hero", type = "Tier Token", itemId = 29754 },
-            { name = "Eredar Wand of Obliteration", type = "Wand", itemId = 28734 },
+            { name = "Chestguard of the Fallen Hero", type = "Tier Token", itemId = 29755 },
+            { name = "Eredar Wand of Obliteration", type = "Wand", itemId = 28783 },
             { name = "Eye of Magtheridon", type = "Trinket", itemId = 28789 },
             { name = "Magtheridon's Head", type = "Quest Item (Ring reward)", itemId = 32385 },
         },
@@ -2073,8 +2127,8 @@ C.SSC_BOSSES = {
             "Stack resistance sets - 365 minimum",
         },
         notableLoot = {
-            { name = "Shoulderpads of the Stranger", type = "Leather Shoulders", itemId = 30021 },
-            { name = "Fathomstone", type = "Caster Off-Hand", itemId = 30084 },
+            { name = "Shoulderpads of the Stranger", type = "Leather Shoulders", itemId = 30055 },
+            { name = "Fathomstone", type = "Caster Off-Hand", itemId = 30049 },
         },
     },
     {
@@ -2093,7 +2147,7 @@ C.SSC_BOSSES = {
             "Submerge phase - kill Coilfang adds",
         },
         notableLoot = {
-            { name = "Earring of Soulful Meditation", type = "Trinket (Healer)", itemId = 30026 },
+            { name = "Earring of Soulful Meditation", type = "Trinket (Healer)", itemId = 30665 },
             { name = "Mallet of the Tides", type = "1H Mace", itemId = 30058 },
         },
     },
@@ -2113,8 +2167,8 @@ C.SSC_BOSSES = {
             "AoE murlocs quickly, they explode on death",
         },
         notableLoot = {
-            { name = "Talon of Azshara", type = "Dagger", itemId = 30095 },
-            { name = "Girdle of the Tidal Call", type = "Mail Belt", itemId = 30057 },
+            { name = "Talon of Azshara", type = "Dagger", itemId = 30082 },
+            { name = "Girdle of the Tidal Call", type = "Mail Belt", itemId = 30068 },
         },
     },
     {
@@ -2139,8 +2193,8 @@ C.SSC_BOSSES = {
             "Spread for Spitfire Totem",
         },
         notableLoot = {
-            { name = "Fathom-Brooch of the Tidewalker", type = "Trinket", itemId = 30085 },
-            { name = "World Breaker", type = "2H Mace", itemId = 30082 },
+            { name = "Fathom-Brooch of the Tidewalker", type = "Trinket", itemId = 30663 },
+            { name = "World Breaker", type = "2H Mace", itemId = 30090 },
         },
     },
     {
@@ -2161,7 +2215,7 @@ C.SSC_BOSSES = {
         },
         notableLoot = {
             { name = "Tsunami Talisman", type = "Trinket (Physical DPS)", itemId = 30627 },
-            { name = "True-Aim Stalker Bands", type = "Mail Wrists", itemId = 30041 },
+            { name = "True-Aim Stalker Bands", type = "Mail Wrists", itemId = 30091 },
         },
     },
     {
@@ -2196,9 +2250,9 @@ C.SSC_BOSSES = {
             "Kill sporebats in P3 or raid dies to poison",
         },
         notableLoot = {
-            { name = "Crown of the Vanquished Hero", type = "Tier Token", itemId = 30244 },
-            { name = "Vashj's Vial Remnant", type = "Quest Item (Hyjal attune)", itemId = 31341 },
-            { name = "Serpent Spine Longbow", type = "Bow", itemId = 30112 },
+            { name = "Helm of the Vanquished Hero", type = "Tier Token", itemId = 30244 },
+            { name = "Vashj's Vial Remnant", type = "Quest Item (Hyjal attune)", itemId = 29906 },
+            { name = "Serpent Spine Longbow", type = "Bow", itemId = 30105 },
         },
     },
 }
@@ -2221,8 +2275,8 @@ C.TK_BOSSES = {
             "Phoenix resurrects once at 1 HP",
         },
         notableLoot = {
-            { name = "Talon of the Phoenix", type = "Fist Weapon", itemId = 29948 },
-            { name = "Phoenix-Wing Cloak", type = "Back", itemId = 29950 },
+            { name = "Claw of the Phoenix", type = "Fist Weapon", itemId = 29948 },
+            { name = "Phoenix-Wing Cloak", type = "Back", itemId = 29925 },
         },
     },
     {
@@ -2241,8 +2295,8 @@ C.TK_BOSSES = {
             "Often called 'Loot Reaver'",
         },
         notableLoot = {
-            { name = "Mantle of the Vanquished Hero", type = "Tier Token", itemId = 30249 },
-            { name = "Warp-Spring Coil", type = "Trinket", itemId = 29984 },
+            { name = "Pauldrons of the Vanquished Hero", type = "Tier Token", itemId = 30250 },
+            { name = "Warp-Spring Coil", type = "Trinket", itemId = 30450 },
         },
     },
     {
@@ -2261,8 +2315,8 @@ C.TK_BOSSES = {
             "Voidwalker form at 20% - burn fast",
         },
         notableLoot = {
-            { name = "Void Star Talisman", type = "Neck", itemId = 30018 },
-            { name = "Girdle of the Righteous Path", type = "Plate Belt", itemId = 30064 },
+            { name = "Void Star Talisman", type = "Neck", itemId = 30449 },
+            { name = "Girdle of the Righteous Path", type = "Plate Belt", itemId = 29965 },
         },
     },
     {
@@ -2296,10 +2350,10 @@ C.TK_BOSSES = {
             "Gravity Lapse - swim in air, avoid orbs",
         },
         notableLoot = {
-            { name = "Chestguard of the Vanquished Hero", type = "Tier Token", itemId = 30236 },
-            { name = "Kael's Vial Remnant", type = "Quest Item (Hyjal attune)", itemId = 31339 },
+            { name = "Chestguard of the Vanquished Hero", type = "Tier Token", itemId = 30238 },
+            { name = "Kael's Vial Remnant", type = "Quest Item (Hyjal attune)", itemId = 29905 },
             { name = "Ashes of Al'ar", type = "Mount (~1%)", itemId = 32458 },
-            { name = "Verdant Sphere", type = "Off-Hand", itemId = 30449 },
+            { name = "Verdant Sphere", type = "Off-Hand", itemId = 32405 },
         },
     },
 }
@@ -2330,7 +2384,7 @@ C.HYJAL_BOSSES = {
             "DPS race - relatively simple boss",
         },
         notableLoot = {
-            { name = "Gloves of the Forgotten Vanquisher", type = "Tier Token", itemId = 31095 },
+            { name = "Gloves of the Forgotten Vanquisher", type = "Tier Token", itemId = 31093 },
             { name = "Chronicle of Dark Secrets", type = "Off-Hand", itemId = 30872 },
         },
     },
@@ -2354,8 +2408,8 @@ C.HYJAL_BOSSES = {
             "Sleep - healers be ready to dispel",
         },
         notableLoot = {
-            { name = "Belt of the Forgotten Vanquisher", type = "Tier Token", itemId = 31089 },
-            { name = "Don Rodrigo's Poncho", type = "Leather Chest", itemId = 30916 },
+            { name = "Belt of the Forgotten Vanquisher", type = "Tier Token", itemId = 34855 },
+            { name = "Don Rodrigo's Poncho", type = "Leather Chest", itemId = 30899 },
         },
     },
     {
@@ -2378,8 +2432,8 @@ C.HYJAL_BOSSES = {
             "Enrage timer - burn fast",
         },
         notableLoot = {
-            { name = "Boots of the Forgotten Vanquisher", type = "Tier Token", itemId = 31092 },
-            { name = "Hammer of Atonement", type = "1H Mace", itemId = 30881 },
+            { name = "Boots of the Forgotten Vanquisher", type = "Tier Token", itemId = 34858 },
+            { name = "Hammer of Atonement", type = "1H Mace", itemId = 30918 },
         },
     },
     {
@@ -2402,7 +2456,7 @@ C.HYJAL_BOSSES = {
             "Howl of Azgalor - 5 sec silence",
         },
         notableLoot = {
-            { name = "Helm of the Forgotten Vanquisher", type = "Tier Token", itemId = 31097 },
+            { name = "Helm of the Forgotten Vanquisher", type = "Tier Token", itemId = 31096 },
             { name = "Boundless Agony", type = "Dagger", itemId = 30901 },
         },
     },
@@ -2428,8 +2482,8 @@ C.HYJAL_BOSSES = {
             "Fear + Grip - expect movement",
         },
         notableLoot = {
-            { name = "Pauldrons of the Forgotten Vanquisher", type = "Tier Token", itemId = 31103 },
-            { name = "Cataclysm's Edge", type = "2H Sword", itemId = 30903 },
+            { name = "Pauldrons of the Forgotten Vanquisher", type = "Tier Token", itemId = 31102 },
+            { name = "Cataclysm's Edge", type = "2H Sword", itemId = 30902 },
             { name = "Tempest of Chaos", type = "Staff", itemId = 30910 },
         },
     },
@@ -2453,8 +2507,8 @@ C.BT_BOSSES = {
             "High HP requirement - nature resistance helps",
         },
         notableLoot = {
-            { name = "Halberd of Desolation", type = "Polearm", itemId = 32254 },
-            { name = "Fists of Mukoa", type = "Leather Gloves", itemId = 32466 },
+            { name = "Halberd of Desolation", type = "Polearm", itemId = 32248 },
+            { name = "Fists of Mukoa", type = "Leather Gloves", itemId = 32234 },
         },
     },
     {
@@ -2474,7 +2528,7 @@ C.BT_BOSSES = {
         },
         notableLoot = {
             { name = "Syphon of the Nathrezim", type = "Wand", itemId = 32262 },
-            { name = "Band of the Abyssal Lord", type = "Ring", itemId = 32361 },
+            { name = "Band of the Abyssal Lord", type = "Ring", itemId = 32261 },
         },
     },
     {
@@ -2493,7 +2547,7 @@ C.BT_BOSSES = {
             "Boss phase is easy once Akama is free",
         },
         notableLoot = {
-            { name = "Amice of Brilliant Light", type = "Cloth Shoulders", itemId = 32264 },
+            { name = "Amice of Brilliant Light", type = "Cloth Shoulders", itemId = 32273 },
             { name = "Shadow-Walker's Cord", type = "Leather Belt", itemId = 32265 },
         },
     },
@@ -2514,8 +2568,8 @@ C.BT_BOSSES = {
             "Incinerate - high tank damage",
         },
         notableLoot = {
-            { name = "Shadowmoon Destroyer's Drape", type = "Back", itemId = 32252 },
-            { name = "Girdle of Lordaeron's Fallen", type = "Plate Belt", itemId = 32232 },
+            { name = "Shadowmoon Destroyer's Drape", type = "Back", itemId = 32323 },
+            { name = "Girdle of Lordaeron's Fallen", type = "Plate Belt", itemId = 32512 },
         },
     },
     {
@@ -2535,8 +2589,8 @@ C.BT_BOSSES = {
             "Eject - tank knockback, need 2+ tanks",
         },
         notableLoot = {
-            { name = "Girdle of Mighty Resolve", type = "Plate Belt", itemId = 32251 },
-            { name = "Shadowmoon Insignia", type = "Trinket", itemId = 32496 },
+            { name = "Girdle of Mighty Resolve", type = "Plate Belt", itemId = 32342 },
+            { name = "Shadowmoon Insignia", type = "Trinket", itemId = 32501 },
         },
     },
     {
@@ -2560,8 +2614,8 @@ C.BT_BOSSES = {
             "Phase 3: Enrage, burn boss FAST",
         },
         notableLoot = {
-            { name = "Naaru-Blessed Life Rod", type = "Wand", itemId = 32348 },
-            { name = "Translucent Spellthread Necklace", type = "Neck", itemId = 32352 },
+            { name = "Naaru-Blessed Life Rod", type = "Wand", itemId = 32363 },
+            { name = "Translucent Spellthread Necklace", type = "Neck", itemId = 32349 },
         },
     },
     {
@@ -2581,7 +2635,7 @@ C.BT_BOSSES = {
             "Beam attacks - random targeting",
         },
         notableLoot = {
-            { name = "Leggings of the Forgotten Vanquisher", type = "Tier Token", itemId = 31101 },
+            { name = "Leggings of the Forgotten Vanquisher", type = "Tier Token", itemId = 31099 },
             { name = "Heartshatter Breastplate", type = "Plate Chest", itemId = 32365 },
         },
     },
@@ -2609,7 +2663,7 @@ C.BT_BOSSES = {
         },
         notableLoot = {
             { name = "Madness of the Betrayer", type = "Trinket (Physical DPS)", itemId = 32505 },
-            { name = "Tome of the Lightbringer", type = "Relic", itemId = 32363 },
+            { name = "Tome of the Lightbringer", type = "Relic", itemId = 32368 },
         },
     },
     {
@@ -2643,7 +2697,7 @@ C.BT_BOSSES = {
             { name = "Warglaive of Azzinoth (MH)", type = "Legendary", itemId = 32837 },
             { name = "Warglaive of Azzinoth (OH)", type = "Legendary", itemId = 32838 },
             { name = "Bulwark of Azzinoth", type = "Shield (Tank)", itemId = 32375 },
-            { name = "Skull of Gul'dan", type = "Trinket (Caster)", itemId = 32483 },
+            { name = "The Skull of Gul'dan", type = "Trinket (Caster)", itemId = 32483 },
         },
     },
 }
@@ -2669,9 +2723,9 @@ C.ZA_BOSSES = {
             "Tank swap on Mangle debuff",
         },
         notableLoot = {
-            { name = "Fury of the Ursine", type = "Fist Weapon", itemId = 33497 },
-            { name = "Pauldrons of Primal Fury", type = "Plate Shoulders", itemId = 33516 },
-            { name = "Bladeangel's Money Belt", type = "Leather Belt", itemId = 33490 },
+            { name = "Fury of the Ursine", type = "Fist Weapon", itemId = 33285 },
+            { name = "Pauldrons of Primal Fury", type = "Plate Shoulders", itemId = 33206 },
+            { name = "Bladeangel's Money Belt", type = "Leather Belt", itemId = 33211 },
         },
     },
     {
@@ -2691,8 +2745,8 @@ C.ZA_BOSSES = {
             "Call Lightning - random target damage",
         },
         notableLoot = {
-            { name = "Akil'zon's Talonblade", type = "Dagger", itemId = 33188 },
-            { name = "Signet of Ancient Magics", type = "Ring (Caster)", itemId = 33504 },
+            { name = "Akil'zon's Talonblade", type = "Dagger", itemId = 33214 },
+            { name = "Signet of Ancient Magics", type = "Ring (Caster)", itemId = 33293 },
             { name = "Brooch of Nature's Mercy", type = "Neck (Healer)", itemId = 33281 },
         },
     },
@@ -2714,9 +2768,9 @@ C.ZA_BOSSES = {
             "Fire Bombs - avoid red patches on ground",
         },
         notableLoot = {
-            { name = "Amani Divining Staff", type = "Staff (Healer)", itemId = 33324 },
-            { name = "Jan'alai's Spaulders", type = "Mail Shoulders", itemId = 33463 },
-            { name = "Bulwark of the Amani Empire", type = "Shield (Tank)", itemId = 33329 },
+            { name = "Amani Divining Staff", type = "Staff (Healer)", itemId = 33494 },
+            { name = "Enamelled Disc of Mojo", type = "Shield (Caster)", itemId = 33332 },
+            { name = "Bulwark of the Amani Empire", type = "Shield (Tank)", itemId = 33326 },
         },
     },
     {
@@ -2737,9 +2791,9 @@ C.ZA_BOSSES = {
             "Enrage at low health - burn fast",
         },
         notableLoot = {
-            { name = "Avalanche Leggings", type = "Mail Legs", itemId = 33380 },
-            { name = "The Savage's Choker", type = "Neck (Melee)", itemId = 33505 },
-            { name = "Wub's Cursed Hexblade", type = "Sword (Caster)", itemId = 33479 },
+            { name = "Avalanche Leggings", type = "Mail Legs", itemId = 33533 },
+            { name = "The Savage's Choker", type = "Neck (Melee)", itemId = 33297 },
+            { name = "Wub's Cursed Hexblade", type = "Sword (Caster)", itemId = 33354 },
         },
     },
     {
@@ -2760,9 +2814,9 @@ C.ZA_BOSSES = {
             "Bring classes with interruptible abilities only",
         },
         notableLoot = {
-            { name = "Tome of Diabolic Remedy", type = "Off-Hand (Healer)", itemId = 33509 },
-            { name = "Tiny Voodoo Mask", type = "Trinket", itemId = 33506 },
-            { name = "Hex Lord's Voodoo Pauldrons", type = "Cloth Shoulders", itemId = 33453 },
+            { name = "Tome of Diabolic Remedy", type = "Off-Hand (Healer)", itemId = 33828 },
+            { name = "Tiny Voodoo Mask", type = "Trinket", itemId = 34029 },
+            { name = "Hex Lord's Voodoo Pauldrons", type = "Cloth Shoulders", itemId = 33464 },
         },
     },
     {
@@ -2791,9 +2845,9 @@ C.ZA_BOSSES = {
             "Timed event - kill fast for extra loot chest!",
         },
         notableLoot = {
-            { name = "Cleaver of the Unforgiving", type = "Axe (2H)", itemId = 33466 },
-            { name = "Chestguard of the Warlord", type = "Plate Chest", itemId = 33296 },
-            { name = "Loop of Cursed Apathy", type = "Ring (Caster)", itemId = 33498 },
+            { name = "Cleaver of the Unforgiving", type = "Axe (2H)", itemId = 33476 },
+            { name = "Chestguard of the Warlord", type = "Plate Chest", itemId = 33473 },
+            { name = "Loop of Cursed Bones", type = "Neck", itemId = 33466 },
             { name = "Amani War Bear", type = "Mount (Timed Run)", dropRate = "Timed chest", itemId = 33809 },
         },
     },
@@ -2826,8 +2880,8 @@ C.SUNWELL_BOSSES = {
             "Corrupting Strike - tank debuff in demon realm",
         },
         notableLoot = {
-            { name = "Fang of Kalecgos", type = "Dagger (Caster)", itemId = 34346 },
-            { name = "Legplates of the Holy Juggernaut", type = "Plate Legs (Healer)", itemId = 34384 },
+            { name = "Fang of Kalecgos", type = "Dagger (Caster)", itemId = 34165 },
+            { name = "Legplates of the Holy Juggernaut", type = "Plate Legs (Healer)", itemId = 34167 },
             { name = "Bracers of the Forgotten Conqueror", type = "Tier Token", itemId = 34848 },
         },
     },
@@ -2851,8 +2905,8 @@ C.SUNWELL_BOSSES = {
         },
         notableLoot = {
             { name = "Heart of the Pit", type = "Trinket (Caster)", itemId = 34179 },
-            { name = "Leggings of Calamity", type = "Cloth Legs", itemId = 34386 },
-            { name = "Collar of Bones", type = "Neck (Physical DPS)", itemId = 34358 },
+            { name = "Leggings of Calamity", type = "Cloth Legs", itemId = 34181 },
+            { name = "Collar of the Pit Lord", type = "Neck (Tank)", itemId = 34178 },
         },
     },
     {
@@ -2879,7 +2933,7 @@ C.SUNWELL_BOSSES = {
         },
         notableLoot = {
             { name = "Sword Breaker's Bulwark", type = "Shield (Tank)", itemId = 34185 },
-            { name = "Borderland Paingrips", type = "Leather Gloves", itemId = 34370 },
+            { name = "Borderland Paingrips", type = "Leather Gloves", itemId = 34341 },
             { name = "Bracers of the Forgotten Protector", type = "Tier Token", itemId = 34851 },
         },
     },
@@ -2906,9 +2960,9 @@ C.SUNWELL_BOSSES = {
             "Dark Strike needs high melee tank threat",
         },
         notableLoot = {
-            { name = "Grip of Mannoroth", type = "Plate Gloves (DPS)", itemId = 34342 },
+            { name = "Grip of Mannoroth", type = "Plate Gloves (DPS)", itemId = 34203 },
             { name = "Grand Magister's Staff of Torrents", type = "Staff (Caster)", itemId = 34182 },
-            { name = "Sin'dorei Band of Salvation", type = "Ring (Healer)", itemId = 34362 },
+            { name = "Sin'dorei Band of Salvation", type = "Ring (Healer)", itemId = 35283 },
         },
     },
     {
@@ -2935,8 +2989,8 @@ C.SUNWELL_BOSSES = {
             "Considered hardest boss of TBC",
         },
         notableLoot = {
-            { name = "Blade of Harbingers", type = "Sword (Tank)", itemId = 34247 },
-            { name = "Sin'dorei Band of Triumph", type = "Ring (Physical DPS)", itemId = 34189 },
+            { name = "The Blade of Harbingers", type = "Sword (Tank)", itemId = 34891 },
+            { name = "Sin'dorei Band of Triumph", type = "Ring (Physical DPS)", itemId = 35284 },
             { name = "Bracers of the Forgotten Vanquisher", type = "Tier Token", itemId = 34852 },
         },
     },
@@ -2970,7 +3024,7 @@ C.SUNWELL_BOSSES = {
         },
         notableLoot = {
             { name = "Thori'dal, the Stars' Fury", type = "Legendary Bow", dropRate = "~5%", itemId = 34334 },
-            { name = "Helm of Burning Righteousness", type = "Plate Helm (Tank)", itemId = 34244 },
+            { name = "Helm of Burning Righteousness", type = "Plate Helm (Tank)", itemId = 34243 },
             { name = "Cover of Ursol the Wise", type = "Leather Helm (Caster)", itemId = 34245 },
             { name = "Sunflare", type = "Dagger (Caster)", itemId = 34336 },
             { name = "Golden Staff of the Sin'dorei", type = "Staff (Healer)", itemId = 34337 },
@@ -4068,6 +4122,27 @@ function C:GetRaidPhase(raidKey)
     return self.RAID_PHASES[raidKey]
 end
 
+-- Raid readiness tiers based on average iLevel
+C.RAID_READINESS = {
+    { minILvl = 0,   maxILvl = 99,  phase = 0, label = "Heroics/Pre-Raid",           raids = "Dungeons" },
+    { minILvl = 100, maxILvl = 114, phase = 1, label = "Phase 1 \226\128\148 Kara/Gruul/Mag",   raids = "Kara/Gruul/Mag" },
+    { minILvl = 115, maxILvl = 129, phase = 2, label = "Phase 2 \226\128\148 SSC/TK",           raids = "SSC/TK" },
+    { minILvl = 130, maxILvl = 141, phase = 3, label = "Phase 3 \226\128\148 Hyjal/BT",         raids = "Hyjal/BT" },
+    { minILvl = 142, maxILvl = 153, phase = 4, label = "Phase 4 \226\128\148 ZA/BT",            raids = "ZA/BT" },
+    { minILvl = 154, maxILvl = 999, phase = 5, label = "Phase 5 \226\128\148 Sunwell",           raids = "Sunwell" },
+}
+
+-- Get raid readiness tier for a given average iLevel
+function C:GetRaidReadiness(avgILvl)
+    if not avgILvl or avgILvl <= 0 then return nil end
+    for i = #self.RAID_READINESS, 1, -1 do
+        if avgILvl >= self.RAID_READINESS[i].minILvl then
+            return self.RAID_READINESS[i]
+        end
+    end
+    return self.RAID_READINESS[1]
+end
+
 -- Raid visual theming data (for Raids tab UI)
 C.RAID_THEMES = {
     karazhan    = { accentColor = "KARA_ACCENT",  bgTint = "KARA_BG_TINT",  icon = "INV_Misc_Key_10" },
@@ -4142,16 +4217,6 @@ C.GAME_DEFINITIONS = {
         color = "SKY_BLUE",
     },
     {
-        id = "wordle",
-        name = "WoWdle",
-        description = "Guess the 5-letter WoW word in 6 tries!",
-        icon = "Interface\\Icons\\INV_Misc_Note_06",
-        hasLocal = true,
-        hasRemote = true,
-        system = "gamecore",
-        color = "FEL_GREEN",
-    },
-    {
         id = "pacman",
         name = "Pac-Wow",
         description = "Classic arcade maze game - eat pellets, avoid ghosts!",
@@ -4173,100 +4238,6 @@ end
 function C:GetGameDefinition(gameId)
     return self.GAME_BY_ID[gameId]
 end
-
---============================================================
--- WOW WORDLE CONSTANTS
--- Settings for the Wordle-style word guessing game
---============================================================
-
--- Game rules
-C.WORDLE = {
-    WORD_LENGTH = 5,
-    MAX_GUESSES = 6,
-
-    -- Animation timings (in seconds)
-    REVEAL_DELAY = 0.3,             -- Delay between each letter reveal
-    FLIP_DURATION = 0.25,           -- Total flip animation duration (shrink + expand)
-    SHAKE_DURATION = 0.4,           -- Row shake duration for invalid word
-    SHAKE_INTENSITY = 8,            -- Horizontal shake distance in pixels
-    BOUNCE_DELAY = 0.1,             -- Delay between each letter bounce on win
-    BOUNCE_HEIGHT = 12,             -- Jump height in pixels
-    BOUNCE_DURATION = 0.3,          -- Single bounce duration
-    TOAST_DURATION = 2.0,           -- Floating message duration
-    POP_SCALE = 1.12,               -- Scale factor for typing pop animation
-    POP_DURATION = 0.05,            -- Pop animation duration
-
-    -- Win messages based on guess count (standard Wordle)
-    WIN_MESSAGES = {
-        [1] = "Genius!",
-        [2] = "Magnificent!",
-        [3] = "Impressive!",
-        [4] = "Splendid!",
-        [5] = "Great!",
-        [6] = "Phew!",
-    },
-}
-
--- Wordle letter box colors (standard Wordle colors with TBC twist)
-C.WORDLE_COLORS = {
-    -- Letter box states
-    CORRECT = { r = 0.42, g = 0.67, b = 0.39 },     -- Green (#6AAA64)
-    PRESENT = { r = 0.79, g = 0.71, b = 0.35 },     -- Yellow (#C9B458)
-    ABSENT = { r = 0.47, g = 0.49, b = 0.49 },      -- Grey (#787C7E)
-    EMPTY = { r = 0.07, g = 0.07, b = 0.08 },       -- Dark (#121213)
-    TYPING = { r = 0.15, g = 0.15, b = 0.16 },      -- Slightly lighter for current input
-    BORDER = { r = 0.21, g = 0.22, b = 0.24 },      -- Border (#3A3A3C)
-    BORDER_TYPING = { r = 0.34, g = 0.35, b = 0.36 }, -- Active border (#565758)
-    BORDER_FILLED = { r = 0.55, g = 0.55, b = 0.57 }, -- Brighter border when letter typed (#8C8C91)
-
-    -- Keyboard default
-    KEY_DEFAULT = { r = 0.5, g = 0.5, b = 0.52 },   -- Grey key
-    KEY_BORDER = { r = 0.3, g = 0.3, b = 0.3 },     -- Key border
-
-    -- Text colors
-    TEXT_WHITE = { r = 1, g = 1, b = 1 },
-    TEXT_DARK = { r = 0.1, g = 0.1, b = 0.1 },
-
-    -- P2.5-2.7: Toast colors (centralized from hardcoded RGB values)
-    TOAST_SUCCESS = { r = 0, g = 1, b = 0 },      -- Victory toast
-    TOAST_FAILURE = { r = 1, g = 0.3, b = 0.3 },  -- Game over toast
-    TOAST_DEFAULT = { r = 1, g = 1, b = 1 },      -- Standard toast
-}
-
--- Wordle UI dimensions (expanded for better layout)
-C.WORDLE_UI = {
-    -- Window dimensions (increased for hint button area)
-    WINDOW_WIDTH = 460,             -- Was 420, +40px for breathing room
-    WINDOW_HEIGHT = 720,            -- Was 680, +40px for hint button area
-
-    -- Letter box dimensions
-    BOX_SIZE = 56,
-    BOX_GAP = 8,
-    GRID_TOP = -100,                -- Was -60, pushed down for hint button
-
-    -- Keyboard dimensions (slightly larger keys)
-    KEY_WIDTH = 36,                 -- Was 32
-    KEY_HEIGHT = 52,                -- Was 48
-    KEY_GAP = 6,                    -- Was 4
-    KEYBOARD_TOP = -500,            -- Was -460, pushed down to maintain spacing
-
-    -- Position offsets
-    TOAST_TOP = -100,               -- Toast position below hint button
-    STATUS_BOTTOM = 15,             -- Status text offset from bottom
-    TOAST_PADDING = 12,             -- P2.7: Toast frame padding
-
-    -- Font sizes (P2.5: centralized from hardcoded values)
-    LETTER_FONT_SIZE = 28,          -- Letter box text
-    KEY_FONT_SIZE = 14,             -- Keyboard key text
-    TOAST_FONT_SIZE = 14,           -- Toast message text
-
-    -- Keyboard layout
-    KEYBOARD_ROWS = {
-        "QWERTYUIOP",
-        "ASDFGHJKL",
-        "ZXCVBNM"
-    },
-}
 
 --============================================================
 -- BACKDROP DEFINITIONS
@@ -4484,6 +4455,7 @@ C.BACKDROP_COLORS = {
 
 -- Game card background tints (dark versions of game theme colors)
 C.GAME_BG_TINTS = {
+    GOLD = { 0.2, 0.17, 0.05, 0.9 },
     GOLD_BRIGHT = { 0.2, 0.17, 0.05, 0.9 },
     NATURE_GREEN = { 0.1, 0.2, 0.1, 0.9 },
     HELLFIRE_RED = { 0.25, 0.1, 0.1, 0.9 },
@@ -5006,12 +4978,12 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
             },
             drops = {
                 { itemId = 28776, name = "Liar's Tongue Gloves", icon = "INV_Gauntlets_25", quality = "epic", slot = "Hands", stats = "+32 Agi, +32 Sta, +24 Hit", source = "Magtheridon's Lair", sourceType = "drops" },
-                { itemId = 27994, name = "Spaulders of Dementia", icon = "INV_Shoulder_25", quality = "rare", slot = "Shoulder", stats = "+28 Str, +28 Sta, +22 Crit", source = "Heroic Sethekk Halls", sourceType = "drops" },
+                { itemId = 32073, name = "Spaulders of Dementia", icon = "INV_Shoulder_25", quality = "rare", slot = "Shoulder", stats = "+28 Str, +28 Sta, +22 Crit", source = "Heroic Sethekk Halls", sourceType = "drops" },
                 { itemId = 28401, name = "Hauberk of Desolation", icon = "INV_Chest_Chain_15", quality = "epic", slot = "Chest", stats = "+38 Str, +48 Sta, +26 Crit", source = "Heroic Blood Furnace", sourceType = "drops" },
             },
             crafted = {
                 { itemId = 23536, name = "Felsteel Gloves", icon = "INV_Gauntlets_29", quality = "rare", slot = "Hands", stats = "+26 Str, +25 Sta", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
-                { itemId = 23537, name = "Felsteel Leggings", icon = "INV_Pants_Plate_17", quality = "rare", slot = "Legs", stats = "+34 Str, +37 Sta", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
+                { itemId = 23518, name = "Felsteel Leggings", icon = "INV_Pants_Plate_17", quality = "rare", slot = "Legs", stats = "+34 Str, +37 Sta", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
                 { itemId = 23538, name = "Felsteel Helm", icon = "INV_Helmet_24", quality = "rare", slot = "Head", stats = "+31 Str, +37 Sta", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
             },
         },
@@ -5118,20 +5090,20 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                 },
             },
             drops = {
-                { itemId = 27538, name = "Greaves of Desolation", icon = "INV_Pants_Plate_10", quality = "epic", slot = "Legs", stats = "+38 Str, +27 Agi, +37 Sta", source = "Heroic Black Morass", sourceType = "drops" },
+                { itemId = 27936, name = "Greaves of Desolation", icon = "INV_Pants_Plate_10", quality = "epic", slot = "Legs", stats = "+38 Str, +27 Agi, +37 Sta", source = "Heroic Black Morass", sourceType = "drops" },
                 { itemId = 28776, name = "Liar's Tongue Gloves", icon = "INV_Gauntlets_25", quality = "epic", slot = "Hands", stats = "+32 Agi, +32 Sta, +24 Hit", source = "Magtheridon's Lair", sourceType = "drops" },
-                { itemId = 27890, name = "Girdle of Ferocity", icon = "INV_Belt_13", quality = "epic", slot = "Waist", stats = "+31 Str, +16 Agi, +36 Sta", source = "Heroic Shattered Halls", sourceType = "drops" },
+                { itemId = 29261, name = "Girdle of Ferocity", icon = "INV_Belt_13", quality = "epic", slot = "Waist", stats = "+31 Str, +16 Agi, +36 Sta", source = "Heroic Shattered Halls", sourceType = "drops" },
             },
             crafted = {
                 { itemId = 23536, name = "Felsteel Gloves", icon = "INV_Gauntlets_29", quality = "rare", slot = "Hands", stats = "+26 Str, +25 Sta", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
-                { itemId = 23537, name = "Felsteel Leggings", icon = "INV_Pants_Plate_17", quality = "rare", slot = "Legs", stats = "+34 Str, +37 Sta", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
+                { itemId = 23518, name = "Felsteel Leggings", icon = "INV_Pants_Plate_17", quality = "rare", slot = "Legs", stats = "+34 Str, +37 Sta", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
                 { itemId = 28484, name = "Bulwark of Kings", icon = "INV_Shield_32", quality = "epic", slot = "Shield", stats = "+54 Sta, +24 Def, +22 Block", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
             },
         },
         -- Tab 3: Protection (Tank)
         [3] = {
             rep = {
-                { itemId = 29527, name = "Timewarden's Leggings", icon = "INV_Pants_Plate_17", quality = "epic", slot = "Legs", stats = "+55 Sta, +23 Def Rating, +22 Dodge", source = "Keepers of Time @ Exalted", sourceType = "rep", faction = "Keepers of Time", standing = 8,
+                { itemId = 29184, name = "Timewarden's Leggings", icon = "INV_Pants_Plate_17", quality = "epic", slot = "Legs", stats = "+55 Sta, +23 Def Rating, +22 Dodge", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7,
                     hoverData = {
                         repSources = {
                             "Old Hillsbrad Foothills (8 rep/kill)",
@@ -5179,7 +5151,7 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         },
                     },
                 },
-                { itemId = 29177, name = "Consortium Plated Legguards", icon = "INV_Pants_Plate_05", quality = "epic", slot = "Legs", stats = "+48 Sta, +27 Def", source = "The Consortium @ Revered", sourceType = "rep", faction = "The Consortium", standing = 7,
+                { itemId = 29456, name = "Consortium Plated Legguards", icon = "INV_Pants_Plate_05", quality = "epic", slot = "Legs", stats = "+48 Sta, +27 Def", source = "The Consortium @ Revered", sourceType = "rep", faction = "The Consortium", standing = 7,
                     hoverData = {
                         repSources = {
                             "Mana-Tombs (Normal: 5-10, Heroic: 15-25 rep/kill)",
@@ -5369,20 +5341,20 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                 },
             },
             drops = {
-                { itemId = 27828, name = "Warp Infused Drape", icon = "INV_Misc_Cape_12", quality = "rare", slot = "Back", stats = "+24 Int, +21 Spi, +44 Healing", source = "Botanica (Normal)", sourceType = "drops" },
+                { itemId = 28342, name = "Warp Infused Drape", icon = "INV_Misc_Cape_12", quality = "rare", slot = "Back", stats = "+24 Int, +21 Spi, +44 Healing", source = "Botanica (Normal)", sourceType = "drops" },
                 { itemId = 27775, name = "Hallowed Handwraps", icon = "INV_Gauntlets_17", quality = "rare", slot = "Hands", stats = "+26 Int, +17 Spi, +55 Healing", source = "Shattered Halls (Normal)", sourceType = "drops" },
-                { itemId = 28187, name = "Lamp of Peaceful Repose", icon = "INV_Offhand_1h_Draenei_C_01", quality = "epic", slot = "Off Hand", stats = "+22 Int, +15 Spi, +51 Healing", source = "Heroic Botanica", sourceType = "drops" },
+                { itemId = 28387, name = "Lamp of Peaceful Repose", icon = "INV_Offhand_1h_Draenei_C_01", quality = "epic", slot = "Off Hand", stats = "+22 Int, +15 Spi, +51 Healing", source = "Heroic Botanica", sourceType = "drops" },
             },
             crafted = {
                 { itemId = 21873, name = "Primal Mooncloth Robe", icon = "INV_Chest_Cloth_44", quality = "epic", slot = "Chest", stats = "+30 Sta, +24 Int, +92 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
                 { itemId = 21874, name = "Primal Mooncloth Shoulders", icon = "INV_Shoulder_25", quality = "epic", slot = "Shoulder", stats = "+21 Sta, +18 Int, +68 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
-                { itemId = 21875, name = "Primal Mooncloth Belt", icon = "INV_Belt_13", quality = "epic", slot = "Waist", stats = "+18 Sta, +17 Int, +55 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21873, name = "Primal Mooncloth Belt", icon = "INV_Belt_13", quality = "epic", slot = "Waist", stats = "+18 Sta, +17 Int, +55 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
             },
         },
         -- Tab 2: Protection (Tank)
         [2] = {
             rep = {
-                { itemId = 29527, name = "Timewarden's Leggings", icon = "INV_Pants_Plate_17", quality = "epic", slot = "Legs", stats = "+55 Sta, +23 Def Rating, +22 Dodge", source = "Keepers of Time @ Exalted", sourceType = "rep", faction = "Keepers of Time", standing = 8,
+                { itemId = 29184, name = "Timewarden's Leggings", icon = "INV_Pants_Plate_17", quality = "epic", slot = "Legs", stats = "+55 Sta, +23 Def Rating, +22 Dodge", source = "Keepers of Time @ Revered", sourceType = "rep", faction = "Keepers of Time", standing = 7,
                     hoverData = {
                         repSources = {
                             "Old Hillsbrad Foothills (10-25 rep/kill)",
@@ -5432,10 +5404,9 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                 },
                 { itemId = 29388, name = "Libram of Repentance", icon = "INV_Relics_LibramofHope", quality = "epic", slot = "Relic", stats = "Block Value +35", source = "G'eras (15 Badges)", sourceType = "badge",
                     hoverData = {
-                        repSources = {
-                            "Tempest Keep dungeons (Mech, Bot, Arc) - 10-25 rep/kill",
-                            "Aldor/Scryer turn-ins also grant Sha'tar rep",
-                            "TK dungeon quests give good rep bonus",
+                        dropInfo = {
+                            instance = "Badge of Justice Vendor",
+                            difficulty = "15 Badges",
                         },
                         statPriority = {
                             "+35 Block Value increases Shield of Righteousness damage",
@@ -5443,9 +5414,9 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                             "Best threat libram for tanking",
                         },
                         tips = {
-                            "Long grind - start TK dungeons early",
-                            "Botanica is fastest rep (many mobs)",
-                            "Buy from Almaador in Sha'tar base (Shattrath)",
+                            "Priority badge purchase for Prot Paladins",
+                            "Heroic dungeon bosses drop 1 badge each",
+                            "Buy from G'eras in Shattrath (Terrace of Light)",
                         },
                         alternatives = {
                             "Libram of Saints Departed (Auction House)",
@@ -5543,12 +5514,13 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         },
                     },
                 },
-                { itemId = 27484, name = "Libram of Avengement", icon = "INV_Relics_LibramofGrace", quality = "rare", slot = "Relic", stats = "+Crusader Strike dmg", source = "The Maker (Blood Furnace)", sourceType = "dungeon", faction = "The Scryers", standing = 7,
+                { itemId = 27484, name = "Libram of Avengement", icon = "INV_Relics_LibramofGrace", quality = "rare", slot = "Relic", stats = "+Crusader Strike dmg", source = "The Maker (Blood Furnace)", sourceType = "dungeon",
                     hoverData = {
-                        repSources = {
-                            "Turn in Firewing Signets (25 rep each, until Honored)",
-                            "Turn in Sunfury Signets (25 rep, Honored+)",
-                            "Turn in Arcane Tomes (350 rep each)",
+                        dropInfo = {
+                            bossName = "The Maker",
+                            instance = "Blood Furnace",
+                            difficulty = "Normal / Heroic",
+                            dropRate = "~15%",
                         },
                         statPriority = {
                             "BiS Retribution libram for Crusader Strike builds",
@@ -5556,9 +5528,9 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                             "Essential for Ret Paladin raid DPS",
                         },
                         tips = {
-                            "Scryer choice locks you out of Aldor rewards",
-                            "Farm Sunfury camps in Netherstorm",
-                            "Buy from Quartermaster Enuril (Scryer's Tier)",
+                            "Blood Furnace is a quick dungeon to farm",
+                            "The Maker is the first boss",
+                            "Run on Normal for easy farming",
                         },
                         alternatives = {
                             "Libram of Divine Purpose (Quest)",
@@ -5570,12 +5542,12 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
             },
             drops = {
                 { itemId = 28776, name = "Liar's Tongue Gloves", icon = "INV_Gauntlets_25", quality = "epic", slot = "Hands", stats = "+32 Agi, +32 Sta, +24 Hit", source = "Magtheridon's Lair", sourceType = "drops" },
-                { itemId = 27994, name = "Spaulders of Dementia", icon = "INV_Shoulder_25", quality = "rare", slot = "Shoulder", stats = "+28 Str, +28 Sta, +22 Crit", source = "Heroic Sethekk Halls", sourceType = "drops" },
-                { itemId = 27538, name = "Greaves of Desolation", icon = "INV_Pants_Plate_10", quality = "epic", slot = "Legs", stats = "+38 Str, +27 Agi, +37 Sta", source = "Heroic Black Morass", sourceType = "drops" },
+                { itemId = 32073, name = "Spaulders of Dementia", icon = "INV_Shoulder_25", quality = "rare", slot = "Shoulder", stats = "+28 Str, +28 Sta, +22 Crit", source = "Heroic Sethekk Halls", sourceType = "drops" },
+                { itemId = 27936, name = "Greaves of Desolation", icon = "INV_Pants_Plate_10", quality = "epic", slot = "Legs", stats = "+38 Str, +27 Agi, +37 Sta", source = "Heroic Black Morass", sourceType = "drops" },
             },
             crafted = {
                 { itemId = 23536, name = "Felsteel Gloves", icon = "INV_Gauntlets_29", quality = "rare", slot = "Hands", stats = "+26 Str, +25 Sta", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
-                { itemId = 23537, name = "Felsteel Leggings", icon = "INV_Pants_Plate_17", quality = "rare", slot = "Legs", stats = "+34 Str, +37 Sta", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
+                { itemId = 23518, name = "Felsteel Leggings", icon = "INV_Pants_Plate_17", quality = "rare", slot = "Legs", stats = "+34 Str, +37 Sta", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
                 { itemId = 23538, name = "Felsteel Helm", icon = "INV_Helmet_24", quality = "rare", slot = "Head", stats = "+31 Str, +37 Sta", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
             },
         },
@@ -5613,14 +5585,14 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                 },
             },
             drops = {
-                { itemId = 27828, name = "Warp Infused Drape", icon = "INV_Misc_Cape_12", quality = "rare", slot = "Back", stats = "+24 Int, +21 Spi, +44 Healing", source = "Botanica (Normal)", sourceType = "drops" },
+                { itemId = 28342, name = "Warp Infused Drape", icon = "INV_Misc_Cape_12", quality = "rare", slot = "Back", stats = "+24 Int, +21 Spi, +44 Healing", source = "Botanica (Normal)", sourceType = "drops" },
                 { itemId = 27775, name = "Hallowed Handwraps", icon = "INV_Gauntlets_17", quality = "rare", slot = "Hands", stats = "+26 Int, +17 Spi, +55 Healing", source = "Shattered Halls (Normal)", sourceType = "drops" },
                 { itemId = 27456, name = "Cord of Belief", icon = "INV_Belt_13", quality = "rare", slot = "Waist", stats = "+22 Int, +20 Spi, +51 Healing", source = "Arcatraz (Normal)", sourceType = "drops" },
             },
             crafted = {
                 { itemId = 21873, name = "Primal Mooncloth Robe", icon = "INV_Chest_Cloth_44", quality = "epic", slot = "Chest", stats = "+30 Sta, +24 Int, +92 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
                 { itemId = 21874, name = "Primal Mooncloth Shoulders", icon = "INV_Shoulder_25", quality = "epic", slot = "Shoulder", stats = "+21 Sta, +18 Int, +68 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
-                { itemId = 21875, name = "Primal Mooncloth Belt", icon = "INV_Belt_13", quality = "epic", slot = "Waist", stats = "+18 Sta, +17 Int, +55 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21873, name = "Primal Mooncloth Belt", icon = "INV_Belt_13", quality = "epic", slot = "Waist", stats = "+18 Sta, +17 Int, +55 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
             },
         },
         -- Tab 2: Holy (Healer)
@@ -5652,14 +5624,14 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                 },
             },
             drops = {
-                { itemId = 27828, name = "Warp Infused Drape", icon = "INV_Misc_Cape_12", quality = "rare", slot = "Back", stats = "+24 Int, +21 Spi, +44 Healing", source = "Botanica (Normal)", sourceType = "drops" },
+                { itemId = 28342, name = "Warp Infused Drape", icon = "INV_Misc_Cape_12", quality = "rare", slot = "Back", stats = "+24 Int, +21 Spi, +44 Healing", source = "Botanica (Normal)", sourceType = "drops" },
                 { itemId = 27775, name = "Hallowed Handwraps", icon = "INV_Gauntlets_17", quality = "rare", slot = "Hands", stats = "+26 Int, +17 Spi, +55 Healing", source = "Shattered Halls (Normal)", sourceType = "drops" },
-                { itemId = 28187, name = "Lamp of Peaceful Repose", icon = "INV_Offhand_1h_Draenei_C_01", quality = "epic", slot = "Off Hand", stats = "+22 Int, +15 Spi, +51 Healing", source = "Heroic Botanica", sourceType = "drops" },
+                { itemId = 28387, name = "Lamp of Peaceful Repose", icon = "INV_Offhand_1h_Draenei_C_01", quality = "epic", slot = "Off Hand", stats = "+22 Int, +15 Spi, +51 Healing", source = "Heroic Botanica", sourceType = "drops" },
             },
             crafted = {
                 { itemId = 21873, name = "Primal Mooncloth Robe", icon = "INV_Chest_Cloth_44", quality = "epic", slot = "Chest", stats = "+30 Sta, +24 Int, +92 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
                 { itemId = 21874, name = "Primal Mooncloth Shoulders", icon = "INV_Shoulder_25", quality = "epic", slot = "Shoulder", stats = "+21 Sta, +18 Int, +68 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
-                { itemId = 21875, name = "Primal Mooncloth Belt", icon = "INV_Belt_13", quality = "epic", slot = "Waist", stats = "+18 Sta, +17 Int, +55 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21873, name = "Primal Mooncloth Belt", icon = "INV_Belt_13", quality = "epic", slot = "Waist", stats = "+18 Sta, +17 Int, +55 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
             },
         },
         -- Tab 3: Shadow (Caster DPS)
@@ -5684,7 +5656,7 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
             },
             drops = {
                 { itemId = 28230, name = "Hallowed Garments", icon = "INV_Chest_Cloth_52", quality = "epic", slot = "Chest", stats = "+30 Sta, +28 Int, +37 SP", source = "Heroic Slave Pens", sourceType = "drops" },
-                { itemId = 27796, name = "Mana-Etched Pantaloons", icon = "INV_Pants_Cloth_17", quality = "rare", slot = "Legs", stats = "+24 Sta, +25 Int, +29 SP, +18 Hit", source = "Arcatraz (Normal)", sourceType = "drops" },
+                { itemId = 27907, name = "Mana-Etched Pantaloons", icon = "INV_Pants_Cloth_17", quality = "rare", slot = "Legs", stats = "+24 Sta, +25 Int, +29 SP, +18 Hit", source = "Arcatraz (Normal)", sourceType = "drops" },
                 { itemId = 28229, name = "Incanter's Trousers", icon = "INV_Pants_Cloth_14", quality = "rare", slot = "Legs", stats = "+27 Sta, +28 Int, +35 SP", source = "Botanica", sourceType = "drops" },
             },
             crafted = {
@@ -5709,18 +5681,22 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         alternatives = { "Ashyen's Gift (Cenarion Exalted)", "Ring of Cryptic Dreams (H Mana-Tombs)" },
                     },
                 },
-                { itemId = 32387, name = "Idol of the Raven Goddess", icon = "INV_Relics_IdolofRejuvenation", quality = "epic", slot = "Relic", stats = "+Moonfire/Wrath dmg", source = "Quest: Vanquish the Raven God", sourceType = "quest", faction = "Cenarion Expedition", standing = 8,
+                { itemId = 32387, name = "Idol of the Raven Goddess", icon = "INV_Relics_IdolofRejuvenation", quality = "epic", slot = "Relic", stats = "+Moonfire/Wrath dmg", source = "Quest: Vanquish the Raven God", sourceType = "quest",
                     hoverData = {
-                        repSources = { "Coilfang dungeons (10-25 rep/kill)", "Turn in Unidentified Plant Parts (250 rep/10)" },
+                        dropInfo = {
+                            bossName = "Quest: Vanquish the Raven God",
+                            instance = "Sethekk Halls chain",
+                            difficulty = "Heroic Sethekk Halls (final step)",
+                        },
                         statPriority = { "BiS Balance idol for Moonfire/Wrath", "Essential for raiding Balance Druid" },
-                        tips = { "Long grind - start CE dungeons early", "Buy from Fedryen Swiftspear in Cenarion Refuge" },
+                        tips = { "Complete Sethekk Halls quest chain first", "Final quest requires Heroic Sethekk Halls" },
                         alternatives = { "Ivory Idol of the Moongoddess (N Slave Pens)", "Idol of the Moon (Quest)" },
                     },
                 },
             },
             drops = {
                 { itemId = 28230, name = "Hallowed Garments", icon = "INV_Chest_Cloth_52", quality = "epic", slot = "Chest", stats = "+30 Sta, +28 Int, +37 SP", source = "Heroic Slave Pens", sourceType = "drops" },
-                { itemId = 27796, name = "Mana-Etched Pantaloons", icon = "INV_Pants_Cloth_17", quality = "rare", slot = "Legs", stats = "+24 Sta, +25 Int, +29 SP, +18 Hit", source = "Arcatraz (Normal)", sourceType = "drops" },
+                { itemId = 27907, name = "Mana-Etched Pantaloons", icon = "INV_Pants_Cloth_17", quality = "rare", slot = "Legs", stats = "+24 Sta, +25 Int, +29 SP, +18 Hit", source = "Arcatraz (Normal)", sourceType = "drops" },
                 { itemId = 27518, name = "Ivory Idol of the Moongoddess", icon = "INV_Relics_IdolofRejuvenation", quality = "rare", slot = "Relic", stats = "+Starfire bonus", source = "Slave Pens (Normal)", sourceType = "drops" },
             },
             crafted = {
@@ -5740,11 +5716,16 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         alternatives = { "Braxxis' Staff of Slumber (H Underbog)", "Terestian's Stranglestaff (Kara)" },
                     },
                 },
-                { itemId = 27744, name = "Idol of Ursoc", icon = "INV_Relics_IdolofFerocity", quality = "rare", slot = "Relic", stats = "+Maul damage +54", source = "Hungarfen (Heroic Underbog)", sourceType = "heroic", faction = "Cenarion Expedition", standing = 7,
+                { itemId = 27744, name = "Idol of Ursoc", icon = "INV_Relics_IdolofFerocity", quality = "rare", slot = "Relic", stats = "+Maul damage +54", source = "Hungarfen (Heroic Underbog)", sourceType = "heroic",
                     hoverData = {
-                        repSources = { "Coilfang dungeons (10-25 rep/kill)", "Turn in Plant Parts (250 rep/10, until Honored)" },
+                        dropInfo = {
+                            bossName = "Hungarfen",
+                            instance = "Underbog",
+                            difficulty = "Heroic",
+                            dropRate = "~18%",
+                        },
                         statPriority = { "BiS Feral tank idol for threat", "+54 Maul damage massive for TPS" },
-                        tips = { "Only need Revered - same faction as Earthwarden", "Buy from Fedryen Swiftspear in Cenarion Refuge" },
+                        tips = { "Hungarfen is the first boss in Underbog", "Quick Heroic run for idol farming" },
                         alternatives = { "Idol of the Wild (Quest)", "Everbloom Idol (H Underbog)" },
                     },
                 },
@@ -5790,10 +5771,11 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                 -- Non-rep item: Best pre-raid Resto Druid Idol (dungeon drop)
                 { itemId = 27886, name = "Idol of the Emerald Queen", icon = "INV_Relics_IdolofRejuvenation", quality = "rare", slot = "Relic", stats = "+88 Lifebloom periodic heal", source = "Ambassador Hellmaw (Shadow Lab)", sourceType = "dungeon",
                     hoverData = {
-                        repSources = {
-                            "Drops from Ambassador Hellmaw in Shadow Labyrinth",
-                            "Normal mode - no Heroic key needed",
-                            "~15-20% drop rate",
+                        dropInfo = {
+                            bossName = "Ambassador Hellmaw",
+                            instance = "Shadow Labyrinth",
+                            difficulty = "Normal / Heroic",
+                            dropRate = "~15-20%",
                         },
                         statPriority = {
                             "BiS pre-raid Idol for Resto Druids",
@@ -5813,14 +5795,14 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                 },
             },
             drops = {
-                { itemId = 27828, name = "Warp Infused Drape", icon = "INV_Misc_Cape_12", quality = "rare", slot = "Back", stats = "+24 Int, +21 Spi, +44 Healing", source = "Botanica (Normal)", sourceType = "drops" },
+                { itemId = 28342, name = "Warp Infused Drape", icon = "INV_Misc_Cape_12", quality = "rare", slot = "Back", stats = "+24 Int, +21 Spi, +44 Healing", source = "Botanica (Normal)", sourceType = "drops" },
                 { itemId = 27775, name = "Hallowed Handwraps", icon = "INV_Gauntlets_17", quality = "rare", slot = "Hands", stats = "+26 Int, +17 Spi, +55 Healing", source = "Shattered Halls (Normal)", sourceType = "drops" },
-                { itemId = 28187, name = "Lamp of Peaceful Repose", icon = "INV_Offhand_1h_Draenei_C_01", quality = "epic", slot = "Off Hand", stats = "+22 Int, +15 Spi, +51 Healing", source = "Heroic Botanica", sourceType = "drops" },
+                { itemId = 28387, name = "Lamp of Peaceful Repose", icon = "INV_Offhand_1h_Draenei_C_01", quality = "epic", slot = "Off Hand", stats = "+22 Int, +15 Spi, +51 Healing", source = "Heroic Botanica", sourceType = "drops" },
             },
             crafted = {
                 { itemId = 21873, name = "Primal Mooncloth Robe", icon = "INV_Chest_Cloth_44", quality = "epic", slot = "Chest", stats = "+30 Sta, +24 Int, +92 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
                 { itemId = 21874, name = "Primal Mooncloth Shoulders", icon = "INV_Shoulder_25", quality = "epic", slot = "Shoulder", stats = "+21 Sta, +18 Int, +68 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
-                { itemId = 21875, name = "Primal Mooncloth Belt", icon = "INV_Belt_13", quality = "epic", slot = "Waist", stats = "+18 Sta, +17 Int, +55 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21873, name = "Primal Mooncloth Belt", icon = "INV_Belt_13", quality = "epic", slot = "Waist", stats = "+18 Sta, +17 Int, +55 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
             },
         },
         -- Tab 4: Feral (Cat DPS)
@@ -5853,13 +5835,13 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
             },
             drops = {
                 { itemId = 28034, name = "Hourglass of the Unraveller", icon = "INV_Misc_PocketWatch_01", quality = "rare", slot = "Trinket", stats = "+32 Hit, Haste proc", source = "Black Morass (Normal)", sourceType = "drops" },
-                { itemId = 27890, name = "Girdle of Ferocity", icon = "INV_Belt_13", quality = "epic", slot = "Waist", stats = "+31 Str, +16 Agi, +36 Sta", source = "Heroic Shattered Halls", sourceType = "drops" },
-                { itemId = 27994, name = "Spaulders of Dementia", icon = "INV_Shoulder_25", quality = "rare", slot = "Shoulder", stats = "+28 Str, +28 Sta, +22 Crit", source = "Heroic Sethekk Halls", sourceType = "drops" },
+                { itemId = 29261, name = "Girdle of Ferocity", icon = "INV_Belt_13", quality = "epic", slot = "Waist", stats = "+31 Str, +16 Agi, +36 Sta", source = "Heroic Shattered Halls", sourceType = "drops" },
+                { itemId = 32073, name = "Spaulders of Dementia", icon = "INV_Shoulder_25", quality = "rare", slot = "Shoulder", stats = "+28 Str, +28 Sta, +22 Crit", source = "Heroic Sethekk Halls", sourceType = "drops" },
             },
             crafted = {
                 { itemId = 25695, name = "Fel Leather Gloves", icon = "INV_Gauntlets_25", quality = "rare", slot = "Hands", stats = "+27 Agi, +26 Sta, +15 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
-                { itemId = 25696, name = "Fel Leather Leggings", icon = "INV_Pants_Leather_09", quality = "rare", slot = "Legs", stats = "+30 Agi, +29 Sta, +17 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
-                { itemId = 25697, name = "Fel Leather Boots", icon = "INV_Boots_Chain_08", quality = "rare", slot = "Feet", stats = "+24 Agi, +23 Sta, +14 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+                { itemId = 25687, name = "Fel Leather Leggings", icon = "INV_Pants_Leather_09", quality = "rare", slot = "Legs", stats = "+30 Agi, +29 Sta, +17 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+                { itemId = 25686, name = "Fel Leather Boots", icon = "INV_Boots_Chain_08", quality = "rare", slot = "Feet", stats = "+24 Agi, +23 Sta, +14 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
             },
         },
     },
@@ -5888,17 +5870,21 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                 },
                 { itemId = 28248, name = "Totem of the Void", icon = "Spell_Nature_Groundingtotem", quality = "rare", slot = "Relic", stats = "+55 Lightning Bolt dmg", source = "Cache of the Legion (Mechanar)", sourceType = "dungeon",
                     hoverData = {
-                        repSources = { "Auchenai Crypts / Sethekk Halls / Shadow Lab (10-25 rep/kill)", "Lower City quests in Terokkar (~6k rep)", "Underbog turn-ins (Arakkoa Feathers - 250 rep per 30)" },
+                        dropInfo = {
+                            bossName = "Cache of the Legion",
+                            instance = "Mechanar",
+                            difficulty = "Normal / Heroic",
+                        },
                         statPriority = { "BiS pre-raid totem for Lightning Bolt builds", "+55 damage per Lightning Bolt is massive DPS boost", "Core piece for Elemental DPS rotation" },
-                        tips = { "Get this at Revered - much faster than Exalted ring", "Stack with spell power gear for huge LB damage", "Buy from Nakodu in Shattrath Lower City" },
+                        tips = { "Mechanar is a quick dungeon to farm", "Cache is a chest, not a boss kill", "Run on Normal for easy farming" },
                         alternatives = { "Totem of Impact (Quest)", "Totem of the Storm (The Sha'tar)", "Totem of Lightning (Cenarion Expedition)" },
                     },
                 },
             },
             drops = {
                 { itemId = 28230, name = "Hallowed Garments", icon = "INV_Chest_Cloth_52", quality = "epic", slot = "Chest", stats = "+30 Sta, +28 Int, +37 SP", source = "Heroic Slave Pens", sourceType = "drops" },
-                { itemId = 27796, name = "Mana-Etched Pantaloons", icon = "INV_Pants_Cloth_17", quality = "rare", slot = "Legs", stats = "+24 Sta, +25 Int, +29 SP, +18 Hit", source = "Arcatraz (Normal)", sourceType = "drops" },
-                { itemId = 27905, name = "Greaves of the Iron Guardian", icon = "INV_Boots_Plate_01", quality = "rare", slot = "Legs", stats = "+21 Sta, +21 Int, +28 SP", source = "Mechanar (Normal)", sourceType = "drops" },
+                { itemId = 27907, name = "Mana-Etched Pantaloons", icon = "INV_Pants_Cloth_17", quality = "rare", slot = "Legs", stats = "+24 Sta, +25 Int, +29 SP, +18 Hit", source = "Arcatraz (Normal)", sourceType = "drops" },
+                { itemId = 24456, name = "Greaves of the Iron Guardian", icon = "INV_Boots_Plate_01", quality = "rare", slot = "Legs", stats = "+21 Sta, +21 Int, +28 SP", source = "Mechanar (Normal)", sourceType = "drops" },
             },
             crafted = {
                 { itemId = 21848, name = "Spellfire Robe", icon = "INV_Chest_Cloth_39", quality = "epic", slot = "Chest", stats = "+23 Sta, +20 Int, +75 Fire/Arcane SP", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
@@ -5925,23 +5911,28 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         alternatives = { "Hourglass of the Unraveller (H Black Morass)", "Abacus of Violent Odds (H Mechanar)", "Icon of Unyielding Courage (Quest)" },
                     },
                 },
-                { itemId = 27815, name = "Totem of the Astral Winds", icon = "Spell_Nature_Windfury", quality = "rare", slot = "Relic", stats = "+80 Stormstrike AP", source = "Pandemonius (Mana-Tombs)", sourceType = "dungeon", faction = "The Sha'tar", standing = 7,
+                { itemId = 27815, name = "Totem of the Astral Winds", icon = "Spell_Nature_Windfury", quality = "rare", slot = "Relic", stats = "+80 Stormstrike AP", source = "Pandemonius (Mana-Tombs)", sourceType = "dungeon",
                     hoverData = {
-                        repSources = { "Botanica / Mechanar / Arcatraz (10-25 rep/kill)", "Sha'tar quests in Shattrath and Netherstorm (~4k rep)", "Aldor/Scryer spillover (50% of their rep gains)" },
+                        dropInfo = {
+                            bossName = "Pandemonius",
+                            instance = "Mana-Tombs",
+                            difficulty = "Normal / Heroic",
+                            dropRate = "~18%",
+                        },
                         statPriority = { "BiS pre-raid totem for Enhancement Shaman", "+80 AP on Stormstrike is huge (~5% DPS increase)", "Core piece for melee enhancement rotation" },
-                        tips = { "Get this at Revered - very quick grind", "Stormstrike should be used on cooldown", "Buy from Almaador in Shattrath Terrace of Light" },
+                        tips = { "Pandemonius is the first boss in Mana-Tombs", "Quick dungeon to farm on Normal", "Stormstrike should be used on cooldown" },
                         alternatives = { "Totem of Impact (Quest)", "Totem of the Storm (Lower City)", "Totem of Lightning (Cenarion Expedition)" },
                     },
                 },
             },
             drops = {
                 { itemId = 27846, name = "Claw of the Watcher", icon = "INV_Weapon_Hand_14", quality = "rare", slot = "Fist Weapon", stats = "+23 Agi, +15 Sta, +12 Hit", source = "Arcatraz (Normal)", sourceType = "drops" },
-                { itemId = 27994, name = "Spaulders of Dementia", icon = "INV_Shoulder_25", quality = "rare", slot = "Shoulder", stats = "+28 Str, +28 Sta, +22 Crit", source = "Heroic Sethekk Halls", sourceType = "drops" },
+                { itemId = 32073, name = "Spaulders of Dementia", icon = "INV_Shoulder_25", quality = "rare", slot = "Shoulder", stats = "+28 Str, +28 Sta, +22 Crit", source = "Heroic Sethekk Halls", sourceType = "drops" },
                 { itemId = 28401, name = "Hauberk of Desolation", icon = "INV_Chest_Chain_15", quality = "epic", slot = "Chest", stats = "+38 Str, +48 Sta, +26 Crit", source = "Heroic Blood Furnace", sourceType = "drops" },
             },
             crafted = {
                 { itemId = 25686, name = "Fel Iron Chain Coif", icon = "INV_Helmet_44", quality = "uncommon", slot = "Head", stats = "+24 Sta, +16 Int, +26 AP", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
-                { itemId = 25687, name = "Fel Iron Chain Gloves", icon = "INV_Gauntlets_26", quality = "uncommon", slot = "Hands", stats = "+18 Sta, +12 Int, +20 AP", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
+                { itemId = 23491, name = "Fel Iron Chain Gloves", icon = "INV_Gauntlets_26", quality = "uncommon", slot = "Hands", stats = "+18 Sta, +12 Int, +20 AP", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
                 { itemId = 25688, name = "Fel Iron Chain Bracers", icon = "INV_Bracer_07", quality = "uncommon", slot = "Wrist", stats = "+15 Sta, +10 Int, +16 AP", source = "Blacksmithing", sourceType = "crafted", profession = "Blacksmithing" },
             },
         },
@@ -5967,10 +5958,11 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                 -- Non-rep item: Best pre-raid totem for Resto Shaman (dungeon drop)
                 { itemId = 27544, name = "Totem of Spontaneous Regrowth", icon = "INV_Relics_Totem03", quality = "rare", slot = "Relic", stats = "+88 Healing Wave heal", source = "Mennu the Betrayer (Slave Pens)", sourceType = "dungeon",
                     hoverData = {
-                        repSources = {
-                            "Drops from Mennu the Betrayer in Slave Pens",
-                            "Available in Normal and Heroic modes",
-                            "~15-20% drop rate",
+                        dropInfo = {
+                            bossName = "Mennu the Betrayer",
+                            instance = "Slave Pens",
+                            difficulty = "Normal / Heroic",
+                            dropRate = "~15-20%",
                         },
                         statPriority = {
                             "BiS pre-raid totem for Resto Shaman",
@@ -5991,14 +5983,14 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                 },
             },
             drops = {
-                { itemId = 27828, name = "Warp Infused Drape", icon = "INV_Misc_Cape_12", quality = "rare", slot = "Back", stats = "+24 Int, +21 Spi, +44 Healing", source = "Botanica (Normal)", sourceType = "drops" },
+                { itemId = 28342, name = "Warp Infused Drape", icon = "INV_Misc_Cape_12", quality = "rare", slot = "Back", stats = "+24 Int, +21 Spi, +44 Healing", source = "Botanica (Normal)", sourceType = "drops" },
                 { itemId = 27775, name = "Hallowed Handwraps", icon = "INV_Gauntlets_17", quality = "rare", slot = "Hands", stats = "+26 Int, +17 Spi, +55 Healing", source = "Shattered Halls (Normal)", sourceType = "drops" },
-                { itemId = 28187, name = "Lamp of Peaceful Repose", icon = "INV_Offhand_1h_Draenei_C_01", quality = "epic", slot = "Off Hand", stats = "+22 Int, +15 Spi, +51 Healing", source = "Heroic Botanica", sourceType = "drops" },
+                { itemId = 28387, name = "Lamp of Peaceful Repose", icon = "INV_Offhand_1h_Draenei_C_01", quality = "epic", slot = "Off Hand", stats = "+22 Int, +15 Spi, +51 Healing", source = "Heroic Botanica", sourceType = "drops" },
             },
             crafted = {
                 { itemId = 21873, name = "Primal Mooncloth Robe", icon = "INV_Chest_Cloth_44", quality = "epic", slot = "Chest", stats = "+30 Sta, +24 Int, +92 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
                 { itemId = 21874, name = "Primal Mooncloth Shoulders", icon = "INV_Shoulder_25", quality = "epic", slot = "Shoulder", stats = "+21 Sta, +18 Int, +68 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
-                { itemId = 21875, name = "Primal Mooncloth Belt", icon = "INV_Belt_13", quality = "epic", slot = "Waist", stats = "+18 Sta, +17 Int, +55 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
+                { itemId = 21873, name = "Primal Mooncloth Belt", icon = "INV_Belt_13", quality = "epic", slot = "Waist", stats = "+18 Sta, +17 Int, +55 Healing", source = "Tailoring", sourceType = "crafted", profession = "Tailoring" },
             },
         },
     },
@@ -6036,7 +6028,7 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
             },
             drops = {
                 { itemId = 28230, name = "Hallowed Garments", icon = "INV_Chest_Cloth_52", quality = "epic", slot = "Chest", stats = "+30 Sta, +28 Int, +37 SP", source = "Heroic Slave Pens", sourceType = "drops" },
-                { itemId = 27796, name = "Mana-Etched Pantaloons", icon = "INV_Pants_Cloth_17", quality = "rare", slot = "Legs", stats = "+24 Sta, +25 Int, +29 SP, +18 Hit", source = "Arcatraz (Normal)", sourceType = "drops" },
+                { itemId = 27907, name = "Mana-Etched Pantaloons", icon = "INV_Pants_Cloth_17", quality = "rare", slot = "Legs", stats = "+24 Sta, +25 Int, +29 SP, +18 Hit", source = "Arcatraz (Normal)", sourceType = "drops" },
                 { itemId = 28180, name = "Incanter's Robe", icon = "INV_Chest_Cloth_04", quality = "rare", slot = "Chest", stats = "+24 Sta, +24 Int, +30 SP", source = "Botanica (Normal)", sourceType = "drops" },
             },
             crafted = {
@@ -6075,7 +6067,7 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
             },
             drops = {
                 { itemId = 28230, name = "Hallowed Garments", icon = "INV_Chest_Cloth_52", quality = "epic", slot = "Chest", stats = "+30 Sta, +28 Int, +37 SP", source = "Heroic Slave Pens", sourceType = "drops" },
-                { itemId = 27796, name = "Mana-Etched Pantaloons", icon = "INV_Pants_Cloth_17", quality = "rare", slot = "Legs", stats = "+24 Sta, +25 Int, +29 SP, +18 Hit", source = "Arcatraz (Normal)", sourceType = "drops" },
+                { itemId = 27907, name = "Mana-Etched Pantaloons", icon = "INV_Pants_Cloth_17", quality = "rare", slot = "Legs", stats = "+24 Sta, +25 Int, +29 SP, +18 Hit", source = "Arcatraz (Normal)", sourceType = "drops" },
                 { itemId = 28188, name = "Stitch Soul Cloak", icon = "INV_Misc_Cape_17", quality = "epic", slot = "Back", stats = "+22 Sta, +18 Int, +32 SP", source = "Heroic Old Hillsbrad", sourceType = "drops" },
             },
             crafted = {
@@ -6114,7 +6106,7 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
             },
             drops = {
                 { itemId = 28230, name = "Hallowed Garments", icon = "INV_Chest_Cloth_52", quality = "epic", slot = "Chest", stats = "+30 Sta, +28 Int, +37 SP", source = "Heroic Slave Pens", sourceType = "drops" },
-                { itemId = 27796, name = "Mana-Etched Pantaloons", icon = "INV_Pants_Cloth_17", quality = "rare", slot = "Legs", stats = "+24 Sta, +25 Int, +29 SP, +18 Hit", source = "Arcatraz (Normal)", sourceType = "drops" },
+                { itemId = 27907, name = "Mana-Etched Pantaloons", icon = "INV_Pants_Cloth_17", quality = "rare", slot = "Legs", stats = "+24 Sta, +25 Int, +29 SP, +18 Hit", source = "Arcatraz (Normal)", sourceType = "drops" },
                 { itemId = 27891, name = "Stillwater Boots", icon = "INV_Boots_Cloth_07", quality = "rare", slot = "Feet", stats = "+27 Sta, +26 Int, +28 SP", source = "Steamvault", sourceType = "drops" },
             },
             crafted = {
@@ -6158,7 +6150,7 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
             },
             drops = {
                 { itemId = 28230, name = "Hallowed Garments", icon = "INV_Chest_Cloth_52", quality = "epic", slot = "Chest", stats = "+30 Sta, +28 Int, +37 SP", source = "Heroic Slave Pens", sourceType = "drops" },
-                { itemId = 27796, name = "Mana-Etched Pantaloons", icon = "INV_Pants_Cloth_17", quality = "rare", slot = "Legs", stats = "+24 Sta, +25 Int, +29 SP, +18 Hit", source = "Arcatraz (Normal)", sourceType = "drops" },
+                { itemId = 27907, name = "Mana-Etched Pantaloons", icon = "INV_Pants_Cloth_17", quality = "rare", slot = "Legs", stats = "+24 Sta, +25 Int, +29 SP, +18 Hit", source = "Arcatraz (Normal)", sourceType = "drops" },
                 { itemId = 27891, name = "Stillwater Boots", icon = "INV_Boots_Cloth_07", quality = "rare", slot = "Feet", stats = "+27 Sta, +26 Int, +28 SP", source = "Steamvault", sourceType = "drops" },
             },
             crafted = {
@@ -6197,7 +6189,7 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
             },
             drops = {
                 { itemId = 28230, name = "Hallowed Garments", icon = "INV_Chest_Cloth_52", quality = "epic", slot = "Chest", stats = "+30 Sta, +28 Int, +37 SP", source = "Heroic Slave Pens", sourceType = "drops" },
-                { itemId = 27796, name = "Mana-Etched Pantaloons", icon = "INV_Pants_Cloth_17", quality = "rare", slot = "Legs", stats = "+24 Sta, +25 Int, +29 SP, +18 Hit", source = "Arcatraz (Normal)", sourceType = "drops" },
+                { itemId = 27907, name = "Mana-Etched Pantaloons", icon = "INV_Pants_Cloth_17", quality = "rare", slot = "Legs", stats = "+24 Sta, +25 Int, +29 SP, +18 Hit", source = "Arcatraz (Normal)", sourceType = "drops" },
                 { itemId = 28180, name = "Incanter's Robe", icon = "INV_Chest_Cloth_04", quality = "rare", slot = "Chest", stats = "+24 Sta, +24 Int, +30 SP", source = "Botanica (Normal)", sourceType = "drops" },
             },
             crafted = {
@@ -6236,7 +6228,7 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
             },
             drops = {
                 { itemId = 28230, name = "Hallowed Garments", icon = "INV_Chest_Cloth_52", quality = "epic", slot = "Chest", stats = "+30 Sta, +28 Int, +37 SP", source = "Heroic Slave Pens", sourceType = "drops" },
-                { itemId = 27796, name = "Mana-Etched Pantaloons", icon = "INV_Pants_Cloth_17", quality = "rare", slot = "Legs", stats = "+24 Sta, +25 Int, +29 SP, +18 Hit", source = "Arcatraz (Normal)", sourceType = "drops" },
+                { itemId = 27907, name = "Mana-Etched Pantaloons", icon = "INV_Pants_Cloth_17", quality = "rare", slot = "Legs", stats = "+24 Sta, +25 Int, +29 SP, +18 Hit", source = "Arcatraz (Normal)", sourceType = "drops" },
                 { itemId = 28188, name = "Stitch Soul Cloak", icon = "INV_Misc_Cape_17", quality = "epic", slot = "Back", stats = "+22 Sta, +18 Int, +32 SP", source = "Heroic Old Hillsbrad", sourceType = "drops" },
             },
             crafted = {
@@ -6294,8 +6286,8 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
             },
             crafted = {
                 { itemId = 25695, name = "Fel Leather Gloves", icon = "INV_Gauntlets_25", quality = "rare", slot = "Hands", stats = "+27 Agi, +26 Sta, +15 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
-                { itemId = 25696, name = "Fel Leather Leggings", icon = "INV_Pants_Leather_09", quality = "rare", slot = "Legs", stats = "+30 Agi, +29 Sta, +17 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
-                { itemId = 25697, name = "Fel Leather Boots", icon = "INV_Boots_Chain_08", quality = "rare", slot = "Feet", stats = "+24 Agi, +23 Sta, +14 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+                { itemId = 25687, name = "Fel Leather Leggings", icon = "INV_Pants_Leather_09", quality = "rare", slot = "Legs", stats = "+30 Agi, +29 Sta, +17 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+                { itemId = 25686, name = "Fel Leather Boots", icon = "INV_Boots_Chain_08", quality = "rare", slot = "Feet", stats = "+24 Agi, +23 Sta, +14 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
             },
         },
         -- Tab 2: Marksmanship (Ranged DPS)
@@ -6339,12 +6331,12 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
             drops = {
                 { itemId = 28034, name = "Hourglass of the Unraveller", icon = "INV_Misc_PocketWatch_01", quality = "rare", slot = "Trinket", stats = "+32 Hit, Haste proc", source = "Black Morass (Normal)", sourceType = "drops" },
                 { itemId = 28275, name = "Beast Lord Cuirass", icon = "INV_Chest_Chain_12", quality = "rare", slot = "Chest", stats = "+32 Agi, +32 Sta, +25 Int", source = "Mana-Tombs (Normal)", sourceType = "drops" },
-                { itemId = 27994, name = "Spaulders of Dementia", icon = "INV_Shoulder_25", quality = "rare", slot = "Shoulder", stats = "+28 Str, +28 Sta, +22 Crit", source = "Heroic Sethekk Halls", sourceType = "drops" },
+                { itemId = 32073, name = "Spaulders of Dementia", icon = "INV_Shoulder_25", quality = "rare", slot = "Shoulder", stats = "+28 Str, +28 Sta, +22 Crit", source = "Heroic Sethekk Halls", sourceType = "drops" },
             },
             crafted = {
                 { itemId = 25695, name = "Fel Leather Gloves", icon = "INV_Gauntlets_25", quality = "rare", slot = "Hands", stats = "+27 Agi, +26 Sta, +15 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
-                { itemId = 25696, name = "Fel Leather Leggings", icon = "INV_Pants_Leather_09", quality = "rare", slot = "Legs", stats = "+30 Agi, +29 Sta, +17 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
-                { itemId = 25697, name = "Fel Leather Boots", icon = "INV_Boots_Chain_08", quality = "rare", slot = "Feet", stats = "+24 Agi, +23 Sta, +14 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+                { itemId = 25687, name = "Fel Leather Leggings", icon = "INV_Pants_Leather_09", quality = "rare", slot = "Legs", stats = "+30 Agi, +29 Sta, +17 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+                { itemId = 25686, name = "Fel Leather Boots", icon = "INV_Boots_Chain_08", quality = "rare", slot = "Feet", stats = "+24 Agi, +23 Sta, +14 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
             },
         },
         -- Tab 3: Survival (Ranged DPS)
@@ -6391,8 +6383,8 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
             },
             crafted = {
                 { itemId = 25695, name = "Fel Leather Gloves", icon = "INV_Gauntlets_25", quality = "rare", slot = "Hands", stats = "+27 Agi, +26 Sta, +15 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
-                { itemId = 25696, name = "Fel Leather Leggings", icon = "INV_Pants_Leather_09", quality = "rare", slot = "Legs", stats = "+30 Agi, +29 Sta, +17 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
-                { itemId = 25697, name = "Fel Leather Boots", icon = "INV_Boots_Chain_08", quality = "rare", slot = "Feet", stats = "+24 Agi, +23 Sta, +14 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+                { itemId = 25687, name = "Fel Leather Leggings", icon = "INV_Pants_Leather_09", quality = "rare", slot = "Legs", stats = "+30 Agi, +29 Sta, +17 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+                { itemId = 25686, name = "Fel Leather Boots", icon = "INV_Boots_Chain_08", quality = "rare", slot = "Feet", stats = "+24 Agi, +23 Sta, +14 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
             },
         },
     },
@@ -6411,10 +6403,10 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         alternatives = { "Natasha's Ember Necklace (Quest: Nagrand)", "Necklace of the Deep (Fishing)", "Worgen Claw Necklace (H Underbog)" },
                     },
                 },
-                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Agi, +22 Sta, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8,
+                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8,
                     hoverData = {
                         repSources = { "Auchenai Crypts / Sethekk Halls / Shadow Lab (10-25 rep/kill)", "Lower City quests in Terokkar (~6k rep)", "Arakkoa Feather turn-ins (250 rep per 30)" },
-                        statPriority = { "Best pre-raid ring for melee DPS", "+23 Hit Rating helps cap special attacks", "+24 Agility provides crit for Mutilate builds" },
+                        statPriority = { "Best pre-raid ring for melee DPS with Hit", "+23 Hit Rating helps cap special attacks", "Int is wasted but Hit is very valuable" },
                         tips = { "Shadow Labyrinth gives most rep per run", "Pair with Garona's Signet Ring for hit stacking", "Buy from Nakodu in Lower City" },
                         alternatives = { "Ring of Umbral Doom (H Sethekk)", "Delicate Eternium Ring (Jewelcrafting)", "A'dal's Command (The Sha'tar)" },
                     },
@@ -6459,8 +6451,8 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
             },
             crafted = {
                 { itemId = 25695, name = "Fel Leather Gloves", icon = "INV_Gauntlets_25", quality = "rare", slot = "Hands", stats = "+27 Agi, +26 Sta, +15 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
-                { itemId = 25696, name = "Fel Leather Leggings", icon = "INV_Pants_Leather_09", quality = "rare", slot = "Legs", stats = "+30 Agi, +29 Sta, +17 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
-                { itemId = 25697, name = "Fel Leather Boots", icon = "INV_Boots_Chain_08", quality = "rare", slot = "Feet", stats = "+24 Agi, +23 Sta, +14 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+                { itemId = 25687, name = "Fel Leather Leggings", icon = "INV_Pants_Leather_09", quality = "rare", slot = "Legs", stats = "+30 Agi, +29 Sta, +17 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+                { itemId = 25686, name = "Fel Leather Boots", icon = "INV_Boots_Chain_08", quality = "rare", slot = "Feet", stats = "+24 Agi, +23 Sta, +14 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
             },
         },
         -- Tab 2: Combat (Melee DPS)
@@ -6474,10 +6466,10 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         alternatives = { "Natasha's Ember Necklace (Quest: Nagrand)", "Necklace of the Deep (Fishing)", "Worgen Claw Necklace (H Underbog)" },
                     },
                 },
-                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Agi, +22 Sta, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8,
+                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8,
                     hoverData = {
                         repSources = { "Auchenai Crypts / Sethekk Halls / Shadow Lab (10-25 rep/kill)", "Lower City quests in Terokkar (~6k rep)", "Arakkoa Feather turn-ins (250 rep per 30)" },
-                        statPriority = { "Best pre-raid ring for Combat Rogues", "+23 Hit Rating helps reach dual-wield cap", "+24 Agility boosts Sinister Strike crit chance" },
+                        statPriority = { "Best pre-raid ring for Combat Rogues with Hit", "+23 Hit Rating helps reach dual-wield cap", "Int is wasted but Hit is very valuable" },
                         tips = { "Shadow Labyrinth gives most rep per run", "Essential for Combat Rogues stacking hit", "Buy from Nakodu in Lower City" },
                         alternatives = { "Ring of Umbral Doom (H Sethekk)", "Delicate Eternium Ring (Jewelcrafting)", "A'dal's Command (The Sha'tar)" },
                     },
@@ -6519,12 +6511,12 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
             drops = {
                 { itemId = 28189, name = "Liar's Tongue Gloves", icon = "INV_Gauntlets_25", quality = "epic", slot = "Hands", stats = "+32 Agi, +32 Sta, +24 Hit", source = "Heroic Mechanar", sourceType = "drops" },
                 { itemId = 28034, name = "Hourglass of the Unraveller", icon = "INV_Misc_PocketWatch_01", quality = "rare", slot = "Trinket", stats = "+32 Hit, Haste proc", source = "Black Morass (Normal)", sourceType = "drops" },
-                { itemId = 27890, name = "Girdle of Ferocity", icon = "INV_Belt_13", quality = "epic", slot = "Waist", stats = "+31 Str, +16 Agi, +36 Sta", source = "Heroic Shattered Halls", sourceType = "drops" },
+                { itemId = 29261, name = "Girdle of Ferocity", icon = "INV_Belt_13", quality = "epic", slot = "Waist", stats = "+31 Str, +16 Agi, +36 Sta", source = "Heroic Shattered Halls", sourceType = "drops" },
             },
             crafted = {
                 { itemId = 25695, name = "Fel Leather Gloves", icon = "INV_Gauntlets_25", quality = "rare", slot = "Hands", stats = "+27 Agi, +26 Sta, +15 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
-                { itemId = 25696, name = "Fel Leather Leggings", icon = "INV_Pants_Leather_09", quality = "rare", slot = "Legs", stats = "+30 Agi, +29 Sta, +17 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
-                { itemId = 25697, name = "Fel Leather Boots", icon = "INV_Boots_Chain_08", quality = "rare", slot = "Feet", stats = "+24 Agi, +23 Sta, +14 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+                { itemId = 25687, name = "Fel Leather Leggings", icon = "INV_Pants_Leather_09", quality = "rare", slot = "Legs", stats = "+30 Agi, +29 Sta, +17 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+                { itemId = 25686, name = "Fel Leather Boots", icon = "INV_Boots_Chain_08", quality = "rare", slot = "Feet", stats = "+24 Agi, +23 Sta, +14 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
             },
         },
         -- Tab 3: Subtlety (Melee DPS)
@@ -6538,10 +6530,10 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
                         alternatives = { "Natasha's Ember Necklace (Quest: Nagrand)", "Necklace of the Deep (Fishing)", "Worgen Claw Necklace (H Underbog)" },
                     },
                 },
-                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Agi, +22 Sta, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8,
+                { itemId = 30834, name = "Shapeshifter's Signet", icon = "INV_Jewelry_Ring_51naxxramas", quality = "epic", slot = "Ring", stats = "+24 Sta, +23 Int, +23 Hit", source = "Lower City @ Exalted", sourceType = "rep", faction = "Lower City", standing = 8,
                     hoverData = {
                         repSources = { "Auchenai Crypts / Sethekk Halls / Shadow Lab (10-25 rep/kill)", "Lower City quests in Terokkar (~6k rep)", "Arakkoa Feather turn-ins (250 rep per 30)" },
-                        statPriority = { "Excellent ring for Subtlety builds", "+23 Hit Rating helps land finishers reliably", "+24 Agility provides crit for combo point generation" },
+                        statPriority = { "Excellent ring for Subtlety with Hit", "+23 Hit Rating helps land finishers reliably", "Int is wasted but Hit is very valuable" },
                         tips = { "Shadow Labyrinth gives most rep per run", "Subtlety excels in arena - gear appropriately", "Buy from Nakodu in Lower City" },
                         alternatives = { "Ring of Umbral Doom (H Sethekk)", "Delicate Eternium Ring (Jewelcrafting)", "A'dal's Command (The Sha'tar)" },
                     },
@@ -6586,8 +6578,8 @@ C.CLASS_SPEC_LOOT_HOTLIST = {
             },
             crafted = {
                 { itemId = 25695, name = "Fel Leather Gloves", icon = "INV_Gauntlets_25", quality = "rare", slot = "Hands", stats = "+27 Agi, +26 Sta, +15 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
-                { itemId = 25696, name = "Fel Leather Leggings", icon = "INV_Pants_Leather_09", quality = "rare", slot = "Legs", stats = "+30 Agi, +29 Sta, +17 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
-                { itemId = 25697, name = "Fel Leather Boots", icon = "INV_Boots_Chain_08", quality = "rare", slot = "Feet", stats = "+24 Agi, +23 Sta, +14 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+                { itemId = 25687, name = "Fel Leather Leggings", icon = "INV_Pants_Leather_09", quality = "rare", slot = "Legs", stats = "+30 Agi, +29 Sta, +17 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
+                { itemId = 25686, name = "Fel Leather Boots", icon = "INV_Boots_Chain_08", quality = "rare", slot = "Feet", stats = "+24 Agi, +23 Sta, +14 Hit", source = "Leatherworking", sourceType = "crafted", profession = "Leatherworking" },
             },
         },
     },
@@ -6628,6 +6620,18 @@ C.LEVELING_DUNGEONS = {
         { name = "Old Hillsbrad", level = "66-68", zone = "Caverns of Time", faction = "Keepers of Time" },
         { name = "Sethekk Halls", level = "67-69", zone = "Terokkar Forest", faction = "Lower City" },
     },
+}
+
+-- Map LEVELING_DUNGEONS short names to their TBC_DUNGEONS icon textures
+C.LEVELING_DUNGEON_ICON_MAP = {
+    ["Hellfire Ramparts"] = "Ability_Warrior_Rampage",
+    ["Blood Furnace"]     = "Spell_Shadow_RitualOfSacrifice",
+    ["Slave Pens"]        = "INV_Misc_Fish_14",
+    ["Underbog"]          = "Ability_Hunter_Pet_Spider",
+    ["Mana-Tombs"]        = "Spell_Arcane_PortalShattrath",
+    ["Auchenai Crypts"]   = "Spell_Shadow_DeathPact",
+    ["Old Hillsbrad"]     = "Spell_Arcane_PortalOrgrimmar",
+    ["Sethekk Halls"]     = "Ability_Hunter_Pet_Owl",
 }
 
 C.LEVELING_GEAR_MATRIX = {
@@ -6889,11 +6893,11 @@ C.SOCIAL_SECTION_THEMES = {
         title = "COMMUNITY FEED",
         titleColor = "FEL_GREEN",
     },
-    companions = {
+    teams = {
         icon = "Interface\\Icons\\Spell_Nature_EyeOfTheStorm",   -- Arcane eye
         borderColor = "SKY_BLUE",
         glowColor = nil,
-        title = "COMPANIONS",
+        title = "TEAMS",
         titleColor = "GOLD_BRIGHT",
     },
     lf_rp = {
@@ -7031,7 +7035,7 @@ C.GUILD_DATA_DEFAULTS = {
 
 C.SOCIAL_TAB = {
     -- Tab bar
-    TAB_WIDTH = 77,   -- Width to fit 6 tabs including "Buddy" label
+    TAB_WIDTH = 77,   -- Width to fit 6 tabs including "Team" label
     TAB_HEIGHT = 24,
     TAB_SPACING = 3,  -- Wider gaps for visual balance
 
@@ -7071,14 +7075,30 @@ C.SOCIAL_TAB = {
     SHARE_PROMPT_WIDTH = 350,
     SHARE_PROMPT_HEIGHT = 280,
 
-    -- Loot
-    LOOT_MIN_QUALITY = 4,           -- Epic
-    LOOT_COMMENT_MAX = 100,
-
-    -- Guild Loot Board (Phase 62)
-    LOOT_BOARD_MAX_VISIBLE = 10,
-    LOOT_BOARD_ROW_HEIGHT = 48,
-    LOOT_BOARD_HEADER_HEIGHT = 32,
+    -- Leaderboard (Fellow Travelers)
+    LEADERBOARD_HEADER_HEIGHT = 36,
+    LEADERBOARD_PODIUM_HEIGHT = 48,
+    LEADERBOARD_PODIUM_ACCENT_WIDTH = 3,
+    LEADERBOARD_FOOTER_HEIGHT = 20,
+    LEADERBOARD_RANK_WIDTH = 30,
+    LEADERBOARD_COLORS = {
+        GOLD = "FFD700",
+        SILVER = "C0C0C0",
+        BRONZE = "CD7F32",
+        SELF_BG = { 0.08, 0.15, 0.08, 0.9 },
+        SELF_BORDER = { 0.2, 0.6, 0.2, 0.7 },
+    },
+    STALE_THRESHOLDS = {
+        FRESH = 3600,    -- 1 hour
+        AGING = 86400,   -- 24 hours
+        STALE = 604800,  -- 7 days
+    },
+    RANKED_SORTS = {
+        ilvl_desc = true,
+        gearscore_desc = true,
+        level_desc = true,
+        veteran = true,
+    },
 }
 
 --============================================================
@@ -7140,7 +7160,6 @@ C.FEED_ACTIVITY_ICONS = {
     LVL = "Interface\\Icons\\Spell_Holy_SurgeOfLight",    -- LEVEL
     GAME = "Interface\\Icons\\INV_Misc_Dice_02",          -- GAME
     BADGE = "Interface\\Icons\\Achievement_General",       -- BADGE
-    LOOT = "Interface\\Icons\\INV_Misc_Bag_10",           -- LOOT
     ROM = "Interface\\Icons\\Spell_Holy_SealOfRighteousness",  -- ROMANCE/OATH
     MUG = "Interface\\Icons\\INV_Drink_04",               -- MUG
     -- New post types (Phase 50)
@@ -7158,7 +7177,6 @@ C.FEED_ACTIVITY_BORDERS = {
     LVL = { 0.2, 0.8, 0.2 },         -- LEVEL: Fel green
     GAME = { 0.61, 0.19, 1.0 },      -- GAME: Arcane purple
     BADGE = { 1.0, 0.84, 0 },        -- BADGE: Gold
-    LOOT = { 0.64, 0.21, 0.93 },     -- LOOT: Epic purple
     ROM = { 1, 0.65, 0 },            -- ROMANCE/OATH: Orange-Gold
     MUG = { 1.0, 0.84, 0 },          -- MUG: Gold
     -- New post types (Phase 50)
@@ -7267,7 +7285,7 @@ C.SOCIAL_DATA_DEFAULTS = {
             searchText = "",
             sortOption = "last_seen",
         },
-        companions = {},
+        teams = {},
         calendar = {
             selectedMonth = nil,
             selectedYear = nil,
@@ -7287,8 +7305,6 @@ C.SOCIAL_DATA_DEFAULTS = {
         showGame = true,
         showBadge = true,
         showStatus = true,
-        showLoot = true,
-        promptForLoot = true,
     },
 
     -- Rumors (Phase 2)
@@ -7304,7 +7320,6 @@ C.SOCIAL_DATA_DEFAULTS = {
 
     -- Share Prompts
     sharePrompts = {
-        promptForLoot = true,
         promptForFirstKills = true,
         promptForAttunements = true,
         promptForGameWins = false,
@@ -7342,6 +7357,8 @@ C.SOCIAL_DATA_DEFAULTS = {
         notifications = {},    -- pending notifications
         lastSync = 0,
         templates = {},        -- [templateId] = template data (saved event configs)
+        myBirthday = nil,      -- { month = N, day = N } or nil
+        knownBirthdays = {},   -- { [playerName] = { month = N, day = N } }
     },
 }
 
@@ -8063,6 +8080,24 @@ C.ARMORY_UPGRADE_CARD = {
     BORDER_COLOR_BEST = { r = 1, g = 0.84, b = 0, a = 1 },
 }
 
+-- Reputation tab upgrade card styling
+C.REP_UPGRADE_CARD = {
+    BG_COLOR = { r = 0.08, g = 0.08, b = 0.1, a = 0.92 },
+    BG_COLOR_OBTAINABLE = { r = 0.06, g = 0.1, b = 0.06, a = 0.92 },
+    BORDER_COLOR = { r = 0.3, g = 0.3, b = 0.3, a = 1 },
+    STATS_COLOR = { r = 0.9, g = 0.9, b = 0.85 },
+}
+
+-- Slot name to WoW inventory slot ID mapping (for equipped gear comparison)
+C.REP_SLOT_MAP = {
+    ["Head"] = { 1 }, ["Neck"] = { 2 }, ["Shoulder"] = { 3 },
+    ["Chest"] = { 5 }, ["Waist"] = { 6 }, ["Legs"] = { 7 },
+    ["Feet"] = { 8 }, ["Wrist"] = { 9 }, ["Hands"] = { 10 },
+    ["Ring"] = { 11, 12 }, ["Trinket"] = { 13, 14 },
+    ["Back"] = { 15 }, ["MainHand"] = { 16 }, ["OffHand"] = { 17 },
+    ["Ranged"] = { 18 },
+}
+
 -- Section header (pooled)
 C.ARMORY_SECTION_HEADER = {
     HEIGHT = 28,
@@ -8369,7 +8404,7 @@ C.ARMORY_GEAR_DATABASE = {
             ["neck"] = {
                 best = { itemId = 29386, name = "Necklace of the Juggernaut", icon = "INV_Jewelry_Necklace_36", quality = "epic", iLvl = 110, stats = "+30 Sta, +21 Def", source = "G'eras", sourceType = "badge", badgeCost = 25 },
                 alternatives = {
-                    { itemId = 28244, name = "Barbed Choker of Discipline", icon = "INV_Jewelry_Necklace_29", quality = "rare", iLvl = 115, stats = "+27 Sta, +18 Def", source = "Heroic Shattered Halls", sourceType = "heroic" },
+                    { itemId = 28516, name = "Barbed Choker of Discipline", icon = "INV_Jewelry_Necklace_29", quality = "rare", iLvl = 115, stats = "+27 Sta, +18 Def", source = "Heroic Shattered Halls", sourceType = "heroic" },
                 },
             },
             ["shoulders"] = {
@@ -8387,13 +8422,13 @@ C.ARMORY_GEAR_DATABASE = {
             ["chest"] = {
                 best = { itemId = 29012, name = "Warbringer Chestguard", icon = "INV_Chest_Plate16", quality = "epic", iLvl = 120, stats = "+43 Str, +54 Sta, +32 Def", source = "Magtheridon", sourceType = "raid", sourceDetail = "Magtheridon's Lair" },
                 alternatives = {
-                    { itemId = 27440, name = "Jade-Skull Breastplate", icon = "INV_Chest_Plate11", quality = "rare", iLvl = 115, stats = "+36 Sta, +26 Def", source = "Swamplord Musel'ek", sourceType = "heroic", sourceDetail = "Heroic Underbog" },
+                    { itemId = 28262, name = "Jade-Skull Breastplate", icon = "INV_Chest_Plate11", quality = "rare", iLvl = 115, stats = "+36 Sta, +26 Def", source = "Swamplord Musel'ek", sourceType = "heroic", sourceDetail = "Heroic Underbog" },
                 },
             },
             ["wrist"] = {
-                best = { itemId = 28996, name = "Bracers of the Green Fortress", icon = "INV_Bracer_19", quality = "epic", iLvl = 115, stats = "+30 Sta, +23 Def", source = "Blacksmithing", sourceType = "crafted" },
+                best = { itemId = 23538, name = "Bracers of the Green Fortress", icon = "INV_Bracer_19", quality = "epic", iLvl = 115, stats = "+30 Sta, +23 Def", source = "Blacksmithing", sourceType = "crafted" },
                 alternatives = {
-                    { itemId = 29463, name = "Sha'tari Wrought Armguards", icon = "INV_Bracer_17", quality = "rare", iLvl = 110, stats = "+24 Sta, +18 Def", source = "Sha'tar Exalted", sourceType = "rep", repFaction = "The Sha'tar", repStanding = "Exalted" },
+                    { itemId = 28167, name = "Sha'tari Wrought Armguards", icon = "INV_Bracer_17", quality = "rare", iLvl = 110, stats = "+24 Sta, +18 Def", source = "Sha'tar Exalted", sourceType = "rep", repFaction = "The Sha'tar", repStanding = "Exalted" },
                 },
             },
             ["hands"] = {
@@ -8403,15 +8438,15 @@ C.ARMORY_GEAR_DATABASE = {
                 },
             },
             ["waist"] = {
-                best = { itemId = 28995, name = "Girdle of the Immovable", icon = "INV_Belt_13", quality = "epic", iLvl = 115, stats = "+33 Sta, +25 Def", source = "Blacksmithing", sourceType = "crafted" },
+                best = { itemId = 27672, name = "Girdle of the Immovable", icon = "INV_Belt_13", quality = "epic", iLvl = 115, stats = "+33 Sta, +25 Def", source = "Blacksmithing", sourceType = "crafted" },
                 alternatives = {
-                    { itemId = 27672, name = "Girdle of Valorous Deeds", icon = "INV_Belt_12", quality = "rare", iLvl = 115, stats = "+27 Sta, +21 Def", source = "Exarch Maladaar", sourceType = "heroic", sourceDetail = "Heroic Auchenai Crypts" },
+                    { itemId = 29253, name = "Girdle of Valorous Deeds", icon = "INV_Belt_12", quality = "rare", iLvl = 115, stats = "+27 Sta, +21 Def", source = "Exarch Maladaar", sourceType = "heroic", sourceDetail = "Heroic Auchenai Crypts" },
                 },
             },
             ["legs"] = {
                 best = { itemId = 28621, name = "Wrynn Dynasty Greaves", icon = "INV_Pants_Plate_17", quality = "epic", iLvl = 115, stats = "+45 Sta, +34 Def", source = "Nightbane", sourceType = "raid", sourceDetail = "Karazhan" },
                 alternatives = {
-                    { itemId = 25687, name = "Clefthoof Hide Leggings", icon = "INV_Pants_Leather_09", quality = "rare", iLvl = 109, stats = "+36 Sta, High threat", source = "Leatherworking", sourceType = "crafted" },
+                    { itemId = 31544, name = "Clefthoof Hide Leggings", icon = "INV_Pants_Leather_09", quality = "rare", iLvl = 109, stats = "+36 Sta, High threat", source = "Leatherworking", sourceType = "crafted" },
                 },
             },
             ["feet"] = {
@@ -8464,7 +8499,7 @@ C.ARMORY_GEAR_DATABASE = {
                     { itemId = 29115, name = "Consortium Blaster", icon = "INV_Weapon_Rifle_22", quality = "rare", iLvl = 105, stats = "+Sta", source = "Consortium Exalted", sourceType = "rep", repFaction = "The Consortium", repStanding = "Exalted", weaponType = "gun" },
                     -- Paladin/Druid alternatives (libram/idol)
                     { itemId = 29388, name = "Libram of Repentance", icon = "INV_Relics_LibramofGrace", quality = "epic", iLvl = 110, stats = "+Block Value", source = "Badge Vendor", sourceType = "badge", badgeCost = 15, weaponType = "libram" },
-                    { itemId = 28990, name = "Idol of the Raven Goddess", icon = "INV_Relics_IdolofFerocity", quality = "rare", iLvl = 115, stats = "+AP in cat/bear", source = "Sethekk Halls", sourceType = "dungeon", sourceDetail = "Sethekk Halls", weaponType = "idol" },
+                    { itemId = 32387, name = "Idol of the Raven Goddess", icon = "INV_Relics_IdolofFerocity", quality = "rare", iLvl = 115, stats = "+AP in cat/bear", source = "Sethekk Halls", sourceType = "dungeon", sourceDetail = "Sethekk Halls", weaponType = "idol" },
                 },
             },
         },
@@ -8482,7 +8517,7 @@ C.ARMORY_GEAR_DATABASE = {
             ["neck"] = {
                 best = { itemId = 28609, name = "Emberspur Talisman", icon = "INV_Jewelry_Necklace_37", quality = "epic", iLvl = 115, stats = "+22 Int, +51 Healing", source = "Nightbane", sourceType = "raid", sourceDetail = "Karazhan" },
                 alternatives = {
-                    { itemId = 27508, name = "Natasha's Guardian Cord", icon = "INV_Jewelry_Necklace_36", quality = "rare", iLvl = 109, stats = "+18 Int, +44 Healing", source = "Quest: The Master's Terrace", sourceType = "quest" },
+                    { itemId = 31691, name = "Natasha's Guardian Cord", icon = "INV_Jewelry_Necklace_36", quality = "rare", iLvl = 109, stats = "+18 Int, +44 Healing", source = "Quest: The Master's Terrace", sourceType = "quest" },
                 },
             },
             ["shoulders"] = {
@@ -8512,13 +8547,13 @@ C.ARMORY_GEAR_DATABASE = {
             ["hands"] = {
                 best = { itemId = 28505, name = "Gauntlets of Renewed Hope", icon = "INV_Gauntlets_25", quality = "epic", iLvl = 115, stats = "+22 Int, +55 Healing", source = "Attumen the Huntsman", sourceType = "raid", sourceDetail = "Karazhan" },
                 alternatives = {
-                    { itemId = 27465, name = "Prismatic Mittens of Mending", icon = "INV_Gauntlets_24", quality = "rare", iLvl = 115, stats = "+18 Int, +48 Healing", source = "Aeonus", sourceType = "dungeon", sourceDetail = "Black Morass" },
+                    { itemId = 28304, name = "Prismatic Mittens of Mending", icon = "INV_Gauntlets_24", quality = "rare", iLvl = 115, stats = "+18 Int, +48 Healing", source = "Aeonus", sourceType = "dungeon", sourceDetail = "Black Morass" },
                 },
             },
             ["waist"] = {
                 best = { itemId = 21873, name = "Primal Mooncloth Belt", icon = "INV_Belt_14", quality = "epic", iLvl = 110, stats = "+22 Int, +57 Healing, MP5", source = "Mooncloth Tailoring", sourceType = "crafted" },
                 alternatives = {
-                    { itemId = 27542, name = "Cord of Sanctification", icon = "INV_Belt_13", quality = "rare", iLvl = 112, stats = "+18 Int, +48 Healing", source = "Quest: Deathblow to the Legion", sourceType = "quest" },
+                    { itemId = 29250, name = "Cord of Sanctification", icon = "INV_Belt_13", quality = "rare", iLvl = 112, stats = "+18 Int, +48 Healing", source = "Quest: Deathblow to the Legion", sourceType = "quest" },
                 },
             },
             ["legs"] = {
@@ -8548,29 +8583,29 @@ C.ARMORY_GEAR_DATABASE = {
             ["trinket1"] = {
                 best = { itemId = 29376, name = "Essence of the Martyr", icon = "INV_Jewelry_Talisman_12", quality = "epic", iLvl = 110, stats = "+Healing on use", source = "G'eras", sourceType = "badge", badgeCost = 41 },
                 alternatives = {
-                    { itemId = 28823, name = "Lower City Prayerbook", icon = "INV_Misc_Book_09", quality = "rare", iLvl = 110, stats = "+Healing on use", source = "Lower City Exalted", sourceType = "rep", repFaction = "Lower City", repStanding = "Exalted" },
+                    { itemId = 30841, name = "Lower City Prayerbook", icon = "INV_Misc_Book_09", quality = "rare", iLvl = 110, stats = "+Healing on use", source = "Lower City Exalted", sourceType = "rep", repFaction = "Lower City", repStanding = "Exalted" },
                 },
             },
             ["trinket2"] = {
                 best = { itemId = 28590, name = "Ribbon of Sacrifice", icon = "INV_Misc_QirajiCrystal_04", quality = "epic", iLvl = 115, stats = "+Healing proc", source = "Opera Event", sourceType = "raid", sourceDetail = "Karazhan" },
                 alternatives = {
-                    { itemId = 27770, name = "Bangle of Endless Blessings", icon = "INV_Jewelry_Talisman_11", quality = "rare", iLvl = 115, stats = "+MP5 proc", source = "Harbinger Skyriss", sourceType = "heroic", sourceDetail = "Heroic Arcatraz" },
+                    { itemId = 28370, name = "Bangle of Endless Blessings", icon = "INV_Jewelry_Talisman_11", quality = "rare", iLvl = 115, stats = "+MP5 proc", source = "Harbinger Skyriss", sourceType = "heroic", sourceDetail = "Heroic Arcatraz" },
                 },
             },
             ["mainhand"] = {
                 best = { itemId = 28771, name = "Light's Justice", icon = "INV_Mace_51", quality = "epic", iLvl = 115, stats = "+22 Int, +59 Healing", source = "Prince Malchezaar", sourceType = "raid", sourceDetail = "Karazhan" },
                 alternatives = {
                     { itemId = 29175, name = "Gavel of Pure Light", icon = "INV_Mace_50", quality = "epic", iLvl = 110, stats = "+18 Int, +51 Healing", source = "Sha'tar Exalted", sourceType = "rep", repFaction = "The Sha'tar", repStanding = "Exalted" },
-                    { itemId = 27538, name = "Epoch-Mender", icon = "INV_Mace_40", quality = "rare", iLvl = 115, stats = "+20 Int, +48 Healing, +7 mp5", source = "Temporus", sourceType = "dungeon", sourceDetail = "Black Morass" },
-                    { itemId = 27772, name = "Hammer of the Penitent", icon = "INV_Mace_42", quality = "rare", iLvl = 112, stats = "+18 Int, +42 Healing", source = "Blackheart the Inciter", sourceType = "heroic", sourceDetail = "Heroic Shadow Labyrinth" },
+                    { itemId = 28033, name = "Epoch-Mender", icon = "INV_Mace_40", quality = "rare", iLvl = 115, stats = "+20 Int, +48 Healing, +7 mp5", source = "Temporus", sourceType = "dungeon", sourceDetail = "Black Morass" },
+                    { itemId = 28257, name = "Hammer of the Penitent", icon = "INV_Mace_42", quality = "rare", iLvl = 112, stats = "+18 Int, +42 Healing", source = "Blackheart the Inciter", sourceType = "heroic", sourceDetail = "Heroic Shadow Labyrinth" },
                 },
             },
             ["offhand"] = {
                 best = { itemId = 29458, name = "Aegis of the Vindicator", icon = "INV_Shield_32", quality = "epic", iLvl = 120, stats = "+18 Int, +48 Healing", source = "Magtheridon", sourceType = "raid", sourceDetail = "Magtheridon's Lair" },
                 alternatives = {
                     { itemId = 27477, name = "Faol's Signet of Cleansing", icon = "INV_Jewelry_Talisman_10", quality = "rare", iLvl = 115, stats = "+15 Int, +40 Healing", source = "Murmur", sourceType = "heroic", sourceDetail = "Heroic Shadow Labyrinth" },
-                    { itemId = 28753, name = "Triptych Shield of the Ancients", icon = "INV_Shield_35", quality = "epic", iLvl = 115, stats = "+15 Int, +40 Healing, +7 mp5", source = "Chess Event", sourceType = "raid", sourceDetail = "Karazhan" },
-                    { itemId = 29274, name = "Lamp of Peaceful Radiance", icon = "INV_Offhand_1h_Draenei_A_01", quality = "rare", iLvl = 105, stats = "+12 Int, +33 Healing, +8 mp5", source = "G'eras", sourceType = "badge", badgeCost = 35 },
+                    { itemId = 28754, name = "Triptych Shield of the Ancients", icon = "INV_Shield_35", quality = "epic", iLvl = 115, stats = "+15 Int, +40 Healing, +7 mp5", source = "Chess Event", sourceType = "raid", sourceDetail = "Karazhan" },
+                    { itemId = 28412, name = "Lamp of Peaceful Radiance", icon = "INV_Offhand_1h_Draenei_A_01", quality = "rare", iLvl = 105, stats = "+12 Int, +33 Healing, +8 mp5", source = "G'eras", sourceType = "badge", badgeCost = 35 },
                 },
             },
             ["ranged"] = {
@@ -8618,7 +8653,7 @@ C.ARMORY_GEAR_DATABASE = {
             ["wrist"] = {
                 best = { itemId = 29246, name = "Nightfall Wristguards", icon = "INV_Bracer_15", quality = "rare", iLvl = 110, stats = "+22 Agi, +20 Sta", source = "Epoch Hunter", sourceType = "heroic", sourceDetail = "Heroic Old Hillsbrad" },
                 alternatives = {
-                    { itemId = 27817, name = "Stealther's Helmet of Second Sight", icon = "INV_Bracer_14", quality = "rare", iLvl = 109, stats = "+20 Agi, +18 Sta", source = "Quest: Teron Gorefiend, I Am...", sourceType = "quest" },
+                    { itemId = 31109, name = "Stealther's Helmet of Second Sight", icon = "INV_Bracer_14", quality = "rare", iLvl = 109, stats = "+20 Agi, +18 Sta", source = "Quest: Teron Gorefiend, I Am...", sourceType = "quest" },
                 },
             },
             ["hands"] = {
@@ -8630,7 +8665,7 @@ C.ARMORY_GEAR_DATABASE = {
             ["waist"] = {
                 best = { itemId = 29247, name = "Girdle of the Deathdealer", icon = "INV_Belt_15", quality = "rare", iLvl = 110, stats = "+24 Agi, +22 Sta, +18 Hit", source = "Aeonus", sourceType = "heroic", sourceDetail = "Heroic Black Morass" },
                 alternatives = {
-                    { itemId = 27911, name = "Nethershard Girdle", icon = "INV_Belt_14", quality = "rare", iLvl = 109, stats = "+21 Agi, +20 Sta", source = "Quest: Shutting Down Manaforge B'naar", sourceType = "quest" },
+                    { itemId = 28565, name = "Nethershard Girdle", icon = "INV_Belt_14", quality = "rare", iLvl = 109, stats = "+21 Agi, +20 Sta", source = "Quest: Shutting Down Manaforge B'naar", sourceType = "quest" },
                 },
             },
             ["legs"] = {
@@ -8710,7 +8745,7 @@ C.ARMORY_GEAR_DATABASE = {
             ["neck"] = {
                 best = { itemId = 29381, name = "Choker of Vile Intent", icon = "INV_Jewelry_Necklace_38", quality = "epic", iLvl = 110, stats = "+22 Agi, +22 Hit", source = "G'eras", sourceType = "badge", badgeCost = 25 },
                 alternatives = {
-                    { itemId = 27779, name = "Traitor's Noose", icon = "INV_Jewelry_Necklace_37", quality = "rare", iLvl = 112, stats = "+20 Agi, +18 Sta", source = "Exarch Maladaar", sourceType = "heroic", sourceDetail = "Heroic Auchenai Crypts" },
+                    { itemId = 27546, name = "Traitor's Noose", icon = "INV_Jewelry_Necklace_37", quality = "rare", iLvl = 112, stats = "+20 Agi, +18 Sta", source = "Exarch Maladaar", sourceType = "heroic", sourceDetail = "Heroic Auchenai Crypts" },
                 },
             },
             ["shoulders"] = {
@@ -8752,15 +8787,15 @@ C.ARMORY_GEAR_DATABASE = {
             ["legs"] = {
                 best = { itemId = 30739, name = "Scaled Greaves of the Marksman", icon = "INV_Pants_Mail_15", quality = "epic", iLvl = 115, stats = "+35 Agi, +32 Sta, +76 AP", source = "Doom Lord Kazzak", sourceType = "world" },
                 alternatives = {
-                    { itemId = 28594, name = "Leggings of the Pursuit", icon = "INV_Pants_Mail_14", quality = "epic", iLvl = 115, stats = "+30 Agi, +28 Sta", source = "Opera Event", sourceType = "raid", sourceDetail = "Karazhan" },
+                    { itemId = 34914, name = "Leggings of the Pursuit", icon = "INV_Pants_Mail_14", quality = "epic", iLvl = 115, stats = "+30 Agi, +28 Sta", source = "Opera Event", sourceType = "raid", sourceDetail = "Karazhan" },
                 },
             },
             ["feet"] = {
                 best = { itemId = 28545, name = "Edgewalker Longboots", icon = "INV_Boots_Chain_09", quality = "epic", iLvl = 115, stats = "+27 Agi, +25 Sta, +18 Hit", source = "Moroes", sourceType = "raid", sourceDetail = "Karazhan" },
                 alternatives = {
-                    { itemId = 27814, name = "Fel Leather Boots", icon = "INV_Boots_08", quality = "rare", iLvl = 100, stats = "+20 Hit Rating", source = "Leatherworking", sourceType = "crafted" },
-                    { itemId = 25686, name = "Boots of the Endless Hunt", icon = "INV_Boots_Chain_08", quality = "rare", iLvl = 110, stats = "+24 Agi, +22 Sta, +18 Hit", source = "G'eras", sourceType = "badge", badgeCost = 60 },
-                    { itemId = 29791, name = "Boots of the Crimson Hawk", icon = "INV_Boots_Chain_07", quality = "epic", iLvl = 115, stats = "+26 Agi, +24 Sta, +52 AP", source = "Quest: The Tempest Key", sourceType = "quest", sourceDetail = "Tempest Key Quest Chain" },
+                    { itemId = 25686, name = "Fel Leather Boots", icon = "INV_Boots_08", quality = "rare", iLvl = 100, stats = "+20 Hit Rating", source = "Leatherworking", sourceType = "crafted" },
+                    { itemId = 29262, name = "Boots of the Endless Hunt", icon = "INV_Boots_Chain_08", quality = "rare", iLvl = 110, stats = "+24 Agi, +22 Sta, +18 Hit", source = "G'eras", sourceType = "badge", badgeCost = 60 },
+                    { itemId = 30045, name = "Boots of the Crimson Hawk", icon = "INV_Boots_Chain_07", quality = "epic", iLvl = 115, stats = "+26 Agi, +24 Sta, +52 AP", source = "Quest: The Tempest Key", sourceType = "quest", sourceDetail = "Tempest Key Quest Chain" },
                 },
             },
             ["ring1"] = {
@@ -9003,6 +9038,7 @@ C.CALENDAR_MSG = {
     EVENT_DELETE = "CAL_DELETE",
     SIGNUP = "CAL_SIGNUP",
     SIGNUP_UPDATE = "CAL_SIGNUP_UPD",
+    BIRTHDAY = "CAL_BDAY",
 }
 
 C.CALENDAR_UI = {
@@ -9038,14 +9074,16 @@ C.CALENDAR_SLOT_UI = {
 -- Each event displays as a small horizontal card with icon, time, and title
 C.CALENDAR_MINI_CARD = {
     WIDTH = 60,               -- Card width in pixels
-    HEIGHT = 14,              -- Card height in pixels
-    ICON_SIZE = 10,           -- Event type icon size
-    STRIPE_WIDTH = 3,         -- Left color stripe width
+    HEIGHT = 18,              -- Card height in pixels
+    ICON_SIZE = 14,           -- Event type icon size
+    STRIPE_WIDTH = 4,         -- Left color stripe width
     TIME_WIDTH = 28,          -- Width allocated for time text
-    SPACING = 1,              -- Vertical spacing between cards
-    MAX_VISIBLE = 6,          -- Max cards before showing overflow
-    BASE_CELL_HEIGHT = 30,    -- Day number + padding (minimum)
-    MAX_CELL_HEIGHT = 110,    -- Maximum cell height
+    SPACING = 2,              -- Vertical spacing between cards
+    MAX_VISIBLE = 4,          -- Max cards before showing overflow
+    BASE_CELL_HEIGHT = 34,    -- Day number + padding (minimum)
+    MAX_CELL_HEIGHT = 120,    -- Maximum cell height
+    TIME_FONT_SIZE = 9,       -- Font size for time text
+    TITLE_FONT_SIZE = 9,      -- Font size for title text
 }
 
 -- Event priority for display order in calendar cells
@@ -9060,7 +9098,7 @@ C.CALENDAR_EVENT_PRIORITY = {
 
 -- Continuous week calendar view settings
 C.CALENDAR_WEEK_VIEW = {
-    WEEK_ROW_HEIGHT = 70,     -- Height of each week row
+    WEEK_ROW_HEIGHT = 80,     -- Height of each week row
     WEEKS_TO_SHOW = 8,        -- Number of weeks to display
     DAY_CELL_WIDTH = 68,      -- Width of each day cell in week view
     DAY_CELL_SPACING = 2,     -- Spacing between cells
@@ -9174,6 +9212,15 @@ C.CALENDAR_ROSTER_STATUS = {
     DECLINED = { name = "Declined", color = { r = 0.8, g = 0.2, b = 0.2 }, icon = "-" },
 }
 
+-- Birthday feature constants
+C.CALENDAR_BIRTHDAY = {
+    ICON = "Interface\\Icons\\INV_Misc_CelebrationCake_01",
+    ICON_SIZE = 18,
+    THEME_COLOR = { r = 1.0, g = 0.4, b = 0.7 },  -- Warm pink
+    EVENT_TITLE_FORMAT = "%s's Birthday",
+    MSG_TYPE = "CAL_BDAY",
+}
+
 -- ============================================================================
 -- CALENDAR VALIDATION CONSTANTS
 -- ============================================================================
@@ -9226,19 +9273,6 @@ C.SERVER_EVENTS = {
         backgroundTexture = "Interface\\Icons\\Spell_Arcane_PortalUndercity",
         themeColor = { r = 0.4, g = 0.8, b = 0.2 },  -- Fel green
     },
-    -- Test event for verifying server event display (remove after testing)
-    {
-        id = "test_server_2026",
-        title = "Server Maintenance",
-        eventType = "SERVER",
-        date = "2026-02-04",  -- First Tuesday of Feb 2026
-        startTime = "07:00",
-        description = "Weekly server maintenance. Expect approximately 2 hours of downtime.",
-        icon = "Interface\\Icons\\Spell_Holy_Resurrection",
-        permanent = false,
-        backgroundTexture = "Interface\\Icons\\Spell_Holy_Resurrection",
-        themeColor = { r = 1, g = 0.84, b = 0 },  -- Gold
-    },
     -- Karazhan raid release
     {
         id = "karazhan_release",
@@ -9281,8 +9315,8 @@ C.PERMANENT_GUILD_EVENTS = {
         dayOfWeek = 5,  -- Thursday
         startTime = "18:00",
         description = "Guild hangout night! Chat about attunements, heroics, and future fun. Visit hoperaider.com for details.",
-        icon = "Interface\\Icons\\INV_Misc_QuestionMark",
-        backgroundTexture = "Interface\\Icons\\INV_Misc_QuestionMark",
+        icon = "Interface\\Icons\\INV_Drink_04",
+        backgroundTexture = "Interface\\Icons\\INV_Drink_04",
         themeColor = { r = 0.2, g = 0.8, b = 0.8 },
     },
     {
@@ -9295,6 +9329,33 @@ C.PERMANENT_GUILD_EVENTS = {
         icon = "Interface\\Icons\\INV_Misc_MonsterClaw_04",
         backgroundTexture = "Interface\\Icons\\INV_Misc_MonsterClaw_04",
         themeColor = { r = 1.0, g = 0.5, b = 0.0 },
+    },
+}
+
+-- Raid team definitions for Team sub-tab
+C.RAID_TEAMS = {
+    {
+        id = "phils_fill_team",
+        name = "Phil's Fill Team",
+        leader = "Phil Festive",
+        leaderChars = { "Philfestive", "Phildorian" },
+        icon = "INV_Misc_GroupNeedMore",
+        borderColor = { 0.6, 0.2, 0.8 },
+        flavor = "Need a spot filled? Phil's got you covered!",
+        schedule = {
+            { day = "Tuesday", time = "18:00 ST", raid = "Karazhan (10-man)" },
+            { day = "Saturday", time = "17:00 ST", raid = "Gruul's Lair & Magtheridon's Lair (25-man)" },
+        },
+    },
+    {
+        id = "open_raid_lead",
+        name = "Your Team Here!",
+        leader = nil,
+        icon = "Spell_Holy_CrusadeAura",
+        borderColor = { 0.2, 0.8, 0.4 },
+        flavor = "Hours flexible! Visit hoperaider.com to apply.",
+        isOpenPosition = true,
+        schedule = {},
     },
 }
 
@@ -9313,6 +9374,48 @@ function C:GetPermanentEventsForDate(dateStr)
             table.insert(events, copy)
         end
     end
+    return events
+end
+
+-- Helper function to get birthday events for a specific date
+-- @param dateStr string - YYYY-MM-DD
+-- @param knownBirthdays table - { [playerName] = { month = N, day = N } }
+-- @param myBirthday table|nil - { month = N, day = N }
+-- @param myName string - Player name for myBirthday
+function C:GetBirthdayEventsForDate(dateStr, knownBirthdays, myBirthday, myName)
+    local events = {}
+    local y, m, d = dateStr:match("(%d+)-(%d+)-(%d+)")
+    if not y then return events end
+    local month, day = tonumber(m), tonumber(d)
+
+    local function addBirthday(name, bday)
+        if bday and bday.month == month and bday.day == day then
+            table.insert(events, {
+                id = "birthday_" .. name,
+                title = string.format(C.CALENDAR_BIRTHDAY.EVENT_TITLE_FORMAT, name),
+                eventType = "SERVER",
+                date = dateStr,
+                startTime = "All Day",
+                icon = C.CALENDAR_BIRTHDAY.ICON,
+                permanent = true,
+                themeColor = C.CALENDAR_BIRTHDAY.THEME_COLOR,
+                isBirthday = true,
+            })
+        end
+    end
+
+    -- My birthday
+    if myBirthday and myName then
+        addBirthday(myName, myBirthday)
+    end
+
+    -- Known birthdays
+    if knownBirthdays then
+        for name, bday in pairs(knownBirthdays) do
+            addBirthday(name, bday)
+        end
+    end
+
     return events
 end
 
@@ -9530,11 +9633,29 @@ C.JOURNEY_NEXT_EVENT = {
 
 -- Upcoming Event Card Configuration
 C.JOURNEY_UPCOMING_CARD = {
-    CONTAINER_HEIGHT = 70,    -- Reduced from 85 to fit more events
+    CONTAINER_HEIGHT = 82,    -- Enough room for title + date + leader without overlap
     ICON_SIZE = 32,           -- Slightly smaller icons
     BORDER_WIDTH = 2,
-    MAX_EVENTS = 8,           -- Increased from 3 to show a week's worth
-    CARD_SPACING = 6,         -- Tighter spacing
+    MAX_EVENTS = 8,           -- Show a week's worth of events
+    CARD_SPACING = 8,         -- Spacing between cards
+}
+
+-- Live countdown urgency colors for same-day events
+C.JOURNEY_COUNTDOWN = {
+    TICK_INTERVAL = 30,           -- Update every 30 seconds
+    THRESHOLD_HOT = 3600,        -- <1hr: warm red
+    THRESHOLD_WARM = 7200,       -- 1-2hr: orange-gold
+    COLOR_HOT  = { r = 1.0, g = 0.3, b = 0.2 },
+    COLOR_WARM = { r = 1.0, g = 0.65, b = 0.0 },
+}
+
+-- Cinematic pre-event notification banner
+C.CINEMATIC_EVENT_NOTIFICATION = {
+    LEAD_TIME = 3600,            -- 1hr before event
+    DISPLAY_DURATION = 6,        -- seconds visible
+    WIDTH = 380,
+    HEIGHT = 90,
+    ICON_SIZE = 40,
 }
 
 -- Raid-specific icons (mapped by raidKey)
@@ -9584,8 +9705,12 @@ C.CALENDAR_EVENT_CARD_THEMES = {
     },
 }
 
--- Get icon for calendar event (raidKey > eventType > fallback)
+-- Get icon for calendar event (event.icon > raidKey > eventType > fallback)
 function C:GetCalendarEventIcon(event)
+    -- Use event's own icon if provided (permanent guild events, etc.)
+    if event.icon then
+        return event.icon
+    end
     if event.raidKey and C.CALENDAR_RAID_ICONS[event.raidKey] then
         return C.CALENDAR_RAID_ICONS[event.raidKey]
     end
@@ -9599,6 +9724,20 @@ end
 -- Get color theme for event card
 function C:GetCalendarEventTheme(eventType)
     return C.CALENDAR_EVENT_CARD_THEMES[eventType] or C.CALENDAR_EVENT_CARD_THEMES.OTHER
+end
+
+-- Get color theme for event card (event-aware: checks event.themeColor first)
+function C:GetEventCardTheme(event)
+    if event.themeColor then
+        local tc = event.themeColor
+        return {
+            bg = { r = tc.r * 0.25, g = tc.g * 0.25, b = tc.b * 0.25, a = 0.95 },
+            border = { r = tc.r, g = tc.g, b = tc.b, a = 1.0 },
+            title = { r = math.min(tc.r * 1.2, 1), g = math.min(tc.g * 1.2, 1), b = math.min(tc.b * 1.2, 1), a = 1.0 },
+            text = { r = math.min(tc.r * 0.7 + 0.3, 1), g = math.min(tc.g * 0.7 + 0.3, 1), b = math.min(tc.b * 0.7 + 0.3, 1), a = 1.0 },
+        }
+    end
+    return C:GetCalendarEventTheme(event.eventType)
 end
 
 -- Get next upcoming app-wide event (or most recent if all passed)
@@ -9621,7 +9760,17 @@ function C:GetNextAppWideEvent()
     end
 
     if upcomingEvent then return upcomingEvent, false end
-    if pastEvent then return pastEvent, true end
+    if pastEvent then
+        -- Don't show "RECENTLY CONCLUDED" for events older than 7 days
+        local y, m, d = pastEvent.startDate:match("(%d+)-(%d+)-(%d+)")
+        if y then
+            local eventTime = time({ year = tonumber(y), month = tonumber(m), day = tonumber(d) })
+            if (time() - eventTime) > 7 * 86400 then
+                return nil, nil
+            end
+        end
+        return pastEvent, true
+    end
     return nil, nil
 end
 
@@ -9782,8 +9931,6 @@ for phase, raids in pairs(C.SOFT_RESERVE.PHASES) do
     end
 end
 
--- NOTE: C.WORDLE constants are defined in the WOW WORDLE CONSTANTS section above (line ~4032)
-
 -- ============================================================================
 -- JOURNEY TAB NEXT EVENT
 -- ============================================================================
@@ -9791,4 +9938,45 @@ end
 C.JOURNEY_UPCOMING = {
     ROW_HEIGHT = 28,
     SECTION_PADDING = 15,
+}
+
+-- ============================================================================
+-- COMBAT RECORDS CONSTANTS
+-- ============================================================================
+
+C.COMBAT_RECORDS = {
+    -- Best cards
+    BEST_CARD_WIDTH = 140,
+    BEST_CARD_HEIGHT = 80,
+    BEST_CARD_SPACING = 10,
+
+    -- Stats bar
+    STATS_HEIGHT = 24,
+
+    -- Boss rows
+    BOSS_ROW_HEIGHT = 60,
+    BOSS_ICON_SIZE = 40,
+
+    -- Colors
+    COLOR_DPS = { 0.8, 0.2, 0.2 },
+    COLOR_HPS = { 0.2, 0.8, 0.2 },
+    COLOR_FLAWLESS = { 1.0, 0.84, 0 },
+    COLOR_DEATH = { 0.5, 0.5, 0.5 },
+    COLOR_PB = { 1.0, 0.84, 0 },
+
+    -- Limits
+    MAX_KILL_HISTORY = 10,
+
+    -- Raid filter list
+    RAID_FILTERS = {
+        { key = "all",         label = "All Bosses" },
+        { key = "karazhan",    label = "Karazhan" },
+        { key = "gruul",       label = "Gruul's Lair" },
+        { key = "magtheridon", label = "Magtheridon's Lair" },
+        { key = "ssc",         label = "Serpentshrine Cavern" },
+        { key = "tk",          label = "Tempest Keep" },
+        { key = "hyjal",       label = "Mount Hyjal" },
+        { key = "bt",          label = "Black Temple" },
+        { key = "sunwell",     label = "Sunwell Plateau" },
+    },
 }

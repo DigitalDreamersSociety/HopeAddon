@@ -6,5 +6,8 @@ ignore:
   - README.md
   - CURSEFORGE_DESCRIPTION.md
   - CURSEFORGE_SHORT_DESCRIPTION.txt
+  - RLTBC_FUN_INTEGRATION.md
+  - CHANGELOG.md
   - .claude/
   - .github/
+  - "*.md"

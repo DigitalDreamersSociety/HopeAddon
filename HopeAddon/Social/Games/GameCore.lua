@@ -23,7 +23,6 @@ GameCore.GAME_TYPE = {
     DEATH_ROLL = "DEATH_ROLL",
     PONG = "PONG",
     TETRIS = "TETRIS",
-    WORDS = "WORDS",
     BATTLESHIP = "BATTLESHIP",
     PACMAN = "PACMAN",
 }

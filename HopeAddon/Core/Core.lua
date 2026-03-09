@@ -606,13 +606,6 @@ function HopeAddon:SendChallenge(targetName, gameId, betAmount)
             GameComms:SendInvite(targetName, gameId:upper(), 0)
             return true
         end
-    -- Wordle uses its own WordleGame module
-    elseif gameId == "wordle" then
-        local WordleGame = self:GetModule("WordleGame")
-        if WordleGame then
-            WordleGame:SendChallenge(targetName)
-            return true
-        end
     -- Pac-Man uses Score Challenge for remote play
     elseif gameId == "pacman" then
         local ScoreChallenge = self:GetModule("ScoreChallenge")
@@ -947,6 +940,10 @@ local QUALITY_MULTIPLIERS = {
     [7] = 2.0,   -- Heirloom (treated as epic)
 }
 
+-- Gear score cache (invalidated on equipment change)
+local cachedGearScore, cachedAvgILvl
+local gearScoreDirty = true
+
 -- Slot IDs that contribute to gear score (per WoW API InventorySlotId)
 local GEAR_SLOTS = {
     1,  -- Head
@@ -975,6 +972,10 @@ local GEAR_SLOTS = {
     @return number - Average item level
 ]]
 function HopeAddon:GetGearScore()
+    if not gearScoreDirty and cachedGearScore then
+        return cachedGearScore, cachedAvgILvl
+    end
+
     local totalScore = 0
     local totalItemLevel = 0
     local itemCount = 0
@@ -992,8 +993,44 @@ function HopeAddon:GetGearScore()
         end
     end
 
-    local avgItemLevel = itemCount > 0 and math.floor(totalItemLevel / itemCount) or 0
-    return math.floor(totalScore), avgItemLevel
+    local gs = math.floor(totalScore)
+    local avgILvl = itemCount > 0 and math.floor(totalItemLevel / itemCount) or 0
+
+    -- Only cache when we got real data (prevents caching 0 from GetItemInfo cache miss on login)
+    if itemCount > 0 then
+        cachedGearScore = gs
+        cachedAvgILvl = avgILvl
+        gearScoreDirty = false
+    end
+
+    return gs, avgILvl
+end
+
+function HopeAddon:InvalidateGearScoreCache()
+    gearScoreDirty = true
+end
+
+--[[
+    Scan equipped items and record acquisition dates for any newly seen items.
+    Safe to call multiple times - only records first-seen dates.
+]]
+function HopeAddon:ScanEquipmentForAcquisitions()
+    if not self.charDb then return end
+    self.charDb.gearAcquisitions = self.charDb.gearAcquisitions or {}
+    local acquisitions = self.charDb.gearAcquisitions
+
+    for _, slotId in ipairs(GEAR_SLOTS) do
+        local itemLink = GetInventoryItemLink("player", slotId)
+        if itemLink then
+            local itemId = tonumber(itemLink:match("item:(%d+)"))
+            if itemId and itemId > 0 and not acquisitions[itemId] then
+                acquisitions[itemId] = {
+                    date = self:GetDate(),
+                    timestamp = time(),
+                }
+            end
+        end
+    end
 end
 
 --[[
@@ -1026,10 +1063,23 @@ function HopeAddon:FormatTime(seconds)
 end
 
 --[[
+    Format large numbers into compact form (1.2K, 3.4M)
+    @param n number - Number to format
+    @return string - Formatted number
+]]
+function HopeAddon:FormatNumber(n)
+    if not n or n == 0 then return "0" end
+    if n >= 1000000 then return string.format("%.1fM", n / 1000000)
+    elseif n >= 1000 then return string.format("%.1fK", n / 1000)
+    else return tostring(math.floor(n)) end
+end
+
+--[[
     Module Registration System
 ]]
 function HopeAddon:RegisterModule(name, module)
     self.modules[name] = module
+    self[name] = module
     if module.OnInitialize then
         module:OnInitialize()
     end
@@ -1052,6 +1102,7 @@ eventFrame:RegisterEvent("PLAYER_LOGOUT")
 eventFrame:RegisterEvent("PLAYER_REGEN_DISABLED")  -- Combat start
 eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")   -- Combat end
 eventFrame:RegisterEvent("PLAYER_TALENT_UPDATE")   -- Dual spec switch
+eventFrame:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")  -- Gear change -> invalidate gear score cache
 
 eventFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "ADDON_LOADED" then
@@ -1069,6 +1120,9 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         HopeAddon:OnCombatEnd()
     elseif event == "PLAYER_TALENT_UPDATE" then
         HopeAddon:OnTalentUpdate()
+    elseif event == "PLAYER_EQUIPMENT_CHANGED" then
+        HopeAddon:InvalidateGearScoreCache()
+        HopeAddon:ScanEquipmentForAcquisitions()
     end
 end)
 
@@ -1135,6 +1189,9 @@ function HopeAddon:MigrateCharacterData()
         db.armory.selectedTier = nil  -- Remove old field
     end
     db.armory.selectedPhase = db.armory.selectedPhase or 1
+
+    -- Ensure gear acquisition tracking exists
+    db.gearAcquisitions = db.gearAcquisitions or {}
 
     -- Migrate bossKills to include kill time tracking fields
     if db.journal and db.journal.bossKills then
@@ -1232,6 +1289,9 @@ function HopeAddon:OnPlayerLogin()
             level = UnitLevel("player"),
         }
     end
+
+    -- Seed gear acquisition dates for currently equipped items
+    self:ScanEquipmentForAcquisitions()
 
     -- Show welcome or intro based on state
     if not self.charDb.hasSeenIntro then
@@ -1401,6 +1461,11 @@ function HopeAddon:OnTalentUpdate()
         end
     end
 
+    -- Invalidate tooltip BiS cache so it rebuilds for new spec
+    if self.TooltipEnhancer then
+        self.TooltipEnhancer:InvalidateCache()
+    end
+
     self:Debug("Talent update detected - refreshed gear recommendations")
 end
 
@@ -1419,6 +1484,10 @@ function HopeAddon:GetDefaultDB()
             animationsEnabled = true,
             notificationsEnabled = true,
             hideUIDuringCombat = true,  -- Auto-hide UI when entering combat
+            bossKillFlashEnabled = true,  -- Show kill flash overlay on boss kills
+            tooltipBisEnabled = true,     -- Show BiS status on item tooltips
+            tooltipGearScoreEnabled = true, -- Show gear score on item tooltips
+            tooltipUnitGearEnabled = true,  -- Show iLevel/GS/raid readiness on player tooltips
             backgroundOpacity = 0.95,   -- Background opacity (0% = transparent, 100% = solid)
             critterTabPosition = nil,   -- Saved position for critter tab button {point, x, y}
         },
@@ -1454,6 +1523,10 @@ function HopeAddon:GetDefaultCharDB()
                 completedDate = nil,
                 chapters = {},
             },
+            guildSurvey = {
+                lastRequested = 0,
+                responses = {},
+            },
         },
 
         -- Statistics
@@ -1475,6 +1548,9 @@ function HopeAddon:GetDefaultCharDB()
             flyingUnlocked = nil,       -- Date string when flying was unlocked
             epicFlyingUnlocked = nil,   -- Date string when epic flying was unlocked
         },
+
+        -- Gear acquisition dates (when items were first equipped)
+        gearAcquisitions = {},  -- [itemId] = { date = "2026-03-15", timestamp = 1710504000 }
 
         -- Fellow travelers
         travelers = {
@@ -1515,18 +1591,6 @@ function HopeAddon:GetDefaultCharDB()
             goalItem = nil,         -- { itemId, factionName, standingId } - primary goal
         },
 
-        -- Wordle game statistics
-        wordle = {
-            stats = {
-                gamesPlayed = 0,
-                gamesWon = 0,
-                currentStreak = 0,
-                maxStreak = 0,
-                guessDistribution = { 0, 0, 0, 0, 0, 0 }, -- Index = guess count (1-6)
-            },
-            lastPlayed = nil,           -- Timestamp of last game
-        },
-
         -- Relationships/notes about players
         relationships = {},             -- [playerName] = { note, addedDate }
 
@@ -1565,7 +1629,7 @@ function HopeAddon:GetDefaultCharDB()
 
             -- UI State (for tabbed interface)
             ui = {
-                activeTab = "travelers",  -- feed, travelers, companions
+                activeTab = "travelers",  -- guild, travelers, teams, calendar, critter, feed
                 feed = {
                     filter = "all",
                     lastSeenTimestamp = 0,
@@ -1575,14 +1639,13 @@ function HopeAddon:GetDefaultCharDB()
                     searchText = "",
                     sortOption = "last_seen",
                 },
-                companions = {
+                teams = {
                     -- No special state needed
                 },
             },
 
             -- Share prompt settings
             sharePrompts = {
-                promptForLoot = true,
                 promptForFirstKills = true,
                 promptForAttunements = true,
                 promptForGameWins = false,
@@ -1793,59 +1856,6 @@ SlashCmdList["HOPE"] = function(msg)
                 HopeAddon:Print("GameCore module not loaded!")
             end
         end
-    elseif cmd:find("^wordle") then
-        -- /hope wordle [player|accept|decline]
-        local _, _, subCmd = cmd:find("^wordle%s*(%S*)")
-        local WordleGame = HopeAddon:GetModule("WordleGame")
-
-        if not WordleGame then
-            HopeAddon:Print("WordleGame module not loaded!")
-            return
-        end
-
-        if not subCmd or subCmd == "" then
-            -- No argument - start practice game
-            WordleGame:StartPractice()
-        elseif subCmd == "accept" then
-            -- Accept pending Wordle challenge: /hope wordle accept [player]
-            local _, _, senderName = cmd:find("^wordle%s+accept%s*(%S*)")
-            if senderName and senderName ~= "" then
-                WordleGame:AcceptChallenge(senderName)
-            elseif WordleGame:HasPendingChallenges() then
-                -- Accept first pending
-                for challenger, _ in pairs(WordleGame:GetPendingChallenges()) do
-                    WordleGame:AcceptChallenge(challenger)
-                    break
-                end
-            else
-                HopeAddon:Print("No pending Wordle challenges.")
-            end
-        elseif subCmd == "decline" then
-            -- Decline pending Wordle challenge: /hope wordle decline [player]
-            local _, _, senderName = cmd:find("^wordle%s+decline%s*(%S*)")
-            if senderName and senderName ~= "" then
-                WordleGame:DeclineChallenge(senderName)
-            elseif WordleGame:HasPendingChallenges() then
-                for challenger, _ in pairs(WordleGame:GetPendingChallenges()) do
-                    WordleGame:DeclineChallenge(challenger)
-                    break
-                end
-            else
-                HopeAddon:Print("No pending Wordle challenges.")
-            end
-        elseif subCmd == "stats" then
-            -- Show Wordle statistics: /hope wordle stats
-            WordleGame:PrintStatistics()
-        else
-            -- Assume it's a player name - send challenge
-            local targetName = subCmd
-            local valid, err = ValidatePlayerName(targetName)
-            if not valid then
-                HopeAddon:Print("|cFFFF0000Error:|r " .. err)
-                return
-            end
-            WordleGame:SendChallenge(targetName)
-        end
     elseif cmd:find("^challenge") then
         -- /hope challenge <player> [rps]
         local _, _, targetName, gameType = cmd:find("^challenge%s+(%S+)%s*(%S*)")
@@ -1868,22 +1878,8 @@ SlashCmdList["HOPE"] = function(msg)
             end
         end
     elseif cmd:find("^accept") then
-        -- Check for pending challenges in order: Wordle, Words, ScoreChallenge, Minigames
+        -- Check for pending challenges in order: ScoreChallenge, Minigames
         local _, _, targetName = cmd:find("^accept%s*(%S*)")
-
-        -- Check Wordle challenges first
-        local WordleGame = HopeAddon:GetModule("WordleGame")
-        if WordleGame and WordleGame:HasPendingChallenges() then
-            if targetName and targetName ~= "" then
-                WordleGame:AcceptChallenge(targetName)
-            else
-                for challenger, _ in pairs(WordleGame:GetPendingChallenges()) do
-                    WordleGame:AcceptChallenge(challenger)
-                    break
-                end
-            end
-            return
-        end
 
         -- Check ScoreChallenge
         local ScoreChallenge = HopeAddon:GetModule("ScoreChallenge")
@@ -1906,22 +1902,8 @@ SlashCmdList["HOPE"] = function(msg)
         end
 
     elseif cmd:find("^decline") then
-        -- Check for pending challenges in order: Wordle, ScoreChallenge, Minigames
+        -- Check for pending challenges in order: ScoreChallenge, Minigames
         local _, _, targetName = cmd:find("^decline%s*(%S*)")
-
-        -- Check Wordle challenges first
-        local WordleGame = HopeAddon:GetModule("WordleGame")
-        if WordleGame and WordleGame:HasPendingChallenges() then
-            if targetName and targetName ~= "" then
-                WordleGame:DeclineChallenge(targetName)
-            else
-                for challenger, _ in pairs(WordleGame:GetPendingChallenges()) do
-                    WordleGame:DeclineChallenge(challenger)
-                    break
-                end
-            end
-            return
-        end
 
         -- Check ScoreChallenge
         local ScoreChallenge = HopeAddon:GetModule("ScoreChallenge")
@@ -2090,9 +2072,6 @@ SlashCmdList["HOPE"] = function(msg)
         HopeAddon:Print("  /fire <coord> - Fire at coordinate in Battleship (e.g., /fire A5)")
         HopeAddon:Print("  /ready - Signal ships placed in Battleship")
         HopeAddon:Print("  /surrender - Forfeit current Battleship game")
-        HopeAddon:Print("  /hope wordle - Start WoW Wordle (practice mode)")
-        HopeAddon:Print("  /hope wordle <player> - Challenge player to Wordle")
-        HopeAddon:Print("  /hope wordle stats - Show Wordle statistics")
         HopeAddon:Print("  /gc <message> - Send chat to opponent during any game")
         HopeAddon:Print("  /hope challenge <player> [rps] - Challenge to Rock-Paper-Scissors")
         HopeAddon:Print("  /hope accept/decline - Respond to challenge")
