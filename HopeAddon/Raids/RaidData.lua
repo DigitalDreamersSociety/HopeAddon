@@ -713,14 +713,35 @@ function RaidData:OnCombatLogEvent(...)
             HopeAddon.KillFlash:ShowFlash(mapping.raid, mapping.boss, killData, encounterSummary)
         end
 
+        -- Show loot selection popup after KillFlash fades
+        if HopeAddon.LootSelection then
+            local isFinalForLoot = self:IsFinalBoss(mapping.raid, mapping.boss)
+            local lootDelay = isFinalForLoot and 3.5 or 2.5
+            if HopeAddon.Timer then
+                if self._lootSelectionTimer then self._lootSelectionTimer:Cancel() end
+                self._lootSelectionTimer = HopeAddon.Timer:After(lootDelay, function()
+                    self._lootSelectionTimer = nil
+                    HopeAddon.LootSelection:ShowForBoss(mapping.raid, mapping.boss, killData.bossName, killData.icon)
+                end)
+            end
+        end
+
         if killData.totalKills == 1 then
-            -- First kill - also show journal notification + milestones
-            local Journal = HopeAddon:GetModule("Journal")
-            if Journal and Journal.ShowBossKillNotification then
-                Journal:ShowBossKillNotification(killData)
+            -- Delay journal notification until after KillFlash fades
+            local isFinal = self:IsFinalBoss(mapping.raid, mapping.boss)
+            local flashDelay = isFinal and 3.3 or 2.3
+            if HopeAddon.Timer then
+                if self._notifDelayTimer then self._notifDelayTimer:Cancel() end
+                self._notifDelayTimer = HopeAddon.Timer:After(flashDelay, function()
+                    self._notifDelayTimer = nil
+                    local Journal = HopeAddon:GetModule("Journal")
+                    if Journal and Journal.ShowBossKillNotification then
+                        Journal:ShowBossKillNotification(killData)
+                    end
+                end)
             end
 
-            -- Check for tier/boss milestones
+            -- Check for tier/boss milestones (data only, no popup)
             if HopeAddon.Milestones then
                 HopeAddon.Milestones:CheckTierMilestone(mapping.raid, mapping.boss)
             end
@@ -790,14 +811,35 @@ function RaidData:OnEncounterEnd(encounterID, encounterName, difficultyID, group
             HopeAddon.KillFlash:ShowFlash(mapping.raid, mapping.boss, killData, encounterSummary)
         end
 
+        -- Show loot selection popup after KillFlash fades
+        if HopeAddon.LootSelection then
+            local isFinalForLoot = self:IsFinalBoss(mapping.raid, mapping.boss)
+            local lootDelay = isFinalForLoot and 3.5 or 2.5
+            if HopeAddon.Timer then
+                if self._lootSelectionTimer then self._lootSelectionTimer:Cancel() end
+                self._lootSelectionTimer = HopeAddon.Timer:After(lootDelay, function()
+                    self._lootSelectionTimer = nil
+                    HopeAddon.LootSelection:ShowForBoss(mapping.raid, mapping.boss, killData.bossName, killData.icon)
+                end)
+            end
+        end
+
         if killData.totalKills == 1 then
-            -- First kill - also show journal notification + milestones
-            local Journal = HopeAddon:GetModule("Journal")
-            if Journal and Journal.ShowBossKillNotification then
-                Journal:ShowBossKillNotification(killData)
+            -- Delay journal notification until after KillFlash fades
+            local isFinal = self:IsFinalBoss(mapping.raid, mapping.boss)
+            local flashDelay = isFinal and 3.3 or 2.3
+            if HopeAddon.Timer then
+                if self._notifDelayTimer then self._notifDelayTimer:Cancel() end
+                self._notifDelayTimer = HopeAddon.Timer:After(flashDelay, function()
+                    self._notifDelayTimer = nil
+                    local Journal = HopeAddon:GetModule("Journal")
+                    if Journal and Journal.ShowBossKillNotification then
+                        Journal:ShowBossKillNotification(killData)
+                    end
+                end)
             end
 
-            -- Check for tier/boss milestones
+            -- Check for tier/boss milestones (data only, no popup)
             if HopeAddon.Milestones then
                 HopeAddon.Milestones:CheckTierMilestone(mapping.raid, mapping.boss)
             end
@@ -969,6 +1011,11 @@ function RaidData:OnDisable()
     -- Clear recent kills cache
     if recentKills then
         wipe(recentKills)
+    end
+    -- Cancel pending notification delay timer
+    if self._notifDelayTimer then
+        self._notifDelayTimer:Cancel()
+        self._notifDelayTimer = nil
     end
     -- Clean up kill flash if active
     if HopeAddon.KillFlash then

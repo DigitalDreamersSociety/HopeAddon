@@ -40,7 +40,8 @@ local HOUSING_Y_OFFSET = -150 -- Y position (below minimap)
 -- Combined stats window constants
 local COMBINED_STATS_WIDTH = 320
 local COMBINED_STATS_HEIGHT = 220
-local COMBINED_STATS_DURATION = 10 -- Seconds before auto-hide
+local COMBINED_STATS_DURATION = 7 -- Seconds before auto-hide
+local STATS_WINDOW_DURATION = 15 -- Seconds before auto-hide (end-of-dungeon)
 
 -- Boss tips panel constants
 local TIPS_PANEL_WIDTH = 320
@@ -97,6 +98,8 @@ CritterUI.slideAnimation = nil
 -- Combined stats + tips system
 CritterUI.combinedStatsWindow = nil
 CritterUI.combinedStatsTimer = nil
+CritterUI.learnBtnTimer = nil
+CritterUI.statsWindowTimer = nil
 CritterUI.bossTipsPanel = nil
 CritterUI.bossTipsState = nil -- { tips, currentIndex, state, bossKey }
 CritterUI.tipsTypewriterTicker = nil
@@ -1592,12 +1595,28 @@ function CritterUI:ShowStatsWindow(stats, quip)
     if HopeAddon.Sounds then
         HopeAddon.Sounds:PlayVictory()
     end
+
+    -- Auto-hide after duration
+    if self.statsWindowTimer then
+        self.statsWindowTimer:Cancel()
+        self.statsWindowTimer = nil
+    end
+    if HopeAddon.Timer then
+        self.statsWindowTimer = HopeAddon.Timer:After(STATS_WINDOW_DURATION, function()
+            self.statsWindowTimer = nil
+            self:HideStatsWindow()
+        end)
+    end
 end
 
 --[[
     Hide stats window
 ]]
 function CritterUI:HideStatsWindow()
+    if self.statsWindowTimer then
+        self.statsWindowTimer:Cancel()
+        self.statsWindowTimer = nil
+    end
     if not self.statsWindow then return end
     if HopeAddon.Effects then
         HopeAddon.Effects:FadeOut(self.statsWindow, 0.3)
@@ -1795,7 +1814,7 @@ end
 function CritterUI:ShowCombinedStats(bossData, killTime, bestTime, quip, nextBossKey)
     if not self.combinedStatsWindow then
         -- Defer first-time UI creation to next frame to avoid execution limit
-        C_Timer.After(0, function()
+        HopeAddon.Timer:After(0, function()
             self:CreateCombinedStatsWindow()
             self:ShowCombinedStats(bossData, killTime, bestTime, quip, nextBossKey)
         end)
@@ -1805,10 +1824,14 @@ function CritterUI:ShowCombinedStats(bossData, killTime, bestTime, quip, nextBos
     local window = self.combinedStatsWindow
     local C = HopeAddon.Constants
 
-    -- Cancel existing timer
+    -- Cancel existing timers
     if self.combinedStatsTimer then
         self.combinedStatsTimer:Cancel()
         self.combinedStatsTimer = nil
+    end
+    if self.learnBtnTimer then
+        self.learnBtnTimer:Cancel()
+        self.learnBtnTimer = nil
     end
 
     -- Set boss icon
@@ -1891,7 +1914,8 @@ function CritterUI:ShowCombinedStats(bossData, killTime, bestTime, quip, nextBos
 
     -- Show learn button after 3 seconds
     if HopeAddon.Timer and nextBossKey then
-        HopeAddon.Timer:After(3, function()
+        self.learnBtnTimer = HopeAddon.Timer:After(3, function()
+            self.learnBtnTimer = nil
             if window:IsShown() then
                 window.learnBtn:Show()
                 if HopeAddon.Effects then
@@ -1917,6 +1941,10 @@ function CritterUI:HideCombinedStats()
     if self.combinedStatsTimer then
         self.combinedStatsTimer:Cancel()
         self.combinedStatsTimer = nil
+    end
+    if self.learnBtnTimer then
+        self.learnBtnTimer:Cancel()
+        self.learnBtnTimer = nil
     end
 
     if not self.combinedStatsWindow then return end
@@ -2823,7 +2851,7 @@ function CritterUI:ShowBossTipTooltip(bossKey, bossName, anchorFrame)
     for i, tip in ipairs(tips) do
         if i > 4 then break end  -- max 4 tips
         local prefix = tip.heroic and "|cffff6600[HEROIC]|r " or ""
-        table.insert(tipLines, "â€¢ " .. prefix .. tip.text)
+        table.insert(tipLines, "- " .. prefix .. tip.text)
     end
     tooltip.tips:SetText(table.concat(tipLines, "\n"))
 
@@ -3857,6 +3885,14 @@ function CritterUI:OnDisable()
     if self.combinedStatsTimer then
         self.combinedStatsTimer:Cancel()
         self.combinedStatsTimer = nil
+    end
+    if self.learnBtnTimer then
+        self.learnBtnTimer:Cancel()
+        self.learnBtnTimer = nil
+    end
+    if self.statsWindowTimer then
+        self.statsWindowTimer:Cancel()
+        self.statsWindowTimer = nil
     end
     if self.combinedStatsWindow then
         self.combinedStatsWindow:Hide()

@@ -367,15 +367,23 @@ function Animations:NotificationSlideIn(frame, callback)
     frame:SetAlpha(0)
     frame:Show()
 
+    -- Cancel any active tween on this frame before starting new one
+    if frame._hopeTween and frame._hopeTween._hopeCancel then
+        frame._hopeTween._hopeCancel()
+    end
+
     local point, relativeTo, relativePoint = frame:GetPoint()
     frame:ClearAllPoints()
     frame:SetPoint("TOP", UIParent, "TOP", 0, startY)
 
-    self:Tween(0.4, function(progress, eased)
+    frame._hopeTween = self:Tween(0.4, function(progress, eased)
         local currentY = startY + (targetY - startY) * eased
         frame:SetPoint("TOP", UIParent, "TOP", 0, currentY)
         frame:SetAlpha(eased)
-    end, callback, self.easing.easeOutCubic)
+    end, function()
+        frame._hopeTween = nil
+        if callback then callback() end
+    end, self.easing.easeOutCubic)
 end
 
 -- Notification slide out
@@ -383,11 +391,17 @@ function Animations:NotificationSlideOut(frame, callback)
     local startY = -100
     local targetY = 50
 
-    self:Tween(0.3, function(progress, eased)
+    -- Cancel any active tween on this frame before starting new one
+    if frame._hopeTween and frame._hopeTween._hopeCancel then
+        frame._hopeTween._hopeCancel()
+    end
+
+    frame._hopeTween = self:Tween(0.3, function(progress, eased)
         local currentY = startY + (targetY - startY) * eased
         frame:SetPoint("TOP", UIParent, "TOP", 0, currentY)
         frame:SetAlpha(1 - eased)
     end, function()
+        frame._hopeTween = nil
         frame:Hide()
         if callback then callback() end
     end, self.easing.easeInCubic)

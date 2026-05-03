@@ -405,11 +405,12 @@ function Reputation:ShowReputationNotification(factionName, standingInfo, loreTe
     local self_ref = self
     HopeAddon.Animations:NotificationSlideIn(notif, function()
         local displayTime = isExalted and 6 or 4
-        HopeAddon.Timer:After(displayTime, function()
+        local handle = HopeAddon.Timer:After(displayTime, function()
             HopeAddon.Animations:NotificationSlideOut(notif, function()
                 self_ref:ReleaseNotification(notif)
             end)
         end)
+        if handle then table.insert(self_ref.pendingTimers, handle) end
     end)
 end
 
@@ -469,11 +470,12 @@ function Reputation:ShowChoiceNotification(chosenFaction, opposingFaction, loreT
     -- Animate in, then release back to pool
     local self_ref = self
     HopeAddon.Animations:NotificationSlideIn(notif, function()
-        HopeAddon.Timer:After(7, function()
+        local handle = HopeAddon.Timer:After(7, function()
             HopeAddon.Animations:NotificationSlideOut(notif, function()
                 self_ref:ReleaseNotification(notif)
             end)
         end)
+        if handle then table.insert(self_ref.pendingTimers, handle) end
     end)
 end
 

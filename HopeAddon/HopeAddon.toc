@@ -12,11 +12,13 @@
 Core\FramePool.lua
 Core\Constants.lua
 Core\ArmoryBisData.lua
+Core\BossLootData.lua
 Core\ArmoryAcquisitionData.lua
 Core\Timer.lua
 Core\Core.lua
+Core\BehaviorPolicy.lua
+Core\CommsAuthority.lua
 Core\TooltipEnhancer.lua
-Core\InspectCache.lua
 Core\Sounds.lua
 Core\Effects.lua
 Core\Charts.lua
@@ -39,6 +41,7 @@ Raids\EncounterTracker.lua
 Raids\CombatRecords.lua
 Raids\BossBreakdown.lua
 Raids\KillFlash.lua
+Raids\LootSelection.lua
 Raids\Attunements.lua
 Raids\Karazhan.lua
 Raids\Gruul.lua
@@ -78,6 +81,13 @@ Social\Games\GameUI.lua
 Social\Games\GameComms.lua
 Social\Games\GameChat.lua
 Social\Games\ScoreChallenge.lua
+
+# Casino Layer (shared primitives only)
+Social\Casino\CasinoRoll.lua
+
+# Casino Vertical Slice (Roulette Straight Up only)
+Social\Games\RouletteSlice\RouletteSlice.lua
+
 Social\Games\Tetris\TetrisBlocks.lua
 Social\Games\Tetris\TetrisGrid.lua
 Social\Games\Tetris\TetrisGame.lua

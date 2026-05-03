@@ -163,6 +163,29 @@ function CombatRecords:RecordEncounter(raidKey, bossId, killData)
 end
 
 --[[
+    Record which items actually dropped on a boss kill.
+    Called asynchronously after the player checks off items in the loot selection popup.
+    @param raidKey string - e.g. "karazhan"
+    @param bossId string - e.g. "attumen"
+    @param itemIds table - array of item IDs like {28510, 28509}
+]]
+function CombatRecords:RecordDroppedLoot(raidKey, bossId, itemIds)
+    if not raidKey or not bossId or not itemIds or #itemIds == 0 then return end
+
+    local db = self:EnsureDB()
+    if not db then return end
+
+    local key = raidKey .. "_" .. bossId
+    local record = db.records[key]
+    if not record or not record.killHistory or #record.killHistory == 0 then return end
+
+    -- Store on the most recent kill
+    record.killHistory[1].droppedLoot = itemIds
+
+    HopeAddon:Debug("CombatRecords: Recorded", #itemIds, "dropped items for", record.bossName)
+end
+
+--[[
     Get a specific boss's combat record
     @param raidKey string
     @param bossId string

@@ -24,7 +24,6 @@ HopeAddon.modules = {}
 
 -- Combat UI auto-hide state
 local combatUIState = {
-    wasJournalOpen = false,
     wasProfileEditorOpen = false,
     hiddenGameWindows = {},  -- [gameId] = true for games that were visible
     isHiddenForCombat = false,
@@ -1342,23 +1341,21 @@ function HopeAddon:OnCombatStart()
     end
 
     -- Reset state
-    combatUIState.wasJournalOpen = false
     combatUIState.wasProfileEditorOpen = false
     wipe(combatUIState.hiddenGameWindows)
 
     local hidSomething = false
 
-    -- Hide Journal
+    -- Hide Journal (no auto-restore on combat end -- user must reopen manually)
     local Journal = self.Journal
-    if Journal and Journal.isOpen and Journal.mainFrame then
-        combatUIState.wasJournalOpen = true
+    if Journal and Journal.mainFrame and Journal.mainFrame:IsShown() then
         Journal.mainFrame:Hide()
         hidSomething = true
     end
 
     -- Hide ProfileEditor
     local ProfileEditor = self.ProfileEditor
-    if ProfileEditor and ProfileEditor.isOpen and ProfileEditor.frame then
+    if ProfileEditor and ProfileEditor.frame and ProfileEditor.frame:IsShown() then
         combatUIState.wasProfileEditorOpen = true
         ProfileEditor.frame:Hide()
         hidSomething = true
@@ -1381,7 +1378,10 @@ function HopeAddon:OnCombatStart()
         end
     end
 
-    combatUIState.isHiddenForCombat = hidSomething
+    -- Only flag for restore-on-combat-end if something restorable was hidden.
+    -- Journal is intentionally excluded -- it stays closed once hidden.
+    combatUIState.isHiddenForCombat = combatUIState.wasProfileEditorOpen
+        or next(combatUIState.hiddenGameWindows) ~= nil
 
     -- Show notification if we hid something
     if hidSomething and self.db.settings.notificationsEnabled then
@@ -1395,32 +1395,38 @@ function HopeAddon:OnCombatEnd()
         return
     end
 
-    -- Restore Journal
-    if combatUIState.wasJournalOpen then
-        local Journal = self.Journal
-        if Journal and Journal.mainFrame then
-            Journal.mainFrame:Show()
-        end
-    end
+    -- If the player toggled the combat-hide setting off mid-combat, treat that as
+    -- "stop managing my UI" -- skip all restores. They can reopen what they want.
+    local settingStillOn = self.db and self.db.settings.hideUIDuringCombat
+    local restoredSomething = false
 
-    -- Restore ProfileEditor
-    if combatUIState.wasProfileEditorOpen then
+    -- Restore ProfileEditor.
+    -- Dismissal signal: ProfileEditor.isOpen. The system's combat hide calls
+    -- ProfileEditor.frame:Hide() directly, which does NOT touch isOpen. The only
+    -- code that sets isOpen=false is ProfileEditor:Hide() / :Toggle() -- both are
+    -- player-driven. So isOpen still being true means the player did not dismiss.
+    if settingStillOn and combatUIState.wasProfileEditorOpen then
         local ProfileEditor = self.ProfileEditor
-        if ProfileEditor and ProfileEditor.frame then
+        if ProfileEditor and ProfileEditor.frame and ProfileEditor.isOpen then
             ProfileEditor.frame:Show()
+            restoredSomething = true
         end
     end
 
-    -- Restore and unpause game windows
+    -- Restore and unpause game windows.
+    -- Dismissal signal: game.state. Close button + ESC both call EndGame() which
+    -- sets state=ENDED. Combat-pause sets state=PAUSED. So state==PAUSED means
+    -- "we paused it and nothing else has ended it" -- safe to resume.
     local GameCore = self.GameCore
-    if GameCore and GameCore.activeGames then
+    if settingStillOn and GameCore and GameCore.activeGames then
         for gameId, wasVisible in pairs(combatUIState.hiddenGameWindows) do
             if wasVisible then
                 local game = GameCore.activeGames[gameId]
-                if game and game.data and game.data.ui and game.data.ui.window then
+                if game and game.state == GameCore.STATE.PAUSED
+                   and game.data and game.data.ui and game.data.ui.window then
                     game.data.ui.window:Show()
-                    -- Unpause the game
                     GameCore:ResumeGame(gameId)
+                    restoredSomething = true
                 end
             end
         end
@@ -1428,10 +1434,12 @@ function HopeAddon:OnCombatEnd()
 
     -- Reset state
     combatUIState.isHiddenForCombat = false
+    combatUIState.wasProfileEditorOpen = false
     wipe(combatUIState.hiddenGameWindows)
 
-    -- Show notification
-    if self.db and self.db.settings.notificationsEnabled then
+    -- Notify only if something actually came back. Otherwise the message would lie
+    -- (e.g. all windows were dismissed during combat -> nothing to restore).
+    if restoredSomething and self.db and self.db.settings.notificationsEnabled then
         self:Print("|cFF00FF00UI restored|r")
     end
 end
@@ -1487,7 +1495,7 @@ function HopeAddon:GetDefaultDB()
             bossKillFlashEnabled = true,  -- Show kill flash overlay on boss kills
             tooltipBisEnabled = true,     -- Show BiS status on item tooltips
             tooltipGearScoreEnabled = true, -- Show gear score on item tooltips
-            tooltipUnitGearEnabled = true,  -- Show iLevel/GS/raid readiness on player tooltips
+            tooltipUnitGearEnabled = true,  -- Show iLevel/GS/raid readiness on Fellow Traveler tooltips
             backgroundOpacity = 0.95,   -- Background opacity (0% = transparent, 100% = solid)
             critterTabPosition = nil,   -- Saved position for critter tab button {point, x, y}
         },

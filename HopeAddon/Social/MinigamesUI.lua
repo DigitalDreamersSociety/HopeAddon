@@ -345,6 +345,16 @@ function MinigamesUI:OnEnable()
 end
 
 function MinigamesUI:OnDisable()
+    -- Cancel pending Local RPS animation timers
+    if self.localRPSTimers then
+        for _, timer in ipairs(self.localRPSTimers) do
+            if timer and timer.Cancel then
+                timer:Cancel()
+            end
+        end
+        wipe(self.localRPSTimers)
+    end
+
     -- Cancel challenge popup timer to prevent orphaned ticker
     if self.challengePopup then
         if self.challengePopup.timerTicker then

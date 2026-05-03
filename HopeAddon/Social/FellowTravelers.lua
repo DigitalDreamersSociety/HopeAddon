@@ -50,12 +50,12 @@ FellowTravelers.soundPlayedForPlayer = {}  -- Per-session tracking to ensure sou
 FellowTravelers.cleanupTicker = nil  -- Periodic cleanup timer handle
 FellowTravelers.broadcastTicker = nil  -- Periodic broadcast timer handle for continuous discovery
 FellowTravelers.messageCallbacks = {}  -- Registered message handlers for extensibility
-FellowTravelers.yellCounter = 0  -- Counter for throttle-aware YELL broadcasting
 
 -- Cleanup constants
 local MAX_PING_COOLDOWNS = 100
 local MAX_REQUEST_COOLDOWNS = 100
 local MAX_FELLOWS = 200
+local MAX_SOUND_TRACKED = 500
 local FELLOW_EXPIRY_DAYS = 30
 local PROFILE_REQUEST_COOLDOWN = 60  -- seconds between profile requests per player
 
@@ -63,63 +63,8 @@ local PROFILE_REQUEST_COOLDOWN = 60  -- seconds between profile requests per pla
 -- COMPATIBILITY HELPERS
 --============================================================
 
--- Cache SendAddonMessage function at load time (TBC optimization)
--- This avoids if/else check on every call
-local CachedSendAddonMessage = (C_ChatInfo and C_ChatInfo.SendAddonMessage) or SendAddonMessage
-
--- Safe wrapper for SendAddonMessage using cached function
--- Uses pcall to silently handle edge cases (leaving BGs, raid disbands, etc.)
-local function SafeSendAddonMessage(prefix, msg, channel, target)
-    if CachedSendAddonMessage then
-        local success, err = pcall(CachedSendAddonMessage, prefix, msg, channel, target)
-        if not success and HopeAddon.db and HopeAddon.db.debug then
-            HopeAddon:Debug("SendAddonMessage failed:", channel, err)
-        end
-    end
-end
-
--- Check if player is in an instance (dungeon, raid instance, battleground, arena)
--- When in an instance, we should use INSTANCE_CHAT instead of RAID/PARTY
--- This is available in TBC Classic 2.5+ and prevents "You are not in a raid group" spam
-local function IsInInstanceGroup()
-    -- IsInInstance() returns: inInstance, instanceType
-    -- instanceType: "none", "pvp" (battleground), "arena", "party" (dungeon), "raid"
-    local inInstance, instanceType = IsInInstance()
-    if not inInstance then return false end
-    -- Return true for battlegrounds, arenas, and dungeons where INSTANCE_CHAT should be used
-    return instanceType == "pvp" or instanceType == "arena" or instanceType == "party"
-end
-
--- Check if player is in a REAL raid (not a battleground raid)
--- In battlegrounds, IsInRaid() returns true but SendAddonMessage to "RAID" can fail
--- GetRealNumRaidMembers() returns 0 in BGs but the actual raid size outside BGs
--- This prevents "You are not in a raid group" spam when entering/leaving BGs
-local function IsInRealRaid()
-    -- First check: if we're in a BG/arena/dungeon instance, we're NOT in a "real" raid
-    if IsInInstanceGroup() then
-        return false
-    end
-    -- GetRealNumRaidMembers exists in TBC Classic and returns 0 in BGs
-    if GetRealNumRaidMembers then
-        return GetRealNumRaidMembers() > 0
-    end
-    -- Fallback for compatibility (shouldn't hit in TBC 2.4.3)
-    return IsInRaid()
-end
-
--- Check if player is in a REAL party (not a battleground party)
-local function IsInRealParty()
-    -- First check: if we're in a BG/arena/dungeon instance, we're NOT in a "real" party
-    if IsInInstanceGroup() then
-        return false
-    end
-    -- GetRealNumPartyMembers exists in TBC Classic and returns 0 in BGs
-    if GetRealNumPartyMembers then
-        return GetRealNumPartyMembers() > 0
-    end
-    -- Fallback
-    return IsInGroup() and not IsInRaid()
-end
+-- Transport (Safe send, instance/group context, name-in-group lookup) lives in
+-- Core/CommsAuthority.lua. Access via HopeAddon.CommsAuthority.
 
 -- Escape special Lua pattern characters for safe use in gsub
 local function EscapePattern(str)
@@ -305,34 +250,7 @@ function FellowTravelers:BroadcastPresence()
     local gearScore, avgILvl = HopeAddon:GetGearScore()
     local msg = string.format("%s:%d:%s|%d|%d", MSG_PING, PROTOCOL_VERSION, zone, avgILvl or 0, gearScore or 0)
 
-    -- Send to different channels based on context
-    -- Priority: INSTANCE_CHAT (for BGs/dungeons) > RAID > PARTY > GUILD > YELL
-    -- Using INSTANCE_CHAT in instances avoids "You are not in a raid group" spam
-    local inInstance = IsInInstanceGroup()
-    local inRealRaid = IsInRealRaid()
-    local inRealParty = IsInRealParty()
-
-    if inInstance then
-        -- In battleground, arena, or dungeon - use INSTANCE_CHAT
-        SafeSendAddonMessage(ADDON_PREFIX, msg, "INSTANCE_CHAT")
-    elseif inRealRaid then
-        SafeSendAddonMessage(ADDON_PREFIX, msg, "RAID")
-    elseif inRealParty then
-        SafeSendAddonMessage(ADDON_PREFIX, msg, "PARTY")
-    end
-
-    if IsInGuild() then
-        SafeSendAddonMessage(ADDON_PREFIX, msg, "GUILD")
-    end
-
-    -- Yell for nearby non-grouped players (skip when in instance or real raid - redundant)
-    -- Only YELL every other broadcast (every 30s) to reduce throttle risk in busy areas
-    if not inInstance and not inRealRaid then
-        self.yellCounter = (self.yellCounter or 0) + 1
-        if self.yellCounter % 2 == 0 then
-            SafeSendAddonMessage(ADDON_PREFIX, msg, "YELL")
-        end
-    end
+    HopeAddon.CommsAuthority:Broadcast(ADDON_PREFIX, msg, "presence")
 
     HopeAddon:Debug("Broadcast presence:", msg)
 end
@@ -345,7 +263,7 @@ end
 ]]
 function FellowTravelers:SendDirectMessage(target, msgType, data)
     local msg = string.format("%s:%d:%s", msgType, PROTOCOL_VERSION, data or "")
-    SafeSendAddonMessage(ADDON_PREFIX, msg, "WHISPER", target)
+    HopeAddon.CommsAuthority:SendDirect(target, ADDON_PREFIX, msgType, msg)
 end
 
 --[[
@@ -357,30 +275,7 @@ function FellowTravelers:BroadcastMessage(msg)
     local settings = HopeAddon.charDb.travelers.fellowSettings
     if not settings or not settings.enabled then return end
 
-    -- Send to different channels based on context
-    -- Priority: INSTANCE_CHAT (for BGs/dungeons) > RAID > PARTY > GUILD > YELL
-    -- Using INSTANCE_CHAT in instances avoids "You are not in a raid group" spam
-    local inInstance = IsInInstanceGroup()
-    local inRealRaid = IsInRealRaid()
-    local inRealParty = IsInRealParty()
-
-    if inInstance then
-        -- In battleground, arena, or dungeon - use INSTANCE_CHAT
-        SafeSendAddonMessage(ADDON_PREFIX, msg, "INSTANCE_CHAT")
-    elseif inRealRaid then
-        SafeSendAddonMessage(ADDON_PREFIX, msg, "RAID")
-    elseif inRealParty then
-        SafeSendAddonMessage(ADDON_PREFIX, msg, "PARTY")
-    end
-
-    if IsInGuild() then
-        SafeSendAddonMessage(ADDON_PREFIX, msg, "GUILD")
-    end
-
-    -- YELL for nearby non-grouped players (skip when in instance or real raid)
-    if not inInstance and not inRealRaid then
-        SafeSendAddonMessage(ADDON_PREFIX, msg, "YELL")
-    end
+    HopeAddon.CommsAuthority:Broadcast(ADDON_PREFIX, msg, "message")
 
     HopeAddon:Debug("Broadcast message:", msg:sub(1, 50))
 end
@@ -525,6 +420,8 @@ function FellowTravelers:RequestProfile(playerName)
     if not HopeAddon.charDb or not HopeAddon.charDb.travelers then return end
     local settings = HopeAddon.charDb.travelers.fellowSettings
     if not settings or not settings.enabled then return end
+
+    -- Arena/BG whisper-unreachability is gated inside CommsAuthority:CanSendToPlayer.
 
     -- Check cooldown to prevent request spam
     local now = GetTime()
@@ -700,6 +597,12 @@ function FellowTravelers:RegisterFellow(name, info)
             if now - self.lastDiscoverySoundTime >= DISCOVERY_SOUND_COOLDOWN then
                 HopeAddon:PlaySound("FELLOW_DISCOVERY")
                 self.lastDiscoverySoundTime = now
+            end
+            -- Cap table size to prevent unbounded growth in long sessions
+            local count = 0
+            for _ in pairs(self.soundPlayedForPlayer) do count = count + 1 end
+            if count >= MAX_SOUND_TRACKED then
+                wipe(self.soundPlayedForPlayer)
             end
             self.soundPlayedForPlayer[name] = true  -- Mark as played for this session
         end
@@ -934,27 +837,17 @@ local function OnTooltipSetUnit(tooltip)
 
     local fellow = FellowTravelers:GetFellow(name)
 
-    -- Gear info (works for ALL players, not just fellows)
+    -- Stop here if not a Fellow Traveler
+    if not fellow then return end
+
+    -- Gear info (Fellow Travelers only - synced via addon protocol)
     local gearSettings = HopeAddon.db and HopeAddon.db.settings
     if not gearSettings or gearSettings.tooltipUnitGearEnabled ~= false then
-        local avgILvl, gearScore = nil, nil
-
-        if fellow and fellow.avgILvl and fellow.avgILvl > 0 then
-            -- Fellow Traveler: use cached broadcast data (instant)
-            avgILvl = fellow.avgILvl
-            gearScore = fellow.gearScore or 0
-        elseif HopeAddon.InspectCache then
-            -- Any player: try inspect cache
-            local info = HopeAddon.InspectCache:GetPlayerGearInfo(unit)
-            if info then
-                avgILvl = info.avgILvl
-                gearScore = info.gearScore
-            end
-        end
-
-        if avgILvl and avgILvl > 0 then
+        if fellow.avgILvl and fellow.avgILvl > 0 then
             local C = HopeAddon.Constants
             local Directory = HopeAddon.Directory
+            local avgILvl = fellow.avgILvl
+            local gearScore = fellow.gearScore or 0
 
             -- Color based on iLevel tier
             local colorHex = Directory and Directory:GetILvlColor(avgILvl) or "FFFFFF"
@@ -966,7 +859,7 @@ local function OnTooltipSetUnit(tooltip)
             -- Line 1: iLvl + GS
             tooltip:AddDoubleLine(
                 string.format("iLvl: %d", avgILvl),
-                gearScore and gearScore > 0 and string.format("GS: %d", gearScore) or "",
+                gearScore > 0 and string.format("GS: %d", gearScore) or "",
                 cr, cg, cb,
                 1, 0.84, 0
             )
@@ -982,9 +875,6 @@ local function OnTooltipSetUnit(tooltip)
             tooltip:Show()
         end
     end
-
-    -- Stop here if not a Fellow Traveler (gear info above is for everyone)
-    if not fellow then return end
 
     -- Add separator
     tooltip:AddLine(" ")
@@ -1079,13 +969,6 @@ function FellowTravelers:HookTooltip()
     end
 
     GameTooltip:HookScript("OnTooltipSetUnit", OnTooltipSetUnit)
-
-    -- Hook tooltip clear for inspect cache cleanup
-    GameTooltip:HookScript("OnTooltipCleared", function()
-        if HopeAddon.InspectCache then
-            HopeAddon.InspectCache:OnTooltipCleared()
-        end
-    end)
 end
 
 --============================================================

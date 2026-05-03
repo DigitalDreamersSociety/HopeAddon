@@ -22,6 +22,10 @@ local COMBAT_LOG_EVENTS = {
     "PARTY_KILL",
 }
 
+-- Deduplication for boss kills (prevents UNIT_DIED + PARTY_KILL double-fire)
+local recentBossKills = {}
+local BOSS_KILL_COOLDOWN = 5
+
 -- All boss NPCs in TBC dungeons (for mid-boss detection)
 -- Final bosses are in C.DUNGEON_BOSS_NPC_IDS
 local DUNGEON_BOSS_NPCS = {
@@ -221,7 +225,14 @@ function CrusadeCritter:OnDisable()
     self.inCombat = false
 
     if self.eventFrame then
+        self.eventFrame:SetScript("OnEvent", nil)
         self.eventFrame:UnregisterAllEvents()
+        self.eventFrame = nil
+    end
+
+    if self.unlockTimer then
+        self.unlockTimer:Cancel()
+        self.unlockTimer = nil
     end
 
     if HopeAddon.CritterUI then
@@ -361,6 +372,18 @@ function CrusadeCritter:OnCombatLogEvent(...)
 
     local bossData = DUNGEON_BOSS_NPCS[npcID]
     if not bossData then return end
+
+    -- Deduplication: prevent double-fire from UNIT_DIED + PARTY_KILL
+    local now = GetTime()
+    for key, ts in pairs(recentBossKills) do
+        if now - ts > BOSS_KILL_COOLDOWN * 2 then
+            recentBossKills[key] = nil
+        end
+    end
+    if recentBossKills[npcID] and (now - recentBossKills[npcID]) < BOSS_KILL_COOLDOWN then
+        return
+    end
+    recentBossKills[npcID] = now
 
     self:OnBossKill(npcID, bossData)
 end
@@ -651,10 +674,15 @@ function CrusadeCritter:OnLevelUp(newLevel)
 
     -- Delay 3 seconds for level-up animation to finish
     -- Also check not in combat
-    HopeAddon.Timer:After(3, function()
+    if not HopeAddon.Timer then return end
+    if self.unlockTimer then self.unlockTimer:Cancel() end
+    self.unlockTimer = HopeAddon.Timer:After(3, function()
+        self.unlockTimer = nil
         if UnitAffectingCombat("player") then
             -- Retry in 5 more seconds if in combat
-            HopeAddon.Timer:After(5, function()
+            if not HopeAddon.Timer then return end
+            self.unlockTimer = HopeAddon.Timer:After(5, function()
+                self.unlockTimer = nil
                 for _, critterId in ipairs(newlyUnlocked) do
                     if HopeAddon.CritterUI then
                         HopeAddon.CritterUI:ShowUnlockCelebration(critterId)

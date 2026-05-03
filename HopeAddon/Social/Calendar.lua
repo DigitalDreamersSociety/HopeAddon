@@ -18,6 +18,7 @@ local PROTOCOL_VERSION = 1
 
 -- Local state
 local notificationTicker = nil
+local cleanupCounter = 0
 
 --============================================================
 -- INITIALIZATION
@@ -62,6 +63,7 @@ function Calendar:OnDisable()
         FellowTravelers:UnregisterMessageCallback("calendar_event")
         FellowTravelers:UnregisterMessageCallback("calendar_delete")
         FellowTravelers:UnregisterMessageCallback("calendar_signup")
+        FellowTravelers:UnregisterMessageCallback("calendar_birthday")
     end
 
     HopeAddon:Debug("Calendar: Disabled")
@@ -115,6 +117,26 @@ function Calendar:EnsureCalendarData()
     -- Ensure birthday fields exist (migration for existing data)
     if social.calendar.knownBirthdays == nil then
         social.calendar.knownBirthdays = {}
+    end
+
+    -- Ensure calendar fields exist (migration: defaults previously had wrong field names)
+    if social.calendar.notifiedEvents == nil then
+        social.calendar.notifiedEvents = {}
+    end
+    if social.calendar.myEvents == nil then
+        social.calendar.myEvents = {}
+    end
+    if social.calendar.fellowEvents == nil then
+        social.calendar.fellowEvents = {}
+    end
+    if social.calendar.settings == nil then
+        social.calendar.settings = {
+            defaultView = "month",
+            showPastEvents = true,
+            pastEventDays = 7,
+            defaultNotify1hr = true,
+            defaultNotify15min = true,
+        }
     end
 
     return social.calendar
@@ -191,7 +213,9 @@ function Calendar:GetEventTimestamp(event)
     hour = tonumber(hour) or 19
     minute = tonumber(minute) or 0
 
-    return time({
+    -- time() interprets the table as local time, but startTime is in realm/server time.
+    -- Adjust by the realm offset so the timestamp represents the correct absolute moment.
+    local localTimestamp = time({
         year = year,
         month = month,
         day = day,
@@ -199,6 +223,8 @@ function Calendar:GetEventTimestamp(event)
         min = minute,
         sec = 0,
     })
+
+    return localTimestamp - self:CalculateRealmOffset()
 end
 
 --[[
@@ -259,7 +285,10 @@ function Calendar:CalculateRealmOffset()
     if diff > 720 then diff = diff - 1440 end  -- Cross midnight backward
     if diff < -720 then diff = diff + 1440 end -- Cross midnight forward
 
-    return diff * 60  -- Return as seconds
+    -- Round to nearest hour to avoid minute-level jitter between API calls
+    -- (math.floor on negative values rounds away from zero, causing off-by-one hour errors)
+    local offsetHours = math.floor(diff / 60 + 0.5)
+    return offsetHours * 3600
 end
 
 --[[
@@ -296,39 +325,29 @@ function Calendar:FormatDualTime(timeStr)
 end
 
 --[[
-    Convert PST time to local time for display
-    PST is UTC-8 (standard Pacific Time)
-    @param timeStr string - "HH:MM" in PST
-    @return string - Formatted local time, or nil if same timezone
+    Convert server/realm time to local time for display
+    Uses GetGameTime() realm offset for accurate conversion
+    @param timeStr string - "HH:MM" in server/realm time
+    @return string - Formatted local time (12h AM/PM), or nil if same timezone
 ]]
-function Calendar:FormatLocalTimeFromPST(timeStr)
+function Calendar:FormatLocalTimeFromServerTime(timeStr)
     if not timeStr then return nil end
 
     local hour, minute = timeStr:match("^(%d+):(%d+)$")
     if not hour then return nil end
 
-    -- PST is UTC-8
-    local pstOffsetHours = -8
+    -- Get realm offset (positive = realm ahead of local, negative = realm behind)
+    local realmOffset = self:CalculateRealmOffset()
+    local offsetHours = math.floor(realmOffset / 3600)
 
-    -- Get local UTC offset
-    local now = time()
-    local utcNow = date("!*t", now)
-    local localNow = date("*t", now)
-    local localOffsetHours = localNow.hour - utcNow.hour
-    if localOffsetHours > 12 then localOffsetHours = localOffsetHours - 24 end
-    if localOffsetHours < -12 then localOffsetHours = localOffsetHours + 24 end
-
-    -- Calculate difference from PST to local
-    local diffHours = localOffsetHours - pstOffsetHours
-
-    -- If same timezone, don't show duplicate
-    if math.abs(diffHours) < 0.5 then
+    -- Same timezone: no conversion needed
+    if offsetHours == 0 then
         return nil
     end
 
-    -- Convert PST hour to local hour
-    local pstHour = tonumber(hour)
-    local localHour = pstHour + diffHours
+    -- Convert server/realm hour to local hour
+    local serverHour = tonumber(hour)
+    local localHour = serverHour - offsetHours
 
     -- Handle day wrap
     if localHour < 0 then localHour = localHour + 24 end
@@ -561,7 +580,7 @@ function Calendar:GetEvent(eventId)
     local cal = self:GetCalendarData()
     if not cal then return nil end
 
-    local event = cal.myEvents[eventId] or cal.fellowEvents[eventId]
+    local event = (cal.myEvents and cal.myEvents[eventId]) or (cal.fellowEvents and cal.fellowEvents[eventId])
 
     -- Check for auto-lock if this is our event
     if event and cal.myEvents[eventId] then
@@ -703,7 +722,7 @@ end
     @return table|nil - Server event or nil
 ]]
 function Calendar:GetServerEventForDate(dateStr)
-    local serverEvents = C:GetServerEventsForDate(dateStr)
+    local serverEvents = self:GetServerEventsForDate(dateStr)
     return serverEvents[1]  -- Return first one for background theming
 end
 
@@ -1525,6 +1544,14 @@ end
 function Calendar:CheckNotifications()
     local cal = self:GetCalendarData()
     if not cal then return end
+    if not cal.notifiedEvents then cal.notifiedEvents = {} end
+
+    -- Periodic cleanup (~every 30 ticker intervals)
+    cleanupCounter = cleanupCounter + 1
+    if cleanupCounter >= 30 then
+        cleanupCounter = 0
+        self:CleanupExpiredEvents()
+    end
 
     local now = time()
 
@@ -1640,6 +1667,11 @@ function Calendar:CleanupExpiredEvents()
         end
         for _, eventId in ipairs(toRemove) do
             cal.myEvents[eventId] = nil
+            if cal.notifiedEvents then
+                cal.notifiedEvents[eventId .. "_1hr"] = nil
+                cal.notifiedEvents[eventId .. "_15min"] = nil
+                cal.notifiedEvents[eventId .. "_cinematic_1hr"] = nil
+            end
             HopeAddon:Debug("Calendar: Cleaned up expired event", eventId)
         end
     end
@@ -1655,6 +1687,11 @@ function Calendar:CleanupExpiredEvents()
         end
         for _, eventId in ipairs(toRemove) do
             cal.fellowEvents[eventId] = nil
+            if cal.notifiedEvents then
+                cal.notifiedEvents[eventId .. "_1hr"] = nil
+                cal.notifiedEvents[eventId .. "_15min"] = nil
+                cal.notifiedEvents[eventId .. "_cinematic_1hr"] = nil
+            end
         end
     end
 
@@ -1667,8 +1704,17 @@ function Calendar:CleanupExpiredEvents()
         end
     end
 
-    -- Clean old notification flags
-    -- (Keep them around for a while to prevent re-notification)
+    -- Clean orphaned notification flags for events that no longer exist
+    if cal.notifiedEvents then
+        for notifyKey in pairs(cal.notifiedEvents) do
+            local eventId = notifyKey:match("^(.+)_cinematic_1hr$")
+                or notifyKey:match("^(.+)_15min$")
+                or notifyKey:match("^(.+)_1hr$")
+            if eventId and not self:GetEvent(eventId) then
+                cal.notifiedEvents[notifyKey] = nil
+            end
+        end
+    end
 end
 
 --============================================================
@@ -1823,7 +1869,11 @@ function Calendar:HandleNetworkEvent(sender, data, isUpdate)
         return
     end
 
-    -- Store in fellowEvents
+    -- Store in fellowEvents (preserve signups on update)
+    local existing = cal.fellowEvents[event.id]
+    if existing and isUpdate then
+        event.signups = existing.signups
+    end
     cal.fellowEvents[event.id] = event
 
     -- Show toast for new events
@@ -1847,8 +1897,13 @@ function Calendar:HandleEventDeletion(sender, data)
     local eventId = data
     if not eventId or eventId == "" then return end
 
-    cal.fellowEvents[eventId] = nil
-    cal.mySignups[eventId] = nil
+    if cal.fellowEvents then cal.fellowEvents[eventId] = nil end
+    if cal.mySignups then cal.mySignups[eventId] = nil end
+    if cal.notifiedEvents then
+        cal.notifiedEvents[eventId .. "_1hr"] = nil
+        cal.notifiedEvents[eventId .. "_15min"] = nil
+        cal.notifiedEvents[eventId .. "_cinematic_1hr"] = nil
+    end
 
     HopeAddon:Debug("Calendar: Event deleted by", sender, eventId)
 end
@@ -2355,6 +2410,16 @@ function Calendar:HandleBirthdayMessage(sender, data)
 
     if not cal.knownBirthdays then
         cal.knownBirthdays = {}
+    end
+
+    -- Cap known birthdays to prevent unbounded saved variable growth
+    if not cal.knownBirthdays[sender] then
+        local count = 0
+        for _ in pairs(cal.knownBirthdays) do count = count + 1 end
+        if count >= 300 then
+            HopeAddon:Debug("Calendar: knownBirthdays at cap (300), skipping", sender)
+            return
+        end
     end
 
     cal.knownBirthdays[sender] = { month = month, day = day }

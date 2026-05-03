@@ -125,6 +125,7 @@ local function CreateToastFrame()
     closeText:SetPoint("CENTER")
     closeText:SetText("|cFF808080×|r")
     closeBtn.text = closeText
+    frame.closeBtn = closeBtn
 
     closeBtn:SetScript("OnEnter", function(self)
         self.text:SetText("|cFFFFFFFF×|r")
@@ -149,6 +150,12 @@ end
 local function ResetToastFrame(frame)
     frame:Hide()
     frame:ClearAllPoints()
+    frame:SetScript("OnMouseDown", nil)
+    if frame.closeBtn then
+        frame.closeBtn:SetScript("OnEnter", nil)
+        frame.closeBtn:SetScript("OnLeave", nil)
+        frame.closeBtn:SetScript("OnClick", nil)
+    end
     if frame.dismissTimer then
         frame.dismissTimer:Cancel()
         frame.dismissTimer = nil

@@ -13,20 +13,8 @@ Documentation for the boss kill popup system: current implementation and redesig
    - [Data Flow](#data-flow)
    - [Data Structures](#data-structures)
    - [Known Issues](#known-issues)
-2. [Redesign Spec — Kill Flash](#2-redesign-spec--kill-flash)
-   - [Vision](#vision)
-   - [Layout](#layout)
-   - [Specifications](#specifications)
-   - [Vignette — Raid-Themed Tinting](#vignette--raid-themed-tinting)
-   - [Boss Icon — EpicGlow + BurstEffect](#boss-icon--epicglow--bursteffect)
-   - [DEFEATED Text — Letter-Spaced, Phase-Colored](#defeated-text--letter-spaced-phase-colored)
-   - [Animation Sequence](#animation-sequence)
-   - [Sound](#sound)
-   - [Top 3 DPS Bars](#top-3-dps-bars)
-   - [What to Keep](#what-to-keep)
-   - [What to Remove](#what-to-remove)
-   - [Settings](#settings)
-   - [Animation & Effect APIs](#animation--effect-apis)
+2. [Current Implementation — Compact Side Toast](#2-current-implementation--compact-side-toast)
+3. [Historical Reference — Fullscreen Kill Flash](#3-historical-reference--fullscreen-kill-flash-replaced-2026-05-02)
 
 ---
 
@@ -34,18 +22,24 @@ Documentation for the boss kill popup system: current implementation and redesig
 
 Three auto-triggered components fire after a boss kill. They are chained: Stats Window shows first, then auto-hides and chains to Breakdown Panel. First-Kill Notification fires independently on kill #1.
 
-### Trigger Path
+### Trigger Path (Current — KillFlash system)
 
 ```
 UNIT_DIED (combat log)  ──┐
-                          ├──► RecordBossKill() ──► ShowRaidBossStats()
+                          ├──► RecordBossKill() ──► KillFlash:ShowFlash()  [4s right-side toast]
 ENCOUNTER_END (event)   ──┘       │
-                                  ├── killData.totalKills == 1 → Journal:ShowBossKillNotification()
-                                  ├── Milestones:CheckTierMilestone()
-                                  └── TravelerIcons:OnBossKill()
+                                  ├── killData.totalKills == 1:
+                                  │   ├── Timer:After(2.3s/3.3s) → Journal:ShowBossKillNotification()
+                                  │   │   (delayed until after KillFlash fades)
+                                  │   └── Milestones:CheckTierMilestone()  [data only, no popup]
+                                  └── TravelerIcons:OnBossKill()  [always]
 ```
 
-Deduplication: Both `OnCombatLogEvent` and `OnEncounterEnd` use a shared `recentKills` table with 10-second cooldown per `raidKey_bossId` key (RaidData.lua:1120-1132, 1184-1197).
+**Deduplication:** Both `OnCombatLogEvent` and `OnEncounterEnd` use a shared `recentKills` table with 10-second cooldown per `raidKey_bossId` key. This prevents double-processing when both WoW events fire for the same boss death.
+
+**Notification sequencing:** Journal "VICTORY!" notification is delayed by 2.3s (normal boss) or 3.3s (final boss) so it slides in AFTER the KillFlash overlay fades, preventing visual overlap. The delay timer is tracked in `self._notifDelayTimer` and cancelled in OnDisable.
+
+**WoW API reference:** `PARTY_KILL` fires early in the death sequence, `UNIT_DIED` fires later. Both can fire for the same creature death within the same or consecutive frames. `GetTime()` with a multi-second cooldown window is the standard addon dedup pattern (used by CombatLogFix, Details!, etc.).
 
 ---
 
@@ -292,7 +286,63 @@ RaidData:OnCombatLogEvent() / OnEncounterEnd()    [RaidData.lua:1103-1231]
 
 ---
 
-## 2. Redesign Spec — Kill Flash
+## 2. Current Implementation — Compact Side Toast
+
+The fullscreen kill-flash overlay (described in section 3 below as historical reference) was replaced with a small, non-intrusive right-side toast that mirrors the `SocialToasts` layout.
+
+**Source:** `HopeAddon/Raids/KillFlash.lua` (entire file)
+
+**Frame properties:**
+- Parent: `UIParent`, strata `HIGH`
+- Size: 260 x 52
+- Position: `TOPRIGHT, UIParent, "TOPRIGHT", -20, -100` — stacks downward 56 px per additional toast
+- Backdrop: `Constants.BACKDROPS.DARK_GOLD`, border tinted with phase color from `RaidData:GetPhaseColorName(raidKey)`
+- Click anywhere on the toast (or the small × in the top-right) to dismiss
+
+**Content elements:**
+| Element | Position | Font/Size | Detail |
+|---------|----------|-----------|--------|
+| Boss icon | LEFT 10 px from edge, 32x32 | — | TexCoord cropped 0.08–0.92 |
+| Boss name | TOPLEFT of icon's right side, +8 px | TITLE 12pt, white | Single line, no wrap |
+| Stats line | BOTTOMLEFT of icon's right side, +8 px | SMALL 10pt, phase-colored | Format: `Kill #5  ·  2:34` |
+
+**Animation:**
+- Slide-in from RIGHT 40 px + fade-in over 0.2s
+- Hold 4.0s
+- Fade-out 0.3s, then hide and reposition remaining toasts
+- All transitions skipped when `animationsEnabled == false`
+
+**Stacking:**
+- Up to 3 toasts visible (`MAX_TOASTS = 3`); when full, the oldest is dismissed before the new one appears
+- `KillFlash.activeToasts` tracks the current stack; `KillFlash.allFrames` is a simple reuse pool
+- `RepositionToasts()` re-anchors remaining toasts after any dismissal
+
+**Sound (preserved from prior design):**
+- Final boss: `Sounds:PlayVictory()`
+- Other bosses: `Sounds:PlayBossKill()`
+
+**Public API (unchanged from prior version, so `RaidData.lua` call sites need no edits):**
+- `KillFlash:ShowFlash(raidKey, bossId, killData, encounterSummary)` — `encounterSummary` is accepted for compatibility but no longer used (DPS bars were removed)
+- `KillFlash:HideFlash()` — dismisses every active toast (used during cleanup / module disable)
+- `KillFlash:TestFlash()` — debug; bound to `/flashtest` when `db.debug` is set
+
+**Settings:**
+- `db.settings.bossKillFlashEnabled` (default `true`) — master on/off toggle; when `false`, `ShowFlash` returns immediately
+- `db.settings.animationsEnabled` (existing global) — when `false`, the toast appears/disappears instantly with no slide or fade
+
+**What was removed (versus the prior fullscreen flash):**
+- Fullscreen vignette overlay
+- "D E F E A T E D" banner
+- Top 3 DPS bars (and the encounterSummary population code)
+- Per-element staggered fade timeline
+- `EpicGlow`, `BurstEffect`, `PulsingGlow`, `Shake`, `CelebrateAchievement` calls
+- Final-boss-only longer duration / extra fanfare (all kills now use the same toast)
+
+---
+
+## 3. Historical Reference — Fullscreen Kill Flash (replaced 2026-05-02)
+
+The section below documents the fullscreen-overlay design that the current side toast replaced. Kept as design history; the implementation no longer matches.
 
 ### Vision
 

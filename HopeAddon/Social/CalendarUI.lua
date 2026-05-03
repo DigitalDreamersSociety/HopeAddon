@@ -145,6 +145,35 @@ function CalendarUI:OnDisable()
         end
     end
 
+    -- Cleanup persistent birthday dropdown menus
+    if self.birthdayMonthMenu then
+        for i = 1, 12 do
+            local btn = self.birthdayMonthMenu.buttons[i]
+            if btn then
+                btn:SetScript("OnEnter", nil)
+                btn:SetScript("OnLeave", nil)
+                btn:SetScript("OnClick", nil)
+            end
+        end
+        self.birthdayMonthMenu:Hide()
+        self.birthdayMonthMenu:SetParent(nil)
+        self.birthdayMonthMenu = nil
+    end
+
+    if self.birthdayDayMenu then
+        for i = 1, 31 do
+            local btn = self.birthdayDayMenu.buttons[i]
+            if btn then
+                btn:SetScript("OnEnter", nil)
+                btn:SetScript("OnLeave", nil)
+                btn:SetScript("OnClick", nil)
+            end
+        end
+        self.birthdayDayMenu:Hide()
+        self.birthdayDayMenu:SetParent(nil)
+        self.birthdayDayMenu = nil
+    end
+
     HopeAddon:Debug("CalendarUI: Disabled")
 end
 
@@ -1281,9 +1310,9 @@ function CalendarUI:ShowBannerTooltip(anchorFrame, event)
     local dateTimeStr = self:FormatBannerDateInfo(event)
     tooltip.dateTime:SetText(dateTimeStr)
 
-    -- Show local time if event has a time and user is not in PST
+    -- Show local time if event has a time and user is not in server timezone
     if event.time and event.time ~= "WEEKLY_RESET" then
-        local localTimeStr = Calendar:FormatLocalTimeFromPST(event.time)
+        local localTimeStr = Calendar:FormatLocalTimeFromServerTime(event.time)
         if localTimeStr then
             tooltip.localTime:SetText("Your Local Time: " .. localTimeStr)
             tooltip.localTime:Show()
@@ -1789,9 +1818,14 @@ function CalendarUI:CreateCalendarHeader(parent)
     bdayLabel:SetTextColor(0.7, 0.7, 0.7)
     bdayLabel:SetText("My Birthday:")
 
-    -- Birthday display/edit state
-    local selectedMonth = nil
-    local selectedDay = nil
+    -- Birthday display/edit state (persistent on self to survive header recreation)
+    if self.birthdaySelectedMonth == nil and self.birthdaySelectedDay == nil then
+        local bday = Calendar and Calendar:GetMyBirthday()
+        if bday then
+            self.birthdaySelectedMonth = bday.month
+            self.birthdaySelectedDay = bday.day
+        end
+    end
     local itemHeight = 16
 
     -- Create persistent month dropdown menu (once, stored on self)
@@ -1942,10 +1976,10 @@ function CalendarUI:CreateCalendarHeader(parent)
 
     -- Update display based on current birthday
     local function UpdateBirthdayDisplay()
-        if selectedMonth and selectedDay then
-            monthBtnText:SetText(monthNames[selectedMonth])
+        if self.birthdaySelectedMonth and self.birthdaySelectedDay then
+            monthBtnText:SetText(monthNames[self.birthdaySelectedMonth])
             monthBtnText:SetTextColor(BC.THEME_COLOR.r, BC.THEME_COLOR.g, BC.THEME_COLOR.b)
-            dayBtnText:SetText(tostring(selectedDay))
+            dayBtnText:SetText(tostring(self.birthdaySelectedDay))
             dayBtnText:SetTextColor(BC.THEME_COLOR.r, BC.THEME_COLOR.g, BC.THEME_COLOR.b)
         else
             monthBtnText:SetText("---")
@@ -1977,16 +2011,16 @@ function CalendarUI:CreateCalendarHeader(parent)
 
     -- Day selection callback
     local function OnDaySelected(value)
-        selectedDay = value
+        self.birthdaySelectedDay = value
         UpdateBirthdayDisplay()
-        if selectedMonth and selectedDay and Calendar then
-            Calendar:SetMyBirthday(selectedMonth, selectedDay)
+        if self.birthdaySelectedMonth and self.birthdaySelectedDay and Calendar then
+            Calendar:SetMyBirthday(self.birthdaySelectedMonth, self.birthdaySelectedDay)
         end
     end
 
     -- Show the day menu for the current month
     local function ShowDayMenu()
-        local maxDays = selectedMonth and daysInMonthTable[selectedMonth] or 31
+        local maxDays = self.birthdaySelectedMonth and daysInMonthTable[self.birthdaySelectedMonth] or 31
         UpdateDayMenu(maxDays, OnDaySelected)
         dayMenu:Show()
     end
@@ -1995,11 +2029,11 @@ function CalendarUI:CreateCalendarHeader(parent)
     for i = 1, 12 do
         monthMenu.buttons[i]:SetScript("OnClick", function()
             if HopeAddon.Sounds then HopeAddon.Sounds:PlayClick() end
-            selectedMonth = i
+            self.birthdaySelectedMonth = i
             -- Reset day if it exceeds new month's days
             local maxDays = daysInMonthTable[i]
-            if selectedDay and selectedDay > maxDays then
-                selectedDay = nil
+            if self.birthdaySelectedDay and self.birthdaySelectedDay > maxDays then
+                self.birthdaySelectedDay = nil
             end
             UpdateBirthdayDisplay()
             monthMenu:Hide()
@@ -2040,15 +2074,8 @@ function CalendarUI:CreateCalendarHeader(parent)
         btn:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
     end)
 
-    -- Load existing birthday on header creation
-    if Calendar then
-        local bday = Calendar:GetMyBirthday()
-        if bday then
-            selectedMonth = bday.month
-            selectedDay = bday.day
-            UpdateBirthdayDisplay()
-        end
-    end
+    -- Sync display with persistent state
+    UpdateBirthdayDisplay()
 
     return header
 end

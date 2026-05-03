@@ -21,16 +21,8 @@ local function GetRPStatusColors()
     return HopeAddon.Constants.RP_STATUS_COLORS
 end
 
--- Update interval (250ms is responsive but less CPU intensive)
-local UPDATE_INTERVAL = 0.25
-
--- Cache for nameplate name texts to avoid repeated GetText() calls
-local nameplateCache = {}
-
--- Fix #1: Reusable tables for WorldFrame:GetChildren() and GetRegions()
--- Avoids creating new tables every 0.1 seconds
-local childrenCache = {}
-local regionsCache = {}
+-- Update interval (500ms is responsive enough for nameplate coloring)
+local UPDATE_INTERVAL = 0.5
 
 --============================================================
 -- STATE
@@ -140,6 +132,26 @@ end
 -- NAMEPLATE SCANNING
 --============================================================
 
+-- Process a single nameplate frame. Called via pcall to guard against
+-- invalid/recycled WorldFrame children (common in raid instances).
+local function ProcessNameplate(frame)
+    if frame:IsVisible() and frame:GetName() == nil then
+        local regions = {frame:GetRegions()}
+        for _, region in ipairs(regions) do
+            if region:GetObjectType() == "FontString" then
+                local text = region:GetText()
+                if text and text ~= "" then
+                    local playerName = ExtractPlayerName(text)
+                    if playerName and HopeAddon.FellowTravelers:IsFellow(playerName) then
+                        local color = GetFellowColor(playerName)
+                        region:SetTextColor(color.r, color.g, color.b)
+                    end
+                end
+            end
+        end
+    end
+end
+
 --[[
     Scan all visible nameplates and color Fellow Travelers
     Uses TBC Classic nameplate naming convention
@@ -149,38 +161,11 @@ local function ScanNameplates()
     if not HopeAddon.FellowTravelers then return end
 
     -- TBC Classic uses WorldFrame children for nameplates
-    -- We need to iterate through children of WorldFrame
-    -- Fix #1: Reuse childrenCache table to avoid creating new tables every 0.1s
-    wipe(childrenCache)
-    for i = 1, select("#", WorldFrame:GetChildren()) do
-        childrenCache[i] = select(i, WorldFrame:GetChildren())
-    end
+    -- Pack children in a single GetChildren() call (avoids N+1 repeated calls)
+    local children = {WorldFrame:GetChildren()}
 
-    for _, frame in ipairs(childrenCache) do
-        -- Check if this looks like a nameplate
-        -- TBC nameplates have specific regions we can check
-        if frame:IsVisible() and frame:GetName() == nil then
-            -- Try to find the name region
-            -- Fix #1: Reuse regionsCache table to avoid creating new tables per nameplate
-            wipe(regionsCache)
-            for i = 1, select("#", frame:GetRegions()) do
-                regionsCache[i] = select(i, frame:GetRegions())
-            end
-            for _, region in ipairs(regionsCache) do
-                if region:GetObjectType() == "FontString" then
-                    local text = region:GetText()
-                    if text and text ~= "" then
-                        local playerName = ExtractPlayerName(text)
-
-                        -- Check if this is a Fellow Traveler
-                        if playerName and HopeAddon.FellowTravelers:IsFellow(playerName) then
-                            local color = GetFellowColor(playerName)
-                            region:SetTextColor(color.r, color.g, color.b)
-                        end
-                    end
-                end
-            end
-        end
+    for _, frame in ipairs(children) do
+        pcall(ProcessNameplate, frame)
     end
 
     -- Also try the numbered nameplate approach (some addons use this)
@@ -292,7 +277,7 @@ function NameplateColors:OnEnable()
         self.enabled = false
         self.disabledByConflict = conflictAddon
         -- Inform user why nameplate coloring is disabled
-        C_Timer.After(3, function()
+        HopeAddon.Timer:After(3, function()
             if self.disabledByConflict then
                 HopeAddon:Print("Fellow Traveler nameplate coloring disabled - " ..
                     self.disabledByConflict .. " detected")

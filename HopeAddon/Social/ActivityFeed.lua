@@ -838,7 +838,7 @@ end
 function ActivityFeed:OnCalendarEvent(action, event)
     if not event then return end
     local _, class = UnitClass("player")
-    local data = action .. "|" .. (event.title or "Event") .. "|" .. (event.raidKey or "") .. "|" .. (event.date or "") .. "|" .. (event.startTime or "")
+    local data = action .. "|" .. (event.title or "Event"):gsub("|", "") .. "|" .. (event.raidKey or "") .. "|" .. (event.date or "") .. "|" .. (event.startTime or "")
     local activity = self:CreateActivity(
         ACTIVITY.EVENT,
         UnitName("player"),
@@ -858,7 +858,7 @@ end
 function ActivityFeed:OnCalendarSignup(event, playerName, role)
     if not event then return end
     local _, class = UnitClass("player")
-    local data = "SIGNUP|" .. (event.title or "Event") .. "|" .. (playerName or "") .. "|" .. (role or "")
+    local data = "SIGNUP|" .. (event.title or "Event"):gsub("|", "") .. "|" .. (playerName or "") .. "|" .. (role or "")
     local activity = self:CreateActivity(
         ACTIVITY.EVENT,
         UnitName("player"),
@@ -1061,6 +1061,16 @@ function ActivityFeed:FormatActivity(activity)
         -- data format: "raidKey|raidName"
         local _, raidName = strsplit("|", data, 2)
         return string.format("|cFF9B30FF%s|r completed the |cFFFFD700%s|r attunement!", player, raidName or data)
+
+    elseif actType == ACTIVITY.EVENT then
+        -- data format: "action|title|raidKey|date|startTime" or "SIGNUP|title|playerName|role"
+        local action, title = strsplit("|", data, 3)
+        if action == "SIGNUP" then
+            local _, evTitle, signupPlayer, role = strsplit("|", data, 4)
+            return string.format("|cFFFFD700%s|r signed up as |cFF00FF00%s|r for |cFFFFD700%s|r", player, role or "unknown", evTitle or "Event")
+        else
+            return string.format("|cFFFFD700%s|r %s |cFFFFD700%s|r", player, (action or ""):lower(), title or "Event")
+        end
 
     else
         return string.format("%s: %s", player, data)

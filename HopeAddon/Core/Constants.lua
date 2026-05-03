@@ -751,15 +751,82 @@ C.SSC_ATTUNEMENT = {
     raidName = "Serpentshrine Cavern",
     raidKey = "ssc",
     title = "Champion of the Naaru",
+    recommendedLevel = 70,
 
     chapters = {
         {
             name = "The Cudgel of Kar'desh",
-            story = "Skar'this needs fancy rings to make a stick. Collect elemental signets from heroics!",
+            story = "A caged naga in a sewer dungeon wants two shiny signets from two raid bosses. Fetch quest? More like raid quest.",
             locationIcon = "INV_Misc_Fish_14",
+            questGiver = "Skar'this the Heretic",
+            location = "Heroic Slave Pens, Coilfang Reservoir",
+            turnIn = "Skar'this the Heretic - Heroic Slave Pens",
+            difficulty = "RAID_25",
+            minLevel = 70,
+            dungeon = "Heroic Slave Pens",
+            dungeonLevel = "70",
+            objectives = {
+                "Purchase the Reservoir Key from Cenarion Expedition Quartermaster (Revered required)",
+                "Enter Heroic Slave Pens and find Skar'this the Heretic in his cage (after Mennu the Betrayer)",
+                "Accept 'The Cudgel of Kar'desh' from Skar'this",
+                "Collect the Earthen Signet from Gruul the Dragonkiller in Gruul's Lair (25-man)",
+                "Collect the Blazing Signet from Nightbane in Karazhan (10-man, optional boss)",
+                "Return both signets to Skar'this the Heretic in Heroic Slave Pens",
+            },
+            rewards = {
+                xp = 19000,
+            },
+            tips = {
+                "You must enter Heroic Slave Pens TWICE: once to pick up the quest, once to turn it in",
+                "Skar'this is in a cage just past Mennu the Betrayer (first boss)",
+                "Heroic Slave Pens requires the Reservoir Key (Cenarion Expedition - Revered)",
+                "Earthen Signet drops from Gruul the Dragonkiller in Gruul's Lair (25-man, no attunement needed)",
+                "Blazing Signet drops from Nightbane in Karazhan (optional boss, must be summoned)",
+                "Nightbane requires completing a separate quest chain starting with 'Medivh's Journal' from Archmage Alturus (outside Karazhan)",
+                "The Nightbane chain also requires Honored with The Violet Eye and Heroic Sethekk/Shattered Halls runs",
+                "Both signets are unique and must be looted personally",
+                "Also awards 'Champion of the Naaru' title when combined with TK attunement completion",
+            },
             quests = {
                 { id = 10901, name = "The Cudgel of Kar'desh", requires = {"Earthen Signet (Gruul)", "Blazing Signet (Nightbane)"} },
             },
+        },
+    },
+
+    prerequisites = {
+        {
+            name = "Cenarion Expedition - Revered",
+            source = "Coilfang dungeons, Unidentified Plant Parts turn-ins, Zangarmarsh & Blade's Edge quests",
+            type = "reputation",
+            icon = "Achievement_Reputation_01",
+            checkMethod = "reputation",
+            checkId = 942,
+            checkStanding = 7,
+            required = true,
+        },
+        {
+            name = "Reservoir Key (Heroic Coilfang)",
+            source = "Purchased from Fedryen Swiftspear (Cenarion Expedition Quartermaster) at Revered",
+            type = "key",
+            icon = "INV_Misc_Key_11",
+            checkMethod = "reputation",
+            checkId = 942,
+            checkStanding = 7,
+            required = true,
+        },
+        {
+            name = "Gruul the Dragonkiller Kill",
+            source = "Gruul's Lair (25-man raid, Blade's Edge Mountains) - drops Earthen Signet",
+            type = "raid_kill",
+            icon = "Spell_Shadow_DeathPact",
+            required = true,
+        },
+        {
+            name = "Nightbane Kill",
+            source = "Karazhan optional boss - drops Blazing Signet (requires Nightbane summoning quest chain + Karazhan attunement)",
+            type = "raid_kill",
+            icon = "Spell_Shadow_DeathPact",
+            required = true,
         },
     },
 }
@@ -778,12 +845,30 @@ C.TK_ATTUNEMENT = {
     raidName = "Tempest Keep: The Eye",
     raidKey = "tk",
     prerequisite = "Cipher of Damnation",
+    recommendedLevel = 70,
 
     chapters = {
         {
             name = "The Tempest Key",
             story = "A'dal says 'prove yourself.' Four trials stand between you and space elves.",
             locationIcon = "Spell_Holy_SurgeOfLight",
+            questGiver = "A'dal",
+            location = "Shattrath City (54.8, 44.6)",
+            difficulty = "SOLO",
+            minLevel = 70,
+            objectives = {
+                "Travel to A'dal in the center of Shattrath City",
+                "Accept 'The Tempest Key' to begin the four Trials of the Naaru",
+            },
+            rewards = {
+                xp = 0,
+            },
+            tips = {
+                "This quest simply starts the four trial quests - no combat required",
+                "All four trials require Heroic dungeon keys or raid access",
+                "Trials can be completed in any order",
+                "You must complete the Cipher of Damnation quest chain in Shadowmoon Valley before A'dal offers this quest",
+            },
             quests = {
                 { id = 10883, name = "The Tempest Key" },
             },
@@ -792,6 +877,32 @@ C.TK_ATTUNEMENT = {
             name = "Trial of the Naaru: Mercy",
             story = "Heroic Shattered Halls speedrun! Save the prisoners before... well, you know.",
             locationIcon = "Ability_Warrior_Rampage",
+            questGiver = "A'dal",
+            location = "Shattrath City (54.8, 44.6)",
+            turnIn = "A'dal - Shattrath City (54.8, 44.6)",
+            difficulty = "HEROIC_5",
+            minLevel = 70,
+            dungeon = "Heroic Shattered Halls",
+            dungeonLevel = "70",
+            prerequisite = "Flamewrought Key (Honor Hold/Thrallmar - Revered)",
+            objectives = {
+                "Obtain the Flamewrought Key (Honor Hold or Thrallmar - Revered)",
+                "Enter Heroic Shattered Halls in Hellfire Citadel",
+                "Reach the prisoner area before the execution timer expires",
+                "Save the prisoners and obtain the Unused Axe of the Executioner",
+                "Return the Unused Axe of the Executioner to A'dal in Shattrath City",
+            },
+            rewards = {
+                xp = 19000,
+                reputation = { name = "The Sha'tar", amount = 500 },
+            },
+            tips = {
+                "This is a TIMED event - prisoners are executed if you take too long",
+                "Pull efficiently and use crowd control to move quickly through the dungeon",
+                "The execution timer starts when you enter the instance - no dawdling",
+                "A Paladin or Shaman for Heroism/Bloodlust helps with the speed requirement",
+                "The Unused Axe of the Executioner drops from the executioner near the prisoners",
+            },
             quests = {
                 { id = 10884, name = "Trial of the Naaru: Mercy", dungeon = "Heroic Shattered Halls", requires = "Save prisoners, obtain Executioner's Axe" },
             },
@@ -800,6 +911,33 @@ C.TK_ATTUNEMENT = {
             name = "Trial of the Naaru: Strength",
             story = "Strength test: grab loot from TWO heroic dungeons. Do you even lift, adventurer?",
             locationIcon = "INV_Gizmo_02",
+            questGiver = "A'dal",
+            location = "Shattrath City (54.8, 44.6)",
+            turnIn = "A'dal - Shattrath City (54.8, 44.6)",
+            difficulty = "HEROIC_5",
+            minLevel = 70,
+            dungeons = { "Heroic Steamvault", "Heroic Shadow Labyrinth" },
+            dungeonLevel = "70",
+            prerequisite = "Reservoir Key (CE Revered) + Auchenai Key (LC Revered)",
+            objectives = {
+                "Obtain the Reservoir Key (Cenarion Expedition - Revered) and Auchenai Key (Lower City - Revered)",
+                "Enter Heroic Steamvault in Coilfang Reservoir",
+                "Defeat Warlord Kalithresh and obtain Kalithresh's Trident",
+                "Enter Heroic Shadow Labyrinth in Auchindoun",
+                "Defeat Murmur and obtain Murmur's Essence",
+                "Return both items to A'dal in Shattrath City",
+            },
+            rewards = {
+                xp = 19000,
+                reputation = { name = "The Sha'tar", amount = 500 },
+            },
+            tips = {
+                "Two separate Heroic keys are needed: Reservoir Key AND Auchenai Key",
+                "The two dungeons can be completed in any order",
+                "Shadow Labyrinth is generally considered harder than Steamvault",
+                "Bring strong crowd control for both dungeons - Heroic trash hits hard",
+                "Both items are guaranteed drops from their respective final bosses",
+            },
             quests = {
                 { id = 10885, name = "Trial of the Naaru: Strength", dungeons = {"Heroic Steamvault", "Heroic Shadow Labyrinth"}, requires = "Kalithresh's Trident + Murmur's Essence" },
             },
@@ -808,6 +946,33 @@ C.TK_ATTUNEMENT = {
             name = "Trial of the Naaru: Tenacity",
             story = "Keep the loudmouth gnome alive in space prison. Tenacity indeed.",
             locationIcon = "Spell_Arcane_Arcane01",
+            questGiver = "A'dal",
+            location = "Shattrath City (54.8, 44.6)",
+            turnIn = "A'dal - Shattrath City (54.8, 44.6)",
+            difficulty = "HEROIC_5",
+            minLevel = 70,
+            dungeon = "Heroic Arcatraz",
+            dungeonLevel = "70",
+            prerequisite = "Warpforged Key (The Sha'tar - Revered)",
+            objectives = {
+                "Obtain the Warpforged Key (The Sha'tar - Revered)",
+                "Enter Heroic Arcatraz in Tempest Keep",
+                "Clear to the final boss encounter with Harbinger Skyriss",
+                "Keep Millhouse Manastorm alive during the entire Skyriss encounter",
+                "Return to A'dal in Shattrath City",
+            },
+            rewards = {
+                xp = 11400,
+                reputation = { name = "The Sha'tar", amount = 500 },
+            },
+            tips = {
+                "Millhouse Manastorm must survive the ENTIRE Harbinger Skyriss encounter",
+                "Assign a healer to keep Millhouse topped off - he takes significant damage",
+                "AOE threat is important as Millhouse generates aggro with his spells",
+                "Heroic Arcatraz is widely considered the hardest Heroic dungeon in TBC",
+                "Clear all nearby trash before engaging Skyriss to avoid adds",
+                "Millhouse will cast spells during the fight - he cannot be controlled",
+            },
             quests = {
                 { id = 10886, name = "Trial of the Naaru: Tenacity", dungeon = "Heroic Arcatraz", requires = "Keep Millhouse Manastorm alive" },
             },
@@ -816,9 +981,84 @@ C.TK_ATTUNEMENT = {
             name = "Trial of the Naaru: Magtheridon",
             story = "There's a Pit Lord under Hellfire Citadel. Make him not alive anymore.",
             locationIcon = "Spell_Shadow_SummonFelHunter",
+            questGiver = "A'dal",
+            location = "Shattrath City (54.8, 44.6)",
+            turnIn = "A'dal - Shattrath City (54.8, 44.6)",
+            difficulty = "RAID_25",
+            minLevel = 70,
+            raid = "Magtheridon's Lair",
+            objectives = {
+                "Form a 25-player raid group",
+                "Enter Magtheridon's Lair beneath Hellfire Citadel",
+                "Defeat Magtheridon and his Channeler adds",
+                "Return to A'dal in Shattrath City",
+            },
+            rewards = {
+                xp = 11400,
+                reputation = { name = "The Sha'tar", amount = 500 },
+            },
+            tips = {
+                "Magtheridon's Lair requires NO attunement to enter",
+                "Five Hellfire Channelers must be killed before engaging Magtheridon",
+                "Assign players to click the Manticron Cubes to interrupt Blast Nova",
+                "Blast Nova will wipe the raid if not interrupted by cube clickers",
+                "Completing all four Trials awards the 'Champion of the Naaru' title",
+            },
             quests = {
                 { id = 10888, name = "Trial of the Naaru: Magtheridon", raid = "Magtheridon's Lair (25-man)" },
             },
+        },
+    },
+
+    prerequisites = {
+        {
+            name = "Flamewrought Key (Heroic Hellfire)",
+            source = "Honor Hold (Alliance) or Thrallmar (Horde) - Revered reputation",
+            type = "reputation",
+            icon = "INV_Misc_Key_13",
+            checkMethod = "reputation",
+            checkId = { alliance = 946, horde = 947 },
+            checkStanding = 7,
+            required = true,
+        },
+        {
+            name = "Reservoir Key (Heroic Coilfang)",
+            source = "Cenarion Expedition - Revered reputation",
+            type = "reputation",
+            icon = "INV_Misc_Key_11",
+            checkMethod = "reputation",
+            checkId = 942,
+            checkStanding = 7,
+            required = true,
+        },
+        {
+            name = "Auchenai Key (Heroic Auchindoun)",
+            source = "Lower City - Revered reputation",
+            type = "reputation",
+            icon = "INV_Misc_Key_11",
+            checkMethod = "reputation",
+            checkId = 1011,
+            checkStanding = 7,
+            required = true,
+        },
+        {
+            name = "Warpforged Key (Heroic Tempest Keep)",
+            source = "The Sha'tar - Revered reputation",
+            type = "reputation",
+            icon = "INV_Misc_Key_11",
+            checkMethod = "reputation",
+            checkId = 935,
+            checkStanding = 7,
+            required = true,
+        },
+        {
+            name = "Cipher of Damnation",
+            source = "Shadowmoon Valley quest chain (The Cipher of Damnation)",
+            type = "quest",
+            icon = "INV_Misc_Book_06",
+            checkMethod = "quest",
+            checkId = 10588,
+            required = true,
         },
     },
 }
@@ -840,6 +1080,7 @@ C.CIPHER_OF_DAMNATION = {
     headerIcon = "Spell_Shadow_Possession",
     zone = "Shadowmoon Valley",
     raidKey = "cipher",
+    recommendedLevel = 70,
 
     -- Starting quest is faction-specific
     startingQuests = {
@@ -852,6 +1093,25 @@ C.CIPHER_OF_DAMNATION = {
             name = "The Hand of Gul'dan",
             story = "Bad vibes at Gul'dan's hand-shaped volcano. Time to poke around!",
             locationIcon = "Spell_Shadow_SummonFelHunter",
+            questGiver = "Earthmender Splinthoof (Horde) / Anchorite Ceyla (Alliance)",
+            location = "Shadowmoon Valley (29.3, 28.5)",
+            turnIn = "Earthmender Torlok - Shadowmoon Valley (42.2, 44.8)",
+            difficulty = "SOLO",
+            minLevel = 67,
+            objectives = {
+                "Speak with your faction's quest giver in Shadowmoon Valley",
+                "Travel to the Altar of Damnation at the Hand of Gul'dan",
+                "Speak with Earthmender Torlok at the Altar of Damnation",
+            },
+            rewards = {
+                xp = 12650,
+            },
+            tips = {
+                "Quest giver is faction-specific: Earthmender Splinthoof for Horde, Anchorite Ceyla for Alliance",
+                "The Altar of Damnation is at the base of the Hand of Gul'dan volcano",
+                "This is the starting quest for a long chain - the full Cipher takes 2-3 hours",
+                "You must be level 67+ to pick up this quest",
+            },
             quests = {
                 { id = 10680, name = "The Hand of Gul'dan", faction = "Horde" },
                 { id = 10681, name = "The Hand of Gul'dan", faction = "Alliance" },
@@ -861,6 +1121,26 @@ C.CIPHER_OF_DAMNATION = {
             name = "Enraged Spirits",
             story = "Spirits are throwing a tantrum. Someone corrupted their home. Fix it!",
             locationIcon = "Spell_Fire_Burnout",
+            questGiver = "Earthmender Torlok",
+            location = "Shadowmoon Valley (42.2, 44.8)",
+            difficulty = "SOLO",
+            minLevel = 67,
+            objectives = {
+                "Obtain Totem of Spirits from Earthmender Torlok",
+                "Use the totem near Enraged Fire Spirits and capture their souls",
+                "Use the totem near Enraged Earth Spirits and capture their souls",
+                "Use the totem near Enraged Water Spirits and capture their souls",
+                "Use the totem near Enraged Air Spirits and capture their souls",
+            },
+            rewards = {
+                xp = 12650,
+            },
+            tips = {
+                "All spirit types are found near the Altar of Damnation area",
+                "These are technically 3 separate quests but can be done simultaneously",
+                "Fully soloable at level 67-70 for all classes",
+                "Spirit drop rates are reasonable - expect 15-20 minutes of farming",
+            },
             quests = {
                 { id = 10458, name = "Enraged Spirits of Fire and Earth" },
                 { id = 10480, name = "Enraged Spirits of Water" },
@@ -871,6 +1151,27 @@ C.CIPHER_OF_DAMNATION = {
             name = "Oronok's Legacy",
             story = "Oronok has Cipher info, but it's a family affair. Hope you like errands!",
             locationIcon = "Spell_Shadow_Possession",
+            questGiver = "Earthmender Torlok",
+            location = "Shadowmoon Valley (42.2, 44.8)",
+            turnIn = "Oronok Torn-heart - Shadowmoon Valley (53.9, 23.5)",
+            difficulty = "SOLO",
+            minLevel = 67,
+            objectives = {
+                "Speak with Earthmender Torlok to learn about Oronok",
+                "Travel to Oronok's Farm northeast of Shadowmoon Valley",
+                "Complete Oronok's introductory quests and learn his history",
+                "Unlock the three parallel fragment quest chains from Oronok's sons",
+            },
+            rewards = {
+                xp = 25300,
+            },
+            tips = {
+                "Oronok's Farm is in the far northeast of Shadowmoon Valley (53.9, 23.5)",
+                "This is a 4-quest mini-chain introducing Oronok and his backstory",
+                "After completing this chapter, three parallel paths unlock (his three sons)",
+                "The three son chains can be completed in any order",
+                "Stock up on supplies before heading out - the farm is remote",
+            },
             quests = {
                 { id = 10512, name = "Oronok Torn-heart" },
                 { id = 10514, name = "I Was A Lot Of Things..." },
@@ -882,6 +1183,26 @@ C.CIPHER_OF_DAMNATION = {
             name = "Grom'tor's Fragment",
             story = "Grom'tor doesn't have friends, he has family. Help him get his fragment. Ride or die.",
             locationIcon = "Spell_Shadow_Possession",
+            questGiver = "Oronok Torn-heart",
+            location = "Shadowmoon Valley (53.9, 23.5)",
+            turnIn = "Oronok Torn-heart - Shadowmoon Valley (53.9, 23.5)",
+            difficulty = "SOLO",
+            minLevel = 68,
+            objectives = {
+                "Find Grom'tor, Son of Oronok at Coilskar Point",
+                "Complete Grom'tor's tasks: kill naga and recover stolen items",
+                "Complete Grom'tor's Charge and recover the First Fragment of the Cipher",
+                "Return the First Fragment to Oronok Torn-heart",
+            },
+            rewards = {
+                xp = 12650,
+            },
+            tips = {
+                "Coilskar Point is along the southeast coast of Shadowmoon Valley",
+                "The area is heavily populated with naga - watch for patrols",
+                "Can be done in parallel with the other two brother chains (Ar'tor and Borak)",
+                "Fully soloable - the easiest of the three fragment chains",
+            },
             quests = {
                 { id = 10520, name = "Grom'tor, Son of Oronok" },
                 { id = 10521, name = "The Cipher of Damnation - Grom'tor's Charge" },
@@ -892,6 +1213,28 @@ C.CIPHER_OF_DAMNATION = {
             name = "Ar'tor's Fragment",
             story = "Son #2 got grabbed. This rescue? It's one last job... until the next one.",
             locationIcon = "Spell_Shadow_Possession",
+            questGiver = "Oronok Torn-heart",
+            location = "Shadowmoon Valley (53.9, 23.5)",
+            turnIn = "Oronok Torn-heart - Shadowmoon Valley (53.9, 23.5)",
+            difficulty = "GROUP_5",
+            minLevel = 68,
+            objectives = {
+                "Find Ar'tor, Son of Oronok near Illidari Point",
+                "Free Ar'tor from his demonic crystal prison",
+                "Recover Ar'tor's bow, Lohn'goron, Bow of the Torn-heart",
+                "Complete Ar'tor's Charge: defeat Veneratus the Many",
+                "Recover the Second Fragment and return it to Oronok",
+            },
+            rewards = {
+                xp = 25300,
+            },
+            tips = {
+                "This is the hardest of the three brother chains - group recommended",
+                "The area around Illidari Point is full of elite demons",
+                "Veneratus the Many is a tough elite - bring friends or be well-geared",
+                "Soloable at 70 with good gear, but a group makes it much easier",
+                "Can be done in parallel with the other two brother chains",
+            },
             quests = {
                 { id = 10536, name = "Ar'tor, Son of Oronok" },
                 { id = 10537, name = "Demonic Crystal Prisons" },
@@ -904,6 +1247,28 @@ C.CIPHER_OF_DAMNATION = {
             name = "Borak's Fragment",
             story = "Last brother, last fragment. Cross the finish line for the family!",
             locationIcon = "Spell_Shadow_Possession",
+            questGiver = "Oronok Torn-heart",
+            location = "Shadowmoon Valley (53.9, 23.5)",
+            turnIn = "Oronok Torn-heart - Shadowmoon Valley (53.9, 23.5)",
+            difficulty = "SOLO",
+            minLevel = 68,
+            objectives = {
+                "Find Borak, Son of Oronok at Eclipse Point",
+                "Collect bloodthistle items from around Eclipse Point",
+                "Catch a thistlehead using the collected items",
+                "Complete Borak's Charge: defeat Ruul the Darkener",
+                "Recover the Third Fragment and return it to Oronok",
+            },
+            rewards = {
+                xp = 25300,
+            },
+            tips = {
+                "Eclipse Point is in southern Shadowmoon Valley near Black Temple",
+                "This is a scavenger hunt style chain - follow the quest markers",
+                "Easier than Ar'tor's chain - mostly soloable content",
+                "Ruul the Darkener is soloable for most classes at 70",
+                "Egg locations for the thistlehead quest are scattered around Eclipse Point",
+            },
             quests = {
                 { id = 10563, name = "Borak, Son of Oronok" },
                 { id = 10564, name = "Of Thistleheads and Eggs..." },
@@ -917,6 +1282,29 @@ C.CIPHER_OF_DAMNATION = {
             name = "The Cipher Complete",
             story = "All fragments ready! Time to hit the NOS and burn down Cyrukh!",
             locationIcon = "Spell_Fire_Burnout",
+            questGiver = "Oronok Torn-heart",
+            location = "Shadowmoon Valley (53.9, 23.5)",
+            turnIn = "Earthmender Torlok - Shadowmoon Valley (42.2, 44.8)",
+            difficulty = "GROUP_5",
+            minLevel = 70,
+            boss = "Cyrukh the Firelord",
+            objectives = {
+                "Bring all three Cipher fragments to Oronok at the Altar of Damnation",
+                "Use the Cipher of Damnation to summon Cyrukh the Firelord",
+                "Defeat Cyrukh the Firelord with your group",
+                "Speak with Earthmender Torlok to complete the quest",
+            },
+            rewards = {
+                xp = 19000,
+            },
+            tips = {
+                "This is a GROUP encounter - bring at least 2-3 other players",
+                "Fire resistance gear helps but is not strictly required",
+                "Spread out during the fight to avoid splash damage",
+                "Completing this quest unlocks the Tempest Key attunement chain from A'dal",
+                "Oronok's sons will assist you during the fight",
+                "After defeating Cyrukh, speak with Torlok at the Altar of Damnation",
+            },
             quests = {
                 { id = 10588, name = "The Cipher of Damnation", boss = "Cyrukh the Firelord" },
             },
@@ -4226,6 +4614,34 @@ C.GAME_DEFINITIONS = {
         system = "gamecore",
         color = "GOLD",
     },
+    {
+        id = "roulette",
+        name = "Roulette",
+        description = "European wheel - host /rolls 1-37, Straight Up bets pay 35:1",
+        icon = "Interface\\Icons\\INV_Misc_Coin_01",
+        hasLocal = false,
+        hasRemote = true,
+        system = "casino",
+        color = "HELLFIRE_RED",
+    },
+}
+
+--============================================================
+-- ROULETTE TABLE (v1 — Straight Up only, virtual chips)
+--============================================================
+
+C.ROULETTE_PAYOUTS = {
+    STRAIGHT = { num = 35, den = 1 },
+}
+
+C.ROULETTE_TABLE = {
+    MAX_SEATS = 5,
+    MIN_BET = 1,
+    MAX_BET = 100,
+    STARTING_CHIPS = 1000,
+    WHEEL_SIZE = 37,        -- /roll 1-37, pocket = roll - 1 ∈ [0,36]
+    BET_TIMER_SEC = 30,     -- v1: not yet enforced; host locks manually
+    ROLL_TIMEOUT_SEC = 30,  -- v1: not yet enforced
 }
 
 -- Game ID to definition lookup
@@ -7352,11 +7768,18 @@ C.SOCIAL_DATA_DEFAULTS = {
 
     -- Calendar System
     calendar = {
-        events = {},           -- [eventId] = event data
+        myEvents = {},         -- [eventId] = event data (my events)
+        fellowEvents = {},     -- [eventId] = event data (from fellow travelers)
         mySignups = {},        -- [eventId] = signup status
-        notifications = {},    -- pending notifications
-        lastSync = 0,
+        notifiedEvents = {},   -- [notifyKey] = true (notification dedup)
         templates = {},        -- [templateId] = template data (saved event configs)
+        settings = {
+            defaultView = "month",
+            showPastEvents = true,
+            pastEventDays = 7,
+            defaultNotify1hr = true,
+            defaultNotify15min = true,
+        },
         myBirthday = nil,      -- { month = N, day = N } or nil
         knownBirthdays = {},   -- { [playerName] = { month = N, day = N } }
     },
@@ -9298,37 +9721,81 @@ C.SERVER_EVENTS = {
 ]]
 C.PERMANENT_GUILD_EVENTS = {
     {
-        id = "weekly_kara_meetup",
-        title = "Kara Meetup",
+        id = "weekly_wife_aggro",
+        title = "Wife Aggro Reduction Day",
         eventType = "SERVER",
-        dayOfWeek = 3,  -- Tuesday (wday: 1=Sun...7=Sat)
+        dayOfWeek = 1,  -- Sunday (wday: 1=Sun...7=Sat)
         startTime = "18:00",
-        description = "Weekly Karazhan meetup! Organize your 10-man groups with guildies. Sign up at hoperaider.com for group details.",
-        icon = "Interface\\Icons\\INV_Misc_Key_07",
-        backgroundTexture = "Interface\\Icons\\INV_Misc_Key_07",
+        description = "Day off! Reduce that wife aggro debuff. Spend time with family, touch grass, and recharge for the raid week ahead.",
+        icon = "Interface\\Icons\\INV_Misc_Flower_01",
+        backgroundTexture = "Interface\\Icons\\INV_Misc_Flower_01",
+        themeColor = { r = 0.9, g = 0.4, b = 0.6 },
+    },
+    {
+        id = "weekly_arena_points",
+        title = "Arena Points Meetup",
+        eventType = "SERVER",
+        dayOfWeek = 2,  -- Monday
+        startTime = "18:00",
+        description = "Arena points night! Help tanks and anyone needing arena vendor gear. Fel Reaver alt runs for easy loot. Phase 2: Loot Reaver (Void Reaver) runs in TK.",
+        icon = "Interface\\Icons\\INV_Jewelry_TrinketPVP_02",
+        backgroundTexture = "Interface\\Icons\\INV_Jewelry_TrinketPVP_02",
+        themeColor = { r = 0.8, g = 0.2, b = 0.2 },
+    },
+    {
+        id = "weekly_kara_team1",
+        title = "Kara Team One",
+        eventType = "SERVER",
+        dayOfWeek = 3,  -- Tuesday
+        startTime = "18:00",
+        description = "Karazhan team one - 10-man raid night! Sign up at hoperaider.com for group details. Phase 2: Serpentshrine Cavern.",
+        icon = "Interface\\Icons\\INV_Misc_Key_10",
+        backgroundTexture = "Interface\\Icons\\INV_Misc_Key_10",
         themeColor = { r = 0.6, g = 0.2, b = 0.8 },
     },
     {
-        id = "weekly_guild_hangout",
-        title = "Guild Hangout",
+        id = "weekly_kara_team2",
+        title = "Kara Team Two",
+        eventType = "SERVER",
+        dayOfWeek = 4,  -- Wednesday
+        startTime = "18:00",
+        description = "Karazhan team two - 10-man raid night! Sign up at hoperaider.com for group details. Phase 2: Tempest Keep: The Eye.",
+        icon = "Interface\\Icons\\INV_Misc_Key_10",
+        backgroundTexture = "Interface\\Icons\\INV_Misc_Key_10",
+        themeColor = { r = 0.4, g = 0.3, b = 0.9 },
+    },
+    {
+        id = "weekly_open_night",
+        title = "Open Raid Lead Night",
         eventType = "SERVER",
         dayOfWeek = 5,  -- Thursday
         startTime = "18:00",
-        description = "Guild hangout night! Chat about attunements, heroics, and future fun. Visit hoperaider.com for details.",
-        icon = "Interface\\Icons\\INV_Drink_04",
-        backgroundTexture = "Interface\\Icons\\INV_Drink_04",
-        themeColor = { r = 0.2, g = 0.8, b = 0.8 },
+        description = "Phil's off day! Open night for another raid lead to step up. Want to lead? Visit hoperaider.com to volunteer.",
+        icon = "Interface\\Icons\\INV_Misc_GroupNeedMore",
+        backgroundTexture = "Interface\\Icons\\INV_Misc_GroupNeedMore",
+        themeColor = { r = 0.2, g = 0.8, b = 0.4 },
     },
     {
         id = "weekly_gruul_mag",
-        title = "Gruul's & Mag's Night",
+        title = "Gruul's & Mag's",
+        eventType = "SERVER",
+        dayOfWeek = 6,  -- Friday
+        startTime = "18:00",
+        description = "Gruul's Lair & Magtheridon's Lair - 25-man raids! All guildies welcome. Phase 2: DST/Tsunami Run (Gruul's + SSC to Morogrim Tidewalker for Dragonspine Trophy & Tsunami Talisman).",
+        icon = "Interface\\Icons\\Ability_Hunter_Pet_Devilsaur",
+        backgroundTexture = "Interface\\Icons\\Ability_Hunter_Pet_Devilsaur",
+        themeColor = { r = 1.0, g = 0.5, b = 0.0 },
+    },
+    {
+        id = "weekly_alt_raid",
+        title = "Alt Raid Night",
         eventType = "SERVER",
         dayOfWeek = 7,  -- Saturday
-        startTime = "17:00",
-        description = "Weekly Gruul's Lair & Magtheridon's Lair runs. All guildies welcome - 25-man raids! Sign up at hoperaider.com",
+        startTime = "18:00",
+        description = "Alt raid night! Same as Friday's raid but bring your alts. Gruul's & Mag's for gearing up alt characters. Phase 2: Alt DST/Tsunami Run.",
         icon = "Interface\\Icons\\INV_Misc_MonsterClaw_04",
         backgroundTexture = "Interface\\Icons\\INV_Misc_MonsterClaw_04",
-        themeColor = { r = 1.0, g = 0.5, b = 0.0 },
+        themeColor = { r = 0.9, g = 0.6, b = 0.1 },
     },
 }
 
@@ -9343,8 +9810,11 @@ C.RAID_TEAMS = {
         borderColor = { 0.6, 0.2, 0.8 },
         flavor = "Need a spot filled? Phil's got you covered!",
         schedule = {
-            { day = "Tuesday", time = "18:00 ST", raid = "Karazhan (10-man)" },
-            { day = "Saturday", time = "17:00 ST", raid = "Gruul's Lair & Magtheridon's Lair (25-man)" },
+            { day = "Monday",    time = "18:00 ST", raid = "Arena Points / Fel Reaver Alts" },
+            { day = "Tuesday",   time = "18:00 ST", raid = "Karazhan Team One (10-man)" },
+            { day = "Wednesday", time = "18:00 ST", raid = "Karazhan Team Two (10-man)" },
+            { day = "Friday",    time = "18:00 ST", raid = "Gruul's Lair & Magtheridon's Lair (25-man)" },
+            { day = "Saturday",  time = "18:00 ST", raid = "Alt Raid Night (25-man)" },
         },
     },
     {
@@ -9978,5 +10448,47 @@ C.COMBAT_RECORDS = {
         { key = "hyjal",       label = "Mount Hyjal" },
         { key = "bt",          label = "Black Temple" },
         { key = "sunwell",     label = "Sunwell Plateau" },
+    },
+
+    -- Max loot icons on Records boss cards
+    MAX_DROPPED_LOOT_ICONS = 6,
+}
+
+-- Loot Selection Popup (shown after KillFlash to record dropped items)
+C.LOOT_SELECTION_POPUP = {
+    -- Dimensions
+    WIDTH = 340,
+    MAX_HEIGHT = 420,
+    HEADER_HEIGHT = 40,
+    FOOTER_HEIGHT = 36,
+    PADDING = 10,
+    ROW_HEIGHT = 36,
+    ROW_GAP = 3,
+    ICON_SIZE = 28,
+    CHECKBOX_SIZE = 20,
+
+    -- Timing
+    SHOW_DELAY_NORMAL = 2.5,
+    SHOW_DELAY_FINAL = 3.5,
+    AUTO_DISMISS_TIMEOUT = 30,
+
+    -- Backdrop styling
+    BACKDROP = {
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
+        edgeSize = 16,
+        insets = { left = 4, right = 4, top = 4, bottom = 4 },
+    },
+    BG_COLOR = { r = 0.08, g = 0.06, b = 0.04, a = 0.95 },
+    BORDER_COLOR = { r = 0.8, g = 0.7, b = 0.3, a = 1 },
+
+    -- Quality colors for loot items
+    QUALITY_COLORS = {
+        [0] = { r = 0.62, g = 0.62, b = 0.62 },  -- Poor (grey)
+        [1] = { r = 1.0, g = 1.0, b = 1.0 },     -- Common (white)
+        [2] = { r = 0.12, g = 1.0, b = 0.0 },    -- Uncommon (green)
+        [3] = { r = 0.0, g = 0.44, b = 0.87 },   -- Rare (blue)
+        [4] = { r = 0.64, g = 0.21, b = 0.93 },  -- Epic (purple)
+        [5] = { r = 1.0, g = 0.5, b = 0.0 },     -- Legendary (orange)
     },
 }

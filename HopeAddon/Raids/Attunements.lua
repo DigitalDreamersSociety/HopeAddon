@@ -27,6 +27,12 @@ end
 function Attunements:OnDisable()
     -- Clear cached attunement map
     attunementMapCache = nil
+
+    -- Unregister survey handler to prevent duplicate callbacks on reload
+    local FT = HopeAddon.FellowTravelers
+    if FT then
+        FT:UnregisterMessageCallback("AttunementSurvey")
+    end
 end
 
 -- Attunement states
@@ -43,6 +49,9 @@ local SURVEY_COOLDOWN = 60
 local SURVEY_MAX_RESPONSES = 100
 local SURVEY_EXPIRY = 86400  -- 24 hours
 local SURVEY_RAID_KEYS = { "karazhan", "ssc", "cipher", "tk", "hyjal", "bt" }
+
+-- Session-only cooldown tracking (GetTime() resets on WoW restart, so never persist this)
+local surveyLastRequested = 0
 
 -- Survey listener system
 Attunements.surveyListeners = {}
@@ -675,10 +684,9 @@ end
 ]]
 function Attunements:RequestGuildSurvey()
     local now = GetTime()
-    local survey = self:GetSurveyData()
 
-    if now - (survey.lastRequested or 0) < SURVEY_COOLDOWN then
-        local remaining = math.ceil(SURVEY_COOLDOWN - (now - survey.lastRequested))
+    if now - surveyLastRequested < SURVEY_COOLDOWN then
+        local remaining = math.ceil(SURVEY_COOLDOWN - (now - surveyLastRequested))
         HopeAddon:Print("Survey on cooldown (" .. remaining .. "s)")
         return false
     end
@@ -688,7 +696,8 @@ function Attunements:RequestGuildSurvey()
         return false
     end
 
-    survey.lastRequested = now
+    surveyLastRequested = now
+    local survey = self:GetSurveyData()
     survey.responses = {}
 
     -- Send request to GUILD channel only
@@ -784,15 +793,30 @@ function Attunements:HandleSurveyResponse(sender, data)
 end
 
 --[[
+    Get remaining survey cooldown in seconds (0 if ready)
+    @return number - Seconds remaining on cooldown
+]]
+function Attunements:GetSurveyCooldownRemaining()
+    local elapsed = GetTime() - surveyLastRequested
+    if elapsed < SURVEY_COOLDOWN then
+        return math.ceil(SURVEY_COOLDOWN - elapsed)
+    end
+    return 0
+end
+
+--[[
     Get or initialize survey data storage
     @return table - Survey data
 ]]
 function Attunements:GetSurveyData()
     if not HopeAddon.charDb.attunements.guildSurvey then
         HopeAddon.charDb.attunements.guildSurvey = {
-            lastRequested = 0,
             responses = {},
         }
+    end
+    -- Clean up legacy persisted field
+    if HopeAddon.charDb.attunements.guildSurvey.lastRequested then
+        HopeAddon.charDb.attunements.guildSurvey.lastRequested = nil
     end
     return HopeAddon.charDb.attunements.guildSurvey
 end
